@@ -23,7 +23,7 @@ include_directories("${PROJECT_SOURCE_DIR}")
 #
 
 
-list(APPEND sharedlib src/exshared/exshared.cpp)
+list(APPEND sharedlib src/exshared/exshared.cpp src/exshared/pure.c)
 list(APPEND staticlib src/exstatic/exstatic.cpp)
 
 

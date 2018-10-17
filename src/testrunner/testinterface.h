@@ -6,8 +6,7 @@ extern "C" {
 
 typedef struct ITesting ITesting;
 struct ITesting {
-public:
-    virtual void Error(int code) = 0;
+    void (*Error)(int code);
 };
 
 #ifdef __cplusplus

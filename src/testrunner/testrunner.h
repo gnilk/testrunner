@@ -7,9 +7,13 @@
 #include "testinterface.h"
 #include <string>
 
-class TestGW : public ITesting {
+class TestGW {
 public:
-    virtual void Error(int code);
+    TestGW();
+    ITesting *Gateway() { return tgw; }
+    void Error(int code);
+private:
+    ITesting *tgw;
 };
 
 class ModuleTestRunner {

@@ -36,8 +36,8 @@ extern "C" {
 	}
 	void test_main(void *param) {
 		ITesting *t = (ITesting *)param;
-		t->Error(42);
 		printf("test_main, got called\n");
+		t->Error(42);
 	}
 
 }
