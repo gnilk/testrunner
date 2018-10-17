@@ -45,9 +45,7 @@ void ModuleTestRunner::ExecuteTests() {
 
     PrepareTests(globals, modules);
 
-    //
-    // Filtering in global tests is a bit different as the test func has no module.
-    //
+    // 1) call test_main which is used to initalized anything shared between tests
     pLogger->Debug("Executing test main");
     for (auto f:globals) {
         if (f->IsGlobalMain()) {
@@ -55,30 +53,30 @@ void ModuleTestRunner::ExecuteTests() {
         }
     }
 
-    pLogger->Debug("Executing global tests");
+    // 2) all other global scope tests
+    // Filtering in global tests is a bit different as the test func has no module.
+    //
     if (Config::Instance()->testGlobals) {
+        pLogger->Debug("Executing global tests");
         for (auto f:globals) {
             ExecuteTestFunc(f);
         }
     }
 
     //
-    // This does not execute according to module specification
+    // 3) all modules, executing according to cmd line module specification
     //
     pLogger->Debug("Executing module tests");
-    for (auto f:modules) {
-        bool execute = false;
-        for(auto m:Config::Instance()->modules) {
-            if (m == "-") {
-                execute = true;
-                break;
-            } else if (m == f->moduleName) {
-                execute = true;
-                break;
+    for (auto m:Config::Instance()->modules) {
+        for (auto f:modules) {
+            // Already executed?
+            if (f->Executed()) {
+                continue;
             }
-        }
-        if (execute) {
-            ExecuteTestFunc(f);
+
+            if ((m == "-") || (m == f->moduleName)) {
+                ExecuteTestFunc(f);
+            }
         }
     }
 }
