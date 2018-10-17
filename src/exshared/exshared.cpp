@@ -2,6 +2,7 @@
 // Example of shared library with test interface
 //
 #include <stdio.h>
+#include "../testrunner/testinterface.h"
 
 extern "C" {
 	void test_shared_main(void *param) {
@@ -34,6 +35,8 @@ extern "C" {
 		printf("test_shared_dispose_and_love, got called\n");
 	}
 	void test_main(void *param) {
+		ITesting *t = (ITesting *)param;
+		t->Error(42);
 		printf("test_main, got called\n");
 	}
 

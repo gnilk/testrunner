@@ -3,31 +3,13 @@
 #include "config.h"
 #include "module.h"
 #include "logger.h"
+#include "testfunc.h"
+#include "testinterface.h"
 #include <string>
 
-class TestFunc {
+class TestGW : public ITesting {
 public:
-    TestFunc() {
-        isExecuted = false;
-    }
-    bool IsGlobal() {
-        return (moduleName == "-");
-    }
-    bool IsGlobalMain() {
-        return (IsGlobal() && (caseName == Config::Instance()->testMain));
-    }
-    void SetExecuted() {
-        isExecuted = true;
-    }
-    bool Executed() {
-        return isExecuted;
-    }
-public:
-    std::string symbolName;
-    std::string moduleName;
-    std::string caseName;
-private:
-    bool isExecuted;
+    virtual void Error(int code);
 };
 
 class ModuleTestRunner {
@@ -35,9 +17,11 @@ public:
     ModuleTestRunner(IModule *module);
     void ExecuteTests();
 private:
-    void ExecuteSingleTest(std::string funcName, std::string moduleName, std::string caseName);
-    void ExecuteTestFunc(TestFunc *f);
+//    void ExecuteSingleTest(std::string funcName, std::string moduleName, std::string caseName);
+    void ExecuteTest(TestFunc *f);
     void PrepareTests(std::vector<TestFunc *> &globals, std::vector<TestFunc *> &modules);
+    TestFunc *CreateTestFunc(std::string sym);
+
 private:
     IModule *module;
     gnilk::ILogger *pLogger;

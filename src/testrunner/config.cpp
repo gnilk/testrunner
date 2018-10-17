@@ -17,6 +17,7 @@ Config *Config::Instance() {
 Config::Config() {
     // set default
     verbose = 0;        // Not verbose
+    testsExecuted = 0;
     inputs.push_back(".");    // Search current directory
     modules.push_back("-");
     version = "0.1";

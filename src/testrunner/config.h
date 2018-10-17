@@ -13,6 +13,7 @@ public:
     void Dump();
 public:
     int verbose;
+    int testsExecuted;
     std::vector<std::string> modules;
     std::vector<std::string> inputs;
     std::string version;

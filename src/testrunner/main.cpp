@@ -111,16 +111,21 @@ int main(int argc, char **argv) {
     pLogger = Config::Instance()->pLogger;
     ParseArguments(argc, argv);
 
-//    std::string testImageName("lib/libexshared.dylib");
 
     for(auto x:Config::Instance()->inputs) {
         Module module;
-        pLogger->Info("Testing module %s", x.c_str());
+        pLogger->Info("Executing tests for %s", x.c_str());
         if (module.Scan(x)) {            
             RunTestsForModule(module);
         } else {
             pLogger->Error("Scan failed on '%s'", x.c_str());
         }
     }
+
+    if (Config::Instance()->verbose > 0) {
+        printf("-------------------\n");
+        printf("Tests Executed: %d\n", Config::Instance()->testsExecuted);
+    }
+
     return 0;
 }
