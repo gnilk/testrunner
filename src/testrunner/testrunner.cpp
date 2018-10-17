@@ -14,26 +14,6 @@ ModuleTestRunner::ModuleTestRunner(IModule *module) {
     this->pLogger = gnilk::Logger::GetLogger("TestRunner");
 }
 
-/*
-void ModuleTestRunner::ExecuteSingleTest(std::string funcName, std::string moduleName, std::string caseName) {
-        pLogger->Debug("Executing test: %s", caseName.c_str());
-        pLogger->Debug("  Module: %s", moduleName.c_str());
-        pLogger->Debug("  Case..: %s", caseName.c_str());
-        pLogger->Debug("  Export: %s", funcName.c_str());
-
-        PTESTFUNC pFunc = (PTESTFUNC)module->FindExportedSymbol(funcName);
-        if (pFunc != NULL) {
-            pFunc(NULL);
-        }
-}
-
-*/
-void ModuleTestRunner::ExecuteTest(TestFunc *f) {
-    if (!f->Executed()) {
-        f->Execute(module);
-        Config::Instance()->testsExecuted++;
-    }
-}
 
 
 //
@@ -96,6 +76,14 @@ void ModuleTestRunner::ExecuteTests() {
     pLogger->Debug("Done: module tests\n\n");
 
 }
+
+void ModuleTestRunner::ExecuteTest(TestFunc *f) {
+    if (!f->Executed()) {
+        f->Execute(module);
+        Config::Instance()->testsExecuted++;
+    }
+}
+
 
 //
 // PrepareTests, creates test functions and sorts the tests into global and/or module based tests

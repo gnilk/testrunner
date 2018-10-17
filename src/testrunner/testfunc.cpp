@@ -2,56 +2,10 @@
 #include "module.h"
 #include "config.h"
 #include "testrunner.h"
+#include "responseproxy.h"
 #include <string>
 #include <pthread.h>
 #include <map>
-
-//
-// WIP - test interface per thread
-//
-
-static void int_tgw_error(int code);
-static std::map<pthread_t, TestGW *> tgwLookup;
-TestGW *GetTestGW();
-
-TestGW::TestGW() {
-    this->tgw = (ITesting *)malloc(sizeof(ITesting));
-    this->tgw->Error = int_tgw_error;
-}
-
-void TestGW::Error(int code) {
-    printf("TestGW::Error: %d\n", code);
-}
-
-static void int_tgw_error(int code) {
-    //
-    // Need: std::map<pthread_id(),TestGW *> tgwLoopkup;
-    //
-    TestGW *tgw = GetTestGW();
-    printf("** TID: 0x%.8x, int_tgw_error: %d\n", pthread_self(), code);
-    tgw->Error(code);
-}
-
-//
-// GetTestGW - returns a test gateway, if one does not exists for the thread one will be allocated
-//
-TestGW *GetTestGW() {
-    pthread_t tid = pthread_self();
-
-    if (tgwLookup.find(tid) == tgwLookup.end()) {
-        printf("\n** GetTestGW, allocating with tid: 0x%.8x\n", tid);
-        TestGW *tgw = new TestGW();
-        tgwLookup.insert(std::pair<pthread_t, TestGW *>(tid, tgw));
-        return tgw;
-    } else {
-        printf("\n** GetTestGW, return existing (tid: 0x%.8x)\n", tid);
-    }
-    return tgwLookup[tid];
-
-}
-//
-// WIP - End of test interface per therad
-//
 
 
 TestFunc::TestFunc() {
@@ -84,9 +38,32 @@ void TestFunc::Execute(IModule *module) {
     }
 
     PTESTFUNC pFunc = (PTESTFUNC)module->FindExportedSymbol(symbolName);
+
     if (pFunc != NULL) {
-        
-        pFunc((void *)GetTestGW()->Gateway());
+        //
+        // Actual execution of test function and handling of result
+        //
+
+        // 1) Setup test response proxy
+        TestResponseProxy *trp = TestResponseProxy::GetInstance();
+        trp->Begin(symbolName);
+        printf("=== RUN  \t%s\n",symbolName.c_str());
+
+        // 2) call function to be tested
+        pFunc((void *)trp->Proxy());
+
+        // 3) Stop test
+        trp->End();
+
+        // 4) Gather data from test
+        int numError = trp->Errors();
+        kTestResult testResult = trp->Result();
+        double tElapsedSec = trp->ElapsedTimeInSec();
+        if (testResult != kTestResult_Pass) {
+            printf("=== FAIL:\t%s (%.3f sec) - %d\n",symbolName.c_str(), tElapsedSec, testResult);
+        } else {
+            printf("=== PASS:\t%s (%.3f sec)\n",symbolName.c_str(),tElapsedSec);
+        }
     }
     SetExecuted();
 

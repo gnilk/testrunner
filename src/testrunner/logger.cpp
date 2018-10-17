@@ -628,7 +628,7 @@ static char *lMessageClassNames[] =
 	"INFO",			// 2
 	"WARN",			// 3
 	"ERROR",		// 4
-	"CRITICAL"		// 5
+	"CRITICAL",		// 5
 	"CUSTOM"		// 6
 };
 const char *Logger::MessageClassNameFromInt(int mc) 

@@ -39,7 +39,7 @@ add_library(exstatic STATIC ${staticlib})
 
 
 # osx testing
-add_executable(trun src/testrunner/main.cpp src/testrunner/module.cpp src/testrunner/strutil.cpp src/testrunner/testrunner.cpp src/testrunner/logger.cpp src/testrunner/config.cpp src/testrunner/testfunc.cpp)
+add_executable(trun src/testrunner/main.cpp src/testrunner/module.cpp src/testrunner/strutil.cpp src/testrunner/testrunner.cpp src/testrunner/logger.cpp src/testrunner/config.cpp src/testrunner/testfunc.cpp src/testrunner/responseproxy.cpp src/testrunner/timer.cpp)
 target_include_directories(trun PRIVATE inc)
 target_include_directories(trun PRIVATE .)
 

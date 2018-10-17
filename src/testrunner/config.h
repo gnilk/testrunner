@@ -14,6 +14,7 @@ public:
 public:
     int verbose;
     int testsExecuted;
+    uint32_t responseMsgByteLimit;
     std::vector<std::string> modules;
     std::vector<std::string> inputs;
     std::string version;

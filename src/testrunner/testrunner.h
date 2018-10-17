@@ -4,17 +4,7 @@
 #include "module.h"
 #include "logger.h"
 #include "testfunc.h"
-#include "testinterface.h"
 #include <string>
-
-class TestGW {
-public:
-    TestGW();
-    ITesting *Gateway() { return tgw; }
-    void Error(int code);
-private:
-    ITesting *tgw;
-};
 
 class ModuleTestRunner {
 public:
