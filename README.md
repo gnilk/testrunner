@@ -29,13 +29,14 @@ Example:
 `=== FAIL:	_test_shared_a_error, 0.000 sec, 1`
 
 There are 5 result codes:
-0, test pass (`kTestResult_Pass`)
-1, test fail (`kTestResult_TestFail`)
-2, module fail (`kTestResult_ModuleFail`)
-3, all fail (`kTestResult_AllFail`)
-4, not executed (`kTestResult_NotExecuted`) - not used
+0) test pass (`kTestResult_Pass`)
+1) test fail (`kTestResult_TestFail`)
+2) module fail (`kTestResult_ModuleFail`)
+3) all fail (`kTestResult_AllFail`)
+4) not executed (`kTestResult_NotExecuted`) - not used
 
 _module fail_ means that a test case aborted any further testing of the current module.
+
 _all fail_ means that a test case aborted all further testing for the current dylib.
 
 ### ITesting interface
@@ -140,8 +141,7 @@ Be silent (`-s`) and continue even if failing `c` (module) `C` (global) test onl
 `bin/trun -scC -m shared .`
 
 Output:
-`
-build$ bin/trun -scC -m shared
+`build$ bin/trun -scC -m shared
 
 === RUN  	_test_main
 === PASS:	_test_main, 0.000 sec, 0
