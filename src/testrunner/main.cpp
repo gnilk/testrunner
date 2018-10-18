@@ -126,15 +126,18 @@ int main(int argc, char **argv) {
 
     Timer timer;
     timer.Reset();
+
+    // Process all inputs
     for(auto x:Config::Instance()->inputs) {
         Module module;
-        pLogger->Info("Executing tests for %s", x.c_str());
         if (module.Scan(x)) {            
+            pLogger->Info("Executing tests for %s", x.c_str());
             RunTestsForModule(module);
         } else {
             pLogger->Error("Scan failed on '%s'", x.c_str());
         }
     }
+
     double tSeconds = timer.Sample();
     if (Config::Instance()->verbose > 0) {
         printf("-------------------\n");
