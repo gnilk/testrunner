@@ -165,6 +165,9 @@ TestResult *ModuleTestRunner::ExecuteTest(TestFunc *f) {
     printf("=== RUN  \t%s\n",f->symbolName.c_str());
     TestResult *result = f->Execute(module);
     Config::Instance()->testsExecuted++;
+    if (result->Result() != kTestResult_Pass) {
+        Config::Instance()->testsFailed++;
+    }
     return result;
 }
 
@@ -172,9 +175,9 @@ void ModuleTestRunner::HandleTestResult(TestResult *result) {
         int numError = result->Errors();
         double tElapsedSec = result->ElapsedTimeSec();
         if (result->Result() != kTestResult_Pass) {
-            printf("=== FAIL:\t%s (%.3f sec) - %d\n",result->SymbolName().c_str(), tElapsedSec, result->Result());
+            printf("=== FAIL:\t%s, %.3f sec, %d\n",result->SymbolName().c_str(), tElapsedSec, result->Result());
         } else {
-            printf("=== PASS:\t%s (%.3f sec)\n",result->SymbolName().c_str(),tElapsedSec);
+            printf("=== PASS:\t%s, %.3f sec, %d\n",result->SymbolName().c_str(),tElapsedSec, result->Result());
         }
 
 }

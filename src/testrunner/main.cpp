@@ -4,6 +4,7 @@
 #include "strutil.h"
 #include "config.h"
 #include "timer.h"
+#include "dirscanner.h"
 
 #include <iostream>
 #include <string>
@@ -25,6 +26,7 @@ static void Help() {
     printf("  -d  Dump configuration before starting\n");
     printf("  -g  No globals, skip globals (default: off)\n");
     printf("  -s  Silent, surpress messages from test cases (default: off)\n");
+    printf("  -r  Discard return from test case (default: off)\n");
     printf("  -c  Continue on module failure (default: off)\n");
     printf("  -C  Continue on total failure (default: off)\n");
     printf("  -m <list> List of modules to test (default: '-' (all))\n");
@@ -54,6 +56,9 @@ static void ParseArguments(int argc, char **argv) {
             int j=1;            
             while((argv[i][j]!='\0')) {
                 switch(argv[i][j]) {
+                    case 'r' :
+                        Config::Instance()->discardTestReturnCode = true;
+                        break;
                     case 'c' :
                         Config::Instance()->skipOnModuleFail = false;
                         break;
@@ -118,31 +123,40 @@ static void RunTestsForModule(Module &module) {
     testRunner.ExecuteTests();
 }
 
+static void ProcessInput(std::vector<std::string> &inputs) {
+    // Process all inputs
+    for(auto x:inputs) {
+        if (DirScanner::IsDirectory(x)) {
+            DirScanner dirscan;
+            std::vector<std::string> subs = dirscan.Scan(x, true);
+            ProcessInput(subs);
+        } else {
+            Module module;
+            if (module.Scan(x)) {            
+                pLogger->Info("Executing tests for %s", x.c_str());
+                RunTestsForModule(module);
+            } else {
+                pLogger->Error("Scan failed on '%s'", x.c_str());
+            }
+        }
+    }
+}
+
 int main(int argc, char **argv) {
     // Cache the logger - also creates the Config singleton with default values
     pLogger = Config::Instance()->pLogger;
     ParseArguments(argc, argv);
 
-
     Timer timer;
+    
     timer.Reset();
-
-    // Process all inputs
-    for(auto x:Config::Instance()->inputs) {
-        Module module;
-        if (module.Scan(x)) {            
-            pLogger->Info("Executing tests for %s", x.c_str());
-            RunTestsForModule(module);
-        } else {
-            pLogger->Error("Scan failed on '%s'", x.c_str());
-        }
-    }
-
+    ProcessInput(Config::Instance()->inputs);
     double tSeconds = timer.Sample();
-    if (Config::Instance()->verbose > 0) {
-        printf("-------------------\n");
-        printf("Tests Executed: %d (%.3f sec)\n", Config::Instance()->testsExecuted, tSeconds);
-    }
+
+    printf("-------------------\n");
+    printf("Duration......: %.3f sec\n", tSeconds);
+    printf("Tests Executed: %d\n", Config::Instance()->testsExecuted);
+    printf("Tests Failed..: %d\n", Config::Instance()->testsFailed);
 
     return 0;
 }

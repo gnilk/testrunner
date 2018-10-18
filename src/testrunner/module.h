@@ -1,6 +1,7 @@
 #pragma once
 
 #include "logger.h"
+#include "testinterface.h"
 
 #include <stdint.h>
 #include <vector>
@@ -18,7 +19,7 @@ extern "C"
 	#endif
 
 
-    typedef void (CALLCONV *PTESTFUNC)(void *param);
+    typedef int (CALLCONV *PTESTFUNC)(void *param);
 } 
 
 // TODO: Move to generic include (platform independent)

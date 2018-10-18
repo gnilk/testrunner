@@ -18,6 +18,7 @@ Config::Config() {
     // set default
     verbose = 0;        // Not verbose
     testsExecuted = 0;
+    testsFailed = 0;
     inputs.push_back(".");    // Search current directory
     modules.push_back("-");
     version = "0.1";
@@ -27,6 +28,7 @@ Config::Config() {
     testLogFilter = false;
     skipOnModuleFail = true;
     stopOnAllFail = true;
+    discardTestReturnCode = false;
 
     responseMsgByteLimit = 1024 * 8;
     
@@ -52,6 +54,7 @@ void Config::Dump() {
     printf("  Response Message Size Limit: %d\n", responseMsgByteLimit);
     printf("  Skip rest on module failure: %s\n", skipOnModuleFail?"yes":"no");
     printf("  Stop on full failure: %s\n", stopOnAllFail?"yes":"no");
+    printf("  Discard test return code: %s\n", discardTestReturnCode?"yes":"no");
     printf("  Modules:\n");
     for(auto x:modules) {
         printf("    %s\n", x.c_str());

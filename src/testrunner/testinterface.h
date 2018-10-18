@@ -5,6 +5,12 @@
 extern "C" {
 #endif
 
+// Return codes from test functions
+#define kTR_Pass 0x00
+#define kTR_Fail 0x10
+#define kTR_FailModule 0x20
+#define kTR_FailAll 0x30
+
 //
 // Callback interface for test reporting
 //

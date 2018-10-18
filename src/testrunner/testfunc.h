@@ -23,4 +23,6 @@ public:
 private:
     bool isExecuted;
     gnilk::ILogger *pLogger;
+    void HandleTestReturnCode(int code, TestResult *testResult);
+
 };

@@ -53,8 +53,7 @@ TestResult *TestFunc::Execute(IModule *module) {
         trp->Begin(symbolName, moduleName);
 
         // 2) call function to be tested
-        pFunc((void *)trp->Proxy());
-
+        int testReturnCode = pFunc((void *)trp->Proxy());
         // 3) Stop test
         trp->End();
 
@@ -62,10 +61,35 @@ TestResult *TestFunc::Execute(IModule *module) {
         testResult->SetResult(trp->Result());
         testResult->SetNumberOfErrors(trp->Errors());
         testResult->SetTimeElapsedSec(trp->ElapsedTimeInSec());
+        
+        // Overwrite the result based on return code
+        HandleTestReturnCode(testReturnCode, testResult);
     }
     SetExecuted();
 
     return testResult;
+}
+void TestFunc::HandleTestReturnCode(int code, TestResult *testResult) {
+    // Discard return code???
+    if (Config::Instance()->discardTestReturnCode) {
+        pLogger->Debug("Discarding return code\n");
+        return;
+    }
+    // Let's overwrite test result from the test
+    switch(code) {
+        case kTR_Pass :
+            testResult->SetResult(kTestResult_Pass);
+            break;
+        case kTR_Fail :
+            testResult->SetResult(kTestResult_TestFail);
+            break;
+        case kTR_FailModule :
+            testResult->SetResult(kTestResult_ModuleFail);
+            break;
+        case kTR_FailAll :
+            testResult->SetResult(kTestResult_AllFail);
+            break;
+    }
 }
 
 void TestFunc::SetExecuted() {

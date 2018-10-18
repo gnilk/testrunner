@@ -14,6 +14,7 @@ public:
 public:
     int verbose;
     int testsExecuted;
+    int testsFailed;
     uint32_t responseMsgByteLimit;
     std::vector<std::string> modules;
     std::vector<std::string> inputs;
@@ -24,6 +25,7 @@ public:
     bool testLogFilter;
     bool skipOnModuleFail;
     bool stopOnAllFail;
+    bool discardTestReturnCode;
     gnilk::ILogger *pLogger;
 private:
     Config();
