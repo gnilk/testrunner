@@ -22,6 +22,8 @@ public:
     std::string testMain;
     bool testGlobals;
     bool testLogFilter;
+    bool skipOnModuleFail;
+    bool stopOnAllFail;
     gnilk::ILogger *pLogger;
 private:
     Config();

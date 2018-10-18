@@ -3,6 +3,7 @@
 #include "module.h"
 #include "strutil.h"
 #include "config.h"
+#include "timer.h"
 
 #include <iostream>
 #include <string>
@@ -21,8 +22,11 @@ static void Help() {
     printf("Usage: trun [options] input\n");
     printf("Options: \n");
     printf("  -v  Verbose, increase for more!\n");
-    printf("  -c  Dump configuration before starting\n");
+    printf("  -d  Dump configuration before starting\n");
     printf("  -g  No globals, skip globals (default: off)\n");
+    printf("  -s  Silent, surpress messages from test cases (default: off)\n");
+    printf("  -c  Continue on module failure (default: off)\n");
+    printf("  -C  Continue on total failure (default: off)\n");
     printf("  -m <list> List of modules to test (default: '-' (all))\n");
     printf("\n");
     printf("Input can be either directory or files (dylib)\n");
@@ -51,7 +55,16 @@ static void ParseArguments(int argc, char **argv) {
             while((argv[i][j]!='\0')) {
                 switch(argv[i][j]) {
                     case 'c' :
+                        Config::Instance()->skipOnModuleFail = false;
+                        break;
+                    case 'C' :
+                        Config::Instance()->stopOnAllFail = false;
+                        break;
+                    case 'd' :
                         dumpConfig = true;
+                        break;
+                    case 's' :
+                        Config::Instance()->testLogFilter = true;
                         break;
                     case 'g' :
                         Config::Instance()->testGlobals = false;
@@ -111,6 +124,8 @@ int main(int argc, char **argv) {
     ParseArguments(argc, argv);
 
 
+    Timer timer;
+    timer.Reset();
     for(auto x:Config::Instance()->inputs) {
         Module module;
         pLogger->Info("Executing tests for %s", x.c_str());
@@ -120,10 +135,10 @@ int main(int argc, char **argv) {
             pLogger->Error("Scan failed on '%s'", x.c_str());
         }
     }
-
+    double tSeconds = timer.Sample();
     if (Config::Instance()->verbose > 0) {
         printf("-------------------\n");
-        printf("Tests Executed: %d\n", Config::Instance()->testsExecuted);
+        printf("Tests Executed: %d (%.3f sec)\n", Config::Instance()->testsExecuted, tSeconds);
     }
 
     return 0;

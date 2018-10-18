@@ -3,6 +3,7 @@
 #include "config.h"
 #include "module.h"
 #include "logger.h"
+#include "testresult.h"
 #include <string>
 
 // Internal - used by test runner...
@@ -12,7 +13,7 @@ public:
     TestFunc(std::string symbolName, std::string moduleName, std::string caseName);
     bool IsGlobal();
     bool IsGlobalMain();
-    void Execute(IModule *module);
+    TestResult *Execute(IModule *module);
     void SetExecuted();
     bool Executed();
 public:

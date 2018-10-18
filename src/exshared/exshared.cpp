@@ -30,7 +30,7 @@ extern "C" {
 		t->Debug(__LINE__, __FILE__, "test_mod_main, got called\n");
 	}
 	void test_mod_create(ITesting *t) {
-		t->Debug(__LINE__, __FILE__, "test_mod_create, got called\n");
+		t->Abort(__LINE__, __FILE__, "test_mod_create, got called\n");
 	}
 	void test_mod_dispose(ITesting *t) {
 		t->Debug(__LINE__, __FILE__, "test_mod_dispose, got called\n");
@@ -46,7 +46,7 @@ extern "C" {
 	void test_main(void *param) {
 		ITesting *t = (ITesting *)param;
 		t->Debug(__LINE__, __FILE__, "test_main, got called: error is: %p\n", t->Error);
-		t->Error(__LINE__, __FILE__,"failed system initialization, missing resources..");
+		t->Fatal(__LINE__, __FILE__,"failed system initialization, missing resources..");
 	}
 
 }

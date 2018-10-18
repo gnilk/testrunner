@@ -26,13 +26,17 @@ bool TestFunc::IsGlobal() {
 bool TestFunc::IsGlobalMain() {
     return (IsGlobal() && (caseName == Config::Instance()->testMain));
 }
-void TestFunc::Execute(IModule *module) {
+TestResult *TestFunc::Execute(IModule *module) {
     pLogger->Debug("Executing test: %s", caseName.c_str());
     pLogger->Debug("  Module: %s", moduleName.c_str());
     pLogger->Debug("  Case..: %s", caseName.c_str());
     pLogger->Debug("  Export: %s", symbolName.c_str());
 
-    // ?Executed, issue warning, but proceed..
+
+    //kTestResult testResult = kTestResult_NotExecuted;
+    TestResult *testResult = new TestResult(symbolName);
+
+    // Executed?, issue warning, but proceed..
     if (Executed()) {
         pLogger->Warning("Test '%s' already executed - double execution is either bug or not advised!!", symbolName.c_str());
     }
@@ -47,7 +51,6 @@ void TestFunc::Execute(IModule *module) {
         // 1) Setup test response proxy
         TestResponseProxy *trp = TestResponseProxy::GetInstance();
         trp->Begin(symbolName, moduleName);
-        printf("=== RUN  \t%s\n",symbolName.c_str());
 
         // 2) call function to be tested
         pFunc((void *)trp->Proxy());
@@ -56,18 +59,13 @@ void TestFunc::Execute(IModule *module) {
         trp->End();
 
         // 4) Gather data from test
-        int numError = trp->Errors();
-        kTestResult testResult = trp->Result();
-        double tElapsedSec = trp->ElapsedTimeInSec();
-        if (testResult != kTestResult_Pass) {
-            printf("=== FAIL:\t%s (%.3f sec) - %d\n",symbolName.c_str(), tElapsedSec, testResult);
-        } else {
-            printf("=== PASS:\t%s (%.3f sec)\n",symbolName.c_str(),tElapsedSec);
-        }
-        printf("\n");
+        testResult->SetResult(trp->Result());
+        testResult->SetNumberOfErrors(trp->Errors());
+        testResult->SetTimeElapsedSec(trp->ElapsedTimeInSec());
     }
     SetExecuted();
 
+    return testResult;
 }
 
 void TestFunc::SetExecuted() {

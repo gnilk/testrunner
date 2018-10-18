@@ -25,6 +25,9 @@ Config::Config() {
     testMain = "main";
     testGlobals = true;
     testLogFilter = false;
+    skipOnModuleFail = true;
+    stopOnAllFail = true;
+
     responseMsgByteLimit = 1024 * 8;
     
     //
@@ -45,8 +48,10 @@ void Config::Dump() {
     printf("  Verbose....: %s (%d)\n",verbose?"yes":"no", verbose);
     printf("  TestMain...: %s\n", testMain.c_str());
     printf("  TestGlobals: %s\n", testGlobals?"yes":"no");
-    printf("  Test Log Filter: %s\n", testLogFilter?"yes":"no");
+    printf("  TestCase Log Filter: %s\n", testLogFilter?"yes":"no");
     printf("  Response Message Size Limit: %d\n", responseMsgByteLimit);
+    printf("  Skip rest on module failure: %s\n", skipOnModuleFail?"yes":"no");
+    printf("  Stop on full failure: %s\n", stopOnAllFail?"yes":"no");
     printf("  Modules:\n");
     for(auto x:modules) {
         printf("    %s\n", x.c_str());

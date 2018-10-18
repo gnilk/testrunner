@@ -49,7 +49,10 @@ void TestResponseProxy::Begin(std::string symbolName, std::string moduleName) {
     // Apply verbose filtering to log output from test cases or not??
     if (!Config::Instance()->testLogFilter) {
         pLogger->Enable(gnilk::Logger::kFlags_PassThrough);
-    }
+    } else {
+        pLogger->Enable(gnilk::Logger::kFlags_BlockAll);
+    } 
+    
 
     timer.Reset();
 }

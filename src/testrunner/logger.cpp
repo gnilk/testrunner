@@ -122,6 +122,9 @@ bool LogBaseSink::WithinRange(int iDbgLevel)
 	if (flags & Logger::kFlags_PassThrough) {
 		return true;
 	}
+	if (flags & Logger::kFlags_BlockAll) {
+		return false;
+	}
 	int level = DBGLEVEL_MASK_LEVEL(iDbgLevel);
 	return (level>=properties.GetDebugLevel())?true:false; 
 }

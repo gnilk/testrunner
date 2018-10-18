@@ -6,7 +6,8 @@
 #include "testrunner.h"
 #include "logger.h"
 #include "config.h"
-
+#include "testresult.h"
+#include "timer.h"
 
 
 ModuleTestRunner::ModuleTestRunner(IModule *module) {
@@ -35,31 +36,92 @@ void ModuleTestRunner::ExecuteTests() {
     // Create and sort tests according to naming convention
     PrepareTests(globals, modules);
 
-    pLogger->Info("Executing All Tests\n\n");
+    Timer t;
 
+    t.Reset();
+    if (ExecuteMain(globals)) {
+        if (ExecuteGlobalTests(globals)) {
+            ExecuteModuleTests(modules);
+        }
+    }
+    double tSeconds = t.Sample();
+}
+
+//
+// Execute main test
+//
+bool ModuleTestRunner::ExecuteMain(std::vector<TestFunc *> &globals) {
     // 1) call test_main which is used to initalized anything shared between tests
+    bool bRes = true;
     pLogger->Info("Executing Main");
     for (auto f:globals) {
         if (f->IsGlobalMain()) {
-            ExecuteTest(f);        
+            TestResult *result = ExecuteTest(f);        
+            HandleTestResult(result);
+            if (result->Result() == kTestResult_AllFail) {
+                if (Config::Instance()->stopOnAllFail) {
+                    pLogger->Fatal("Total test failure, aborting");
+                    bRes = false;
+                }
+            }
         }
     }
-    pLogger->Debug("Done: test main\n\n");
+    pLogger->Info("Done: test main\n\n");
+    return bRes;
+}
 
+//
+// Execute any global test but main
+//
+bool ModuleTestRunner::ExecuteGlobalTests(std::vector<TestFunc *> &globals) {
     // 2) all other global scope tests
     // Filtering in global tests is a bit different as the test func has no module.
-    //
+
+    bool bRes = true;
     if (Config::Instance()->testGlobals) {
         pLogger->Info("Executing global tests");
         for (auto f:globals) {
-            ExecuteTest(f);
-        }
-    }
-    pLogger->Debug("Done: global tests\n\n");
+            // Already executed?
+            if (f->Executed()) {
+                continue;
+            }
 
+            TestResult *result = ExecuteTest(f);
+            HandleTestResult(result);
+            if ((result->Result() == kTestResult_AllFail) || (result->Result() == kTestResult_ModuleFail)) {
+                if (Config::Instance()->skipOnModuleFail) {
+                    pLogger->Critical("Module test failure, skipping remaining test cases in module");
+                    bRes = false;
+                    goto leave;
+                } else {
+                    pLogger->Critical("Module test failure, continue anyway (configuration)");
+                }
+            }
+
+            if (result->Result() == kTestResult_AllFail) {
+                if (Config::Instance()->stopOnAllFail) {
+                    pLogger->Fatal("Total test failure, aborting");
+                    bRes = false;
+                    goto leave;
+                } else {
+                    pLogger->Fatal("Total test failure, continue anyway (configuration)");
+                }
+            }
+        }
+leave:;
+        pLogger->Info("Done: global tests\n\n");
+    }
+    return bRes;
+}
+
+//
+// Execute and module test
+//
+bool ModuleTestRunner::ExecuteModuleTests(std::vector<TestFunc *> &modules) {
     //
     // 3) all modules, executing according to cmd line module specification
     //
+    bool bRes = true;
     pLogger->Info("Executing module tests");
     for (auto m:Config::Instance()->modules) {
         for (auto f:modules) {
@@ -67,23 +129,54 @@ void ModuleTestRunner::ExecuteTests() {
             if (f->Executed()) {
                 continue;
             }
-
+            // Execute global or if we match the module name
             if ((m == "-") || (m == f->moduleName)) {
-                ExecuteTest(f);
+                TestResult *result = ExecuteTest(f);
+                HandleTestResult(result);
+
+                if (result->Result() == kTestResult_ModuleFail) {
+                    if (Config::Instance()->skipOnModuleFail) {
+                        pLogger->Critical("Module test failure, skipping remaining test cases in module");
+                        break;
+                    } else {
+                        pLogger->Critical("Module test failure, continue anyway (configuration)");
+                    }
+                } else if (result->Result() == kTestResult_AllFail) {
+                    if (Config::Instance()->stopOnAllFail) {
+                        pLogger->Fatal("Total test failure, aborting");
+                        bRes = false;
+                        goto leave;   // Use goto to get status
+                    } else {
+                        pLogger->Fatal("Total test failure, continue anyway (configuration)");
+                    }
+                }
             }
+        } // modules
+    } // config->Modules
+leave:
+    pLogger->Info("Done: module tests\n\n");
+    return bRes;
+}
+
+
+TestResult *ModuleTestRunner::ExecuteTest(TestFunc *f) {
+    printf("\n");
+    printf("=== RUN  \t%s\n",f->symbolName.c_str());
+    TestResult *result = f->Execute(module);
+    Config::Instance()->testsExecuted++;
+    return result;
+}
+
+void ModuleTestRunner::HandleTestResult(TestResult *result) {
+        int numError = result->Errors();
+        double tElapsedSec = result->ElapsedTimeSec();
+        if (result->Result() != kTestResult_Pass) {
+            printf("=== FAIL:\t%s (%.3f sec) - %d\n",result->SymbolName().c_str(), tElapsedSec, result->Result());
+        } else {
+            printf("=== PASS:\t%s (%.3f sec)\n",result->SymbolName().c_str(),tElapsedSec);
         }
-    }
-    pLogger->Debug("Done: module tests\n\n");
 
 }
-
-void ModuleTestRunner::ExecuteTest(TestFunc *f) {
-    if (!f->Executed()) {
-        f->Execute(module);
-        Config::Instance()->testsExecuted++;
-    }
-}
-
 
 //
 // PrepareTests, creates test functions and sorts the tests into global and/or module based tests

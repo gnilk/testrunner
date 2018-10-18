@@ -263,9 +263,13 @@ namespace gnilk
 			kMCFatal = 600,
 		} MessageClass;
 
+		// Logger Flags - can be used to override sinklevel settings and other things
 		typedef enum {
 			kFlags_None = 0x0000,
+			// kFlags_PassThrough, messages printed regardless of sink-levels
 			kFlags_PassThrough = 0x0001,
+			// kFlags_BlockAll, all messages are blocked, Note: kFlags_PassThrough has higher priority	
+			kFlags_BlockAll = 0x0002,	
 		} kFlags;
 
 		typedef enum

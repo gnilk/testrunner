@@ -5,13 +5,8 @@
 #include "testinterface.h"
 #include "timer.h"
 #include "logger.h"
+#include "testresult.h"
 
-typedef enum {
-    kTestResult_Pass = 0,
-    kTestResult_TestFail = 1,
-    kTestResult_ModuleFail = 2,
-    kTestResult_AllFail = 3,        
-} kTestResult;
 
 class TestResponseProxy {
 public:
