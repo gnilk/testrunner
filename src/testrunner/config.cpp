@@ -24,6 +24,7 @@ Config::Config() {
     description = "C/C++ Unit Test Runner";
     testMain = "main";
     testGlobals = true;
+    testLogFilter = false;
     responseMsgByteLimit = 1024 * 8;
     
     //
@@ -44,6 +45,7 @@ void Config::Dump() {
     printf("  Verbose....: %s (%d)\n",verbose?"yes":"no", verbose);
     printf("  TestMain...: %s\n", testMain.c_str());
     printf("  TestGlobals: %s\n", testGlobals?"yes":"no");
+    printf("  Test Log Filter: %s\n", testLogFilter?"yes":"no");
     printf("  Response Message Size Limit: %d\n", responseMsgByteLimit);
     printf("  Modules:\n");
     for(auto x:modules) {

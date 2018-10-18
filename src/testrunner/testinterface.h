@@ -10,9 +10,14 @@ extern "C" {
 //
 typedef struct ITesting ITesting;
 struct ITesting {
-    void (*Error)(const char *format, ...); // Current test, proceed to next
-    void (*Fatal)(const char *format, ...); // Current test, stop module and proceed to next
-    void (*Abort)(const char *format, ...); // Current test, stop execution
+    // Just info output - doesn't affect test execution
+    void (*Debug)(int line, const char *file, const char *format, ...); 
+    void (*Info)(int line, const char *file, const char *format, ...); 
+    void (*Warning)(int line, const char *file, const char *format, ...); 
+    // Errors - affect test execution
+    void (*Error)(int line, const char *file, const char *format, ...); // Current test, proceed to next
+    void (*Fatal)(int line, const char *file, const char *format, ...); // Current test, stop module and proceed to next
+    void (*Abort)(int line, const char *file, const char *format, ...); // Current test, stop execution
 };
 
 #ifdef __cplusplus

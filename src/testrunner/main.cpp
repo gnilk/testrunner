@@ -97,7 +97,6 @@ next_argument:;
     if (dumpConfig) {
         Config::Instance()->Dump();
     }
-
 }
 
 static void RunTestsForModule(Module &module) {

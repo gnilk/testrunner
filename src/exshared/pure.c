@@ -4,7 +4,7 @@
 
 void test_pure_main(ITesting *t) {    
     printf("test_pure_main, got called\n");
-    t->Error("pure_main error message: %p",t);
+    t->Error(__LINE__, __FILE__,"pure_main error message: %p",t);
 
 }
 void test_pure_create(void *param) {

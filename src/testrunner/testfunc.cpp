@@ -46,7 +46,7 @@ void TestFunc::Execute(IModule *module) {
 
         // 1) Setup test response proxy
         TestResponseProxy *trp = TestResponseProxy::GetInstance();
-        trp->Begin(symbolName);
+        trp->Begin(symbolName, moduleName);
         printf("=== RUN  \t%s\n",symbolName.c_str());
 
         // 2) call function to be tested
@@ -64,6 +64,7 @@ void TestFunc::Execute(IModule *module) {
         } else {
             printf("=== PASS:\t%s (%.3f sec)\n",symbolName.c_str(),tElapsedSec);
         }
+        printf("\n");
     }
     SetExecuted();
 

@@ -21,6 +21,7 @@ public:
     std::string description;
     std::string testMain;
     bool testGlobals;
+    bool testLogFilter;
     gnilk::ILogger *pLogger;
 private:
     Config();

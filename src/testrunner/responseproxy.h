@@ -4,6 +4,7 @@
 #include <string>
 #include "testinterface.h"
 #include "timer.h"
+#include "logger.h"
 
 typedef enum {
     kTestResult_Pass = 0,
@@ -18,7 +19,7 @@ public:
 
     ITesting *Proxy() { return trp; }
 
-    void Begin(std::string symbolName);
+    void Begin(std::string symbolName, std::string moduleName);
     void End();
     double ElapsedTimeInSec();
     int Errors();
@@ -26,9 +27,12 @@ public:
 
 
 public: // ITesting mirroring
-    void Error(std::string message);    
-    void Fatal(std::string message);
-    void Abort(std::string message);
+    void Debug(int line, const char *file, std::string message);    
+    void Info(int line, const char *file, std::string message);    
+    void Warning(int line, const char *file, std::string message);    
+    void Error(int line, const char *file, std::string message);    
+    void Fatal(int line, const char *file, std::string message);
+    void Abort(int line, const char *file, std::string message);
 
 private:
     TestResponseProxy();
@@ -38,5 +42,9 @@ private:
     kTestResult testResult;
     int errorCount;
     std::string symbolName; // current symbol under test
+    std::string moduleName; // current module under test
+    gnilk::ILogger *pLogger;
+
+    
     ITesting *trp;
 };

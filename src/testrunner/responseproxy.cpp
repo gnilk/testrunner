@@ -16,10 +16,14 @@
 #include <map>
 #include <string>
 
-static void int_trp_error(const char *format, ...);
-static void int_trp_fatal(const char *format, ...);
-static void int_trp_abort(const char *format, ...);
+static void int_trp_debug(int line, const char *file, const char *format, ...);
+static void int_trp_info(int line, const char *file, const char *format, ...);
+static void int_trp_warning(int line, const char *file, const char *format, ...);
+static void int_trp_error(int line, const char *file, const char *format, ...);
+static void int_trp_fatal(int line, const char *file, const char *format, ...);
+static void int_trp_abort(int line, const char *file, const char *format, ...);
 
+// Holds a calling proxy per thread
 static std::map<pthread_t, TestResponseProxy *> trpLookup;
 
 //
@@ -27,16 +31,26 @@ static std::map<pthread_t, TestResponseProxy *> trpLookup;
 //
 TestResponseProxy::TestResponseProxy() {
     this->trp = (ITesting *)malloc(sizeof(ITesting));
+    this->trp->Debug = int_trp_debug;
+    this->trp->Info = int_trp_info;
+    this->trp->Warning = int_trp_warning;
     this->trp->Error = int_trp_error;
     this->trp->Fatal = int_trp_fatal;
     this->trp->Abort = int_trp_abort;
 }
 
-void TestResponseProxy::Begin(std::string symbolName) {
-    symbolName = symbolName;
+void TestResponseProxy::Begin(std::string symbolName, std::string moduleName) {
+    this->symbolName = symbolName;
+    this->moduleName = moduleName;
     errorCount = 0;
     testResult = kTestResult_Pass;
-    gnilk::ILogger *pLogger = gnilk::Logger::GetLogger(symbolName.c_str());
+    pLogger = gnilk::Logger::GetLogger(moduleName.c_str());
+
+    // Apply verbose filtering to log output from test cases or not??
+    if (!Config::Instance()->testLogFilter) {
+        pLogger->Enable(gnilk::Logger::kFlags_PassThrough);
+    }
+
     timer.Reset();
 }
 
@@ -47,6 +61,8 @@ double TestResponseProxy::ElapsedTimeInSec() {
 void TestResponseProxy::End() {
     tElapsed = timer.Sample();
     symbolName.clear();    
+    moduleName.clear();
+    pLogger = NULL;
 }
 
 int TestResponseProxy::Errors() {
@@ -60,29 +76,41 @@ kTestResult TestResponseProxy::Result() {
 
 
 // ITesting mirror
+void TestResponseProxy::Debug(int line, const char *file, std::string message) {
+    //gnilk::ILogger *pLogger = gnilk::Logger::GetLogger(moduleName.c_str());
+    pLogger->Debug("%s:%d:%s", file, line, message.c_str());
+}
+void TestResponseProxy::Info(int line, const char *file, std::string message) {
+    //gnilk::ILogger *pLogger = gnilk::Logger::GetLogger(moduleName.c_str());
+    pLogger->Info("%s:%d:%s", file, line, message.c_str());
+}
+void TestResponseProxy::Warning(int line, const char *file, std::string message) {
+    //gnilk::ILogger *pLogger = gnilk::Logger::GetLogger(moduleName.c_str());
+    pLogger->Warning("%s:%d:%s", file, line, message.c_str());
+}
 
 
-void TestResponseProxy::Error(std::string message) {
-    gnilk::ILogger *pLogger = gnilk::Logger::GetLogger(symbolName.c_str());
-    pLogger->Error("%s", message.c_str());
+void TestResponseProxy::Error(int line, const char *file, std::string message) {
+    //gnilk::ILogger *pLogger = gnilk::Logger::GetLogger(moduleName.c_str());
+    pLogger->Error("%s:%d:%s", file, line, message.c_str());
     this->errorCount++;
     if (testResult < kTestResult_TestFail) {
         testResult = kTestResult_TestFail;
     }
 }
 
-void TestResponseProxy::Fatal(std::string message) {
-    gnilk::ILogger *pLogger = gnilk::Logger::GetLogger(symbolName.c_str());
-    pLogger->Critical("%s", message.c_str());
+void TestResponseProxy::Fatal(int line, const char *file, std::string message) {
+    //gnilk::ILogger *pLogger = gnilk::Logger::GetLogger(symbolName.c_str());
+    pLogger->Critical("%s:%d: %s", file, line, message.c_str());
     this->errorCount++;
     if (testResult < kTestResult_ModuleFail) {
         testResult = kTestResult_ModuleFail;
     }
 }
 
-void TestResponseProxy::Abort(std::string message) {
-    gnilk::ILogger *pLogger = gnilk::Logger::GetLogger(symbolName.c_str());
-    pLogger->Critical("%s", message.c_str());
+void TestResponseProxy::Abort(int line, const char *file, std::string message) {
+    //gnilk::ILogger *pLogger = gnilk::Logger::GetLogger(symbolName.c_str());
+    pLogger->Fatal("%s:%d: %s", file, line, message.c_str());
     this->errorCount++;
     if (testResult < kTestResult_AllFail) {
         testResult = kTestResult_AllFail;
@@ -145,23 +173,37 @@ static bool IsMsgSizeOk(uint32_t szbuf) {
     return true;
 }
 
-static void int_trp_error(const char *format, ...) {
+static void int_trp_debug(int line, const char *file, const char *format, ...) {
     CREATE_REPORT_STRING()
-
     TestResponseProxy *trp = TestResponseProxy::GetInstance();
-    trp->Error(std::string(newstr));
+    trp->Debug(line, file, std::string(newstr));
+}
+static void int_trp_info(int line, const char *file, const char *format, ...) {
+    CREATE_REPORT_STRING()
+    TestResponseProxy *trp = TestResponseProxy::GetInstance();
+    trp->Info(line, file, std::string(newstr));
+}
+static void int_trp_warning(int line, const char *file, const char *format, ...) {
+    CREATE_REPORT_STRING()
+    TestResponseProxy *trp = TestResponseProxy::GetInstance();
+    trp->Warning(line, file, std::string(newstr));
+}
+static void int_trp_error(int line, const char *file, const char *format, ...) {
+    CREATE_REPORT_STRING()
+    TestResponseProxy *trp = TestResponseProxy::GetInstance();
+    trp->Error(line, file, std::string(newstr));
 }
 
-static void int_trp_fatal(const char *format, ...) {
+static void int_trp_fatal(int line, const char *file, const char *format, ...) {
     CREATE_REPORT_STRING()
     TestResponseProxy *trp = TestResponseProxy::GetInstance();
-    trp->Fatal(std::string(newstr));
+    trp->Fatal(line, file, std::string(newstr));
 }
 
-static void int_trp_abort(const char *format, ...) {
+static void int_trp_abort(int line, const char *file, const char *format, ...) {
     CREATE_REPORT_STRING()
     TestResponseProxy *trp = TestResponseProxy::GetInstance();
-    trp->Abort(std::string(newstr));
+    trp->Abort(line,file, std::string(newstr));
 }
 
 
