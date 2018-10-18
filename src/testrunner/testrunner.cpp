@@ -1,3 +1,27 @@
+/*-------------------------------------------------------------------------
+ File    : testrunner.cpp
+ Author  : FKling
+ Version : -
+ Orginal : 2018-10-18
+ Descr   : Core for running all test cases found within a module (shared library)
+
+ 
+ Part of testrunner
+ BSD3 License!
+ 
+ Modified: $Date: $ by $Author: $
+ ---------------------------------------------------------------------------
+ TODO: [ -:Not done, +:In progress, !:Completed]
+ <pre>
+
+ </pre>
+ 
+ 
+ \History
+ - 2018.10.18, FKling, Implementation
+ 
+ ---------------------------------------------------------------------------*/
+
 #include <stdint.h>
 #include <string>
 
@@ -39,8 +63,12 @@ void ModuleTestRunner::ExecuteTests() {
     Timer t;
     pLogger->Info("Starting module test for: %s", module->Name().c_str());
     t.Reset();
+
+    // 1) Execute main
     if (ExecuteMain(globals)) {
+        // 2) Execute global
         if (ExecuteGlobalTests(globals)) {
+            // 3) Execute modules
             ExecuteModuleTests(modules);
         }
     }
@@ -49,7 +77,7 @@ void ModuleTestRunner::ExecuteTests() {
 }
 
 //
-// Execute main test
+// Execute main test, false if fail (i.e. return code is 'AllFail')
 //
 bool ModuleTestRunner::ExecuteMain(std::vector<TestFunc *> &globals) {
     // 1) call test_main which is used to initalized anything shared between tests
@@ -72,7 +100,7 @@ bool ModuleTestRunner::ExecuteMain(std::vector<TestFunc *> &globals) {
 }
 
 //
-// Execute any global test but main
+// Execute any global test but main, returns false on test-fail (ModuleFail/AllFail)
 //
 bool ModuleTestRunner::ExecuteGlobalTests(std::vector<TestFunc *> &globals) {
     // 2) all other global scope tests
@@ -160,6 +188,9 @@ leave:
 }
 
 
+//
+// Execute a test function and decorate it
+//
 TestResult *ModuleTestRunner::ExecuteTest(TestFunc *f) {
     printf("\n");
     printf("=== RUN  \t%s\n",f->symbolName.c_str());
@@ -171,6 +202,9 @@ TestResult *ModuleTestRunner::ExecuteTest(TestFunc *f) {
     return result;
 }
 
+//
+// Handle the test result and print decoration
+//
 void ModuleTestRunner::HandleTestResult(TestResult *result) {
         int numError = result->Errors();
         double tElapsedSec = result->ElapsedTimeSec();

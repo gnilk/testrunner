@@ -1,3 +1,27 @@
+/*-------------------------------------------------------------------------
+ File    : main.cpp
+ Author  : FKling
+ Version : -
+ Orginal : 2018-10-18
+ Descr   : C/C++ Unit Test Runner
+
+ This is the testrunner for the UnitTest 'framework'. 
+ Heavily inspired by GOLANG's testing framework.
+
+ All code is BSD3 License!
+ 
+ Modified: $Date: $ by $Author: $
+ ---------------------------------------------------------------------------
+ TODO: [ -:Not done, +:In progress, !:Completed]
+ <pre>
+
+ </pre>
+ 
+ 
+ \History
+ - 2018.10.18, FKling, Implementation
+ 
+ ---------------------------------------------------------------------------*/
 #include "logger.h"
 #include "testrunner.h"
 #include "module.h"

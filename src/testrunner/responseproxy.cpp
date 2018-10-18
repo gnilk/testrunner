@@ -1,11 +1,29 @@
-//
-// TestResponseProxy - implements C/C++ calling convention wrappers for test reponses
-//
-// In order to support parallell testing (i.e. multiple threads) gateways are created on a per thread
-// basis through the "GetInstance" method. It is not possible to create this class on your own, neither
-// should you ever need to..
-//
-//
+/*-------------------------------------------------------------------------
+ File    : responseproxy.cpp
+ Author  : FKling
+ Version : -
+ Orginal : 2018-10-18
+ Descr   : implements C/C++ calling convention wrappers for test reponses
+
+ Proxy between flat-c callback functions and test execution handling.
+ Only one proxy per thread. Test must be executed in that thread as well (for now)
+
+ Part of testrunner
+ BSD3 License!
+ 
+ Modified: $Date: $ by $Author: $
+ ---------------------------------------------------------------------------
+ TODO: [ -:Not done, +:In progress, !:Completed]
+ <pre>
+
+ </pre>
+ 
+ 
+ \History
+ - 2018.10.18, FKling, Implementation
+ 
+ ---------------------------------------------------------------------------*/
+
 #include "testinterface.h"
 #include "responseproxy.h"
 #include "logger.h"

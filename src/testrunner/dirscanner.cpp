@@ -1,3 +1,28 @@
+/*-------------------------------------------------------------------------
+ File    : dirscanner.cpp
+ Author  : FKling
+ Version : -
+ Orginal : 2018-10-18
+ Descr   : Scan's a directory for dynamic libraries
+
+    In order for this project to be X-Platform this must be replaced
+
+ Part of testrunner
+ BSD3 License!
+ 
+ Modified: $Date: $ by $Author: $
+ ---------------------------------------------------------------------------
+ TODO: [ -:Not done, +:In progress, !:Completed]
+ <pre>
+
+ </pre>
+ 
+ 
+ \History
+ - 2018.10.18, FKling, Implementation
+ 
+ ---------------------------------------------------------------------------*/
+
 #include "dirscanner.h"
 
 #include <string>

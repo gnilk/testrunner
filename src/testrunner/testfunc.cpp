@@ -1,3 +1,29 @@
+/*-------------------------------------------------------------------------
+ File    : testfunc.cpp
+ Author  : FKling
+ Version : -
+ Orginal : 2018-10-18
+ Descr   : Wrapper for a function to be tested
+
+ Encapsulates the external function pointer. Responsible for calling this function
+ and gather the results. Handling of test case result code transformation is done here.
+ 
+ Part of testrunner
+ BSD3 License!
+ 
+ Modified: $Date: $ by $Author: $
+ ---------------------------------------------------------------------------
+ TODO: [ -:Not done, +:In progress, !:Completed]
+ <pre>
+
+ </pre>
+ 
+ 
+ \History
+ - 2018.10.18, FKling, Implementation
+ 
+ ---------------------------------------------------------------------------*/
+
 #include "testfunc.h"
 #include "module.h"
 #include "config.h"

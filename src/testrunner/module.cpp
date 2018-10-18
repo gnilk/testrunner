@@ -1,7 +1,27 @@
-//
-// This implements a MacOS Mach-O module
-// Would need to have similar for other platforms (linux/windows) if necessary
-//
+/*-------------------------------------------------------------------------
+ File    : module.cpp
+ Author  : FKling
+ Version : -
+ Orginal : 2018-10-18
+ Descr   : Reading of a shared library and parsing of all exported functions
+
+    In order for this project to be X-Platform this must be replaced
+
+ Part of testrunner
+ BSD3 License!
+ 
+ Modified: $Date: $ by $Author: $
+ ---------------------------------------------------------------------------
+ TODO: [ -:Not done, +:In progress, !:Completed]
+ <pre>
+
+ </pre>
+ 
+ 
+ \History
+ - 2018.10.18, FKling, Implementation
+ 
+ ---------------------------------------------------------------------------*/
 
 #include "module.h"
 #include "strutil.h"

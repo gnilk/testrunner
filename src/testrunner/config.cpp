@@ -1,3 +1,26 @@
+/*-------------------------------------------------------------------------
+ File    : config.cpp
+ Author  : FKling
+ Version : -
+ Orginal : 2018-10-18
+ Descr   : Holds the configuration for this application (singleton)
+
+ Part of testrunner
+ BSD3 License!
+ 
+ Modified: $Date: $ by $Author: $
+ ---------------------------------------------------------------------------
+ TODO: [ -:Not done, +:In progress, !:Completed]
+ <pre>
+
+ </pre>
+ 
+ 
+ \History
+ - 2018.10.18, FKling, Implementation
+ 
+ ---------------------------------------------------------------------------*/
+
 #include "config.h"
 #include "logger.h"
 #include <string>

@@ -1,15 +1,46 @@
+/*-------------------------------------------------------------------------
+ File    : timer.cpp
+ Author  : FKling
+ Version : -
+ Orginal : 2018-10-18
+ Descr   : Simple timer to measure duration between Reset/Sample call's
+
+
+ Part of testrunner
+ BSD3 License!
+ 
+ Modified: $Date: $ by $Author: $
+ ---------------------------------------------------------------------------
+ TODO: [ -:Not done, +:In progress, !:Completed]
+ <pre>
+
+ </pre>
+ 
+ 
+ \History
+ - 2018.10.18, FKling, Implementation
+ 
+ ---------------------------------------------------------------------------*/
+
 #include "timer.h"
 #include <mach/mach_time.h>
 #include <CoreServices/CoreServices.h>
 
 Timer::Timer() {
+    Reset();
 }
 
+//
+// Restet starting point for clock
+//
 void Timer::Reset() {
     tStart = mach_absolute_time();
     mach_timebase_info(&timebaseInfo);
 }
 
+//
+// Sample the time between last reset and now, return as double in seconds
+//
 double Timer::Sample() {
     double ret;
 
