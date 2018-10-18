@@ -29,11 +29,11 @@ Example:
 `=== FAIL:	_test_shared_a_error, 0.000 sec, 1`
 
 There are 5 result codes:
-0) test pass (`kTestResult_Pass`)
-1) test fail (`kTestResult_TestFail`)
-2) module fail (`kTestResult_ModuleFail`)
-3) all fail (`kTestResult_AllFail`)
-4) not executed (`kTestResult_NotExecuted`) - not used
+- _0_, test pass (`kTestResult_Pass`)
+- _1_, test fail (`kTestResult_TestFail`)
+- _2_, module fail (`kTestResult_ModuleFail`)
+- _3_, all fail (`kTestResult_AllFail`)
+- _4_, not executed (`kTestResult_NotExecuted`) - not used
 
 _module fail_ means that a test case aborted any further testing of the current module.
 
@@ -61,7 +61,7 @@ In your dynamic library export the test cases (following the pattern) you would 
 See `src/exshared/exshared.cpp` for details.
 
 ### Example Code
-```
+```c++
 extern "C" {
     // test_main is a special function, always called first
 	int test_main(ITesting *t) {
@@ -122,7 +122,8 @@ See *exshared* library for an example.
 
 _NOTE_: TestRunner default input is the current directory. It will search recursively for any testable functions.
 
-`TestRunner v0.1 - C/C++ Unit Test Runner
+<pre>
+TestRunner v0.1 - C/C++ Unit Test Runner
 Usage: trun [options] input
 Options: 
   -v  Verbose, increase for more!
@@ -134,14 +135,17 @@ Options:
   -C  Continue on total failure (default: off)
   -m <list> List of modules to test (default: '-' (all))
 
-Input should be a list dylib's to be tested`
+Input should be a list dylib's to be tested
+</pre>
 
 ### Examples
-Be silent (`-s`) and continue even if failing `c` (module) `C` (global) test only cases in module `shared`
+Be silent (`-s`) and continue even if a module fails `(-c)` or a globa case fails (`-C`), test only cases in module `shared`.
+
 `bin/trun -scC -m shared .`
 
 Output:
-`build$ bin/trun -scC -m shared
+<pre>
+build$ bin/trun -scC -m shared
 
 === RUN  	_test_main
 === PASS:	_test_main, 0.000 sec, 0
@@ -160,7 +164,7 @@ Output:
 
 === RUN  	_test_shared_sleep
 === PASS:	_test_shared_sleep, 0.103 sec, 0
-`
+</pre>
 
 Be very verbose (`-vv`), dump configuration (`-d`), skip global execution (`-g`) won't skip main.
 `bin/trun -vvdg -m mod .`
