@@ -132,12 +132,12 @@ TestResponseProxy *TestResponseProxy::GetInstance() {
     gnilk::ILogger *pLogger = gnilk::Logger::GetLogger("TestResponseProxy");
 
     if (trpLookup.find(tid) == trpLookup.end()) {
-        pLogger->Debug("GetInstance, allocating new instance with tid: 0x%.8x\n", tid);
+        pLogger->Debug("GetInstance, allocating new instance with tid: 0x%.8x", tid);
         TestResponseProxy *trp = new TestResponseProxy();
         trpLookup.insert(std::pair<pthread_t, TestResponseProxy *>(tid, trp));
         return trp;
     } else {
-        pLogger->Debug("GetInstance, returning existing proxy instance for tid: 0x%.8x\n", tid);
+        //pLogger->Debug("GetInstance, returning existing proxy instance for tid: 0x%.8x", tid);
     }
     return trpLookup[tid];
 

@@ -28,6 +28,7 @@ public:
     virtual void *FindExportedSymbol(std::string funcName) = 0;
     virtual std::vector<std::string> &Exports() = 0;
     virtual bool Scan(std::string pathName) = 0;
+    virtual std::string &Name() = 0;
 };
 
 //
@@ -45,6 +46,7 @@ public: // IModule
     virtual std::vector<std::string> &Exports();
     virtual void *FindExportedSymbol(std::string funcName);
     virtual bool Scan(std::string pathName);
+    virtual std::string &Name() { return pathName; };
 
 private:
     bool Open();

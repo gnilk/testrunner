@@ -37,7 +37,7 @@ void ModuleTestRunner::ExecuteTests() {
     PrepareTests(globals, modules);
 
     Timer t;
-
+    pLogger->Info("Starting module test for: %s", module->Name().c_str());
     t.Reset();
     if (ExecuteMain(globals)) {
         if (ExecuteGlobalTests(globals)) {
@@ -45,6 +45,7 @@ void ModuleTestRunner::ExecuteTests() {
         }
     }
     double tSeconds = t.Sample();
+    pLogger->Info("Module done (%.3f sec)", t.Sample());
 }
 
 //
@@ -60,7 +61,7 @@ bool ModuleTestRunner::ExecuteMain(std::vector<TestFunc *> &globals) {
             HandleTestResult(result);
             if (result->Result() == kTestResult_AllFail) {
                 if (Config::Instance()->stopOnAllFail) {
-                    pLogger->Fatal("Total test failure, aborting");
+                    pLogger->Info("Total test failure, aborting");
                     bRes = false;
                 }
             }
@@ -90,21 +91,21 @@ bool ModuleTestRunner::ExecuteGlobalTests(std::vector<TestFunc *> &globals) {
             HandleTestResult(result);
             if ((result->Result() == kTestResult_AllFail) || (result->Result() == kTestResult_ModuleFail)) {
                 if (Config::Instance()->skipOnModuleFail) {
-                    pLogger->Critical("Module test failure, skipping remaining test cases in module");
+                    pLogger->Info("Module test failure, skipping remaining test cases in module");
                     bRes = false;
                     goto leave;
                 } else {
-                    pLogger->Critical("Module test failure, continue anyway (configuration)");
+                    pLogger->Info("Module test failure, continue anyway (configuration)");
                 }
             }
 
             if (result->Result() == kTestResult_AllFail) {
                 if (Config::Instance()->stopOnAllFail) {
-                    pLogger->Fatal("Total test failure, aborting");
+                    pLogger->Info("Total test failure, aborting");
                     bRes = false;
                     goto leave;
                 } else {
-                    pLogger->Fatal("Total test failure, continue anyway (configuration)");
+                    pLogger->Info("Total test failure, continue anyway (configuration)");
                 }
             }
         }
@@ -136,10 +137,10 @@ bool ModuleTestRunner::ExecuteModuleTests(std::vector<TestFunc *> &modules) {
 
                 if (result->Result() == kTestResult_ModuleFail) {
                     if (Config::Instance()->skipOnModuleFail) {
-                        pLogger->Critical("Module test failure, skipping remaining test cases in module");
+                        pLogger->Info("Module test failure, skipping remaining test cases in module");
                         break;
                     } else {
-                        pLogger->Critical("Module test failure, continue anyway (configuration)");
+                        pLogger->Info("Module test failure, continue anyway (configuration)");
                     }
                 } else if (result->Result() == kTestResult_AllFail) {
                     if (Config::Instance()->stopOnAllFail) {
@@ -147,7 +148,7 @@ bool ModuleTestRunner::ExecuteModuleTests(std::vector<TestFunc *> &modules) {
                         bRes = false;
                         goto leave;   // Use goto to get status
                     } else {
-                        pLogger->Fatal("Total test failure, continue anyway (configuration)");
+                        pLogger->Info("Total test failure, continue anyway (configuration)");
                     }
                 }
             }

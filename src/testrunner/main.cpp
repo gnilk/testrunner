@@ -29,7 +29,7 @@ static void Help() {
     printf("  -C  Continue on total failure (default: off)\n");
     printf("  -m <list> List of modules to test (default: '-' (all))\n");
     printf("\n");
-    printf("Input can be either directory or files (dylib)\n");
+    printf("Input should be a list dylib's to be tested\n");
     printf("\n");
 }
 static void ParseModuleFilters(char *filterstring) {
