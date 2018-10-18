@@ -6,8 +6,11 @@ Heavy GOLANG inspired unit test framework for C/C++.
 Currently only works on _macOS_
 
 ## Basics
-The runner looks for and loads dynamic libraries. The runner will search for exported functions matching a specific pattern; `test_<module>_<testcase>`
-_NOTE_:In order to use the testrunner on your project you must compile it as a dynamic library.
+The runner looks for exported functions within dynamic libraries. The exported function must match the following pattern:
+
+`test_<module>_<testcase>`
+
+_NOTE:_ In order to use the testrunner on your project you must compile your project as a dynamic library.
 
 ### Test Execution
 The runner executes tests in the following order:
@@ -23,7 +26,8 @@ Each test case should return `kTR_Pass` if no error occured. It is possible to d
 The structure of the pass/fail output is:
 `marker, testcase, duration, result code`
 
-Example:
+*Example:*
+
 `=== PASS:	_test_toplevel, 0.000 sec, 0`
 
 `=== FAIL:	_test_shared_a_error, 0.000 sec, 1`
