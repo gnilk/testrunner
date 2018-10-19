@@ -14,7 +14,7 @@ set(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR})
 set(LIBRARY_OUTPUT_PATH ./lib)
 
 
-set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_BUILD_TYPE Release)
 
 include_directories("${PROJECT_SOURCE_DIR}")
 
@@ -44,6 +44,7 @@ target_include_directories(trun PRIVATE inc)
 target_include_directories(trun PRIVATE .)
 
 set_property(TARGET trun PROPERTY CXX_STANDARD 11)
+# set_target_properties(trun PROPERTIES PUBLIC_HEADER src/testrunner/testinterface.h)
 
 
 
@@ -58,3 +59,6 @@ message(STATUS ${COCOA_FRAMEWORK})
 message(STATUS ${CMAKE_OSX_ARCHITECTURES})
 
 target_link_libraries(trun ${COCOA_FRAMEWORK} ${IOKIT_FRAMEWORK} ${CORE_FRAMEWORK} ${SYSTEM_FRAMEWORK})
+
+install(TARGETS trun DESTINATION bin)
+install(FILES src/testrunner/testinterface.h DESTINATION include)
