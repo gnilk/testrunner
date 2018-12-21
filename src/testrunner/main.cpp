@@ -57,7 +57,7 @@ static void Help() {
     printf("  -m <list> List of modules to test (default: '-' (all))\n");
     printf("  -t <list> List of test cases to test (default: '-' (all))\n");
     printf("\n");
-    printf("Input should be a list dylib's to be tested\n");
+    printf("Input should be a directory or list of dylib's to be tested, default is current directory ('.')\n");
     printf("\n");
 }
 static void ParseModuleFilters(char *filterstring) {
