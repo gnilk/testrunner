@@ -48,12 +48,14 @@ static void Help() {
     printf("Options: \n");
     printf("  -v  Verbose, increase for more!\n");
     printf("  -d  Dump configuration before starting\n");
-    printf("  -g  No globals, skip globals (default: off)\n");
+    printf("  -g  Skip module globals (default: off)\n");
+    printf("  -G  Skip global main (default: off)\n");
     printf("  -s  Silent, surpress messages from test cases (default: off)\n");
     printf("  -r  Discard return from test case (default: off)\n");
     printf("  -c  Continue on module failure (default: off)\n");
     printf("  -C  Continue on total failure (default: off)\n");
     printf("  -m <list> List of modules to test (default: '-' (all))\n");
+    printf("  -t <list> List of test cases to test (default: '-' (all))\n");
     printf("\n");
     printf("Input should be a list dylib's to be tested\n");
     printf("\n");
@@ -67,6 +69,11 @@ static void ParseModuleFilters(char *filterstring) {
     // }
 
     Config::Instance()->modules = modules;
+}
+static void ParseTestCaseFilters(char *filterstring) {
+    std::vector<std::string> testcases;
+    strutil::split(testcases, filterstring, ',');
+    Config::Instance()->testcases = testcases;
 }
 
 static void ParseArguments(int argc, char **argv) {
@@ -98,6 +105,12 @@ static void ParseArguments(int argc, char **argv) {
                     case 'g' :
                         Config::Instance()->testGlobals = false;
                         break;
+                    case 'G' :
+                        Config::Instance()->testGlobalMain = false;
+                        break;
+                    case 't' :
+                        ParseTestCaseFilters(argv[++i]);
+                        goto next_argument;
                     case 'm' :
                         // Parse module filter
                         ParseModuleFilters(argv[++i]);                        
