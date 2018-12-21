@@ -19,6 +19,7 @@
  
  
  \History
+ - 2018.12.21, FKling, Support for test case specification and skipping of test_main
  - 2018.10.18, FKling, Implementation
  
  ---------------------------------------------------------------------------*/
