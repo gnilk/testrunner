@@ -113,31 +113,35 @@ bool ModuleTestRunner::ExecuteGlobalTests(std::vector<TestFunc *> &globals) {
     bool bRes = true;
     if (Config::Instance()->testGlobals) {
         pLogger->Info("Executing global tests");
+
         for (auto f:globals) {
-            // Already executed?
             if (f->Executed()) {
                 continue;
             }
+            for (auto m:Config::Instance()->modules) {
+                //pLogger->Debug("func: %s, module: %s\n", f->caseName.c_str(),f->moduleName.c_str());
+                if ((m == "-") || (m == f->caseName)) {            
+                    TestResult *result = ExecuteTest(f);
+                    HandleTestResult(result);
+                    if ((result->Result() == kTestResult_AllFail) || (result->Result() == kTestResult_ModuleFail)) {
+                        if (Config::Instance()->skipOnModuleFail) {
+                            pLogger->Info("Module test failure, skipping remaining test cases in module");
+                            bRes = false;
+                            goto leave;
+                        } else {
+                            pLogger->Info("Module test failure, continue anyway (configuration)");
+                        }
+                    }
 
-            TestResult *result = ExecuteTest(f);
-            HandleTestResult(result);
-            if ((result->Result() == kTestResult_AllFail) || (result->Result() == kTestResult_ModuleFail)) {
-                if (Config::Instance()->skipOnModuleFail) {
-                    pLogger->Info("Module test failure, skipping remaining test cases in module");
-                    bRes = false;
-                    goto leave;
-                } else {
-                    pLogger->Info("Module test failure, continue anyway (configuration)");
-                }
-            }
-
-            if (result->Result() == kTestResult_AllFail) {
-                if (Config::Instance()->stopOnAllFail) {
-                    pLogger->Info("Total test failure, aborting");
-                    bRes = false;
-                    goto leave;
-                } else {
-                    pLogger->Info("Total test failure, continue anyway (configuration)");
+                    if (result->Result() == kTestResult_AllFail) {
+                        if (Config::Instance()->stopOnAllFail) {
+                            pLogger->Info("Total test failure, aborting");
+                            bRes = false;
+                            goto leave;
+                        } else {
+                            pLogger->Info("Total test failure, continue anyway (configuration)");
+                        }
+                    }
                 }
             }
         }

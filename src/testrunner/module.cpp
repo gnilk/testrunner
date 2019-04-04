@@ -155,15 +155,21 @@ bool Module::ParseCommands() {
     uint8_t *ptrData = (uint8_t *)header;
     ptrData += sizeof(struct mach_header_64);
     ptrData = AlignPtr(ptrData);
-
+    bool haveSymbols = false;
+    pLogger->Debug("Module::ParseCommands, ncmds: %d\n", header->ncmds);
     for(int i=0;i<header->ncmds;i++) {
         struct load_command *pcmd = (struct load_command *)ptrData;
 
         if (pcmd->cmd == LC_SYMTAB) {
+            pLogger->Debug("Module::ParseCommands, LC_SYMTAB found\n");
             ProcessSymtab(ptrData);
+            haveSymbols = true;
         }
         ptrData += pcmd->cmdsize;
         ptrData = AlignPtr(ptrData);
+    }
+    if (!haveSymbols) {
+        pLogger->Error("Module::ParseCommands, no symbols found!!!\n");
     }
 
     return true;
@@ -213,6 +219,8 @@ void Module::ParseSymTabNames(uint8_t *ptrData) {
     // Locate string table for all symbols (stroff - is relative 0 from file start)
     struct symtab_command *symtab = (struct symtab_command *)ptrData;
 
+    pLogger->Debug("Module::ParseSymTabNames, symtab strsize: %d\n", symtab->strsize);
+
     uint8_t *ptrStringTable = FromOffset32(symtab->stroff);
     uint32_t bytes = 0;
     // Loop symbol table and look for names starting with "_test_"
@@ -221,6 +229,7 @@ void Module::ParseSymTabNames(uint8_t *ptrData) {
         if (symbolName.length() > 1) {
             // Just dump all symbols to a large map            
             if (symbols.find(symbolName) == symbols.end()) {
+                pLogger->Debug("Module::ParseSymTabNames, '%s'\n", symbolName.c_str());
                 symbols.insert(std::pair<std::string, int>(symbolName, bytes));
             }
         }       
