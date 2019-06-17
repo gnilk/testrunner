@@ -40,6 +40,7 @@ static void int_trp_warning(int line, const char *file, const char *format, ...)
 static void int_trp_error(int line, const char *file, const char *format, ...);
 static void int_trp_fatal(int line, const char *file, const char *format, ...);
 static void int_trp_abort(int line, const char *file, const char *format, ...);
+static void int_trp_assert_error(const char *exp, const char *file, int line);
 
 // Holds a calling proxy per thread
 static std::map<pthread_t, TestResponseProxy *> trpLookup;
@@ -55,12 +56,14 @@ TestResponseProxy::TestResponseProxy() {
     this->trp->Error = int_trp_error;
     this->trp->Fatal = int_trp_fatal;
     this->trp->Abort = int_trp_abort;
+    this->trp->AssertError = int_trp_assert_error;
 }
 
 void TestResponseProxy::Begin(std::string symbolName, std::string moduleName) {
     this->symbolName = symbolName;
     this->moduleName = moduleName;
     errorCount = 0;
+    assertCount = 0;
     testResult = kTestResult_Pass;
     pLogger = gnilk::Logger::GetLogger(moduleName.c_str());
 
@@ -88,6 +91,10 @@ void TestResponseProxy::End() {
 
 int TestResponseProxy::Errors() {
     return errorCount;
+}
+
+int TestResponseProxy::Asserts() {
+    return assertCount;
 }
 
 kTestResult TestResponseProxy::Result() {
@@ -137,6 +144,12 @@ void TestResponseProxy::Abort(int line, const char *file, std::string message) {
         testResult = kTestResult_AllFail;
     }
 
+}
+
+//void (*AssertError)(const char *exp, const char *file, const int line);
+void TestResponseProxy::AssertError(const char *exp, const char *file, const int line) {
+    pLogger->Error("Assert Error: %s:%d\t'%s'", file, line, exp);
+    this->assertCount++;
 }
 
 
@@ -225,6 +238,11 @@ static void int_trp_abort(int line, const char *file, const char *format, ...) {
     CREATE_REPORT_STRING()
     TestResponseProxy *trp = TestResponseProxy::GetInstance();
     trp->Abort(line,file, std::string(newstr));
+}
+
+static void int_trp_assert_error(const char *exp, const char *file, int line) {
+    TestResponseProxy *trp = TestResponseProxy::GetInstance();
+    trp->AssertError(exp, file, line);
 }
 
 

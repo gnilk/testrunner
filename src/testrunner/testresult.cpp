@@ -27,5 +27,6 @@
 TestResult::TestResult(std::string symbolName) {
     testResult = kTestResult_NotExecuted;
     this->symbolName = symbolName;
+    this->numError = this->numAssert = 0;
 }
 

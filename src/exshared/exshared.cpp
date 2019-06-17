@@ -3,6 +3,7 @@
 //
 #include <stdio.h>
 #include <unistd.h>
+//#include <assert.h>
 #include "../testrunner/testinterface.h"
 
 extern "C" {
@@ -54,6 +55,8 @@ extern "C" {
 
 	int test_main(void *param) {
 		ITesting *t = (ITesting *)param;
+		printf("Doing assert\n");
+		TR_ASSERT(t, 1==2);
 		t->Debug(__LINE__, __FILE__, "test_main, got called: error is: %p", t->Error);		
 		return kTR_Pass;
 	}

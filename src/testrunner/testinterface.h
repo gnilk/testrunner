@@ -11,6 +11,11 @@ extern "C" {
 #define kTR_FailModule 0x20
 #define kTR_FailAll 0x30
 
+//#define TR_ASSERT(__t,_exp_) (!(_exp_)?t->AssertFail(#_exp_, __FILE__, __LINE__))
+#define TR_ASSERT(t, _exp_) \
+    ((void) ((_exp_) ? ((void)0) : ((ITesting *)t)->AssertError(#_exp_,__FILE__, __LINE__)))
+
+
 //
 // Callback interface for test reporting
 //
@@ -24,6 +29,8 @@ struct ITesting {
     void (*Error)(int line, const char *file, const char *format, ...); // Current test, proceed to next
     void (*Fatal)(int line, const char *file, const char *format, ...); // Current test, stop module and proceed to next
     void (*Abort)(int line, const char *file, const char *format, ...); // Current test, stop execution
+    // Asserts
+    void (*AssertError)(const char *exp, const char *file, const int line);
 };
 
 #ifdef __cplusplus

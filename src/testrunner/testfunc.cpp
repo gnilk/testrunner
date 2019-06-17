@@ -86,6 +86,7 @@ TestResult *TestFunc::Execute(IModule *module) {
         // 4) Gather data from test
         testResult->SetResult(trp->Result());
         testResult->SetNumberOfErrors(trp->Errors());
+        testResult->SetNumberOfAsserts(trp->Asserts());
         testResult->SetTimeElapsedSec(trp->ElapsedTimeInSec());
         
         // Overwrite the result based on return code
@@ -104,7 +105,12 @@ void TestFunc::HandleTestReturnCode(int code, TestResult *testResult) {
     // Let's overwrite test result from the test
     switch(code) {
         case kTR_Pass :
-            testResult->SetResult(kTestResult_Pass);
+            if ((testResult->Errors() == 0) && (testResult->Asserts() == 0)) {
+                testResult->SetResult(kTestResult_Pass);
+            } else {
+                // This could be depending on 'strict' checking flag (fail in strict mode)
+                testResult->SetResult(kTestResult_TestFail);
+            }
             break;
         case kTR_Fail :
             testResult->SetResult(kTestResult_TestFail);

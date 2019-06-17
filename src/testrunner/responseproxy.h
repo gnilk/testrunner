@@ -18,6 +18,7 @@ public:
     void End();
     double ElapsedTimeInSec();
     int Errors();
+    int Asserts();
     kTestResult Result();
 
 
@@ -29,12 +30,16 @@ public: // ITesting mirroring
     void Fatal(int line, const char *file, std::string message);
     void Abort(int line, const char *file, std::string message);
 
+    void AssertError(const char *exp, const char *file, const int line);
+
+
 private:
     TestResponseProxy();
 private:
     Timer timer;
     double tElapsed;
     kTestResult testResult;
+    int assertCount;
     int errorCount;
     std::string symbolName; // current symbol under test
     std::string moduleName; // current module under test

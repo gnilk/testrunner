@@ -39,6 +39,7 @@ public:
     // Property access, getters
     kTestResult Result() { return testResult; }
     int Errors() { return numError; }
+    int Asserts() { return numAssert; }
     double ElapsedTimeSec() { return tElapsedSec; }
     std::string &SymbolName() { return symbolName; }
 
@@ -46,9 +47,11 @@ public:
     void SetResult(kTestResult result) { this->testResult = result; }
     void SetTimeElapsedSec(double t) { tElapsedSec = t; }
     void SetNumberOfErrors(int count) {numError = count;}
+    void SetNumberOfAsserts(int count) {numAssert = count;}
 private:
     kTestResult testResult;
     double tElapsedSec;
     int numError;
+    int numAssert;
     std::string symbolName;
 };
