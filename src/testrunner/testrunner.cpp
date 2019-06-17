@@ -221,10 +221,10 @@ void ModuleTestRunner::HandleTestResult(TestResult *result) {
         int numError = result->Errors();
         double tElapsedSec = result->ElapsedTimeSec();
         if (result->Result() != kTestResult_Pass) {
-            printf("=== FAIL:\t%s, %.3f sec, errors: %d, asserts: %d\n",result->SymbolName().c_str(), tElapsedSec, result->Errors(), result->Asserts());
+            printf("=== FAIL:\t%s, %.3f sec, %d, %d, %d\n",result->SymbolName().c_str(), tElapsedSec, result->Result(), result->Errors(), result->Asserts());
         } else {
             if ((result->Errors() != 0) || (result->Asserts() != 0)) {
-                printf("=== FAIL:\t%s, %.3f sec, errors: %d, asserts: %d\n",result->SymbolName().c_str(), tElapsedSec, result->Errors(), result->Asserts());
+                printf("=== FAIL:\t%s, %.3f sec, %d, %d, %d\n",result->SymbolName().c_str(), tElapsedSec, result->Result(), result->Errors(), result->Asserts());
             } else {
                 printf("=== PASS:\t%s, %.3f sec, %d\n",result->SymbolName().c_str(),tElapsedSec, result->Result());
             }
