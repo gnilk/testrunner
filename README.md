@@ -88,6 +88,13 @@ extern "C" {
 		return kTR_Pass;
 	}
 
+	int test_shared_assert(ITesting *t) {
+		int result = some_function();
+		TR_ASSERT(t, result == 1);
+		return kTR_Pass;		// kTR_Pass will be ignored if assert fails!
+	}
+
+
 	int test_shared_a_error(ITesting *t) {
 		t->Error(__LINE__, __FILE__, "this is just an error");
 		return kTR_Fail;
@@ -127,19 +134,21 @@ See *exshared* library for an example.
 _NOTE_: TestRunner default input is the current directory. It will search recursively for any testable functions.
 
 <pre>
-TestRunner v0.1 - C/C++ Unit Test Runner
+TestRunner v0.3 - C/C++ Unit Test Runner
 Usage: trun [options] input
 Options: 
   -v  Verbose, increase for more!
   -d  Dump configuration before starting
-  -g  No globals, skip globals (default: off)
+  -g  Skip module globals (default: off)
+  -G  Skip global main (default: off)
   -s  Silent, surpress messages from test cases (default: off)
   -r  Discard return from test case (default: off)
   -c  Continue on module failure (default: off)
   -C  Continue on total failure (default: off)
   -m <list> List of modules to test (default: '-' (all))
+  -t <list> List of test cases to test (default: '-' (all))
 
-Input should be a list dylib's to be tested
+Input should be a directory or list of dylib's to be tested, default is current directory ('.')
 </pre>
 
 ### Examples
@@ -175,3 +184,14 @@ Be very verbose (`-vv`), dump configuration (`-d`), skip global execution (`-g`)
 
 Same as previous but for just one specific library
 `bin/trun -vvdg -m mod lib/libexshared.dylib`
+
+
+# Version history
+## v0.3
+- Added 'TR_ASSERT' macro for easier parameter checking
+
+## v0.2
+- Added '-t' option to run specific tests in a module
+
+## v0.1
+First released version
