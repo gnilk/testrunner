@@ -24,13 +24,13 @@ The order of module functions can be controlled via the `-m` switch. Default is 
 Each test case should return `kTR_Pass` if no error occured. It is possible to discard the return code (`-r`) and the test runner will deduce the result based on interface call's.
 
 The structure of the pass/fail output is:
-`marker, testcase, duration, result code`
+`marker, testcase, duration, result code, errros, assert failures`
 
 *Example:*
 
 `=== PASS:	_test_toplevel, 0.000 sec, 0`
 
-`=== FAIL:	_test_shared_a_error, 0.000 sec, 1`
+`=== FAIL:	_test_shared_a_error, 0.000 sec, 1, 0, 1`
 
 There are 5 result codes:
 - _0_, test pass (`kTestResult_Pass`)
