@@ -5,6 +5,9 @@ set(CMAKE_OSX_ARCHITECTURES x86_64)
 set(CMAKE_OSX_SYSROOT /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk)
 cmake_minimum_required(VERSION 2.8)
 
+if(WIN32)
+	# set (CMAKE_GENERATOR_PLATFORM "Visual Studio 15 2017 Win64")
+endif()
 
 project(testrunner)
 
@@ -30,14 +33,16 @@ add_library(exshared SHARED ${sharedlib})
 add_library(exstatic STATIC ${staticlib})
 
 
-list(APPEND srcfiles src/testrunner/main.cpp src/testrunner/strutil.cpp src/testrunner/testrunner.cpp src/testrunner/logger.cpp src/testrunner/config.cpp src/testrunner/testfunc.cpp src/testrunner/responseproxy.cpp src/testrunner/timer.cpp src/testrunner/testresult.cpp)
+list(APPEND srcfiles src/testrunner/main.cpp src/testrunner/strutil.cpp src/testrunner/testrunner.cpp src/testrunner/logger.cpp src/testrunner/config.cpp src/testrunner/testfunc.cpp src/testrunner/responseproxy.cpp src/testrunner/testresult.cpp)
 
 if (APPLE)
     list(APPEND srcfiles src/testrunner/module.cpp)
     list(APPEND srcfiles src/testrunner/dirscanner.cpp)
+    list(APPEND srcfiles src/testrunner/timer.cpp)
 elseif(WIN32)
     list(APPEND srcfiles src/testrunner/module_win32.cpp)
     list(APPEND srcfiles src/testrunner/dirscanner_win32.cpp)
+    list(APPEND srcfiles src/testrunner/timer_win32.cpp)
 endif()
 
 

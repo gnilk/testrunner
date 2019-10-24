@@ -30,7 +30,10 @@
 #include "testrunner.h"
 #include "responseproxy.h"
 #include <string>
+#ifdef WIN32
+#else
 #include <pthread.h>
+#endif
 #include <map>
 
 

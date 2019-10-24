@@ -2,7 +2,9 @@
 // Example of shared library with test interface
 //
 #include <stdio.h>
+#ifndef WIN32
 #include <unistd.h>
+#endif
 //#include <assert.h>
 #include "../testrunner/testinterface.h"
 
@@ -12,7 +14,7 @@ extern "C" {
 		t->Debug(__LINE__, __FILE__, "sleeping for 100ms");
 		t->Info(__LINE__, __FILE__, "this is an info message");
 		t->Warning(__LINE__, __FILE__, "this is a warning message");
-		usleep(1000*100);	// sleep for 100ms - this will test
+		//usleep(1000*100);	// sleep for 100ms - this will test
 		return kTR_Pass;
 	}
 	int test_shared_a_error(ITesting *t) {

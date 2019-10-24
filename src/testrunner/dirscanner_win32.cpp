@@ -24,6 +24,8 @@
 #include "dirscanner.h"
 
 #include <string>
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
 #include <winnt.h>
 
 
@@ -48,6 +50,38 @@ std::vector<std::string> &DirScanner::Scan(std::string fromdir, bool recurse) {
 }
 
 void DirScanner::DoScan(std::string path) {
+
+
+	HANDLE hFIND;
+	WIN32_FIND_DATA findFileData;
+	std::string searchPath = path.append("\\");
+
+	searchPath.append("*.*");
+	//pLogger->Debug("Scanning: %s", searchPath.c_str());
+	hFIND = FindFirstFile(searchPath.c_str(), &findFileData);
+	while (FindNextFile(hFIND, &findFileData))
+	{
+		std::string child = path;
+		child.append(findFileData.cFileName);
+		if (findFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+		{
+			if ((strcmp(findFileData.cFileName, ".") != 0) && (strcmp(findFileData.cFileName, "..") != 0))
+			{
+				//std::string childPath = path;
+				//childPath.append(findFileData.cFileName);
+				DoScan(child);
+			}
+		}
+		else
+		{
+			//std::string libName = path;
+			//libName.append(findFileData.cFileName);
+			CheckAddFile(child);
+		}
+	}
+	FindClose(hFIND);
+
+
     // TODO: Implement this!
 
     // DIR *pDir = opendir(path.c_str());
@@ -74,8 +108,9 @@ void DirScanner::CheckAddFile(std::string &filename) {
     std::string ext = GetExtension(filename);
     if (IsExtensionOk(ext)) {
         // Need proper path to file
-        char *fullPath = realpath(filename.c_str(),NULL);
-        filenames.push_back(std::string(fullPath));
+//        char *fullPath = realpath(filename.c_str(),NULL);
+		pLogger->Debug("Adding: %s\n", filename.c_str());
+        filenames.push_back(filename);
     }
 }
 
@@ -116,7 +151,11 @@ bool DirScanner::IsExtensionOk(std::string &extension)
 
 // Static
 bool DirScanner::IsDirectory(std::string pathName) {
-
+	DWORD attrib = GetFileAttributes(pathName.c_str());
+	if (attrib & FILE_ATTRIBUTE_DIRECTORY) {
+		return true;
+	}
+	return false;
     // TODO: Implement this!!
 
     // struct stat _stat;

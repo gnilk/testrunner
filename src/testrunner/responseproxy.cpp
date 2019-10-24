@@ -23,6 +23,11 @@
  - 2018.10.18, FKling, Implementation
  
  ---------------------------------------------------------------------------*/
+#ifdef WIN32
+#include <Windows.h>
+#else
+#include <pthread.h>
+#endif
 
 #include "testinterface.h"
 #include "responseproxy.h"
@@ -30,7 +35,7 @@
 #include "config.h"
 
 #include <stdlib.h> // malloc
-#include <pthread.h>
+
 #include <map>
 #include <string>
 
@@ -43,7 +48,11 @@ static void int_trp_abort(int line, const char *file, const char *format, ...);
 static void int_trp_assert_error(const char *exp, const char *file, int line);
 
 // Holds a calling proxy per thread
+#ifdef WIN32
+static std::map<DWORD, TestResponseProxy*> trpLookup;
+#else
 static std::map<pthread_t, TestResponseProxy *> trpLookup;
+#endif
 
 //
 // TODO: Need to update the logger to allow specific loggers to always pass through messages
@@ -158,14 +167,22 @@ void TestResponseProxy::AssertError(const char *exp, const char *file, const int
 // GetInstance - returns a test proxy, if one does not exists for the thread one will be allocated
 //
 TestResponseProxy *TestResponseProxy::GetInstance() {
+#ifdef WIN32
+	DWORD tid = GetCurrentThreadId();
+#else
     pthread_t tid = pthread_self();
+#endif
 
     gnilk::ILogger *pLogger = gnilk::Logger::GetLogger("TestResponseProxy");
 
     if (trpLookup.find(tid) == trpLookup.end()) {
         pLogger->Debug("GetInstance, allocating new instance with tid: 0x%.8x", tid);
         TestResponseProxy *trp = new TestResponseProxy();
-        trpLookup.insert(std::pair<pthread_t, TestResponseProxy *>(tid, trp));
+#ifdef WIN32
+		trpLookup.insert(std::pair<DWORD, TestResponseProxy*>(tid, trp));
+#else
+		trpLookup.insert(std::pair<pthread_t, TestResponseProxy*>(tid, trp));
+#endif
         return trp;
     } else {
         //pLogger->Debug("GetInstance, returning existing proxy instance for tid: 0x%.8x", tid);

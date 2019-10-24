@@ -27,6 +27,8 @@
 #include "strutil.h"
 #include "logger.h"
 
+#include <Windows.h>
+#include <assert.h>
 #include <winnt.h>
 
 #include <string>
@@ -90,7 +92,7 @@ std::vector<std::string> &Module::Exports() {
 bool Module::Scan(std::string pathName) {
     this->pathName = pathName;
 
-    pLogger->Debug("Module::Scan, entering");
+    pLogger->Debug("Module::Scan, entering, pathName: %s\n", pathName.c_str());
     if (!Open()) {
         return false;
     }
@@ -126,25 +128,49 @@ bool Module::Open() {
         return false;
     }
     
+	pLogger->Debug("LoadLibrary, ok\n");
+
+	uint64_t pLibStart = (uint64_t)lib;
+	if (((PIMAGE_DOS_HEADER)lib)->e_magic != IMAGE_DOS_SIGNATURE) {
+		pLogger->Error("PIMAGE DOS HEADER magic mismatch\n");
+		return false;
+	}
     assert(((PIMAGE_DOS_HEADER)lib)->e_magic == IMAGE_DOS_SIGNATURE);
+
     PIMAGE_NT_HEADERS header = (PIMAGE_NT_HEADERS)((BYTE *)lib + ((PIMAGE_DOS_HEADER)lib)->e_lfanew);
-    assert(header->Signature == IMAGE_NT_SIGNATURE);
-    assert(header->OptionalHeader.NumberOfRvaAndSizes > 0);
+
+	if (header->Signature != IMAGE_NT_SIGNATURE) {
+		pLogger->Error("Header signature mistmatch!\n");
+		return false;
+	}
+	assert(header->Signature == IMAGE_NT_SIGNATURE);
+
+	
+	if (header->OptionalHeader.NumberOfRvaAndSizes == 0) {
+		pLogger->Error("Number of RVA and Sizes is zero!\n");
+		return false;
+	}
+	assert(header->OptionalHeader.NumberOfRvaAndSizes > 0);
+
     PIMAGE_EXPORT_DIRECTORY exports = (PIMAGE_EXPORT_DIRECTORY)((BYTE *)lib + header->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress);
+
     assert(exports->AddressOfNames != 0);
-    BYTE** names = (BYTE**)((int)lib + exports->AddressOfNames);
-    
+    BYTE** names = (BYTE**)(pLibStart + exports->AddressOfNames);
+
+	pLogger->Debug("Num Exports: %d\n", exports->NumberOfNames);
+
     for (int i = 0; i < exports->NumberOfNames; i++) {
-        char *ptrName = (char *)(BYTE *)lib + (int)names[i];
+		char* ptrName = (char*)((BYTE *)lib + (uint64_t)names[i]);
+		pLogger->Debug("%d:%p\n", i, ptrName);
         std::string name(ptrName);
         if (IsValidTestFunc(name)) {
-            exports.push_back(name);
+            this->exports.push_back(name);
         }
     }
     // Let's free the library and open it properly
     FreeLibrary(lib);
 
-    handle = LoadLibrary(pathName.c_str())
+	handle = LoadLibrary(pathName.c_str());
     if (handle == NULL) {
         return false;
     }
@@ -154,8 +180,7 @@ bool Module::Open() {
 
 bool Module::Close() {
     if (handle != NULL) {
-        FreeLibrary(handle)
-        idxLib = -1;
+		FreeLibrary(handle);
         return true;
     }
     return false;

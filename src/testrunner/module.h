@@ -3,6 +3,11 @@
 #include "logger.h"
 #include "testinterface.h"
 
+#ifdef WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
+#endif
+
 #include <stdint.h>
 #include <vector>
 #include <string>
@@ -64,7 +69,11 @@ private:
     //void ExecuteSingleTest(std::string funcName, std::string moduleName, std::string caseName);
 
     std::string pathName;
+#ifdef WIN32
+	HMODULE handle;
+#else
     void *handle;
+#endif
     int idxLib;
     // Set this global variable - for now, so we can resolve relative offsets
     uint8_t *ptrModuleStart;
