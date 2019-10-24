@@ -26,20 +26,23 @@ include_directories("${PROJECT_SOURCE_DIR}")
 list(APPEND sharedlib src/exshared/exshared.cpp src/exshared/pure.c)
 list(APPEND staticlib src/exstatic/exstatic.cpp)
 
-
 add_library(exshared SHARED ${sharedlib})
 add_library(exstatic STATIC ${staticlib})
 
 
+list(APPEND srcfiles src/testrunner/main.cpp src/testrunner/strutil.cpp src/testrunner/testrunner.cpp src/testrunner/logger.cpp src/testrunner/config.cpp src/testrunner/testfunc.cpp src/testrunner/responseproxy.cpp src/testrunner/timer.cpp src/testrunner/testresult.cpp)
 
-# set_property(TARGET trunner PROPERTY CXX_STANDARD 11)
+if (APPLE)
+    list(APPEND srcfiles src/testrunner/module.cpp)
+    list(APPEND srcfiles src/testrunner/dirscanner.cpp)
+elseif(WIN32)
+    list(APPEND srcfiles src/testrunner/module_win32.cpp)
+    list(APPEND srcfiles src/testrunner/dirscanner_win32.cpp)
+endif()
 
-# add_definitions(-D__GOA_GLFW__)
-# add_definitions(-D__GOA_MACOS__)
 
-
-# osx testing
-add_executable(trun src/testrunner/main.cpp src/testrunner/module.cpp src/testrunner/strutil.cpp src/testrunner/testrunner.cpp src/testrunner/logger.cpp src/testrunner/config.cpp src/testrunner/testfunc.cpp src/testrunner/responseproxy.cpp src/testrunner/timer.cpp src/testrunner/testresult.cpp src/testrunner/dirscanner.cpp)
+# Create executeable
+add_executable(trun ${srcfiles})
 target_include_directories(trun PRIVATE inc)
 target_include_directories(trun PRIVATE .)
 
@@ -47,18 +50,18 @@ set_property(TARGET trun PROPERTY CXX_STANDARD 11)
 # set_target_properties(trun PROPERTIES PUBLIC_HEADER src/testrunner/testinterface.h)
 
 
-
-set(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH} /usr/local/lib /usr/lib/system)
-find_library(COCOA_FRAMEWORK Cocoa)
-find_library(IOKIT_FRAMEWORK IOKit)
-find_library(CORE_FRAMEWORK CoreFoundation)
-find_library(SYSTEM_FRAMEWORK System)
-
-
-message(STATUS ${COCOA_FRAMEWORK})
-message(STATUS ${CMAKE_OSX_ARCHITECTURES})
-
-target_link_libraries(trun ${COCOA_FRAMEWORK} ${IOKIT_FRAMEWORK} ${CORE_FRAMEWORK} ${SYSTEM_FRAMEWORK})
+if (APPLE)
+    set(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH} /usr/local/lib /usr/lib/system)
+    find_library(COCOA_FRAMEWORK Cocoa)
+    find_library(IOKIT_FRAMEWORK IOKit)
+    find_library(CORE_FRAMEWORK CoreFoundation)
+    find_library(SYSTEM_FRAMEWORK System)
+    message(STATUS ${COCOA_FRAMEWORK})
+    message(STATUS ${CMAKE_OSX_ARCHITECTURES})
+    target_link_libraries(trun ${COCOA_FRAMEWORK} ${IOKIT_FRAMEWORK} ${CORE_FRAMEWORK} ${SYSTEM_FRAMEWORK})
+elseif (WIN32)
+    target_link_libraries(trun)
+endif()
 
 install(TARGETS trun DESTINATION bin)
 install(FILES src/testrunner/testinterface.h DESTINATION include)
