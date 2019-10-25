@@ -185,6 +185,13 @@ int main(int argc, char **argv) {
     pLogger = Config::Instance()->pLogger;
     ParseArguments(argc, argv);
 
+#ifdef _WIN64
+	pLogger->Debug("Windows x64 (64 bit) build\n");
+#elif WIN32
+	pLogger->Debug("Windows x86 (32 bit) build\n");
+#endif
+
+
     Timer timer;
     
     timer.Reset();

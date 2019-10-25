@@ -125,11 +125,10 @@ bool Module::Open() {
     
     HMODULE lib = LoadLibraryEx(pathName.c_str(), NULL, DONT_RESOLVE_DLL_REFERENCES);
     if (lib == NULL) {
+		pLogger->Error("LoadLibraryEx failed, with code: %d\n", GetLastError());
         return false;
     }
     
-	pLogger->Debug("LoadLibrary, ok\n");
-
 	uint64_t pLibStart = (uint64_t)lib;
 	if (((PIMAGE_DOS_HEADER)lib)->e_magic != IMAGE_DOS_SIGNATURE) {
 		pLogger->Error("PIMAGE DOS HEADER magic mismatch\n");
@@ -145,12 +144,22 @@ bool Module::Open() {
 	}
 	assert(header->Signature == IMAGE_NT_SIGNATURE);
 
+
 	switch (header->OptionalHeader.Magic) {
 	case IMAGE_NT_OPTIONAL_HDR32_MAGIC:
-		pLogger->Debug("- 32bit DLL Header found\n");
+		pLogger->Debug("32bit DLL Header found\n");
+#ifdef _WIN64
+		pLogger->Error("32 bit DLL in 64bit context not allowed!\n");
+		return false;
+#endif
 		break;
 	case IMAGE_NT_OPTIONAL_HDR64_MAGIC:
-		pLogger->Debug(" - 64bit DLL Header found\n");
+		pLogger->Debug("64bit DLL Header found\n");
+#ifdef _WIN64
+#else
+		pLogger->Error("64 bit DLL in 32bit context not allowed!\n");
+		return false;
+#endif
 		break;
 	default:
 		printf(" - Unknown/Unsupported DLL header type found\n");
