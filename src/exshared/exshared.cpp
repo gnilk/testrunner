@@ -2,14 +2,19 @@
 // Example of shared library with test interface
 //
 #include <stdio.h>
-#ifndef WIN32
+#ifdef WIN32
+#include <Windows.h>
+#define DLL_EXPORT __declspec(dllexport)
+#else
+#define DLL_EXPORT 
 #include <unistd.h>
 #endif
 //#include <assert.h>
 #include "../testrunner/testinterface.h"
 
+
 extern "C" {
-	int test_shared_sleep(ITesting *t) {
+	DLL_EXPORT int test_shared_sleep(ITesting *t) {
 //		printf("test_shared_sleep, got called, sleeping 100ms\n");
 		t->Debug(__LINE__, __FILE__, "sleeping for 100ms");
 		t->Info(__LINE__, __FILE__, "this is an info message");
@@ -17,7 +22,7 @@ extern "C" {
 		//usleep(1000*100);	// sleep for 100ms - this will test
 		return kTR_Pass;
 	}
-	int test_shared_a_error(ITesting *t) {
+	DLL_EXPORT int test_shared_a_error(ITesting *t) {
 //		printf("test_shared_error, got called\n");
 		t->Error(__LINE__, __FILE__, "this is just an error");
 		return kTR_Fail;

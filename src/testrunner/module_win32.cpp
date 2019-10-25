@@ -145,6 +145,19 @@ bool Module::Open() {
 	}
 	assert(header->Signature == IMAGE_NT_SIGNATURE);
 
+	switch (header->OptionalHeader.Magic) {
+	case IMAGE_NT_OPTIONAL_HDR32_MAGIC:
+		pLogger->Debug("- 32bit DLL Header found\n");
+		break;
+	case IMAGE_NT_OPTIONAL_HDR64_MAGIC:
+		pLogger->Debug(" - 64bit DLL Header found\n");
+		break;
+	default:
+		printf(" - Unknown/Unsupported DLL header type found\n");
+		return 1;
+		break;
+	}
+
 	
 	if (header->OptionalHeader.NumberOfRvaAndSizes == 0) {
 		pLogger->Error("Number of RVA and Sizes is zero!\n");
@@ -160,12 +173,15 @@ bool Module::Open() {
 	pLogger->Debug("Num Exports: %d\n", exports->NumberOfNames);
 
     for (int i = 0; i < exports->NumberOfNames; i++) {
-		char* ptrName = (char*)((BYTE *)lib + (uint64_t)names[i]);
-		pLogger->Debug("%d:%p\n", i, ptrName);
+		char* ptrName = (char *)((BYTE*)lib + ((DWORD*)names)[i]);
         std::string name(ptrName);
         if (IsValidTestFunc(name)) {
-            this->exports.push_back(name);
-        }
+			pLogger->Debug("[OK] '%s' - valid test func\n", ptrName);
+			this->exports.push_back(name);
+		}
+		else {
+			pLogger->Debug("[NOK] '%s' invalid test func\n", ptrName);
+		}
     }
     // Let's free the library and open it properly
     FreeLibrary(lib);
@@ -191,7 +207,7 @@ bool Module::Close() {
 //
 bool Module::IsValidTestFunc(std::string funcName) {
     // The function table is what really matters
-    if (funcName.find("_test_",0) == 0) {
+    if (funcName.find("test_",0) == 0) {
         return true;
     }
     return false;

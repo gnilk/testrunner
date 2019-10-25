@@ -161,10 +161,12 @@ bool ModuleTestRunner::ExecuteModuleTests(std::vector<TestFunc *> &modules) {
     bool bRes = true;
     pLogger->Info("Executing module tests");
     for (auto m:Config::Instance()->modules) {
-        for (auto f:modules) {
+
+		for (auto f:modules) {
             // Already executed?
             if (f->Executed()) {
-                continue;
+				pLogger->Debug("Tests already executed, skipping\n");
+				continue;
             }
             // Execute global or if we match the module name
             if ((m == "-") || (m == f->moduleName)) {
