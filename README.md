@@ -3,14 +3,14 @@
 C/C++ Unit Test 'Framework'.
 
 Heavy GOLANG inspired unit test framework for C/C++.
-Currently only works on _macOS_
+Currently works on macOS with experimental support for Windows x86/x64.
 
 ## Basics
 The runner looks for exported functions within dynamic libraries. The exported function must match the following pattern:
 
 `test_<module>_<testcase>`
 
-_NOTE:_ In order to use the testrunner on your project you must compile your project as a dynamic library.
+_NOTE:_ In order to use the testrunner on your project you must compile your project as a dynamic library. And for Windows you must explicitly mark functions for export.
 
 ### Test Execution
 The runner executes tests in the following order:
