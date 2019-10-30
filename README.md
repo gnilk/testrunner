@@ -5,6 +5,27 @@ C/C++ Unit Test 'Framework'.
 Heavy GOLANG inspired unit test framework for C/C++.
 Currently works on macOS with experimental support for Windows x86/x64.
 
+# Building
+You need CMake and GCC/Clang or Visual Studio (Windows). Tested with Visual Studio 17 and 19. The Windows version can be built in a 32 or 64 bit mode. Do note that the 32 bit don't support 64 bit DLL's and vice verse. 
+
+1) Clone repository 'git clone https://github.com/gnilk/testrunner.git'
+2) Create build directory (mkdir build)
+3) Enter build directory (cd build)
+4) Run cmake 'cmake ..'
+5) Run 'make' or 'msbuild ALL_BUILD.vcxproj'
+
+## Windows
+Launch a 'Developer Command Prompt' from your Visual Studio installation.
+To build release version: 'msbuild ALL_BUILD.vcxproj -p:Configuration=Release'.
+The default will build 64bit with Visual Studio 2019 and 32bit with Visual Studio 2017.
+
+As Windows don't have a default place to store 3rd party include files you need to copy the 'testinterface.h' file somewhere common on your environment. You want to include this file in your unit tests (note: It's optional).
+
+## Apple macOS
+Just run 'make; make install'. The binary (trun) will be installed in /usr/local/bin and the testinterface.h in /usr/local/include.
+
+# Usage
+
 ## Basics
 The runner looks for exported functions within dynamic libraries. The exported function must match the following pattern:
 
@@ -134,9 +155,9 @@ See *exshared* library for an example.
 _NOTE_: TestRunner default input is the current directory. It will search recursively for any testable functions.
 
 <pre>
-TestRunner v0.3 - C/C++ Unit Test Runner
+TestRunner v0.4 - Windows x64 (64 bit) - C/C++ Unit Test Runner
 Usage: trun [options] input
-Options: 
+Options:
   -v  Verbose, increase for more!
   -d  Dump configuration before starting
   -g  Skip module globals (default: off)
@@ -152,7 +173,7 @@ Input should be a directory or list of dylib's to be tested, default is current 
 </pre>
 
 ### Examples
-Be silent (`-s`) and continue even if a module fails `(-c)` or a globa case fails (`-C`), test only cases in module `shared`.
+Be silent (`-s`) and continue even if a module fails `(-c)` or a global case fails (`-C`), test only cases in module `shared`.
 
 `bin/trun -scC -m shared .`
 
@@ -187,6 +208,9 @@ Same as previous but for just one specific library
 
 
 # Version history
+## v0.4
+- Windows Support (64/32 bit), only tested on Windows 10
+
 ## v0.3
 - Added 'TR_ASSERT' macro for easier parameter checking
 
