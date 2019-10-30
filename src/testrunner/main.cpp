@@ -41,8 +41,18 @@ using namespace gnilk;
 ILogger *pLogger = NULL;
 
 static void Help() {
-    printf("TestRunner v%s - %s\n", 
+
+    char *platform = "macOS";
+#ifdef _WIN64
+	platform = "Windows x64 (64 bit)";
+#elif WIN32
+	platform = "Windows x86 (32 bit)";
+#endif
+
+
+    printf("TestRunner v%s - %s - %s\n", 
         Config::Instance()->version.c_str(),
+        platform,
         Config::Instance()->description.c_str());
 
     printf("Usage: trun [options] input\n");
@@ -186,9 +196,9 @@ int main(int argc, char **argv) {
     ParseArguments(argc, argv);
 
 #ifdef _WIN64
-	pLogger->Debug("Windows x64 (64 bit) build\n");
+	pLogger->Info("Windows x64 (64 bit) build");
 #elif WIN32
-	pLogger->Debug("Windows x86 (32 bit) build\n");
+	pLogger->Info("Windows x86 (32 bit) build");
 #endif
 
 

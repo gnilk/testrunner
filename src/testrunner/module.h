@@ -17,7 +17,8 @@
 extern "C"
 {
 	#ifdef WIN32
-	#define CALLCONV __stdcall
+	//#define CALLCONV __stdcall
+	#define CALLCONV
 	#undef GetObject
 	#else
 	#define CALLCONV
