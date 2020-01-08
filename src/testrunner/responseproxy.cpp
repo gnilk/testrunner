@@ -27,6 +27,7 @@
 #include <Windows.h>
 #else
 #include <pthread.h>
+#include <stdarg.h>
 #endif
 
 #include "testinterface.h"

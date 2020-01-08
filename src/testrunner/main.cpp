@@ -47,6 +47,8 @@ static void Help() {
 	platform = "Windows x64 (64 bit)";
 #elif WIN32
 	platform = "Windows x86 (32 bit)";
+#elif __linux
+    platform = "Linux";
 #endif
 
 

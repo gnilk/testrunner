@@ -1,8 +1,9 @@
 #pragma once
 
 #include <stdint.h>
-#ifdef WIN32
+#if defined(WIN32)
 #include <winnt.h>
+#elif defined(__linux__)
 #else
 #include <mach/mach_time.h>
 #endif
@@ -16,6 +17,7 @@ private:
 #ifdef WIN32
     LARGE_INTEGER StartingTime, EndingTime, ElapsedMicroseconds;
     LARGE_INTEGER Frequency;
+#elif defined(__linux__)
 #else
     mach_timebase_info_data_t    timebaseInfo;
 #endif
