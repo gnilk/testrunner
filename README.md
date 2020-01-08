@@ -14,15 +14,19 @@ You need CMake and GCC/Clang or Visual Studio (Windows). Tested with Visual Stud
 4) Run cmake 'cmake ..'
 5) Run 'make' or 'msbuild ALL_BUILD.vcxproj'
 
+## Apple macOS
+Just run 'make; make install'. The binary (trun) will be installed in /usr/local/bin and the testinterface.h in /usr/local/include.
+
+## Linux
+Just run 'make; make install'. The binary (trun) will be installed in /usr/local/bin and the testinterface.h in /usr/local/include
+<b>Note:</b> The linux version depends on 'nm' (from binutils) when scanning a library for test functions. 
+
 ## Windows
 Launch a 'Developer Command Prompt' from your Visual Studio installation.
 To build release version: 'msbuild ALL_BUILD.vcxproj -p:Configuration=Release'.
 The default will build 64bit with Visual Studio 2019 and 32bit with Visual Studio 2017.
 
 As Windows don't have a default place to store 3rd party include files you need to copy the 'testinterface.h' file somewhere common on your environment. You want to include this file in your unit tests (note: It's optional).
-
-## Apple macOS
-Just run 'make; make install'. The binary (trun) will be installed in /usr/local/bin and the testinterface.h in /usr/local/include.
 
 # Usage
 
@@ -208,6 +212,9 @@ Same as previous but for just one specific library
 
 
 # Version history
+## v0.5
+- Linux support, tested on ubuntu 19.10 - you must have binutils installed (in the path) - depends on 'nm'
+
 ## v0.4
 - Windows Support (64/32 bit), only tested on Windows 10
 

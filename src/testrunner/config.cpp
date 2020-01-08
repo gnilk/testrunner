@@ -46,7 +46,7 @@ Config::Config() {
     inputs.push_back(".");    // Search current directory
     modules.push_back("-");
     testcases.push_back("-");
-    version = "0.4";
+    version = "0.5";
     description = "C/C++ Unit Test Runner";
     testMain = "main";
     testGlobals = true;
