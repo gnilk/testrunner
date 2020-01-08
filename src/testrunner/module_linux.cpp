@@ -1,11 +1,13 @@
 /*-------------------------------------------------------------------------
- File    : module.cpp
+ File    : module_linux.cpp
  Author  : FKling
  Version : -
- Orginal : 2018-10-18
- Descr   : Reading of a shared library and parsing of all exported functions
+ Orginal : 2020-01-08
+ Descr   : Linux version of reading exported functions from a shared library
 
-    In order for this project to be X-Platform this must be replaced
+
+    NOTE: This will spawn the 'nm' utility (from binutils) and parse the output!!!
+    
 
  Part of testrunner
  BSD3 License!
@@ -19,7 +21,7 @@
  
  
  \History
- - 2018.10.18, FKling, Implementation
+ - 2020.01.08, FKling, Implementation
  
  ---------------------------------------------------------------------------*/
 
@@ -29,8 +31,6 @@
 #include "process.h"
 
 #include <dlfcn.h>
-// #include <mach-o/dyld.h>
-// #include <mach-o/nlist.h>
 
 #include <string>
 #include <vector>

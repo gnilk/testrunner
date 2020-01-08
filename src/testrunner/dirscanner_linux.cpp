@@ -1,11 +1,11 @@
 /*-------------------------------------------------------------------------
- File    : dirscanner.cpp
+ File    : dirscanner_linux.cpp
  Author  : FKling
  Version : -
- Orginal : 2018-10-18
+ Orginal : 2020-01-08
  Descr   : Scan's a directory for dynamic libraries
 
-    In order for this project to be X-Platform this must be replaced
+    Linux version - basically only changes the filter and the export function pattern
 
  Part of testrunner
  BSD3 License!
@@ -19,7 +19,7 @@
  
  
  \History
- - 2018.10.18, FKling, Implementation
+ - 2020.01.08, FKling, Implementation
  
  ---------------------------------------------------------------------------*/
 
@@ -37,8 +37,8 @@
 // List of supported extensions
 //
 static const char *lExtensions[]={
-    ".dll",     // Windows
-    ".dylib",   // macOS
+//    ".dll",     // Windows
+//    ".dylib",   // macOS
     ".so",   // linux
     NULL
 };
