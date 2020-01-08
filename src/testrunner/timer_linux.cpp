@@ -2,9 +2,11 @@
  File    : timer.cpp
  Author  : FKling
  Version : -
- Orginal : 2018-10-18
- Descr   : Simple timer to measure duration between Reset/Sample call's
+ Orginal : 2020-01-08
+ Descr   : Linux timer to measure duration between Reset/Sample call's
 
+
+ Note: I dislike std::chrono....    where did "simplicity" go????????
 
  Part of testrunner
  BSD3 License!
@@ -18,11 +20,14 @@
  
  
  \History
- - 2018.10.18, FKling, Implementation
+ - 2020.01.08, FKling, Implementation
  
  ---------------------------------------------------------------------------*/
 
 #include "timer.h"
+#include <chrono>
+
+typedef std::chrono::steady_clock Clock;
 
 Timer::Timer() {
     Reset();
@@ -32,8 +37,7 @@ Timer::Timer() {
 // Restet starting point for clock
 //
 void Timer::Reset() {
-    // tStart = mach_absolute_time();
-    // mach_timebase_info(&timebaseInfo);
+    time_start = Clock::now();
 }
 
 //
@@ -42,12 +46,11 @@ void Timer::Reset() {
 double Timer::Sample() {
     double ret = 0.0;
 
-	// // Derived from: https://developer.apple.com/library/archive/qa/qa1398/_index.html
-    // uint64_t elapsed = mach_absolute_time() - tStart;
+    auto elapsed = Clock::now();
+    auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed - time_start).count();
 
-    // uint64_t elapsedNano = elapsed * timebaseInfo.numer / timebaseInfo.denom;	
-
-	// ret = (double)(elapsedNano) / (double)(1000000000.0);
+    ret = ms / 1000.0f;
+  
 
     return ret;
 }
