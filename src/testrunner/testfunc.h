@@ -4,6 +4,7 @@
 #include "module.h"
 #include "logger.h"
 #include "testresult.h"
+#include "responseproxy.h"
 #include <string>
 
 // Internal - used by test runner...
@@ -16,6 +17,9 @@ public:
     TestResult *Execute(IModule *module);
     void SetExecuted();
     bool Executed();
+
+    void ExecuteAsync();
+
 public:
     std::string symbolName;
     std::string moduleName;
@@ -23,6 +27,12 @@ public:
 private:
     bool isExecuted;
     gnilk::ILogger *pLogger;
-    void HandleTestReturnCode(int code, TestResult *testResult);
+    void HandleTestReturnCode();
+
+    TestResponseProxy *trp;
+
+    PTESTFUNC pFunc;
+    int testReturnCode;
+    TestResult *testResult;
 
 };

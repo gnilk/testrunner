@@ -28,8 +28,9 @@ extern "C" {
 		return kTR_Fail;
 	}
 	int test_shared_b_fatal(ITesting *t) {
-//		printf("test_shared_dispose, got called\n");
+		printf("test_shared_b_fatal, got called\n");
 		t->Fatal(__LINE__, __FILE__,"this is a fatal error (stop all further cases for module)");
+        printf("test_shared_b_fatal, THIS SHOULD NOT BE VISISLBE!\n");
 		return kTR_FailModule;
 	}
 

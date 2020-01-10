@@ -26,6 +26,7 @@
 #ifdef WIN32
 #include <Windows.h>
 #else
+#include <thread>
 #include <pthread.h>
 #include <stdarg.h>
 #endif
@@ -127,7 +128,9 @@ void TestResponseProxy::Warning(int line, const char *file, std::string message)
     pLogger->Warning("%s:%d:%s", file, line, message.c_str());
 }
 
-
+//
+// All error functions will abort the running test!!!
+//
 void TestResponseProxy::Error(int line, const char *file, std::string message) {
     //gnilk::ILogger *pLogger = gnilk::Logger::GetLogger(moduleName.c_str());
     pLogger->Error("%s:%d:%s", file, line, message.c_str());
@@ -135,6 +138,7 @@ void TestResponseProxy::Error(int line, const char *file, std::string message) {
     if (testResult < kTestResult_TestFail) {
         testResult = kTestResult_TestFail;
     }
+    pthread_exit(NULL);
 }
 
 void TestResponseProxy::Fatal(int line, const char *file, std::string message) {
@@ -144,6 +148,7 @@ void TestResponseProxy::Fatal(int line, const char *file, std::string message) {
     if (testResult < kTestResult_ModuleFail) {
         testResult = kTestResult_ModuleFail;
     }
+    pthread_exit(NULL);
 }
 
 void TestResponseProxy::Abort(int line, const char *file, std::string message) {
@@ -153,25 +158,36 @@ void TestResponseProxy::Abort(int line, const char *file, std::string message) {
     if (testResult < kTestResult_AllFail) {
         testResult = kTestResult_AllFail;
     }
-
+    pthread_exit(NULL);
 }
 
 //void (*AssertError)(const char *exp, const char *file, const int line);
 void TestResponseProxy::AssertError(const char *exp, const char *file, const int line) {
     pLogger->Error("Assert Error: %s:%d\t'%s'", file, line, exp);
     this->assertCount++;
+    if (testResult < kTestResult_TestFail) {
+        testResult = kTestResult_TestFail;
+    }
+    pthread_exit(NULL);
 }
-
 
 
 //
 // GetInstance - returns a test proxy, if one does not exists for the thread one will be allocated
 //
 TestResponseProxy *TestResponseProxy::GetInstance() {
+    // NOTE: Figure out how this should work
+    //       Where is threading occuring and who owns this
+    //       Currently this function is called from the 'testfunc.cpp' where also threading
+    //       is happening. But that's not quite right. Instead a module should have this in order
+    //       to allow parallell testing of modules but not within modules!
+    //       Currently all testing is purely sequentially executed so this does not matter!
 #ifdef WIN32
-	DWORD tid = GetCurrentThreadId();
+    //DWORD tid = GetCurrentThreadId();
+    DWORD tid = 4711;
 #else
-    pthread_t tid = pthread_self();
+    //pthread_t tid = pthread_self();
+    pthread_t tid = (pthread_t)4711;
 #endif
 
     gnilk::ILogger *pLogger = gnilk::Logger::GetLogger("TestResponseProxy");
