@@ -16,7 +16,7 @@
  ---------------------------------------------------------------------------
  TODO: [ -:Not done, +:In progress, !:Completed]
  <pre>
-
+    + Refactor this to module_linux.cpp
  </pre>
  
  
@@ -26,6 +26,7 @@
  ---------------------------------------------------------------------------*/
 
 #include "module.h"
+#include "module_linux.h"
 #include "strutil.h"
 #include "logger.h"
 #include "process.h"
@@ -42,12 +43,12 @@
 
 using namespace gnilk;
 
-Module::Module() {
+ModuleLinux::ModuleLinux() {
     this->handle = NULL;
     this->idxLib = -1;
     this->pLogger = gnilk::Logger::GetLogger("Module");
 }
-Module::~Module() {
+ModuleLinux::~ModuleLinux() {
     pLogger->Debug("DTOR, closing library");
     Close();
 }
@@ -56,14 +57,14 @@ Module::~Module() {
 // Handle, returns a handle to the library for this module
 // NULL if not opened or failed to open
 //
-void *Module::Handle() {
+void *ModuleLinux::Handle() {
     return handle;
 }
 
 //
 // FindExportedSymbol, returns a handle (function pointer) to the exported symbol
 //
-void *Module::FindExportedSymbol(std::string funcName) {
+void *ModuleLinux::FindExportedSymbol(std::string funcName) {
   
    // TODO: Strip leading '_' from funcName...
 
@@ -85,14 +86,14 @@ void *Module::FindExportedSymbol(std::string funcName) {
 //
 // Exports, returns all valid test functions
 //
-std::vector<std::string> &Module::Exports() {
+std::vector<std::string> &ModuleLinux::Exports() {
     return exports;
 }
 
 //
 // Scan, scans a dynamic library for exported test functions
 //
-bool Module::Scan(std::string pathName) {
+bool ModuleLinux::Scan(std::string pathName) {
     this->pathName = pathName;
 
     pLogger->Debug("Scan, entering");
@@ -125,7 +126,7 @@ protected:
 //
 // Open, opens the dynamic library and scan's for exported symbols
 //
-bool Module::Open() {
+bool ModuleLinux::Open() {
 
     // This is used later
     handle = dlopen(pathName.c_str(), RTLD_LAZY);
@@ -166,17 +167,7 @@ bool Module::Open() {
 
 }
 
-
-//
-// Below not used
-//
-
-bool Module::ParseCommands() {
-    return true;
-}
-
-
-bool Module::Close() {
+bool ModuleLinux::Close() {
     if (handle != NULL) {
         int res = dlclose(handle);
         idxLib = -1;
@@ -185,23 +176,16 @@ bool Module::Close() {
     return false;
 }
 
-int Module::FindImage() {
+//
+// Below not used
+//
+
+bool ModuleLinux::ParseCommands() {
+    return true;
+}
+
+int ModuleLinux::FindImage() {
     return -1;
-}
-
-
-
-void Module::ProcessSymtab(uint8_t *ptrData) {
-    // Parse data
-    ParseSymTabNames(ptrData);
-    ExtractTestFunctionFromSymbols();
-
-}
-
-void Module::ParseSymTabNames(uint8_t *ptrData) {
-}
-
-void Module::ExtractTestFunctionFromSymbols() {
 }
 
 //
@@ -214,21 +198,6 @@ bool Module::IsValidTestFunc(std::string funcName) {
     }
     return false;
 }
-
-uint8_t *Module::FromOffset32(uint32_t offset) {
-    return &ptrModuleStart[offset];
-}
-
-uint8_t *Module::ModuleStart() {
-    return ptrModuleStart;
-}
-
-uint8_t *Module::AlignPtr(uint8_t *ptr) {
-    while( ( (uint64_t)ptr) & (uint64_t)0x07) ptr++;
-    return ptr;
-}
-
-
 
 
 /////////////////

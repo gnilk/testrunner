@@ -27,7 +27,7 @@
  ---------------------------------------------------------------------------*/
 
 #include "testfunc.h"
-#include "module.h"
+#include "module_mac.h"
 #include "config.h"
 #include "testrunner.h"
 #include "responseproxy.h"

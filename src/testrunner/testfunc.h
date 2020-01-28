@@ -1,7 +1,7 @@
 #pragma once
 
 #include "config.h"
-#include "module.h"
+#include "module_mac.h"
 #include "logger.h"
 #include "testresult.h"
 #include "responseproxy.h"

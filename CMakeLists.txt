@@ -36,7 +36,7 @@ add_library(exstatic STATIC ${staticlib})
 list(APPEND srcfiles src/testrunner/main.cpp src/testrunner/strutil.cpp src/testrunner/testrunner.cpp src/testrunner/logger.cpp src/testrunner/config.cpp src/testrunner/testfunc.cpp src/testrunner/responseproxy.cpp src/testrunner/testresult.cpp)
 
 if (APPLE)
-    list(APPEND srcfiles src/testrunner/module.cpp)
+    list(APPEND srcfiles src/testrunner/module_mac.cpp)
     list(APPEND srcfiles src/testrunner/dirscanner.cpp)
     list(APPEND srcfiles src/testrunner/timer.cpp)
 elseif(WIN32)
@@ -52,7 +52,7 @@ endif()
 
 
 # Create executeable
-add_executable(trun ${srcfiles})
+add_executable(trun ${srcfiles} src/testrunner/module.h)
 target_include_directories(trun PRIVATE inc)
 target_include_directories(trun PRIVATE .)
 

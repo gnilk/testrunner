@@ -24,6 +24,7 @@
  ---------------------------------------------------------------------------*/
 
 #include "module.h"
+#include "module_win32.h"
 #include "strutil.h"
 #include "logger.h"
 
@@ -38,12 +39,11 @@
 #include <utility>
 
 
-Module::Module() {
+ModuleWin::ModuleWin() {
     this->handle = NULL;
-    this->idxLib = -1;
-    this->pLogger = gnilk::Logger::GetLogger("Module");
+    this->pLogger = gnilk::Logger::GetLogger("ModuleWin");
 }
-Module::~Module() {
+ModuleWin::~ModuleWin() {
     pLogger->Debug("DTOR, closing library");
     Close();
 }
@@ -52,14 +52,14 @@ Module::~Module() {
 // Handle, returns a handle to the library for this module
 // NULL if not opened or failed to open
 //
-void *Module::Handle() {
+void *ModuleWin::Handle() {
     return handle;
 }
 
 //
 // FindExportedSymbol, returns a handle (function pointer) to the exported symbol
 //
-void *Module::FindExportedSymbol(std::string funcName) {
+void *ModuleWin::FindExportedSymbol(std::string funcName) {
   
    // TODO: Strip leading '_' from funcName...
 
@@ -82,21 +82,21 @@ void *Module::FindExportedSymbol(std::string funcName) {
 //
 // Exports, returns all valid test functions
 //
-std::vector<std::string> &Module::Exports() {
+std::vector<std::string> &ModuleWin::Exports() {
     return exports;
 }
 
 //
 // Scan, scans a dynamic library for exported test functions
 //
-bool Module::Scan(std::string pathName) {
+bool ModuleWin::Scan(std::string pathName) {
     this->pathName = pathName;
 
-    pLogger->Debug("Module::Scan, entering, pathName: %s\n", pathName.c_str());
+    pLogger->Debug("ModuleWin::Scan, entering, pathName: %s\n", pathName.c_str());
     if (!Open()) {
         return false;
     }
-    pLogger->Debug("Module::Open ok");
+    pLogger->Debug("ModuleWin::Open ok");
 
 
     // pLogger->Debug("File type: 0x%.8x", header->filetype);
@@ -104,9 +104,7 @@ bool Module::Scan(std::string pathName) {
     // pLogger->Debug("Cmds: %d", header->ncmds);
     // pLogger->Debug("Size of header: %lu\n", sizeof(struct mach_header_64));
  
-    //ParseCommands();
-
-    pLogger->Debug("Module::Scan, leaving");
+    pLogger->Debug("ModuleWin::Scan, leaving");
 
     return true;
 }
@@ -119,7 +117,7 @@ bool Module::Scan(std::string pathName) {
 //
 // Open, opens the dynamic library and scan's for exported symbols
 //
-bool Module::Open() {
+bool ModuleWin::Open() {
 
     // See: https://stackoverflow.com/questions/1128150/win32-api-to-enumerate-dll-export-functions
     
@@ -203,7 +201,7 @@ bool Module::Open() {
     return true;    
 }
 
-bool Module::Close() {
+bool ModuleWin::Close() {
     if (handle != NULL) {
 		FreeLibrary(handle);
         return true;
@@ -214,49 +212,10 @@ bool Module::Close() {
 //
 // Validates a function name as a test function
 //
-bool Module::IsValidTestFunc(std::string funcName) {
+bool ModuleWin::IsValidTestFunc(std::string funcName) {
     // The function table is what really matters
     if (funcName.find("test_",0) == 0) {
         return true;
     }
     return false;
 }
-
-//
-// Below is not used on Win32 - just for class/interface compliancy
-//
-
-
-//
-bool Module::ParseCommands() {
-    // Not used on Win32
-    return true;
-}
-
-
-int Module::FindImage() {
-    return 0;
-}
-
-
-
-void Module::ProcessSymtab(uint8_t *ptrData) {
-}
-void Module::ParseSymTabNames(uint8_t *ptrData) {
-}
-void Module::ExtractTestFunctionFromSymbols() {
-}
-
-
-uint8_t *Module::FromOffset32(uint32_t offset) {
-    return NULL;
-}
-
-uint8_t *Module::ModuleStart() {
-    return NULL;
-}
-
-uint8_t *Module::AlignPtr(uint8_t *ptr) {
-    return NULL;
-}
-

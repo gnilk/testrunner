@@ -25,7 +25,7 @@
  ---------------------------------------------------------------------------*/
 #include "logger.h"
 #include "testrunner.h"
-#include "module.h"
+#include "module_mac.h"
 #include "strutil.h"
 #include "config.h"
 #include "timer.h"
@@ -42,15 +42,17 @@ ILogger *pLogger = NULL;
 
 static void Help() {
 
-    char *platform = "macOS";
 #ifdef _WIN64
-	platform = "Windows x64 (64 bit)";
+    std::string strPlatform = "Windows x64 (64 bit)";
 #elif WIN32
-	platform = "Windows x86 (32 bit)";
+    std::string strPlatform = "Windows x86 (32 bit)";
 #elif __linux
-    platform = "Linux";
+    std::string strPlatform = "Linux";
+#else
+    std::string strPlatform = "macOS";
 #endif
 
+    const char *platform = strPlatform.c_str();
 
     printf("TestRunner v%s - %s - %s\n", 
         Config::Instance()->version.c_str(),
@@ -167,12 +169,23 @@ next_argument:;
     }
 }
 
-static void RunTestsForModule(Module &module) {
+static void RunTestsForModule(IModule &module) {
     pLogger->Debug("Running tests");
     ModuleTestRunner testRunner(&module);
     testRunner.ExecuteTests();
 }
 
+static IModule &GetModuleLoader() {
+#ifdef WIN32
+    static ModuleWin loader;
+#elif __linux
+    static ModuleLinux loader;
+#else
+    static ModuleMac loader;
+#endif
+
+    return loader;
+}
 static void ProcessInput(std::vector<std::string> &inputs) {
     // Process all inputs
     for(auto x:inputs) {
@@ -181,7 +194,7 @@ static void ProcessInput(std::vector<std::string> &inputs) {
             std::vector<std::string> subs = dirscan.Scan(x, true);
             ProcessInput(subs);
         } else {
-            Module module;
+            IModule &module = GetModuleLoader();
             if (module.Scan(x)) {            
                 pLogger->Info("Executing tests for %s", x.c_str());
                 RunTestsForModule(module);

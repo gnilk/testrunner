@@ -1,9 +1,10 @@
 /*-------------------------------------------------------------------------
- File    : module.cpp
+ File    : module_mac.cpp
  Author  : FKling
  Version : -
  Orginal : 2018-10-18
- Descr   : Reading of a shared library and parsing of all exported functions
+ Descr   : Reading of a shared library on MacOS and parsing of all exported functions
+           This implements native parsing of the mach-o headers in order to find exported functions
 
     In order for this project to be X-Platform this must be replaced
 
@@ -14,7 +15,7 @@
  ---------------------------------------------------------------------------
  TODO: [ -:Not done, +:In progress, !:Completed]
  <pre>
-
+    ! Refactor this to module_mac.cpp
  </pre>
  
  
@@ -23,7 +24,7 @@
  
  ---------------------------------------------------------------------------*/
 
-#include "module.h"
+#include "module_mac.h"
 #include "strutil.h"
 #include "logger.h"
 
@@ -38,12 +39,12 @@
 #include <utility>
 
 
-Module::Module() {
+ModuleMac::ModuleMac() {
     this->handle = NULL;
     this->idxLib = -1;
     this->pLogger = gnilk::Logger::GetLogger("Module");
 }
-Module::~Module() {
+ModuleMac::~ModuleMac() {
     pLogger->Debug("DTOR, closing library");
     Close();
 }
@@ -52,14 +53,14 @@ Module::~Module() {
 // Handle, returns a handle to the library for this module
 // NULL if not opened or failed to open
 //
-void *Module::Handle() {
+void *ModuleMac::Handle() {
     return handle;
 }
 
 //
 // FindExportedSymbol, returns a handle (function pointer) to the exported symbol
 //
-void *Module::FindExportedSymbol(std::string funcName) {
+void *ModuleMac::FindExportedSymbol(std::string funcName) {
   
    // TODO: Strip leading '_' from funcName...
 
@@ -81,14 +82,14 @@ void *Module::FindExportedSymbol(std::string funcName) {
 //
 // Exports, returns all valid test functions
 //
-std::vector<std::string> &Module::Exports() {
+std::vector<std::string> &ModuleMac::Exports() {
     return exports;
 }
 
 //
 // Scan, scans a dynamic library for exported test functions
 //
-bool Module::Scan(std::string pathName) {
+bool ModuleMac::Scan(std::string pathName) {
     this->pathName = pathName;
 
     pLogger->Debug("Module::Scan, entering");
@@ -118,7 +119,7 @@ bool Module::Scan(std::string pathName) {
 //
 // Open, opens the dynamic library and scan's for exported symbols
 //
-bool Module::Open() {
+bool ModuleMac::Open() {
 
 //    pLogger->Debug("Module::Open, calling dlopen with: %s", pathName.c_str());
     handle = dlopen(pathName.c_str(), RTLD_LAZY);
@@ -150,7 +151,7 @@ bool Module::Open() {
 //
 // Parse Mach-O commands, we only search for SYMTAB
 //
-bool Module::ParseCommands() {
+bool ModuleMac::ParseCommands() {
 
     uint8_t *ptrData = (uint8_t *)header;
     ptrData += sizeof(struct mach_header_64);
@@ -176,7 +177,7 @@ bool Module::ParseCommands() {
 }
 
 
-bool Module::Close() {
+bool ModuleMac::Close() {
     if (handle != NULL) {
         int res = dlclose(handle);
         idxLib = -1;
@@ -185,7 +186,7 @@ bool Module::Close() {
     return false;
 }
 
-int Module::FindImage() {
+int ModuleMac::FindImage() {
     int nImages = _dyld_image_count();
     for(int i=0;i<nImages;i++) {
         std::string imageName(_dyld_get_image_name(i));
@@ -205,7 +206,7 @@ int Module::FindImage() {
 //
 // Process LC_SYMTAB command
 //
-void Module::ProcessSymtab(uint8_t *ptrData) {
+void ModuleMac::ProcessSymtab(uint8_t *ptrData) {
     // Parse data
     ParseSymTabNames(ptrData);
     ExtractTestFunctionFromSymbols();
@@ -215,7 +216,7 @@ void Module::ProcessSymtab(uint8_t *ptrData) {
 //
 // Parse LC_SYMTAB
 //
-void Module::ParseSymTabNames(uint8_t *ptrData) {
+void ModuleMac::ParseSymTabNames(uint8_t *ptrData) {
     // Locate string table for all symbols (stroff - is relative 0 from file start)
     struct symtab_command *symtab = (struct symtab_command *)ptrData;
 
@@ -241,7 +242,7 @@ void Module::ParseSymTabNames(uint8_t *ptrData) {
 //
 // Extracts any exported symbol matching a test function
 //
-void Module::ExtractTestFunctionFromSymbols() {
+void ModuleMac::ExtractTestFunctionFromSymbols() {
     // Extract valid test functions
     for(auto x:symbols) {
         if (IsValidTestFunc(x.first)) {
@@ -253,7 +254,7 @@ void Module::ExtractTestFunctionFromSymbols() {
 //
 // Validates a function name as a test function
 //
-bool Module::IsValidTestFunc(std::string funcName) {
+bool ModuleMac::IsValidTestFunc(std::string funcName) {
     // The function table is what really matters
     if (funcName.find("_test_",0) == 0) {
         return true;
@@ -261,15 +262,15 @@ bool Module::IsValidTestFunc(std::string funcName) {
     return false;
 }
 
-uint8_t *Module::FromOffset32(uint32_t offset) {
+uint8_t *ModuleMac::FromOffset32(uint32_t offset) {
     return &ptrModuleStart[offset];
 }
 
-uint8_t *Module::ModuleStart() {
+uint8_t *ModuleMac::ModuleStart() {
     return ptrModuleStart;
 }
 
-uint8_t *Module::AlignPtr(uint8_t *ptr) {
+uint8_t *ModuleMac::AlignPtr(uint8_t *ptr) {
     while( ( (uint64_t)ptr) & (uint64_t)0x07) ptr++;
     return ptr;
 }

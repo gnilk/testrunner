@@ -27,7 +27,7 @@
 #include <stdint.h>
 #include <string>
 
-#include "module.h"
+#include "module_mac.h"
 #include "strutil.h"
 #include "testrunner.h"
 #include "logger.h"
@@ -90,7 +90,7 @@ bool ModuleTestRunner::ExecuteMain(std::vector<TestFunc *> &globals) {
             if (f->IsGlobalMain()) {
                 TestResult *result = ExecuteTest(f);        
                 HandleTestResult(result);
-                if (result->Result() == kTestResult_AllFail) {
+                if ((result->Result() == kTestResult_AllFail) || (result->Result() == kTestResult_TestFail)) {
                     if (Config::Instance()->stopOnAllFail) {
                         pLogger->Info("Total test failure, aborting");
                         bRes = false;
