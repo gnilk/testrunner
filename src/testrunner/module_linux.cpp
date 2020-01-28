@@ -177,21 +177,9 @@ bool ModuleLinux::Close() {
 }
 
 //
-// Below not used
-//
-
-bool ModuleLinux::ParseCommands() {
-    return true;
-}
-
-int ModuleLinux::FindImage() {
-    return -1;
-}
-
-//
 // Validates a function name as a test function
 //
-bool Module::IsValidTestFunc(std::string funcName) {
+bool ModuleLinux::IsValidTestFunc(std::string funcName) {
     // The function table is what really matters
     if (funcName.find("test_",0) == 0) {
         return true;

@@ -25,7 +25,14 @@
  ---------------------------------------------------------------------------*/
 #include "logger.h"
 #include "testrunner.h"
+#include "module.h"
+#ifdef WIN32
+#include "module_win32.h"
+#elif __linux
+#include "module_linux.h"
+#else
 #include "module_mac.h"
+#endif
 #include "strutil.h"
 #include "config.h"
 #include "timer.h"

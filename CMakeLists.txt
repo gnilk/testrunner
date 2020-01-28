@@ -72,7 +72,7 @@ if (APPLE)
 elseif (WIN32)
     target_link_libraries(trun)
 elseif (UNIX)
-    target_link_libraries(trun dl)
+    target_link_libraries(trun dl pthread)
 endif()
 
 install(TARGETS trun DESTINATION bin)

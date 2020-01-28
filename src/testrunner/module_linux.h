@@ -11,12 +11,6 @@
 #include <map>
 
 
-
-//
-// Keep the following MacOS specfic
-//
-class BaseCommand;
-
 //
 // TODO: Split this to a spearate .h file for each module_xxx.cpp
 //
