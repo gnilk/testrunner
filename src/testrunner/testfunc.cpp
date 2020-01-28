@@ -62,11 +62,7 @@ bool TestFunc::IsGlobalMain() {
 }
 void TestFunc::ExecuteAsync() {
     // 1) Setup test response proxy
-
-    // TODO: This will leak memory...
-    //       ResponseProxy per thread is NOT needed in this case
-    //       For scaleability we should have ResponseProxy per module
-    //       In that case we could run parallell testing on a per module basis
+    // This is currently a global instance - not good!
 
     trp = TestResponseProxy::GetInstance();
     // Begin test
@@ -76,8 +72,8 @@ void TestFunc::ExecuteAsync() {
 }
 
 // Pthread wrapper..
-static void *thread_start(void *) {
-    TestFunc *func;
+static void *testfunc_thread_starter(void *arg) {
+    TestFunc *func = reinterpret_cast<TestFunc*>(arg);
     func->ExecuteAsync();
     return NULL;
 }
@@ -107,7 +103,7 @@ TestResult *TestFunc::Execute(IModule *module) {
         pthread_attr_t attr;
         pthread_t hThread;
         pthread_attr_init(&attr);
-        pthread_create(&hThread,&attr,thread_start, this);
+        pthread_create(&hThread,&attr,testfunc_thread_starter, this);
         pLogger->Debug("Execute, waiting for thread");
 
         void *ret;

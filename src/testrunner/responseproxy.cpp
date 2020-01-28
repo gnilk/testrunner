@@ -172,6 +172,8 @@ void TestResponseProxy::AssertError(const char *exp, const char *file, const int
 }
 
 
+
+static TestResponseProxy *glbResponseProxy = NULL;
 //
 // GetInstance - returns a test proxy, if one does not exists for the thread one will be allocated
 //
@@ -182,29 +184,29 @@ TestResponseProxy *TestResponseProxy::GetInstance() {
     //       is happening. But that's not quite right. Instead a module should have this in order
     //       to allow parallell testing of modules but not within modules!
     //       Currently all testing is purely sequentially executed so this does not matter!
-#ifdef WIN32
-    //DWORD tid = GetCurrentThreadId();
-    DWORD tid = 4711;
-#else
-    //pthread_t tid = pthread_self();
-    pthread_t tid = (pthread_t)4711;
-#endif
 
-    gnilk::ILogger *pLogger = gnilk::Logger::GetLogger("TestResponseProxy");
 
-    if (trpLookup.find(tid) == trpLookup.end()) {
-        pLogger->Debug("GetInstance, allocating new instance with tid: 0x%.8x", tid);
-        TestResponseProxy *trp = new TestResponseProxy();
-#ifdef WIN32
-		trpLookup.insert(std::pair<DWORD, TestResponseProxy*>(tid, trp));
-#else
-		trpLookup.insert(std::pair<pthread_t, TestResponseProxy*>(tid, trp));
-#endif
-        return trp;
-    } else {
-        //pLogger->Debug("GetInstance, returning existing proxy instance for tid: 0x%.8x", tid);
+    // [2020-01-28, gnilk] Just test coding
+    if (glbResponseProxy == NULL) {
+        glbResponseProxy = new TestResponseProxy();
     }
-    return trpLookup[tid];
+    return glbResponseProxy;
+
+//    gnilk::ILogger *pLogger = gnilk::Logger::GetLogger("TestResponseProxy");
+//
+//    if (trpLookup.find(tid) == trpLookup.end()) {
+//        pLogger->Debug("GetInstance, allocating new instance with tid: 0x%.8x", tid);
+//        TestResponseProxy *trp = new TestResponseProxy();
+//#ifdef WIN32
+//		trpLookup.insert(std::pair<DWORD, TestResponseProxy*>(tid, trp));
+//#else
+//		trpLookup.insert(std::pair<pthread_t, TestResponseProxy*>(tid, trp));
+//#endif
+//        return trp;
+//    } else {
+//        //pLogger->Debug("GetInstance, returning existing proxy instance for tid: 0x%.8x", tid);
+//    }
+//    return trpLookup[tid];
 
 }
 
