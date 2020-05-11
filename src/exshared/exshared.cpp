@@ -27,41 +27,41 @@ extern "C" {
 		t->Error(__LINE__, __FILE__, "this is just an error");
 		return kTR_Fail;
 	}
-	int test_shared_b_fatal(ITesting *t) {
+	DLL_EXPORT int test_shared_b_fatal(ITesting *t) {
 		printf("test_shared_b_fatal, got called\n");
 		t->Fatal(__LINE__, __FILE__,"this is a fatal error (stop all further cases for module)");
         printf("test_shared_b_fatal, THIS SHOULD NOT BE VISISLBE!\n");
 		return kTR_FailModule;
 	}
 
-	int test_shared_c_abort(ITesting *t) {
+	DLL_EXPORT int test_shared_c_abort(ITesting *t) {
 		t->Abort(__LINE__, __FILE__,"this is an abort error (stop any further testing)");
 		return kTR_FailAll;
 	}
 
-	int test_mod_main(ITesting *t) {
+	DLL_EXPORT int test_mod_main(ITesting *t) {
 		t->Debug(__LINE__, __FILE__, "test_mod_main, got called");
 		return kTR_Pass;
 	}
-	int test_mod_create(ITesting *t) {
+	DLL_EXPORT int test_mod_create(ITesting *t) {
 		t->Abort(__LINE__, __FILE__, "test_mod_create, got called");
 		return kTR_Fail;
 	}
-	int test_mod_dispose(ITesting *t) {
+	DLL_EXPORT int test_mod_dispose(ITesting *t) {
 		t->Debug(__LINE__, __FILE__, "test_mod_dispose, got called");
 		return kTR_Pass;
 	}
 
-	int test_(ITesting *t) {
+	DLL_EXPORT int test_(ITesting *t) {
 		t->Debug(__LINE__, __FILE__, "test_, got called\n");
 		return kTR_Pass;
 	}
-	int test_toplevel(ITesting *t) {
+	DLL_EXPORT int test_toplevel(ITesting *t) {
 		t->Debug(__LINE__, __FILE__, "test_toplevel, got called");
 		return kTR_Pass;
 	}
 
-	int test_main(void *param) {
+	DLL_EXPORT int test_main(void *param) {
 		ITesting *t = (ITesting *)param;
 		printf("Doing assert\n");
 		TR_ASSERT(t, 1==2);

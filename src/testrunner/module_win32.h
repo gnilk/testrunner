@@ -26,8 +26,8 @@ class BaseCommand;
 //
 class ModuleWin : public IModule {
 public:
-    Module();
-    ~Module();
+    ModuleWin();
+    virtual ~ModuleWin();
     
 public: // IModule
     virtual void *Handle();    

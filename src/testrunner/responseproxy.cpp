@@ -138,7 +138,11 @@ void TestResponseProxy::Error(int line, const char *file, std::string message) {
     if (testResult < kTestResult_TestFail) {
         testResult = kTestResult_TestFail;
     }
+#ifdef WIN32    
+    TerminateThread(GetCurrentThread(),0);
+#else
     pthread_exit(NULL);
+#endif
 }
 
 void TestResponseProxy::Fatal(int line, const char *file, std::string message) {
@@ -148,7 +152,11 @@ void TestResponseProxy::Fatal(int line, const char *file, std::string message) {
     if (testResult < kTestResult_ModuleFail) {
         testResult = kTestResult_ModuleFail;
     }
+#ifdef WIN32    
+    TerminateThread(GetCurrentThread(), 0);
+#else
     pthread_exit(NULL);
+#endif
 }
 
 void TestResponseProxy::Abort(int line, const char *file, std::string message) {
@@ -158,7 +166,13 @@ void TestResponseProxy::Abort(int line, const char *file, std::string message) {
     if (testResult < kTestResult_AllFail) {
         testResult = kTestResult_AllFail;
     }
+#ifdef WIN32    
+    if (!TerminateThread(GetCurrentThread(), 0)) {
+        pLogger->Error("Terminating thread...\n");
+    }
+#else
     pthread_exit(NULL);
+#endif
 }
 
 //void (*AssertError)(const char *exp, const char *file, const int line);
@@ -168,7 +182,11 @@ void TestResponseProxy::AssertError(const char *exp, const char *file, const int
     if (testResult < kTestResult_TestFail) {
         testResult = kTestResult_TestFail;
     }
+#ifdef WIN32    
+    TerminateThread(GetCurrentThread(), 0);
+#else
     pthread_exit(NULL);
+#endif
 }
 
 

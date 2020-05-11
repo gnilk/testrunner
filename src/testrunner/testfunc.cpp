@@ -33,6 +33,7 @@
 #include "responseproxy.h"
 #include <string>
 #ifdef WIN32
+#include <Windows.h>
 #else
 #include <pthread.h>
 #include <thread>
@@ -71,12 +72,21 @@ void TestFunc::ExecuteAsync() {
     testReturnCode = pFunc((void *)trp->Proxy());
 }
 
+#ifdef WIN32
+DWORD WINAPI testfunc_thread_starter(LPVOID lpParam) {
+    TestFunc* func = reinterpret_cast<TestFunc*>(lpParam);
+    func->ExecuteAsync();
+    return NULL;
+}
+
+#else
 // Pthread wrapper..
 static void *testfunc_thread_starter(void *arg) {
     TestFunc *func = reinterpret_cast<TestFunc*>(arg);
     func->ExecuteAsync();
     return NULL;
 }
+#endif
 
 TestResult *TestFunc::Execute(IModule *module) {
     pLogger->Debug("Executing test: %s", caseName.c_str());
@@ -100,15 +110,20 @@ TestResult *TestFunc::Execute(IModule *module) {
         // Execute the test in it's own thread.
         // This allows the test to be aborted when the response proxy is called
         testResult = new TestResult(symbolName);
+#ifdef WIN32
+        DWORD dwThreadID;
+        HANDLE hThread = CreateThread(NULL, 0, testfunc_thread_starter, this, 0, &dwThreadID);
+        pLogger->Debug("Execute, waiting for thread");
+        WaitForSingleObject(hThread, INFINITE);
+#else
         pthread_attr_t attr;
         pthread_t hThread;
         pthread_attr_init(&attr);
         pthread_create(&hThread,&attr,testfunc_thread_starter, this);
         pLogger->Debug("Execute, waiting for thread");
-
         void *ret;
         pthread_join(hThread, &ret);
-
+#endif
         pLogger->Debug("Execute, thread done...\n");
 
         trp->End();
