@@ -212,6 +212,9 @@ Same as previous but for just one specific library
 
 
 # Version history
+## v0.6
+- Test cases are now executed in their own threads and will be terminated on errors
+- Linux, fixed issue with premature exit while scanning for dependencies
 ## v0.5
 - Linux support, tested on ubuntu 19.10 - you must have binutils installed (in the path) - depends on 'nm'
 
