@@ -199,7 +199,10 @@ bool Process_Unix::SpawnAndLoop(std::string command, std::list<std::string> &arg
 		callback->OnProcessStarted();
 		while (!IsFinished()) {
 			ConsumePipes(callback);
-		 }			
+		}			
+		// Consume what ever is left after the process exited, perhaps this is enough...
+		while(ConsumePipes(callback)>0);
+		
 
 		Logger::GetLogger("Process_Unix")->Debug("Process loop finished");				
 		callback->OnProcessExit();
@@ -230,7 +233,7 @@ bool Process_Unix::IsFinished() {
 	return false;
 }
 
-void Process_Unix::ConsumePipes(ProcessCallbackBase *callback) {
+int Process_Unix::ConsumePipes(ProcessCallbackBase *callback) {
 
 	std::string buffer(1024,' ');
 	std::vector<pollfd> plist = { {pipe_stdout[0],POLLIN}, {pipe_stderr[0],POLLIN} };
@@ -249,7 +252,7 @@ void Process_Unix::ConsumePipes(ProcessCallbackBase *callback) {
 	  buffer[bytes_read] = '\0';
       callback->OnStdErrData(buffer);
     }
-
+	return rval;
 
 }
 

@@ -64,7 +64,7 @@ namespace gnilk
 		bool SetNonBlocking();
 		bool Duplicate();
 		bool SpawnAndLoop(std::string command, std::list<std::string> &arguments, ProcessCallbackBase *callback);
-		void ConsumePipes(ProcessCallbackBase *callback);
+		int ConsumePipes(ProcessCallbackBase *callback);
 		bool IsFinished();
 
 		

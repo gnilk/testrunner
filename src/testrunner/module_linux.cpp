@@ -73,8 +73,6 @@ void *ModuleLinux::FindExportedSymbol(std::string funcName) {
         exportName = &exportName[1];
     }
 
-    //pLogger->Debug("Export Name: %s", exportName.c_str());
-
     void *ptrInvoke = dlsym(handle, exportName.c_str());
     if (ptrInvoke == NULL) {
         pLogger->Debug("FindExportedSymbol, unable to find symbol '%s'", exportName.c_str());
