@@ -98,7 +98,7 @@ namespace gnilk
 		void ReadFromFile(const char *filename);
 		void WriteToFile(const char *filename);
 
-		virtual char *GetValue(const char *key, char *dst, int nMax, char *defValue);
+		virtual char *GetValue(const char *key, char *dst, int nMax, const char *defValue);
 		virtual void SetValue(const char *key, const char *value);
 
 		virtual int GetAllStartingWith(std::vector<std::pair<std::string, std::string> > *result, const char *filter);

@@ -653,7 +653,7 @@ Logger::~Logger()
 	// remove this from list of loggers
 	// TODO: better clean up, properties...
 }
-static char *lMessageClassNames[] = 
+static const char *lMessageClassNames[] = 
 {
 	"NONE",			// 0
 	"DEBUG",		// 1
@@ -1011,7 +1011,7 @@ int LogPropertyReader::GetAllStartingWith(std::vector<std::pair<std::string, std
 	return result->size();
 }
 
-char *LogPropertyReader::GetValue(const char *key, char *dst, int nMax, char *defValue)
+char *LogPropertyReader::GetValue(const char *key, char *dst, int nMax, const char *defValue)
 {
 	if (properties.find(key) != properties.end())
 	{

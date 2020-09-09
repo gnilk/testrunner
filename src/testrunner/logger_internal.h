@@ -50,7 +50,7 @@ namespace gnilk
 	}
 	typedef struct
 	{
-		char *name;
+		const char *name;
 		LOG_PFNSINKFACTORY factory;
 		
 	} LOG_SINK_FACTORY;
