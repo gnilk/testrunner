@@ -47,6 +47,8 @@
 using namespace gnilk;
 ILogger *pLogger = NULL;
 
+static bool isModuleFound = false;
+
 static void Help() {
 
 #ifdef _WIN64
@@ -203,8 +205,11 @@ static void ProcessInput(std::vector<std::string> &inputs) {
         } else {
             IModule &module = GetModuleLoader();
             if (module.Scan(x)) {            
-                pLogger->Info("Executing tests for %s", x.c_str());
-                RunTestsForModule(module);
+                if (module.Exports().size() > 0) {
+                    isModuleFound = true;   // we found at least one module..
+                    pLogger->Info("Executing tests for %s", x.c_str());
+                    RunTestsForModule(module);
+                }
             } else {
                 pLogger->Error("Scan failed on '%s'", x.c_str());
             }
@@ -223,17 +228,25 @@ int main(int argc, char **argv) {
 	pLogger->Info("Windows x86 (32 bit) build");
 #endif
 
-
     Timer timer;
     
     timer.Reset();
     ProcessInput(Config::Instance()->inputs);
     double tSeconds = timer.Sample();
 
-    printf("-------------------\n");
-    printf("Duration......: %.3f sec\n", tSeconds);
-    printf("Tests Executed: %d\n", Config::Instance()->testsExecuted);
-    printf("Tests Failed..: %d\n", Config::Instance()->testsFailed);
+    if (Config::Instance()->testsExecuted > 0) {
+        printf("-------------------\n");
+        printf("Duration......: %.3f sec\n", tSeconds);
+        printf("Tests Executed: %d\n", Config::Instance()->testsExecuted);
+        printf("Tests Failed..: %d\n", Config::Instance()->testsFailed);
+    } else {
+        if (!isModuleFound) {
+            printf("No testable modules/functions found!\n");
+        } else {
+            printf("Testable modules found but no tests excuted (check filters)\n");
+        }
+    }
+
 
     return 0;
 }

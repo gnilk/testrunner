@@ -175,7 +175,6 @@ bool ModuleWin::Open() {
     PIMAGE_EXPORT_DIRECTORY exports = (PIMAGE_EXPORT_DIRECTORY)((BYTE *)lib + header->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress);
 
     if (exports->AddressOfNames == NULL) {
-        pLogger->Error("No exports, number says: %d\n", exports->NumberOfNames);
         return false;
     }
 
