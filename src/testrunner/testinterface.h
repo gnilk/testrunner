@@ -31,6 +31,9 @@ struct ITesting {
     void (*Abort)(int line, const char *file, const char *format, ...); // Current test, stop execution
     // Asserts
     void (*AssertError)(const char *exp, const char *file, const int line);
+    // Hooks
+    void (*SetPreCaseCallback)(void(*)(ITesting *));
+    void (*SetPostCaseCallback)(void(*)(ITesting *));
 };
 
 #ifdef __cplusplus

@@ -6,7 +6,7 @@ set(CMAKE_OSX_SYSROOT /Applications/Xcode.app/Contents/Developer/Platforms/MacOS
 cmake_minimum_required(VERSION 2.8)
 
 if(WIN32)
-	# set (CMAKE_GENERATOR_PLATFORM "Visual Studio 15 2017 Win64")
+	#set (CMAKE_GENERATOR_PLATFORM  "Visual Studio 15 2017 Win64")
 endif()
 
 project(testrunner)

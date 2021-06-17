@@ -35,11 +35,14 @@
 #include "responseproxy.h"
 #include "logger.h"
 #include "config.h"
+#include "testrunner.h"
+
 
 #include <stdlib.h> // malloc
 
 #include <map>
 #include <string>
+
 
 static void int_trp_debug(int line, const char *file, const char *format, ...);
 static void int_trp_info(int line, const char *file, const char *format, ...);
@@ -48,6 +51,8 @@ static void int_trp_error(int line, const char *file, const char *format, ...);
 static void int_trp_fatal(int line, const char *file, const char *format, ...);
 static void int_trp_abort(int line, const char *file, const char *format, ...);
 static void int_trp_assert_error(const char *exp, const char *file, int line);
+static void int_trp_hook_precase(TRUN_PRE_POST_HOOK_DELEGATE cbPreCase);
+static void int_trp_hook_postcase(TRUN_PRE_POST_HOOK_DELEGATE cbPostCase);
 
 // Holds a calling proxy per thread
 #ifdef WIN32
@@ -68,6 +73,8 @@ TestResponseProxy::TestResponseProxy() {
     this->trp->Fatal = int_trp_fatal;
     this->trp->Abort = int_trp_abort;
     this->trp->AssertError = int_trp_assert_error;
+    this->trp->SetPreCaseCallback = int_trp_hook_precase;
+    this->trp->SetPostCaseCallback = int_trp_hook_postcase;
 }
 
 void TestResponseProxy::Begin(std::string symbolName, std::string moduleName) {
@@ -190,6 +197,24 @@ void TestResponseProxy::AssertError(const char *exp, const char *file, const int
 }
 
 
+void TestResponseProxy::SetPreCaseCallback(TRUN_PRE_POST_HOOK_DELEGATE cbPreCase) {
+    printf("!!!!!!! SETTING PRECASE CALLBACK FOR MODULE !!!!!!!!!!\n");
+
+    TestModule *testModule = ModuleTestRunner::HACK_GetCurrentTestModule();
+    if (testModule != NULL) {
+        testModule->cbPreHook = cbPreCase;
+    }
+
+}
+void TestResponseProxy::SetPostCaseCallback(TRUN_PRE_POST_HOOK_DELEGATE cbPostCase) {
+    printf("!!!!!!! SETTING POSTCASE CALLBACK FOR MODULE !!!!!!!!!!\n");
+    TestModule *testModule = ModuleTestRunner::HACK_GetCurrentTestModule();
+    if (testModule != NULL) {
+        testModule->cbPostHook = cbPostCase;
+    }
+}
+
+
 
 static TestResponseProxy *glbResponseProxy = NULL;
 //
@@ -301,3 +326,12 @@ static void int_trp_assert_error(const char *exp, const char *file, int line) {
 
 
 #undef CREATE_REPORT_STRING
+
+static void int_trp_hook_precase(TRUN_PRE_POST_HOOK_DELEGATE cbPreCase) {
+    TestResponseProxy *trp = TestResponseProxy::GetInstance();
+    trp->SetPreCaseCallback(cbPreCase);
+}
+static void int_trp_hook_postcase(TRUN_PRE_POST_HOOK_DELEGATE cbPostCase) {
+    TestResponseProxy *trp = TestResponseProxy::GetInstance();
+    trp->SetPostCaseCallback(cbPostCase);
+}

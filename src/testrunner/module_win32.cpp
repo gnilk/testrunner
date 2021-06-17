@@ -38,6 +38,15 @@
 #include <functional>
 #include <utility>
 
+static void PrintWin32Error(gnilk::ILogger *pLogger, char *title) {
+    char *msg;
+    DWORD err = GetLastError();
+    FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                  NULL, err,
+                  MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                  (LPSTR)&msg, 0 , NULL);
+    pLogger->Error("%s: %d, %s\n", title, err, msg);
+}
 
 ModuleWin::ModuleWin() {
     this->handle = NULL;
@@ -152,7 +161,7 @@ bool ModuleWin::Open() {
 #endif
 		break;
 	case IMAGE_NT_OPTIONAL_HDR64_MAGIC:
-		pLogger->Debug("64bit DLL Header found\n");
+		pLogger->Debug("Ok, 64bit DLL Header found\n");
 #ifdef _WIN64
 #else
 		pLogger->Error("64 bit DLL in 32bit context not allowed!\n");
@@ -197,8 +206,10 @@ bool ModuleWin::Open() {
     // Let's free the library and open it properly
     FreeLibrary(lib);
 
+
 	handle = LoadLibrary(pathName.c_str());
     if (handle == NULL) {
+        PrintWin32Error(pLogger, (char *)"Final LoadLibrary failed");
         return false;
     }
 

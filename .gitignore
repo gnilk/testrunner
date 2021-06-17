@@ -3,4 +3,10 @@ build/
 .vs/
 .idea/
 cmake-build-debug/
+cmake-build-debug-visual-studio/
+out/
+trunwindows/Debug/
+trunwindows/x64/
+trunwindows/.vs/
+trunwindows/trunwindows.vcxproj.user
 *.obj

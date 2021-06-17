@@ -44,7 +44,9 @@
 TestFunc::TestFunc() {
     isExecuted = false;
     pLogger = gnilk::Logger::GetLogger("TestFunc");
+    testModule = NULL;
 }
+
 TestFunc::TestFunc(std::string symbolName, std::string moduleName, std::string caseName) {
     this->symbolName = symbolName;
     this->moduleName = moduleName;
@@ -53,6 +55,7 @@ TestFunc::TestFunc(std::string symbolName, std::string moduleName, std::string c
     pLogger = gnilk::Logger::GetLogger("TestFunc");
     testResult = NULL;
     testReturnCode = -1;
+    testModule = NULL;
 }
 
 bool TestFunc::IsGlobal() {

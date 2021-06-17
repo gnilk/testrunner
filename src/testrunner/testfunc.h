@@ -5,9 +5,36 @@
 #include "logger.h"
 #include "testresult.h"
 #include "responseproxy.h"
+#include "testinterface.h"
+#include "testhooks.h"
 #include <string>
 
-// Internal - used by test runner...
+
+
+class TestFunc;
+
+class TestModule {
+public:
+    TestModule(std::string _name) :
+        name(_name),
+        bExecuted(false),
+        mainFunc(NULL),
+        cbPreHook(NULL),
+        cbPostHook(NULL) {};
+    bool Executed() { return bExecuted; }
+
+public:
+    std::string name;
+    bool bExecuted;
+    TestFunc *mainFunc;
+
+    TRUN_PRE_POST_HOOK_DELEGATE *cbPreHook;
+    TRUN_PRE_POST_HOOK_DELEGATE *cbPostHook;
+
+    std::vector<TestFunc *> testFuncs;
+};
+
+// The core structure defines a testable function which belongs to a test-module
 class TestFunc {
 public:
     TestFunc();
@@ -17,8 +44,10 @@ public:
     TestResult *Execute(IModule *module);
     void SetExecuted();
     bool Executed();
-
     void ExecuteAsync();
+
+    void SetTestModule(TestModule *_testModule) { testModule = _testModule; }
+    TestModule *GetTestModule() { return testModule; }
 
 public:
     std::string symbolName;
@@ -29,6 +58,7 @@ private:
     gnilk::ILogger *pLogger;
     void HandleTestReturnCode();
 
+    TestModule *testModule;
     TestResponseProxy *trp;
 
     PTESTFUNC pFunc;

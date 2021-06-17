@@ -6,6 +6,7 @@
 #include "timer.h"
 #include "logger.h"
 #include "testresult.h"
+#include "testhooks.h"
 
 
 class TestResponseProxy {
@@ -31,6 +32,9 @@ public: // ITesting mirroring
     void Abort(int line, const char *file, std::string message);
 
     void AssertError(const char *exp, const char *file, const int line);
+
+    void SetPreCaseCallback(TRUN_PRE_POST_HOOK_DELEGATE cbPreCase);
+    void SetPostCaseCallback(TRUN_PRE_POST_HOOK_DELEGATE cbPostCase);
 
 
 private:

@@ -5,23 +5,36 @@
 #include "logger.h"
 #include "testfunc.h"
 #include "testresult.h"
+#include "testhooks.h"
 #include <string>
+#include <vector>
+#include <map>
 
+
+//
+// Module is a DLL
+//
 class ModuleTestRunner {
 public:
     ModuleTestRunner(IModule *module);
-    void ExecuteTests();  
+    void ExecuteTests();
+
+    static TestModule *HACK_GetCurrentTestModule();
+
 private:
-    bool ExecuteMain(std::vector<TestFunc *> &globals);
-    bool ExecuteGlobalTests(std::vector<TestFunc *> &globals);
-    bool ExecuteModuleTests(std::vector<TestFunc *> &modules);
+    bool ExecuteMain();
+    bool ExecuteGlobalTests();
+    bool ExecuteModuleTests();
+    bool ExecuteModuleTestFuncs(TestModule *testModule);
     TestResult *ExecuteTest(TestFunc *f);
     void HandleTestResult(TestResult *result);
-    void PrepareTests(std::vector<TestFunc *> &globals, std::vector<TestFunc *> &modules);
+    void PrepareTests();
     TestFunc *CreateTestFunc(std::string sym);
 
 private:
     IModule *module;
     gnilk::ILogger *pLogger;
+    std::map<std::string, TestModule *> testModules;
+    std::vector<TestFunc *> globals;
 };
 
