@@ -198,7 +198,7 @@ void TestResponseProxy::AssertError(const char *exp, const char *file, const int
 
 
 void TestResponseProxy::SetPreCaseCallback(TRUN_PRE_POST_HOOK_DELEGATE cbPreCase) {
-    printf("!!!!!!! SETTING PRECASE CALLBACK FOR MODULE !!!!!!!!!!\n");
+    ///printf("!!!!!!! SETTING PRECASE CALLBACK FOR MODULE !!!!!!!!!!\n");
 
     TestModule *testModule = ModuleTestRunner::HACK_GetCurrentTestModule();
     if (testModule != NULL) {
@@ -207,7 +207,8 @@ void TestResponseProxy::SetPreCaseCallback(TRUN_PRE_POST_HOOK_DELEGATE cbPreCase
 
 }
 void TestResponseProxy::SetPostCaseCallback(TRUN_PRE_POST_HOOK_DELEGATE cbPostCase) {
-    printf("!!!!!!! SETTING POSTCASE CALLBACK FOR MODULE !!!!!!!!!!\n");
+    ///printf("!!!!!!! SETTING POSTCASE CALLBACK FOR MODULE !!!!!!!!!!\n");
+    
     TestModule *testModule = ModuleTestRunner::HACK_GetCurrentTestModule();
     if (testModule != NULL) {
         testModule->cbPostHook = cbPostCase;
