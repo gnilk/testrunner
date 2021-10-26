@@ -3,7 +3,7 @@
 #
 set(CMAKE_OSX_ARCHITECTURES x86_64)
 set(CMAKE_OSX_SYSROOT /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk)
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.16)
 
 if(WIN32)
 	#set (CMAKE_GENERATOR_PLATFORM  "Visual Studio 15 2017 Win64")
@@ -59,8 +59,13 @@ target_include_directories(trun PRIVATE .)
 set_property(TARGET trun PROPERTY CXX_STANDARD 11)
 # set_target_properties(trun PROPERTIES PUBLIC_HEADER src/testrunner/testinterface.h)
 
+include(GNUInstallDirs)
 
 if (APPLE)
+
+    
+    set(CMAKE_INSTALL_PREFIX /usr/local)
+
     set(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH} /usr/local/lib /usr/lib/system)
     find_library(COCOA_FRAMEWORK Cocoa)
     find_library(IOKIT_FRAMEWORK IOKit)
@@ -68,6 +73,7 @@ if (APPLE)
     find_library(SYSTEM_FRAMEWORK System)
     message(STATUS ${COCOA_FRAMEWORK})
     message(STATUS ${CMAKE_OSX_ARCHITECTURES})
+    message(STATUS IncludeDir: "${CMAKE_INSTALL_PREFIX}")
     target_link_libraries(trun ${COCOA_FRAMEWORK} ${IOKIT_FRAMEWORK} ${CORE_FRAMEWORK} ${SYSTEM_FRAMEWORK})
 elseif (WIN32)
     target_link_libraries(trun)
@@ -76,5 +82,5 @@ elseif (UNIX)
     target_link_libraries(trun dl pthread)
 endif()
 
-install(TARGETS trun DESTINATION bin)
-install(FILES src/testrunner/testinterface.h DESTINATION include)
+install(FILES "src/testrunner/testinterface.h" TYPE INCLUDE)
+install(TARGETS trun RUNTIME DESTINATION bin)

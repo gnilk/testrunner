@@ -85,6 +85,7 @@ DWORD WINAPI testfunc_thread_starter(LPVOID lpParam) {
 #else
 // Pthread wrapper..
 static void *testfunc_thread_starter(void *arg) {
+    printf("test_func_thread_started, arg is: %p\n", arg);
     TestFunc *func = reinterpret_cast<TestFunc*>(arg);
     func->ExecuteAsync();
     return NULL;
@@ -96,6 +97,7 @@ TestResult *TestFunc::Execute(IModule *module) {
     pLogger->Debug("  Module: %s", moduleName.c_str());
     pLogger->Debug("  Case..: %s", caseName.c_str());
     pLogger->Debug("  Export: %s", symbolName.c_str());
+    pLogger->Debug("  Func..: %p", this);
 
 
     //kTestResult testResult = kTestResult_NotExecuted;
@@ -121,8 +123,12 @@ TestResult *TestFunc::Execute(IModule *module) {
 #else
         pthread_attr_t attr;
         pthread_t hThread;
+        int err;
         pthread_attr_init(&attr);
-        pthread_create(&hThread,&attr,testfunc_thread_starter, this);
+        if ((err = pthread_create(&hThread,&attr,testfunc_thread_starter, this))) {
+            pLogger->Error("pthread_create, failed with code: %d\n", err);
+            exit(1);
+        }
         pLogger->Debug("Execute, waiting for thread");
         void *ret;
         pthread_join(hThread, &ret);
