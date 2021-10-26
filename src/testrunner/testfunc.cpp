@@ -111,7 +111,8 @@ TestResult *TestFunc::Execute(IModule *module) {
         //
         // Actual execution of test function and handling of result
         //
-
+        // -- test commen --
+        //
         // Execute the test in it's own thread.
         // This allows the test to be aborted when the response proxy is called
         testResult = new TestResult(symbolName);
