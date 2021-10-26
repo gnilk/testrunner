@@ -317,43 +317,42 @@ void ModuleTestRunner::PrepareTests() {
             continue;
         }
 
-
-
-
         if (func->IsGlobalMain()) {
             globals.push_back(func);
-        } else {
-
-            std::string moduleName = func->moduleName;
-            pLogger->Info("Module: %s, case: %s", func->moduleName.c_str(), func->caseName.c_str());
-
-            // Ok, this is the signature of the main function for a 'module' (group of functions)
-            if (moduleName == "-") {
-                moduleName = func->caseName;
-            }
-
-            TestModule *tModule = NULL;
-            // Have module with this name????
-            auto it = testModules.find(moduleName);
-            if (it == testModules.end()) {
-                tModule = new TestModule(moduleName);
-                testModules.insert(std::pair<std::string, TestModule *>(moduleName, tModule));
-            } else {
-                tModule = it->second;
-            }
-
-
-            if (func->IsGlobal()) {
-                tModule->mainFunc = func;
-            } else {
-                tModule->testFuncs.push_back(func);
-            }
-            // Link them togehter...
-            func->SetTestModule(tModule);
-
-
-            //modules.push_back(func);
         }
+
+        // [gnilk:2021-10-26] This was an else case and _worked_ on Windows/MacOS - not sure why!!!!
+        //                    Should give a NPE due to test module not being set...
+        std::string moduleName = func->moduleName;
+        pLogger->Info("Module: %s, case: %s", func->moduleName.c_str(), func->caseName.c_str());
+
+        // Ok, this is the signature of the main function for a 'module' (group of functions)
+        if (moduleName == "-") {
+            moduleName = func->caseName;
+        }
+
+        TestModule *tModule = NULL;
+        // Have module with this name????
+        auto it = testModules.find(moduleName);
+        if (it == testModules.end()) {
+            tModule = new TestModule(moduleName);
+            testModules.insert(std::pair<std::string, TestModule *>(moduleName, tModule));
+        } else {
+            tModule = it->second;
+        }
+
+
+        if (func->IsGlobal()) {
+            tModule->mainFunc = func;
+        } else {
+            tModule->testFuncs.push_back(func);
+        }
+        // Link them togehter...
+        func->SetTestModule(tModule);
+
+
+        //modules.push_back(func);
+
     }
 }
 
