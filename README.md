@@ -39,9 +39,10 @@ _NOTE:_ In order to use the testrunner on your project you must compile your pro
 
 ### Test Execution
 The runner executes tests in the following order:
-1) test_main, always executed (can't be switched off)
+1) test_main, always executed
 2) global functions (i.e. test_toplevel, just one underscore in name), can be switched off (-g)
 3) any module function
+4) test_exit, always executed last
 
 The order of module functions can be controlled via the `-m` switch. Default is to test all modules (`-m -`) but it is possible to change the order like: `-m shared,-` this will first test the module `shared` before proceeding with all other modules.
 
@@ -84,9 +85,48 @@ struct ITesting {
 };
 ```
 
+### Assert Macro
+There is an assert macro (TR_ASSERT) which works lika regular assert but is testinterface aware.
+Use it like:
+```
+    int test_module_func(ITesting *t) {
+        bool res = exeute_a_test();
+        // Assert it's true
+        TR_ASSERT(t, res == true);
+        return kTR_Pass;
+    }
+```    
+
+### Advanced functionality
+It is possible to register a pre/post callback hook for a test. You can/should set them in your module main.
+For instance assume you have a memory allocation tracking module and you want to make sure you are not leaking memory.
+```
+    int test_module(ITesting *t) {
+        // Setup callback's
+        t->SetPreCaseCallback(MyPreCase);
+        t->SetPostCaseCallback(MyPostCase);
+        // Enable tracking of memory allocations
+        MemoryTracker_Enable();
+        return kTR_Pass;
+    }
+    
+    // This will be called before any test case in this module
+    static void MyPreCase(ITesting *t) {
+        // Reset statistics for every case before it's run
+        MemoryTracker_Reset();
+    }
+    
+    // This will be called after any test cast in this module
+    static void MyPostCase(ITesting *t) {
+        // Dump results
+        MemoryTracker_Dump();
+        // TODO: Verify results...        
+    }
+```    
+
+
 ## Your Code
 In your dynamic library export the test cases (following the pattern) you would like to expose. Compile your library and execute the runner on it.
-
 See `src/exshared/exshared.cpp` for details.
 
 ### Example Code
@@ -95,6 +135,12 @@ extern "C" {
     // test_main is a special function, always called first
 	int test_main(ITesting *t) {
 		t->Debug(__LINE__, __FILE__, "test_main, got called: error is: %p", t->Error);		
+		return kTR_Pass;
+	}
+
+    // test_exit is a special function, always called last
+	int test_exit(ITesting *t) {
+		t->Debug(__LINE__, __FILE__, "test_exit, got called: error is: %p", t->Error);		
 		return kTR_Pass;
 	}
 
@@ -159,7 +205,7 @@ See *exshared* library for an example.
 _NOTE_: TestRunner default input is the current directory. It will search recursively for any testable functions.
 
 <pre>
-TestRunner v0.4 - Windows x64 (64 bit) - C/C++ Unit Test Runner
+TestRunner v0.7 - Windows x64 (64 bit) - C/C++ Unit Test Runner
 Usage: trun [options] input
 Options:
   -v  Verbose, increase for more!
@@ -212,6 +258,10 @@ Same as previous but for just one specific library
 
 
 # Version history
+## v0.7
+- Special function 'test_exit' for post-test system teardown
+- Fixing small issues on Linux
+
 ## v0.6
 - Test cases are now executed in their own threads and will be terminated on errors
 - Linux, fixed issue with premature exit while scanning for dependencies
