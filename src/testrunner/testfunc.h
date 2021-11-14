@@ -41,6 +41,7 @@ public:
     TestFunc(std::string symbolName, std::string moduleName, std::string caseName);
     bool IsGlobal();
     bool IsGlobalMain();
+    bool IsGlobalExit();
     TestResult *Execute(IModule *module);
     void SetExecuted();
     bool Executed();

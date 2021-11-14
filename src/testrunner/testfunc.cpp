@@ -64,6 +64,9 @@ bool TestFunc::IsGlobal() {
 bool TestFunc::IsGlobalMain() {
     return (IsGlobal() && (caseName == Config::Instance()->testMain));
 }
+bool TestFunc::IsGlobalExit() {
+    return (IsGlobal() && (caseName == Config::Instance()->testExit));
+}
 void TestFunc::ExecuteAsync() {
     // 1) Setup test response proxy
     // This is currently a global instance - not good!

@@ -84,6 +84,7 @@ void ModuleTestRunner::ExecuteTests() {
             // 3) Execute modules
             ExecuteModuleTests();
         }
+        ExecuteMainExit();
     }
     double tSeconds = t.Sample();
     pLogger->Info("Module done (%.3f sec)", t.Sample());
@@ -115,6 +116,32 @@ bool ModuleTestRunner::ExecuteMain() {
     }
     pLogger->Info("Done: test main\n\n");
     return bRes;
+}
+
+bool ModuleTestRunner::ExecuteMainExit() {
+    // 1) call test_main which is used to initalized anything shared between tests
+    bool bRes = true;
+    if (!Config::Instance()->testGlobalMain) {
+        return bRes;
+    }
+
+    pLogger->Info("Executing MainExit");
+
+    for (auto f:globals) {
+        if (f->IsGlobalExit()) {
+            TestResult *result = ExecuteTest(f);
+            HandleTestResult(result);
+            if ((result->Result() == kTestResult_AllFail) || (result->Result() == kTestResult_TestFail)) {
+                if (Config::Instance()->stopOnAllFail) {
+                    pLogger->Info("Total test failure, aborting");
+                    bRes = false;
+                }
+            }
+        }
+    }
+    pLogger->Info("Done: test main exit\n\n");
+    return bRes;
+
 }
 
 //
@@ -317,9 +344,6 @@ void ModuleTestRunner::PrepareTests() {
             continue;
         }
 
-        if (func->IsGlobalMain()) {
-            globals.push_back(func);
-        }
 
         // [gnilk:2021-10-26] This was an else case and _worked_ on Windows/MacOS - not sure why!!!!
         //                    Should give a NPE due to test module not being set...
@@ -342,7 +366,11 @@ void ModuleTestRunner::PrepareTests() {
         }
 
 
-        if (func->IsGlobal()) {
+        if (func->IsGlobalMain()) {
+            globals.push_back(func);
+        } else if (func->IsGlobalExit()) {
+            globals.push_back(func);
+        } else if (func->IsGlobal()) {
             tModule->mainFunc = func;
         } else {
             tModule->testFuncs.push_back(func);

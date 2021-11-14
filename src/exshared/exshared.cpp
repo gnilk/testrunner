@@ -65,8 +65,14 @@ extern "C" {
 		ITesting *t = (ITesting *)param;
 		printf("Doing assert\n");
 		TR_ASSERT(t, 2==2);
-		t->Debug(__LINE__, __FILE__, "test_main, got called: error is: %p", t->Error);		
+		t->Debug(__LINE__, __FILE__, "test_main, got called: error is: %p", t->Error);
 		return kTR_Pass;
 	}
+
+    DLL_EXPORT int test_exit(void *param) {
+        ITesting *t = (ITesting *)param;
+        t->Debug(__LINE__, __FILE__, "test_exit");
+        return kTR_Pass;
+    }
 
 }

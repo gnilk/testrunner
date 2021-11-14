@@ -22,6 +22,7 @@ public:
     std::string version;
     std::string description;
     std::string testMain;
+    std::string testExit;
     bool testGlobals;
     bool testGlobalMain;
     bool testLogFilter;

@@ -23,6 +23,7 @@ public:
 
 private:
     bool ExecuteMain();
+    bool ExecuteMainExit();
     bool ExecuteGlobalTests();
     bool ExecuteModuleTests();
     bool ExecuteModuleTestFuncs(TestModule *testModule);
