@@ -3,7 +3,7 @@
 C/C++ Unit Test 'Framework'.
 
 Heavy GOLANG inspired unit test framework for C/C++.
-Currently works on macOS with experimental support for Windows x86/x64.
+Currently works on macOS/Linux/Windows (x86/x64)
 
 # Building
 You need CMake and GCC/Clang or Visual Studio (Windows). Tested with Visual Studio 17 and 19. The Windows version can be built in a 32 or 64 bit mode. Do note that the 32 bit don't support 64 bit DLL's and vice verse. 
