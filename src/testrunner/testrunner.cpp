@@ -276,8 +276,24 @@ bool ModuleTestRunner::ExecuteModuleTestFuncs(TestModule *testModule) {
             }
         }
     }
-
 leave:
+
+    // Try call exit function on leave...
+    if (testModule->exitFunc != NULL) {
+        TestResult *result = ExecuteTest(testModule->exitFunc);
+        if (result == NULL) {
+            pLogger->Error("Test result for exit is NULL!!!");
+            return false;
+        }
+
+        HandleTestResult(result);
+        if (result->Result() != kTestResult_Pass) {
+            pLogger->Error("Module exit failed");
+        }
+    }
+
+
+
     printf("\n");
     printf("<--- End Module  \t%s\n",testModule->name.c_str());
 
@@ -340,7 +356,7 @@ void ModuleTestRunner::PrepareTests() {
         pLogger->Debug("PrepareTests, processing symbol: %s", x.c_str());
 
         TestFunc *func = CreateTestFunc(x);
-        if (func == NULL) {
+        if (func == nullptr) {
             continue;
         }
 
@@ -372,6 +388,8 @@ void ModuleTestRunner::PrepareTests() {
             globals.push_back(func);
         } else if (func->IsGlobal()) {
             tModule->mainFunc = func;
+        } else if (func->IsModuleExit()) {
+            tModule->exitFunc = func;
         } else {
             tModule->testFuncs.push_back(func);
         }

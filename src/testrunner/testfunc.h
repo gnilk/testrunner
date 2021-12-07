@@ -18,15 +18,17 @@ public:
     TestModule(std::string _name) :
         name(_name),
         bExecuted(false),
-        mainFunc(NULL),
-        cbPreHook(NULL),
-        cbPostHook(NULL) {};
+        mainFunc(nullptr),
+        exitFunc(nullptr),
+        cbPreHook(nullptr),
+        cbPostHook(nullptr) {};
     bool Executed() { return bExecuted; }
 
 public:
     std::string name;
     bool bExecuted;
     TestFunc *mainFunc;
+    TestFunc *exitFunc;
 
     TRUN_PRE_POST_HOOK_DELEGATE *cbPreHook;
     TRUN_PRE_POST_HOOK_DELEGATE *cbPostHook;
@@ -40,6 +42,7 @@ public:
     TestFunc();
     TestFunc(std::string symbolName, std::string moduleName, std::string caseName);
     bool IsGlobal();
+    bool IsModuleExit();
     bool IsGlobalMain();
     bool IsGlobalExit();
     TestResult *Execute(IModule *module);

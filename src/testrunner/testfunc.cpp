@@ -44,7 +44,7 @@
 TestFunc::TestFunc() {
     isExecuted = false;
     pLogger = gnilk::Logger::GetLogger("TestFunc");
-    testModule = NULL;
+    testModule = nullptr;
 }
 
 TestFunc::TestFunc(std::string symbolName, std::string moduleName, std::string caseName) {
@@ -53,9 +53,9 @@ TestFunc::TestFunc(std::string symbolName, std::string moduleName, std::string c
     this->caseName = caseName;
     isExecuted = false;
     pLogger = gnilk::Logger::GetLogger("TestFunc");
-    testResult = NULL;
+    testResult = nullptr;
     testReturnCode = -1;
-    testModule = NULL;
+    testModule = nullptr;
 }
 
 bool TestFunc::IsGlobal() {
@@ -67,6 +67,10 @@ bool TestFunc::IsGlobalMain() {
 bool TestFunc::IsGlobalExit() {
     return (IsGlobal() && (caseName == Config::Instance()->testExit));
 }
+bool TestFunc::IsModuleExit() {
+    return (!IsGlobal() && (caseName == Config::Instance()->testExit));
+}
+
 void TestFunc::ExecuteAsync() {
     // 1) Setup test response proxy
     // This is currently a global instance - not good!

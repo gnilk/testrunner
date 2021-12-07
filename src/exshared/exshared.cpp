@@ -39,18 +39,24 @@ extern "C" {
 		return kTR_FailAll;
 	}
 
-	DLL_EXPORT int test_mod_main(ITesting *t) {
-		t->Debug(__LINE__, __FILE__, "test_mod_main, got called");
+	DLL_EXPORT int test_mod(ITesting *t) {
+		t->Debug(__LINE__, __FILE__, "test_mod, module main got called");
 		return kTR_Pass;
 	}
 	DLL_EXPORT int test_mod_create(ITesting *t) {
-		t->Abort(__LINE__, __FILE__, "test_mod_create, got called");
-		return kTR_Fail;
+		t->Debug(__LINE__, __FILE__, "test_mod_create, got called");
+		return kTR_Pass;
 	}
 	DLL_EXPORT int test_mod_dispose(ITesting *t) {
 		t->Debug(__LINE__, __FILE__, "test_mod_dispose, got called");
 		return kTR_Pass;
 	}
+    DLL_EXPORT int test_mod_exit(ITesting *t) {
+        t->Debug(__LINE__, __FILE__, "test_mod_exit, module exit got called");
+        return kTR_Pass;
+    }
+
+
 
 	DLL_EXPORT int test_(ITesting *t) {
 		t->Debug(__LINE__, __FILE__, "test_, got called\n");
