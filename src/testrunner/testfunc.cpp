@@ -88,7 +88,6 @@ DWORD WINAPI testfunc_thread_starter(LPVOID lpParam) {
 #else
 // Pthread wrapper..
 static void *testfunc_thread_starter(void *arg) {
-    printf("test_func_thread_started, arg is: %p\n", arg);
     TestFunc *func = reinterpret_cast<TestFunc*>(arg);
     func->ExecuteAsync();
     return NULL;

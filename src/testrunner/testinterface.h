@@ -5,6 +5,14 @@
 extern "C" {
 #endif
 
+#ifdef WIN32
+#include <Windows.h>
+#define DLL_EXPORT __declspec(dllexport)
+#else
+#define DLL_EXPORT
+#endif
+
+
 // Return codes from test functions
 #define kTR_Pass 0x00
 #define kTR_Fail 0x10
