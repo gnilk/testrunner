@@ -48,13 +48,13 @@ Do NOT use these reserved names (_main, _exit) for anything else.
 
 ### Test Execution
 The runner executes tests in the following order:
-1) test_main, always executed
-2) global functions (i.e. test_toplevel, just one underscore in name), can be switched off (-g)
-3) module functions
-   3.1) module main (test_module)
-   3.2) any other module function (test_module_XYZ)
-   3.3) module exit (test_module_exit) 
-4) test_exit, always executed last
+1. test_main, always executed
+2. global functions (i.e. test_toplevel, just one underscore in name), can be switched off (-g)
+3. module functions
+   - module main (test_module)
+   - any other module function (test_module_XYZ)
+   - module exit (test_module_exit) 
+4. test_exit, always executed last
 
 The order of module functions can be controlled via the `-m` switch. Default is to test all modules (`-m -`) but it is possible to change the order like: `-m shared,-` this will first test the module `shared` before proceeding with all other modules.
 
