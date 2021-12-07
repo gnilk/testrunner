@@ -37,11 +37,23 @@ The runner looks for exported functions within dynamic libraries. The exported f
 
 _NOTE:_ In order to use the testrunner on your project you must compile your project as a dynamic library. And for Windows you must explicitly mark functions for export.
 
+### Rules:
+* Any test cased must be prefixed with 'test_' otherwise the runner will not pick them up
+* test_main, reserved for first function called in a test run (see test execution)
+* test_exit, reserved for last function called in a test run (see test execution)
+* test_abc (only one underscore), called module main, called first for a module
+* test_module_exit (special test case name), called last in a module run
+
+Do NOT use these reserved names (_main, _exit) for anything else.
+
 ### Test Execution
 The runner executes tests in the following order:
 1) test_main, always executed
 2) global functions (i.e. test_toplevel, just one underscore in name), can be switched off (-g)
-3) any module function
+3) module functions
+   3.1) module main (test_module)
+   3.2) any other module function (test_module_XYZ)
+   3.3) module exit (test_module_exit) 
 4) test_exit, always executed last
 
 The order of module functions can be controlled via the `-m` switch. Default is to test all modules (`-m -`) but it is possible to change the order like: `-m shared,-` this will first test the module `shared` before proceeding with all other modules.
@@ -98,7 +110,7 @@ Use it like:
 ```    
 
 ### Advanced functionality
-It is possible to register a pre/post callback hook for a test. You can/should set them in your module main.
+It is possible to register a pre/post callback hook for a test. You can/should set them in your module main. You can reset them (set to null) in your test exit.
 For instance assume you have a memory allocation tracking module and you want to make sure you are not leaking memory.
 ```
     int test_module(ITesting *t) {
@@ -107,6 +119,15 @@ For instance assume you have a memory allocation tracking module and you want to
         t->SetPostCaseCallback(MyPostCase);
         // Enable tracking of memory allocations
         MemoryTracker_Enable();
+        return kTR_Pass;
+    }
+
+    int test_module_exit(ITesting *t) {
+        // Reset case callbacks
+        t->SetPreCaseCallback(nullptr);
+        t->SetPostCaseCallback(nullptr);
+        // Disable tracking of memory allocations
+        MemoryTracker_Disable();
         return kTR_Pass;
     }
     
@@ -258,6 +279,9 @@ Same as previous but for just one specific library
 
 
 # Version history
+## v0.8
+- Special module exit function 'test_module_exit' for post-test-module teardown
+
 ## v0.7
 - Special function 'test_exit' for post-test system teardown
 - Fixing small issues on Linux
