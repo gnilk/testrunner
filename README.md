@@ -1,5 +1,5 @@
 # testrunner
-![test workflow](https://github.com/gnilk/testrunner/workflows/Build/badge.svg)
+[![Build](https://github.com/gnilk/testrunner/actions/workflows/cmake.yml/badge.svg)](https://github.com/gnilk/testrunner/actions/workflows/cmake.yml)
 
 C/C++ Unit Test 'Framework'.
 
