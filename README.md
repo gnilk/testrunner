@@ -1,4 +1,5 @@
 # testrunner
+![test workflow](https://github.com/gnilk/testrunner/workflows/Build/badge.svg)
 
 C/C++ Unit Test 'Framework'.
 
