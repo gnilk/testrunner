@@ -130,6 +130,20 @@ TestResult *TestFunc::Execute(IModule *module) {
         pthread_t hThread;
         int err;
         pthread_attr_init(&attr);
+
+        {
+            int s;
+            void *stkaddr;
+            size_t v;
+            s = pthread_attr_getstacksize(&attr, &v);
+            if (s) {
+                pLogger->Error("Failed to fetch stack size: %d\n", s);
+            } else {
+                pLogger->Debug("Thread Stack size = %d kbytes\n", v/1024);
+
+            }
+        }
+
         if ((err = pthread_create(&hThread,&attr,testfunc_thread_starter, this))) {
             pLogger->Error("pthread_create, failed with code: %d\n", err);
             exit(1);

@@ -56,7 +56,7 @@ Config::Config() {
     skipOnModuleFail = true;
     stopOnAllFail = true;
     discardTestReturnCode = false;
-
+    linuxUseDeepBinding = true;
     responseMsgByteLimit = 1024 * 8;
     
     //

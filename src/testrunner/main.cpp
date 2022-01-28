@@ -72,6 +72,7 @@ static void Help() {
     printf("Options: \n");
     printf("  -v  Verbose, increase for more!\n");
     printf("  -d  Dump configuration before starting\n");
+    printf("  -D  Linux Only - disable RTLD_DEEPBIND\n");
     printf("  -g  Skip module globals (default: off)\n");
     printf("  -G  Skip global main (default: off)\n");
     printf("  -s  Silent, surpress messages from test cases (default: off)\n");
@@ -122,6 +123,9 @@ static void ParseArguments(int argc, char **argv) {
                         break;
                     case 'd' :
                         dumpConfig = true;
+                        break;
+                    case 'D' :
+                        Config::Instance()->linuxUseDeepBinding = false;
                         break;
                     case 's' :
                         Config::Instance()->testLogFilter = true;

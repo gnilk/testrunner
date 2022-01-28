@@ -29,6 +29,7 @@ public:
     bool skipOnModuleFail;
     bool stopOnAllFail;
     bool discardTestReturnCode;
+    bool linuxUseDeepBinding;     // Causes dlopen to use RTLD_DEEPBIND
     gnilk::ILogger *pLogger;
 private:
     Config();

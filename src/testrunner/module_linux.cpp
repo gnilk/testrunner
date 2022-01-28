@@ -30,6 +30,7 @@
 #include "strutil.h"
 #include "logger.h"
 #include "process.h"
+#include "config.h"
 
 #include <dlfcn.h>
 
@@ -126,8 +127,18 @@ protected:
 //
 bool ModuleLinux::Open() {
 
-    // This is used later
-    handle = dlopen(pathName.c_str(), RTLD_LAZY);
+    int openFlags = RTLD_LAZY;
+
+    // NOTE: The RTLD_DEEPBIND will override the default symbol resolve mechanism causing module externals to be
+    //       in favor of hosting exe..  That is - if a symbol is defined twice (exe and lib) RTLD_DEEPBIND will
+    //       prioritize the symbol belonging to the lib...
+    //
+    if (Config::Instance()->linuxUseDeepBinding) {
+        openFlags |= RTLD_DEEPBIND;
+    }
+
+    // Handle is used later when resolving imports
+    handle = dlopen(pathName.c_str(), openFlags);
     if (handle == NULL) {
         pLogger->Error("Failed to open: %s, error: %s", pathName.c_str(), dlerror());
         return false;
