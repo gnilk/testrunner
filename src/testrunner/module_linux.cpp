@@ -134,7 +134,9 @@ bool ModuleLinux::Open() {
     //       prioritize the symbol belonging to the lib...
     //
     if (Config::Instance()->linuxUseDeepBinding) {
+#ifdef __linux
         openFlags |= RTLD_DEEPBIND;
+#endif
     }
 
     // Handle is used later when resolving imports

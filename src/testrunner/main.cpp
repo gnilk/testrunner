@@ -32,6 +32,7 @@
 #include "module_linux.h"
 #else
 #include "module_mac.h"
+#include "module_linux.h"
 #endif
 #include "strutil.h"
 #include "config.h"
@@ -195,9 +196,11 @@ static IModule &GetModuleLoader() {
     static ModuleLinux loader;
 #else
     static ModuleMac loader;
+    static ModuleLinux linuxLoader;
 #endif
 
-    return loader;
+    //return loader;
+    return linuxLoader;
 }
 static void ProcessInput(std::vector<std::string> &inputs) {
     // Process all inputs
