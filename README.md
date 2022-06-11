@@ -280,6 +280,9 @@ Same as previous but for just one specific library
 
 
 # Version history
+## v0.9
+- macOS M1 (arm64) support
+- changed macOS to use Linux DL loader (through nm)
 ## v0.8
 - Special module exit function 'test_module_exit' for post-test-module teardown
 
