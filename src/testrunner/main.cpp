@@ -195,12 +195,10 @@ static IModule &GetModuleLoader() {
 #elif __linux
     static ModuleLinux loader;
 #else
-    static ModuleMac loader;
-    static ModuleLinux linuxLoader;
+    static ModuleLinux loader;
 #endif
 
-    //return loader;
-    return linuxLoader;
+    return loader;
 }
 static void ProcessInput(std::vector<std::string> &inputs) {
     // Process all inputs
