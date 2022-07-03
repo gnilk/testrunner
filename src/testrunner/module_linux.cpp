@@ -162,6 +162,7 @@ bool ModuleLinux::Open() {
 
 	int cnt = 0;
 	while(std::getline(ss,to,'\n')) {
+        pLogger->Debug("got: %s", to.c_str());
         std::vector<std::string> parts;
 		strutil::split(parts,to.c_str(), ' ');
 		if (parts.size() == 3) {
@@ -193,6 +194,9 @@ bool ModuleLinux::Close() {
 bool ModuleLinux::IsValidTestFunc(std::string funcName) {
     // The function table is what really matters
     if (funcName.find("test_",0) == 0) {
+        return true;
+    }
+    if (funcName.find("_test_",0) == 0) {
         return true;
     }
     return false;
