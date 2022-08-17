@@ -4,7 +4,7 @@
 C/C++ Unit Test 'Framework'.
 
 Heavy GOLANG inspired unit test framework for C/C++.
-Currently works on macOS/Linux/Windows (x86/x64)
+Currently works on macOS(arm/x86)/Linux/Windows (x86/x64)
 
 # Building
 You need CMake and GCC/Clang or Visual Studio (Windows). Tested with Visual Studio 17 and 19. The Windows version can be built in a 32 or 64 bit mode. Do note that the 32 bit don't support 64 bit DLL's and vice verse. 
@@ -16,10 +16,11 @@ You need CMake and GCC/Clang or Visual Studio (Windows). Tested with Visual Stud
 5) Run 'make' or 'msbuild ALL_BUILD.vcxproj'
 
 ## Apple macOS
-Just run 'make; make install'. The binary (trun) will be installed in /usr/local/bin and the testinterface.h in /usr/local/include.
+Just run 'make; sudo make install'. The binary (trun) will be installed in /usr/local/bin and the testinterface.h in /usr/local/include.
+<b>Note:</b> The macOs version depends on 'nm' (from binutils) when scanning a library for test functions.
 
 ## Linux
-Just run 'make; make install'. The binary (trun) will be installed in /usr/local/bin and the testinterface.h in /usr/local/include
+Just run 'make; sudo make install'. The binary (trun) will be installed in /usr/local/bin and the testinterface.h in /usr/local/include
 <b>Note:</b> The linux version depends on 'nm' (from binutils) when scanning a library for test functions. 
 
 ## Windows
@@ -99,7 +100,7 @@ struct ITesting {
 ```
 
 ### Assert Macro
-There is an assert macro (TR_ASSERT) which works lika regular assert but is testinterface aware.
+There is an assert macro (TR_ASSERT) which works like a regular assert but is testinterface aware.
 Use it like:
 ```
     int test_module_func(ITesting *t) {
@@ -227,11 +228,13 @@ See *exshared* library for an example.
 _NOTE_: TestRunner default input is the current directory. It will search recursively for any testable functions.
 
 <pre>
-TestRunner v0.7 - Windows x64 (64 bit) - C/C++ Unit Test Runner
+TestRunner v1.0 - macOS - C/C++ Unit Test Runner
 Usage: trun [options] input
-Options:
+Options: 
   -v  Verbose, increase for more!
   -d  Dump configuration before starting
+  -S  Include success pass in summary when done (default: off)
+  -D  Linux Only - disable RTLD_DEEPBIND
   -g  Skip module globals (default: off)
   -G  Skip global main (default: off)
   -s  Silent, surpress messages from test cases (default: off)
@@ -280,6 +283,8 @@ Same as previous but for just one specific library
 
 
 # Version history
+## v1.0
+- Test summary, default only failure (-S also lists success)
 ## v0.9
 - macOS M1 (arm64) support
 - changed macOS to use Linux DL loader (through nm)

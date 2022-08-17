@@ -74,7 +74,7 @@ static void Help() {
     printf("Options: \n");
     printf("  -v  Verbose, increase for more!\n");
     printf("  -d  Dump configuration before starting\n");
-    printf("  -S  Include pass in summary when done (default: off)\n");
+    printf("  -S  Include success pass in summary when done (default: off)\n");
     printf("  -D  Linux Only - disable RTLD_DEEPBIND\n");
     printf("  -g  Skip module globals (default: off)\n");
     printf("  -G  Skip global main (default: off)\n");
