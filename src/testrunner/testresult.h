@@ -44,7 +44,7 @@ public:
     double ElapsedTimeSec() { return tElapsedSec; }
     std::string &SymbolName() { return symbolName; }
 
-    const AssertError &AssertError() { return assertError; };
+    const class AssertError &AssertError() { return assertError; };
 
     // Setters
     void SetResult(kTestResult result) { this->testResult = result; }
