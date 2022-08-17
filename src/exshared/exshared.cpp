@@ -39,6 +39,7 @@ extern "C" {
 		return kTR_FailAll;
 	}
 
+
 	DLL_EXPORT int test_mod(ITesting *t) {
 		t->Debug(__LINE__, __FILE__, "test_mod, module main got called");
 		return kTR_Pass;

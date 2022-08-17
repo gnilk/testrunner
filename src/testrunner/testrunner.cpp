@@ -32,6 +32,7 @@
 #include "testrunner.h"
 #include "logger.h"
 #include "config.h"
+#include "resultsummary.h"
 #include "testresult.h"
 #include "timer.h"
 
@@ -321,10 +322,11 @@ TestResult *ModuleTestRunner::ExecuteTest(TestFunc *f) {
         f->GetTestModule()->cbPostHook(TestResponseProxy::GetInstance()->Proxy());
     }
 
+    ResultSummary::Instance().results.push_back(result);
 
-    Config::Instance()->testsExecuted++;
+    ResultSummary::Instance().testsExecuted++;
     if (result->Result() != kTestResult_Pass) {
-        Config::Instance()->testsFailed++;
+        ResultSummary::Instance().testsFailed++;
     }
     return result;
 }
@@ -344,7 +346,6 @@ void ModuleTestRunner::HandleTestResult(TestResult *result) {
                 printf("=== PASS:\t%s, %.3f sec, %d\n",result->SymbolName().c_str(),tElapsedSec, result->Result());
             }
         }
-
 }
 
 //

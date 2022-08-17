@@ -39,7 +39,7 @@ add_library(exshared SHARED ${sharedlib})
 add_library(exstatic STATIC ${staticlib})
 
 
-list(APPEND srcfiles src/testrunner/main.cpp src/testrunner/strutil.cpp src/testrunner/testrunner.cpp src/testrunner/logger.cpp src/testrunner/config.cpp src/testrunner/testfunc.cpp src/testrunner/responseproxy.cpp src/testrunner/testresult.cpp)
+list(APPEND srcfiles src/testrunner/main.cpp src/testrunner/strutil.cpp src/testrunner/testrunner.cpp src/testrunner/logger.cpp src/testrunner/config.cpp src/testrunner/testfunc.cpp src/testrunner/responseproxy.cpp src/testrunner/testresult.cpp src/testrunner/resultsummary.cpp)
 
 if (APPLE)
     list(APPEND srcfiles src/testrunner/module_mac.cpp)

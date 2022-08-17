@@ -13,8 +13,6 @@ public:
     void Dump();
 public:
     int verbose;
-    int testsExecuted;
-    int testsFailed;
     uint32_t responseMsgByteLimit;
     std::vector<std::string> modules;
     std::vector<std::string> testcases;
@@ -23,6 +21,7 @@ public:
     std::string description;
     std::string testMain;
     std::string testExit;
+    bool printPassSummary;
     bool testGlobals;
     bool testGlobalMain;
     bool testLogFilter;

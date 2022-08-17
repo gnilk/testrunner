@@ -38,6 +38,7 @@
 #include "config.h"
 #include "timer.h"
 #include "dirscanner.h"
+#include "resultsummary.h"
 
 #include <iostream>
 #include <string>
@@ -73,6 +74,7 @@ static void Help() {
     printf("Options: \n");
     printf("  -v  Verbose, increase for more!\n");
     printf("  -d  Dump configuration before starting\n");
+    printf("  -S  Include pass in summary when done (default: off)\n");
     printf("  -D  Linux Only - disable RTLD_DEEPBIND\n");
     printf("  -g  Skip module globals (default: off)\n");
     printf("  -G  Skip global main (default: off)\n");
@@ -115,6 +117,9 @@ static void ParseArguments(int argc, char **argv) {
                 switch(argv[i][j]) {
                     case 'r' :
                         Config::Instance()->discardTestReturnCode = true;
+                        break;
+                    case 'S' :
+                        Config::Instance()->printPassSummary = true;
                         break;
                     case 'c' :
                         Config::Instance()->skipOnModuleFail = false;
@@ -239,11 +244,13 @@ int main(int argc, char **argv) {
     ProcessInput(Config::Instance()->inputs);
     double tSeconds = timer.Sample();
 
-    if (Config::Instance()->testsExecuted > 0) {
+    if (ResultSummary::Instance().testsExecuted > 0) {
         printf("-------------------\n");
         printf("Duration......: %.3f sec\n", tSeconds);
-        printf("Tests Executed: %d\n", Config::Instance()->testsExecuted);
-        printf("Tests Failed..: %d\n", Config::Instance()->testsFailed);
+        printf("Tests Executed: %d\n", ResultSummary::Instance().testsExecuted);
+        printf("Tests Failed..: %d\n", ResultSummary::Instance().testsFailed);
+
+        ResultSummary::Instance().PrintSummary(Config::Instance()->printPassSummary);
     } else {
         if (!isModuleFound) {
             printf("No testable modules/functions found!\n");
