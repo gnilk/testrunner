@@ -18,11 +18,16 @@ void ResultSummary::PrintFailureDetails() {
     printf("Failed:\n");
     for(auto r : results) {
         if (r->Result() != kTestResult_Pass) {
-            printf("  [%c%c%c]: %s\n",
+            printf("  [%c%c%c]: %s",
                    r->Result() == kTestResult_TestFail?'T':'t',
                    r->Result() == kTestResult_ModuleFail?'M':'m',
                    r->Result() == kTestResult_AllFail?'A':'a',
                    r->SymbolName().c_str());
+
+            if (r->AssertError().isValid) {
+                printf(", %s @ %d, %s", r->AssertError().file.c_str(), r->AssertError().line, r->AssertError().message.c_str());
+            }
+            printf("\n");
         }
     }
 }

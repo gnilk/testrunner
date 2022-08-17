@@ -30,3 +30,6 @@ TestResult::TestResult(std::string symbolName) {
     this->numError = this->numAssert = 0;
 }
 
+void TestResult::SetAssertError(class AssertError &other) {
+    assertError = other;
+}

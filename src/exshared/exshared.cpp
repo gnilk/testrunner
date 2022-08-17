@@ -34,7 +34,13 @@ extern "C" {
 		return kTR_FailModule;
 	}
 
-	DLL_EXPORT int test_shared_c_abort(ITesting *t) {
+    DLL_EXPORT int test_shared_b_assert(ITesting *t) {
+        printf("test_shared_b_assert, got called\n");
+        TR_ASSERT(t, 1 == 2);
+        return kTR_Pass;
+    }
+
+    DLL_EXPORT int test_shared_c_abort(ITesting *t) {
 		t->Abort(__LINE__, __FILE__,"this is an abort error (stop any further testing)");
 		return kTR_FailAll;
 	}

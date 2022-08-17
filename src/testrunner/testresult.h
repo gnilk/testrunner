@@ -24,6 +24,7 @@
  ---------------------------------------------------------------------------*/
 
 #include <string>
+#include "asserterror.h"
 
 typedef enum {
     kTestResult_Pass = 0,
@@ -43,12 +44,16 @@ public:
     double ElapsedTimeSec() { return tElapsedSec; }
     std::string &SymbolName() { return symbolName; }
 
+    const AssertError &AssertError() { return assertError; };
+
     // Setters
     void SetResult(kTestResult result) { this->testResult = result; }
     void SetTimeElapsedSec(double t) { tElapsedSec = t; }
     void SetNumberOfErrors(int count) {numError = count;}
     void SetNumberOfAsserts(int count) {numAssert = count;}
+    void SetAssertError(class AssertError &other);
 private:
+    class AssertError assertError;
     kTestResult testResult;
     double tElapsedSec;
     int numError;

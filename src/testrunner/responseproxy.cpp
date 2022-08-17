@@ -94,6 +94,7 @@ void TestResponseProxy::Begin(std::string symbolName, std::string moduleName) {
     
 
     timer.Reset();
+    assertError.Reset();
 }
 
 double TestResponseProxy::ElapsedTimeInSec() {
@@ -159,6 +160,8 @@ void TestResponseProxy::Fatal(int line, const char *file, std::string message) {
     if (testResult < kTestResult_ModuleFail) {
         testResult = kTestResult_ModuleFail;
     }
+    assertError.Set(AssertError::kAssert_Fatal, line, file, message);
+
 #ifdef WIN32    
     TerminateThread(GetCurrentThread(), 0);
 #else
@@ -173,7 +176,8 @@ void TestResponseProxy::Abort(int line, const char *file, std::string message) {
     if (testResult < kTestResult_AllFail) {
         testResult = kTestResult_AllFail;
     }
-#ifdef WIN32    
+    assertError.Set(AssertError::kAssert_Abort, line, file, message);
+#ifdef WIN32
     if (!TerminateThread(GetCurrentThread(), 0)) {
         pLogger->Error("Terminating thread...\n");
     }
@@ -189,7 +193,8 @@ void TestResponseProxy::AssertError(const char *exp, const char *file, const int
     if (testResult < kTestResult_TestFail) {
         testResult = kTestResult_TestFail;
     }
-#ifdef WIN32    
+    assertError.Set(AssertError::kAssert_Error, line, file, exp);
+#ifdef WIN32
     TerminateThread(GetCurrentThread(), 0);
 #else
     pthread_exit(NULL);

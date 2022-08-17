@@ -155,6 +155,7 @@ TestResult *TestFunc::Execute(IModule *module) {
         pLogger->Debug("Execute, thread done...\n");
 
         trp->End();
+        testResult->SetAssertError(trp->GetAssertError());
         testResult->SetResult(trp->Result());
         testResult->SetNumberOfErrors(trp->Errors());
         testResult->SetNumberOfAsserts(trp->Asserts());

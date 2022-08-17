@@ -7,6 +7,7 @@
 #include "logger.h"
 #include "testresult.h"
 #include "testhooks.h"
+#include "asserterror.h"
 
 
 class TestResponseProxy {
@@ -21,6 +22,8 @@ public:
     int Errors();
     int Asserts();
     kTestResult Result();
+    bool IsAssertValid() const { return assertError.isValid; }
+    class AssertError &GetAssertError() { return assertError; }
 
 
 public: // ITesting mirroring
@@ -42,9 +45,11 @@ private:
 private:
     Timer timer;
     double tElapsed;
+    class AssertError assertError;
     kTestResult testResult;
     int assertCount;
     int errorCount;
+
     std::string symbolName; // current symbol under test
     std::string moduleName; // current module under test
     gnilk::ILogger *pLogger;
