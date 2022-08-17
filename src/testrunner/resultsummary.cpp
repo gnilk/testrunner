@@ -25,7 +25,7 @@ void ResultSummary::PrintFailureDetails() {
                    r->SymbolName().c_str());
 
             if (r->AssertError().isValid) {
-                printf(", %s @ %d, %s", r->AssertError().file.c_str(), r->AssertError().line, r->AssertError().message.c_str());
+                printf(", %s:%d, %s", r->AssertError().file.c_str(), r->AssertError().line, r->AssertError().message.c_str());
             }
             printf("\n");
         }
