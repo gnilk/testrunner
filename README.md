@@ -273,6 +273,16 @@ build$ bin/trun -scC -m shared
 
 === RUN  	_test_shared_sleep
 === PASS:	_test_shared_sleep, 0.103 sec, 0
+
+Duration......: 0.013 sec
+Tests Executed: 16
+Tests Failed..: 5
+Failed:
+  [Tma]: _test_pure_main
+  [Tma]: _test_shared_a_error
+  [Tma]: _test_shared_b_assert, /src/testrunner/src/exshared/exshared.cpp:39, 1 == 2
+  [tMa]: _test_shared_b_fatal, /src/testrunner/src/exshared/exshared.cpp:32, this is a fatal error (stop all further cases for module)
+  [tmA]: _test_shared_c_abort, /src/testrunner/src/exshared/exshared.cpp:44, this is an abort error (stop any further testing)
 </pre>
 
 Be very verbose (`-vv`), dump configuration (`-d`), skip global execution (`-g`) won't skip main.
