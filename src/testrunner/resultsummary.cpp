@@ -15,9 +15,14 @@ void ResultSummary::PrintSummary(bool bPrintSuccess) {
     }
 }
 void ResultSummary::PrintFailureDetails() {
-    printf("Failed:\n");
+    bool haveHeader = false;
     for(auto r : results) {
         if (r->Result() != kTestResult_Pass) {
+            // Only print this the first time if we have any...
+            if (!haveHeader) {
+                printf("Failed:\n");
+                haveHeader = true;
+            }
             printf("  [%c%c%c]: %s",
                    r->Result() == kTestResult_TestFail?'T':'t',
                    r->Result() == kTestResult_ModuleFail?'M':'m',
@@ -32,9 +37,14 @@ void ResultSummary::PrintFailureDetails() {
     }
 }
 void ResultSummary::PrintPassDetails() {
-    printf("Success:\n");
+    bool haveHeader = false;
     for(auto r : results) {
         if (r->Result() == kTestResult_Pass) {
+            // Only print this the first time - if we have any...
+            if (!haveHeader) {
+                printf("Success:\n");
+                haveHeader = true;
+            }
             printf("  [P--]: %s\n",r->SymbolName().c_str());
         }
     }

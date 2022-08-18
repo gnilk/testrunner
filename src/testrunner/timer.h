@@ -13,6 +13,7 @@ class Timer {
 public:
     Timer();
     void Reset();
+    // returns time since reset as seconds...
     double Sample();
 private:
 #ifdef WIN32

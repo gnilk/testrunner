@@ -31,7 +31,7 @@ Timer::Timer() {
 }
 
 //
-// Restet starting point for clock
+// Reset starting point for clock
 //
 void Timer::Reset() {
     tStart = mach_absolute_time();
