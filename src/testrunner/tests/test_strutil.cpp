@@ -3,10 +3,10 @@
 //
 
 // using dev-version, instead of install version... self-hosting..
-#include "../testinterface.h"
-#include "../strutil.h"
 #include <vector>
 #include <string>
+#include "../testinterface.h"
+#include "../strutil.h"
 
 extern "C" {
 DLL_EXPORT int test_strutil(ITesting *t);
