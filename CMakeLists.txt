@@ -66,6 +66,7 @@ if (APPLE)
     # add mac specific unit test src
     list(APPEND testsrc src/testrunner/tests/test_module_nix.cpp)
     list(APPEND testsrc src/testrunner/tests/test_dirscanner_nix.cpp)
+    add_definitions(-DAPPLE)
 
 elseif(WIN32)
     list(APPEND srcfiles src/testrunner/module_win32.cpp)
@@ -83,6 +84,7 @@ elseif(UNIX)
     # add linux specific unit test src
     list(APPEND testsrc src/testrunner/tests/test_module_nix.cpp)
     list(APPEND testsrc src/testrunner/tests/test_dirscanner_nix.cpp)
+    add_definitions(-DLINUX)
 endif()
 
 
