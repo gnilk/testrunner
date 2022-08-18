@@ -53,6 +53,7 @@ list(APPEND srcfiles src/testrunner/asserterror.cpp)
 list(APPEND testsrc src/testrunner/tests/test_timer.cpp)
 list(APPEND testsrc src/testrunner/tests/test_main.cpp)
 list(APPEND testsrc src/testrunner/tests/test_strutil.cpp)
+list(APPEND testsrc src/testrunner/tests/test_testfunc.cpp)
 
 if (APPLE)
     list(APPEND srcfiles src/testrunner/module_mac.cpp)
