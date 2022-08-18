@@ -2,6 +2,10 @@
 // Created by Fredrik Kling on 18.08.22.
 //
 
+#ifdef WIN32
+#include <Windows.h>
+#endif
+
 #include <chrono>
 #include <thread>
 #include "../timer.h"

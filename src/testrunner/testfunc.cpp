@@ -26,12 +26,6 @@
  
  ---------------------------------------------------------------------------*/
 
-#include "testfunc.h"
-#include "module_mac.h"
-#include "config.h"
-#include "testrunner.h"
-#include "responseproxy.h"
-#include <string>
 #ifdef WIN32
 #include <Windows.h>
 #else
@@ -39,6 +33,12 @@
 #include <thread>
 #endif
 #include <map>
+#include "testfunc.h"
+#include "module_mac.h"
+#include "config.h"
+#include "testrunner.h"
+#include "responseproxy.h"
+#include <string>
 
 
 TestFunc::TestFunc() {

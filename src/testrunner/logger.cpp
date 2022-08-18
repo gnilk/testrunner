@@ -47,7 +47,8 @@
  
  ---------------------------------------------------------------------------*/
 #ifdef WIN32
-//#include "stdafx.h"
+#include <Windows.h>
+#include <winsock.h>
 #endif
 
 
@@ -57,7 +58,6 @@
 #include <stdarg.h>
 
 #ifdef WIN32
-#include <windows.h>
 #include <time.h>
 
 #define strdup _strdup	// bla,bla
@@ -96,25 +96,28 @@
 
 using namespace std;
 
-namespace gnilk
-{
-	static int StrExplode(std::vector<std::string> *strList, char *mString, int chrSplit);
-	static char *StrTrim(char *s);
-	extern "C" {
-		ILogOutputSink * LOG_CALLCONV CreateSink(const char *className) {
-			return NULL;
-		}
-	}
+namespace gnilk {
+    static int StrExplode(std::vector<std::string> *strList, char *mString, int chrSplit);
 
-	// Loggers currently available
-	static LOG_SINK_FACTORY sinkFactoryList[] =
-	{
-		"LogConsoleSink", LogConsoleSink::CreateInstance,
-		"LogRollingFileSink", LogRollingFileSink::CreateInstance,
-		"LogFileSink", LogFileSink::CreateInstance,
-		NULL, NULL,
-	};
+    static char *StrTrim(char *s);
 
+    extern "C" {
+    ILogOutputSink *LOG_CALLCONV CreateSink(const char *className) {
+        return NULL;
+    }
+    }
+
+    // Loggers currently available
+    static LOG_SINK_FACTORY sinkFactoryList[] =
+            {
+                    "LogConsoleSink", LogConsoleSink::CreateInstance,
+                    "LogRollingFileSink", LogRollingFileSink::CreateInstance,
+                    "LogFileSink", LogFileSink::CreateInstance,
+                    NULL, NULL,
+            };
+}
+
+using namespace gnilk;
 
 bool LogBaseSink::WithinRange(int iDbgLevel) 
 { 
@@ -1037,56 +1040,51 @@ void LogPropertyReader::SetValue(const char *key, const char *value)
 //
 // Internal helpers
 //
+namespace gnilk {
 
-static char *StrTrim(char *s) {
-    char *ptr;
-    if (!s)
-        return NULL;   // handle NULL string
-    if (!*s)
-        return s;      // handle empty string
-    for (ptr = s + strlen(s) - 1; (ptr >= s) && isspace(*ptr); --ptr);
-    ptr[1] = '\0';
-    return s;
-}
+    static char *StrTrim(char *s) {
+        char *ptr;
+        if (!s)
+            return NULL;   // handle NULL string
+        if (!*s)
+            return s;      // handle empty string
+        for (ptr = s + strlen(s) - 1; (ptr >= s) && isspace(*ptr); --ptr);
+        ptr[1] = '\0';
+        return s;
+    }
 
 //
 // Splits the string into substrings for a given character
 //
-static int StrExplode(std::vector<std::string> *strList, char *mString, int chrSplit)
-{
-	std::string strTmp,strPart;
-	size_t ofs,pos;
-	int count;
+    static int StrExplode(std::vector<std::string> *strList, char *mString, int chrSplit) {
+        std::string strTmp, strPart;
+        size_t ofs, pos;
+        int count;
 
-	strTmp = std::string(mString);
-	pos = count = 0;
-	do 	
-	{
-		ofs = strTmp.find_first_of(chrSplit,pos);
+        strTmp = std::string(mString);
+        pos = count = 0;
+        do {
+            ofs = strTmp.find_first_of(chrSplit, pos);
 
-		if (ofs == -1)
-		{
-			if (pos != -1)
-			{
-				strPart = strTmp.substr(pos,strTmp.length()-pos);
-				strList->push_back(strPart);
-				count++;
-			}
-			else
-			{
-				// We had trailing spaces...
-			}
+            if (ofs == -1) {
+                if (pos != -1) {
+                    strPart = strTmp.substr(pos, strTmp.length() - pos);
+                    strList->push_back(strPart);
+                    count++;
+                } else {
+                    // We had trailing spaces...
+                }
 
-			break;
-		}
-		strPart = strTmp.substr(pos,ofs - pos);
-		strList->push_back(strPart);
-		pos = ofs+1;
-		pos = strTmp.find_first_not_of(chrSplit,pos);
-		count++;
-	} while(1);
+                break;
+            }
+            strPart = strTmp.substr(pos, ofs - pos);
+            strList->push_back(strPart);
+            pos = ofs + 1;
+            pos = strTmp.find_first_not_of(chrSplit, pos);
+            count++;
+        } while (1);
 
-	return count;
-} // StrExplode
+        return count;
+    } // StrExplode
 
-} // namespace gnilk
+}

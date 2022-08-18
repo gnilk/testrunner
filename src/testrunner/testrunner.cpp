@@ -23,11 +23,14 @@
 
  
  ---------------------------------------------------------------------------*/
+#ifdef WIN32
+#include <Windows.h>
+#endif
 
 #include <stdint.h>
 #include <string>
 
-#include "module_mac.h"
+#include "module.h"
 #include "strutil.h"
 #include "testrunner.h"
 #include "logger.h"

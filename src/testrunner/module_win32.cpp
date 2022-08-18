@@ -22,6 +22,9 @@
  - 2019.10.24, FKling, Implementation
  
  ---------------------------------------------------------------------------*/
+#ifdef WIN32
+#include <Windows.h>
+#endif
 
 #include "module.h"
 #include "module_win32.h"

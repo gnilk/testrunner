@@ -23,6 +23,10 @@
  - 2018.10.18, FKling, Implementation
  
  ---------------------------------------------------------------------------*/
+#ifdef WIN32
+#include <Windows.h>
+#endif
+
 #include "logger.h"
 #include "testrunner.h"
 #include "module.h"

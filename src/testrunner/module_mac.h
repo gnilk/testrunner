@@ -1,14 +1,12 @@
 #pragma once
+#ifdef WIN32
+#include <Windows.h>
+#endif
+
 
 #include "logger.h"
 #include "testinterface.h"
 #include "module.h"
-
-#ifdef WIN32
-#define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
-#endif
-
 #include <stdint.h>
 #include <vector>
 #include <string>
