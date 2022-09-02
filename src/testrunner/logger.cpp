@@ -223,7 +223,7 @@ long LogFileSink::Size()
             return -1;
         length = ftell(fOut);
         if (fseek(fOut, offset, SEEK_SET) != 0)
-            -1;
+            return -1;
         return length;
 #endif
 
@@ -402,13 +402,15 @@ void Logger::SendToSinks(int dbgLevel, char *hdr, char *string)
 }
 
 
-#ifdef WIN32
+#ifdef _MSC_VER
 struct timezone 
 {
 	int  tz_minuteswest; /* minutes W of Greenwich */
 	int  tz_dsttime;     /* type of dst correction */
 };
+#endif
 
+#ifdef WIN32
 static int gettimeofday(struct timeval *tv, struct timezone *tz)
 {
 	FILETIME ft;
