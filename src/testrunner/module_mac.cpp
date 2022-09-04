@@ -89,7 +89,8 @@ std::vector<std::string> &ModuleMac::Exports() {
 //
 // Scan, scans a dynamic library for exported test functions
 //
-bool ModuleMac::Scan(std::string pathName) {
+std::pair<ModuleContainer, bool> ModuleMac::Scan(std::string pathName) {
+    ModuleContainer container(pathName);
     this->pathName = pathName;
 
     pLogger->Debug("Module::Scan, entering");

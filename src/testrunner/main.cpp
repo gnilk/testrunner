@@ -192,6 +192,8 @@ next_argument:;
     }
 }
 
+
+
 static void RunTestsForModule(IModule &module) {
     pLogger->Debug("Running tests");
     ModuleTestRunner testRunner(&module);
@@ -206,9 +208,12 @@ static IModule &GetModuleLoader() {
 #else
     static ModuleLinux loader;
 #endif
-
     return loader;
 }
+
+static std::vector<ModuleContainer *> modulesToTest;
+
+
 static void ProcessInput(std::vector<std::string> &inputs) {
     // Process all inputs
     for(auto x:inputs) {
@@ -218,11 +223,15 @@ static void ProcessInput(std::vector<std::string> &inputs) {
             ProcessInput(subs);
         } else {
             IModule &module = GetModuleLoader();
-            if (module.Scan(x)) {            
-                if (module.Exports().size() > 0) {
+            auto [container, res] = module.Scan(x);
+            if (res) {
+                if (container.Exports().size() > 0) {
+
                     isModuleFound = true;   // we found at least one module..
                     pLogger->Info("Executing tests for %s", x.c_str());
-                    RunTestsForModule(module);
+                    modulesToTest.push_back(container);
+
+                    //RunTestsForModule(module);
                 }
             } else {
                 pLogger->Error("Scan failed on '%s'", x.c_str());

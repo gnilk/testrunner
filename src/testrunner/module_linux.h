@@ -23,7 +23,7 @@ public: // IModule
     virtual void *Handle();    
     virtual std::vector<std::string> &Exports();
     virtual void *FindExportedSymbol(std::string funcName);
-    virtual bool Scan(std::string pathName);
+    virtual std::pair<ModuleContainer *, bool> Scan(std::string pathName);
     virtual std::string &Name() { return pathName; };
 
 private:

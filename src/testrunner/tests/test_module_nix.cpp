@@ -11,6 +11,7 @@ extern "C" {
 DLL_EXPORT int test_module(ITesting *t);
 DLL_EXPORT int test_module_scan(ITesting *t);
 DLL_EXPORT int test_module_symbol(ITesting *t);
+DLL_EXPORT int test_module_copysym(ITesting *t);
 }
 
 
@@ -22,10 +23,11 @@ DLL_EXPORT int test_module_scan(ITesting *t) {
     ModuleLinux modloader;
 
 #ifdef APPLE
-    TR_ASSERT(t, modloader.Scan("lib/libtrun_utests.dylib"));
+    auto [container, res] = modloader.Scan("lib/libtrun_utests.dylib");
 #else
     TR_ASSERT(t, modloader.Scan("lib/libtrun_utests.so"));
 #endif
+    TR_ASSERT(t, res);
     // We should at least find some testable stuff in our own library...
     TR_ASSERT(t, modloader.Exports().size() > 0);
 
@@ -36,14 +38,29 @@ DLL_EXPORT int test_module_symbol(ITesting *t) {
     ModuleLinux modloader;
 
 #ifdef APPLE
-    TR_ASSERT(t, modloader.Scan("lib/libtrun_utests.dylib"));
+    auto[container, res] = modloader.Scan("lib/libtrun_utests.dylib");
 #else
     TR_ASSERT(t, modloader.Scan("lib/libtrun_utests.so"));
 #endif
+    TR_ASSERT(t, res);
     // We should find this...
     TR_ASSERT(t, modloader.FindExportedSymbol("test_module_symbol"));
     // but not this..
     TR_ASSERT(t, !modloader.FindExportedSymbol("test_fake_symbol"));
 
+    return kTR_Pass;
+}
+
+DLL_EXPORT int test_module_copysym(ITesting *t) {
+    ModuleLinux modloader;
+
+#ifdef APPLE
+    auto[container, res] = modloader.Scan("lib/libtrun_utests.dylib");
+#else
+    TR_ASSERT(t, modloader.Scan("lib/libtrun_utests.so"));
+#endif
+    TR_ASSERT(t, res == true);
+
+    TR_ASSERT(t, container->Exports().size() > 0);
     return kTR_Pass;
 }

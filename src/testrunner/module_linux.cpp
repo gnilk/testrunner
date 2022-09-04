@@ -92,18 +92,22 @@ std::vector<std::string> &ModuleLinux::Exports() {
 //
 // Scan, scans a dynamic library for exported test functions
 //
-bool ModuleLinux::Scan(std::string pathName) {
+std::pair<ModuleContainer *, bool> ModuleLinux::Scan(std::string pathName) {
+    ModuleContainer *container = new ModuleContainer(pathName);
     this->pathName = pathName;
 
     pLogger->Debug("Scan, entering");
     if (!Open()) {
         pLogger->Debug("Open failed");
-       return false;
+       return std::pair<ModuleContainer *, bool>(container,false);
     }
 
     pLogger->Debug("Scan, leaving");
-
-    return true;
+    // Just copy over...
+    for(auto s : exports) {
+        container->AddSymbol(s);
+    }
+    return std::pair<ModuleContainer *, bool>(container, true);
 }
 
 //

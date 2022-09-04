@@ -31,8 +31,9 @@ public:
         static std::vector<string> dummy={"test_mock_func"};
         return dummy;
     }
-    bool Scan(std::string pathName) override {
-        return true;
+    std::pair<ModuleContainer *, bool> Scan(std::string pathName) override {
+        auto  container = new ModuleContainer(pathName);
+        return std::pair<ModuleContainer *, bool>(container, true);
     }
     std::string &Name() override {
         static std::string name = "mockmodule";
