@@ -60,7 +60,7 @@ if (APPLE)
     list(APPEND srcfiles src/testrunner/dirscanner.cpp)
     list(APPEND srcfiles src/testrunner/timer.cpp)
     # make the 'nm' way work on mac
-    list(APPEND srcfiles src/testrunner/module_linux.cpp)
+    list(APPEND srcfiles src/testrunner/dynlib_linux.cpp)
     list(APPEND srcfiles src/testrunner/process.cpp)
 
     # add mac specific unit test src
@@ -76,7 +76,7 @@ elseif(WIN32)
     add_definitions(-DWIN32_LEAN_AND_MEAN)
 
 elseif(UNIX)
-    list(APPEND srcfiles src/testrunner/module_linux.cpp)
+    list(APPEND srcfiles src/testrunner/dynlib_linux.cpp)
     list(APPEND srcfiles src/testrunner/dirscanner_linux.cpp)
     list(APPEND srcfiles src/testrunner/timer_linux.cpp)
     list(APPEND srcfiles src/testrunner/process.cpp)
@@ -134,6 +134,7 @@ target_link_libraries(trun_utests ${platformlibs})
 add_custom_target(
         Unit_Tests ALL
         DEPENDS trun_utests
+        DEPENDS trun
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
 

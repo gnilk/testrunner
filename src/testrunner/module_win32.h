@@ -2,7 +2,7 @@
 
 #include "logger.h"
 #include "testinterface.h"
-#include "module.h"
+#include "dynlib.h"
 
 #ifdef WIN32
 #include <Windows.h>

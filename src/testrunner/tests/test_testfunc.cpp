@@ -1,6 +1,6 @@
 #include "../testinterface.h"
 #include "../testfunc.h"
-#include "../module.h"
+#include "../dynlib.h"
 #include <vector>
 #include <string>
 
@@ -16,14 +16,12 @@ static int test_mock_func(ITesting *t) {
 }
 
 // This mock's a module loader and with a single function the 'test_mock_func'..
-class ModuleMock : public IModule {
+class ModuleMock : public IDynLibrary {
 public:
     ModuleMock() = default;
     virtual ~ModuleMock() = default;
 
-    void *Handle() override {
-        return nullptr;
-    }
+    void *Handle() override { return nullptr; }
     void *FindExportedSymbol(std::string funcName) override {
         return (void *) test_mock_func;
     }
@@ -31,9 +29,8 @@ public:
         static std::vector<string> dummy={"test_mock_func"};
         return dummy;
     }
-    std::pair<ModuleContainer *, bool> Scan(std::string pathName) override {
-        auto  container = new ModuleContainer(pathName);
-        return std::pair<ModuleContainer *, bool>(container, true);
+    bool Scan(std::string pathName) override {
+        return true;
     }
     std::string &Name() override {
         static std::string name = "mockmodule";

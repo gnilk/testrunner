@@ -26,7 +26,7 @@
 #include <Windows.h>
 #endif
 
-#include "module.h"
+#include "dynlib.h"
 #include "module_win32.h"
 #include "strutil.h"
 #include "logger.h"

@@ -34,7 +34,6 @@
 #endif
 #include <map>
 #include "testfunc.h"
-#include "module_mac.h"
 #include "config.h"
 #include "testrunner.h"
 #include "responseproxy.h"
@@ -98,7 +97,7 @@ static void *testfunc_thread_starter(void *arg) {
 }
 #endif
 
-TestResult *TestFunc::Execute(IModule *module) {
+TestResult *TestFunc::Execute(IDynLibrary *module) {
     pLogger->Debug("Executing test: %s", caseName.c_str());
     pLogger->Debug("  Module: %s", moduleName.c_str());
     pLogger->Debug("  Case..: %s", caseName.c_str());

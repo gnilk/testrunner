@@ -1,7 +1,6 @@
 #pragma once
 
 #include "config.h"
-#include "module_mac.h"
 #include "logger.h"
 #include "testfunc.h"
 #include "testresult.h"
@@ -16,9 +15,10 @@
 //
 class ModuleTestRunner {
 public:
-    ModuleTestRunner(IModule *module);
+    explicit ModuleTestRunner(IDynLibrary *module);
+    void PrepareTests();
     void ExecuteTests();
-
+    void DumpTestsToRun();
     static TestModule *HACK_GetCurrentTestModule();
 
 private:
@@ -27,14 +27,15 @@ private:
     bool ExecuteGlobalTests();
     bool ExecuteModuleTests();
     bool ExecuteModuleTestFuncs(TestModule *testModule);
+    TestResult *ExecuteModuleMain(TestModule *testModule);
+    void ExecuteModuleExit(TestModule *testModule);
     TestResult *ExecuteTest(TestFunc *f);
     void HandleTestResult(TestResult *result);
-    void PrepareTests();
     TestFunc *CreateTestFunc(std::string sym);
 
 private:
-    IModule *module;
-    gnilk::ILogger *pLogger;
+    IDynLibrary *module = nullptr;
+    gnilk::ILogger *pLogger = nullptr;
     std::map<std::string, TestModule *> testModules;
     std::vector<TestFunc *> globals;
 };

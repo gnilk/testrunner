@@ -2,7 +2,7 @@
 
 #include "logger.h"
 #include "testinterface.h"
-#include "module.h"
+#include "dynlib.h"
 
 
 #include <stdint.h>
@@ -11,20 +11,17 @@
 #include <map>
 
 
-//
-// TODO: Split this to a spearate .h file for each module_xxx.cpp
-//
-class ModuleLinux : public IModule {
+class DynLibLinux : public IDynLibrary {
 public:
-    ModuleLinux();
-    ~ModuleLinux();
-    
-public: // IModule
-    virtual void *Handle();    
-    virtual std::vector<std::string> &Exports();
-    virtual void *FindExportedSymbol(std::string funcName);
-    virtual std::pair<ModuleContainer *, bool> Scan(std::string pathName);
-    virtual std::string &Name() { return pathName; };
+    DynLibLinux();
+    ~DynLibLinux();
+
+public: // IDynLibrary
+    bool Scan(std::string pathName) override;
+    void *Handle() override;
+    std::vector<std::string> &Exports() override;
+    void *FindExportedSymbol(std::string funcName) override;
+    std::string &Name() override { return pathName; };
 
 private:
     bool Open();

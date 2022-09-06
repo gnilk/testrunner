@@ -223,7 +223,7 @@ long LogFileSink::Size()
             return -1;
         length = ftell(fOut);
         if (fseek(fOut, offset, SEEK_SET) != 0)
-            -1;
+            return -1;
         return length;
 #endif
 

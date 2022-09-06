@@ -25,8 +25,8 @@
  
  ---------------------------------------------------------------------------*/
 
-#include "module.h"
-#include "module_linux.h"
+#include "dynlib.h"
+#include "dynlib_linux.h"
 #include "strutil.h"
 #include "logger.h"
 #include "process.h"
@@ -44,12 +44,12 @@
 
 using namespace gnilk;
 
-ModuleLinux::ModuleLinux() {
+DynLibLinux::DynLibLinux() {
     this->handle = NULL;
     this->idxLib = -1;
     this->pLogger = gnilk::Logger::GetLogger("Module");
 }
-ModuleLinux::~ModuleLinux() {
+DynLibLinux::~DynLibLinux() {
     pLogger->Debug("DTOR, closing library");
     Close();
 }
@@ -58,14 +58,14 @@ ModuleLinux::~ModuleLinux() {
 // Handle, returns a handle to the library for this module
 // NULL if not opened or failed to open
 //
-void *ModuleLinux::Handle() {
+void *DynLibLinux::Handle() {
     return handle;
 }
 
 //
 // FindExportedSymbol, returns a handle (function pointer) to the exported symbol
 //
-void *ModuleLinux::FindExportedSymbol(std::string funcName) {
+void *DynLibLinux::FindExportedSymbol(std::string funcName) {
   
    // TODO: Strip leading '_' from funcName...
 
@@ -85,29 +85,24 @@ void *ModuleLinux::FindExportedSymbol(std::string funcName) {
 //
 // Exports, returns all valid test functions
 //
-std::vector<std::string> &ModuleLinux::Exports() {
+std::vector<std::string> &DynLibLinux::Exports() {
     return exports;
 }
 
 //
 // Scan, scans a dynamic library for exported test functions
 //
-std::pair<ModuleContainer *, bool> ModuleLinux::Scan(std::string pathName) {
-    ModuleContainer *container = new ModuleContainer(pathName);
+bool DynLibLinux::Scan(std::string pathName) {
     this->pathName = pathName;
 
     pLogger->Debug("Scan, entering");
     if (!Open()) {
         pLogger->Debug("Open failed");
-       return std::pair<ModuleContainer *, bool>(container,false);
+        return false;
     }
 
     pLogger->Debug("Scan, leaving");
-    // Just copy over...
-    for(auto s : exports) {
-        container->AddSymbol(s);
-    }
-    return std::pair<ModuleContainer *, bool>(container, true);
+    return true;
 }
 
 //
@@ -129,7 +124,7 @@ protected:
 //
 // Open, opens the dynamic library and scan's for exported symbols
 //
-bool ModuleLinux::Open() {
+bool DynLibLinux::Open() {
 
     int openFlags = RTLD_LAZY;
 
@@ -183,7 +178,7 @@ bool ModuleLinux::Open() {
 
 }
 
-bool ModuleLinux::Close() {
+bool DynLibLinux::Close() {
     if (handle != NULL) {
         int res = dlclose(handle);
         idxLib = -1;
@@ -195,7 +190,7 @@ bool ModuleLinux::Close() {
 //
 // Validates a function name as a test function
 //
-bool ModuleLinux::IsValidTestFunc(std::string funcName) {
+bool DynLibLinux::IsValidTestFunc(std::string funcName) {
     // The function table is what really matters
     if (funcName.find("test_",0) == 0) {
         return true;

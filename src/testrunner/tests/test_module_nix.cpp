@@ -4,14 +4,16 @@
 
 // using dev-version, instead of install version... self-hosting..
 #include "../testinterface.h"
-#include "../module.h"
-#include "../module_linux.h"
+#include "../dynlib.h"
+#include "../dynlib_linux.h"
 
 extern "C" {
 DLL_EXPORT int test_module(ITesting *t);
 DLL_EXPORT int test_module_scan(ITesting *t);
 DLL_EXPORT int test_module_symbol(ITesting *t);
 DLL_EXPORT int test_module_copysym(ITesting *t);
+DLL_EXPORT int test_glob1(ITesting *t);
+DLL_EXPORT int test_glob2(ITesting *t);
 }
 
 
@@ -20,10 +22,10 @@ DLL_EXPORT int test_module(ITesting *t) {
 }
 
 DLL_EXPORT int test_module_scan(ITesting *t) {
-    ModuleLinux modloader;
+    DynLibLinux modloader;
 
 #ifdef APPLE
-    auto [container, res] = modloader.Scan("lib/libtrun_utests.dylib");
+    auto res = modloader.Scan("lib/libtrun_utests.dylib");
 #else
     TR_ASSERT(t, modloader.Scan("lib/libtrun_utests.so"));
 #endif
@@ -35,10 +37,10 @@ DLL_EXPORT int test_module_scan(ITesting *t) {
 }
 
 DLL_EXPORT int test_module_symbol(ITesting *t) {
-    ModuleLinux modloader;
+    DynLibLinux modloader;
 
 #ifdef APPLE
-    auto[container, res] = modloader.Scan("lib/libtrun_utests.dylib");
+    auto res = modloader.Scan("lib/libtrun_utests.dylib");
 #else
     TR_ASSERT(t, modloader.Scan("lib/libtrun_utests.so"));
 #endif
@@ -52,15 +54,21 @@ DLL_EXPORT int test_module_symbol(ITesting *t) {
 }
 
 DLL_EXPORT int test_module_copysym(ITesting *t) {
-    ModuleLinux modloader;
+    DynLibLinux modloader;
 
 #ifdef APPLE
-    auto[container, res] = modloader.Scan("lib/libtrun_utests.dylib");
+    auto res = modloader.Scan("lib/libtrun_utests.dylib");
 #else
     TR_ASSERT(t, modloader.Scan("lib/libtrun_utests.so"));
 #endif
     TR_ASSERT(t, res == true);
-
-    TR_ASSERT(t, container->Exports().size() > 0);
+    TR_ASSERT(t, modloader.Exports().size() > 0);
+    return kTR_Pass;
+}
+// These are global functions - but they end up as modules
+DLL_EXPORT int test_glob1(ITesting *t) {
+    return kTR_Pass;
+}
+DLL_EXPORT int test_glob2(ITesting *t) {
     return kTR_Pass;
 }

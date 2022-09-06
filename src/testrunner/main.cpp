@@ -29,14 +29,13 @@
 
 #include "logger.h"
 #include "testrunner.h"
-#include "module.h"
+#include "dynlib.h"
 #ifdef WIN32
 #include "module_win32.h"
 #elif __linux
 #include "module_linux.h"
 #else
-#include "module_mac.h"
-#include "module_linux.h"
+#include "dynlib_linux.h"
 #endif
 #include "strutil.h"
 #include "config.h"
@@ -53,7 +52,7 @@
 using namespace gnilk;
 ILogger *pLogger = NULL;
 
-static bool isModuleFound = false;
+static bool isLibraryFound = false;
 
 static void Help() {
 
@@ -194,44 +193,40 @@ next_argument:;
 
 
 
-static void RunTestsForModule(IModule &module) {
-    pLogger->Debug("Running tests");
-    ModuleTestRunner testRunner(&module);
-    testRunner.ExecuteTests();
-}
 
-static IModule &GetModuleLoader() {
+static IDynLibrary *GetLibraryLoader() {
 #ifdef WIN32
-    static ModuleWin loader;
+    return new ModuleWin();
 #elif __linux
-    static ModuleLinux loader;
+    return new DynLibLinux();
 #else
-    static ModuleLinux loader;
+    return new DynLibLinux();
 #endif
-    return loader;
+    return nullptr;
 }
 
-static std::vector<ModuleContainer *> modulesToTest;
+static void RunTestsForAllLibraries();
+static void RunTestsForLibrary(IDynLibrary &module);
+
+static std::vector<IDynLibrary *> librariesToTest;
 
 
-static void ProcessInput(std::vector<std::string> &inputs) {
+static void ScanLibraries(std::vector<std::string> &inputs) {
     // Process all inputs
-    for(auto x:inputs) {
+    for (auto x: inputs) {
         if (DirScanner::IsDirectory(x)) {
             DirScanner dirscan;
             std::vector<std::string> subs = dirscan.Scan(x, true);
-            ProcessInput(subs);
+            ScanLibraries(subs);
         } else {
-            IModule &module = GetModuleLoader();
-            auto [container, res] = module.Scan(x);
+            IDynLibrary *scanner = GetLibraryLoader();
+            auto res = scanner->Scan(x);
             if (res) {
-                if (container.Exports().size() > 0) {
+                if (scanner->Exports().size() > 0) {
 
-                    isModuleFound = true;   // we found at least one module..
-                    pLogger->Info("Executing tests for %s", x.c_str());
-                    modulesToTest.push_back(container);
-
-                    //RunTestsForModule(module);
+                    isLibraryFound = true;   // we found at least one module..
+                    //pLogger->Info("Executing tests for %s", x.c_str());
+                    librariesToTest.push_back(scanner);
                 }
             } else {
                 pLogger->Error("Scan failed on '%s'", x.c_str());
@@ -239,6 +234,22 @@ static void ProcessInput(std::vector<std::string> &inputs) {
         }
     }
 }
+static void RunTestsForAllLibraries() {
+    pLogger->Info("Running tests for all modules");
+    for(auto m : librariesToTest) {
+        RunTestsForLibrary(*m);
+    }
+}
+
+static void RunTestsForLibrary(IDynLibrary &module) {
+    pLogger->Debug("Running tests for");
+    ModuleTestRunner testRunner(&module);
+    testRunner.PrepareTests();
+
+    testRunner.DumpTestsToRun();
+    testRunner.ExecuteTests();
+}
+
 
 int main(int argc, char **argv) {
     // Cache the logger - also creates the Config singleton with default values
@@ -254,7 +265,10 @@ int main(int argc, char **argv) {
     Timer timer;
     
     timer.Reset();
-    ProcessInput(Config::Instance()->inputs);
+    ScanLibraries(Config::Instance()->inputs);
+
+    RunTestsForAllLibraries();
+
     double tSeconds = timer.Sample();
 
     if (ResultSummary::Instance().testsExecuted > 0) {
@@ -265,10 +279,10 @@ int main(int argc, char **argv) {
 
         ResultSummary::Instance().PrintSummary(Config::Instance()->printPassSummary);
     } else {
-        if (!isModuleFound) {
-            printf("No testable modules/functions found!\n");
+        if (!isLibraryFound) {
+            printf("No dynamic library with testable modules/functions found!\n");
         } else {
-            printf("Testable modules found but no tests excuted (check filters)\n");
+            printf("Testable modules/functions found but no tests executed (check filters)\n");
         }
     }
 

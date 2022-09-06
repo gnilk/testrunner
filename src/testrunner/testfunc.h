@@ -1,7 +1,7 @@
 #pragma once
 
+#include "dynlib.h"
 #include "config.h"
-#include "module_mac.h"
 #include "logger.h"
 #include "testresult.h"
 #include "responseproxy.h"
@@ -23,6 +23,14 @@ public:
         cbPreHook(nullptr),
         cbPostHook(nullptr) {};
     bool Executed() { return bExecuted; }
+    bool ShouldExecute() {
+        for (auto m:Config::Instance()->modules) {
+            if ((m == "-") || (m == name)) {
+                return true;
+            }
+        }
+        return false;
+    }
 
 public:
     std::string name;
@@ -45,7 +53,7 @@ public:
     bool IsModuleExit();
     bool IsGlobalMain();
     bool IsGlobalExit();
-    TestResult *Execute(IModule *module);
+    TestResult *Execute(IDynLibrary *module);
     void SetExecuted();
     bool Executed();
     void ExecuteAsync();
