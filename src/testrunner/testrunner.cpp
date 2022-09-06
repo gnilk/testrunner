@@ -352,30 +352,26 @@ void TestRunner::PrepareTests() {
             moduleName = func->caseName;
         }
 
-        TestModule *tModule = nullptr;
         if (func->IsGlobalMain()) {
             globals.push_back(func);
         } else if (func->IsGlobalExit()) {
             globals.push_back(func);
-        } else if (func->IsGlobal()) {
-            tModule = GetOrAddModule(moduleName);
-            tModule->mainFunc = func;
-        } else if (func->IsModuleExit()) {
-            tModule = GetOrAddModule(moduleName);
-            tModule->exitFunc = func;
         } else {
-            tModule = GetOrAddModule(moduleName);
-            tModule->testFuncs.push_back(func);
+            // These are module functions - and handled differently and with lower priority
+            auto tModule = GetOrAddModule(moduleName);
+            if (func->IsGlobal()) {
+                tModule->mainFunc = func;
+            } else if (func->IsModuleExit()) {
+                tModule->exitFunc = func;
+            } else {
+                tModule = GetOrAddModule(moduleName);
+                tModule->testFuncs.push_back(func);
+            }
+            // Link them togehter...
+            if (tModule != nullptr) {
+                func->SetTestModule(tModule);
+            }
         }
-
-        // Link them togehter...
-        if (tModule != nullptr) {
-            func->SetTestModule(tModule);
-        }
-
-
-        //modules.push_back(func);
-
     }
 }
 
