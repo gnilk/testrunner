@@ -48,14 +48,14 @@
 
 static TestModule *hack_glbCurrentTestModule = NULL;
 
-TestModule *ModuleTestRunner::HACK_GetCurrentTestModule() {
+TestModule *TestRunner::HACK_GetCurrentTestModule() {
     return hack_glbCurrentTestModule;
 }
 
 
 //////--- Ok, let's go...
 
-ModuleTestRunner::ModuleTestRunner(IDynLibrary *module) {
+TestRunner::TestRunner(IDynLibrary *module) {
     this->module = module;
     this->pLogger = gnilk::Logger::GetLogger("TestRunner");
 }
@@ -72,7 +72,7 @@ ModuleTestRunner::ModuleTestRunner(IDynLibrary *module) {
 //  Module: 'mymodule'
 //  Case  : 'case_a_with_parrot'
 //
-void ModuleTestRunner::ExecuteTests() {
+void TestRunner::ExecuteTests() {
 
     // Create and sort tests according to naming convention
 
@@ -96,7 +96,7 @@ void ModuleTestRunner::ExecuteTests() {
 //
 // Execute main test, false if fail (i.e. return code is 'AllFail')
 //
-bool ModuleTestRunner::ExecuteMain() {
+bool TestRunner::ExecuteMain() {
     // 1) call test_main which is used to initalized anything shared between tests
     bool bRes = true;
     if (!Config::Instance()->testGlobalMain) {
@@ -121,7 +121,7 @@ bool ModuleTestRunner::ExecuteMain() {
     return bRes;
 }
 
-bool ModuleTestRunner::ExecuteMainExit() {
+bool TestRunner::ExecuteMainExit() {
     // 1) call test_main which is used to initalized anything shared between tests
     bool bRes = true;
     if (!Config::Instance()->testGlobalMain) {
@@ -150,7 +150,7 @@ bool ModuleTestRunner::ExecuteMainExit() {
 //
 // Execute any global test but main, returns false on test-fail (ModuleFail/AllFail)
 //
-bool ModuleTestRunner::ExecuteGlobalTests() {
+bool TestRunner::ExecuteGlobalTests() {
     // 2) all other global scope tests
     // Filtering in global tests is a bit different as the test func has no module.
     bool bRes = true;
@@ -172,7 +172,7 @@ bool ModuleTestRunner::ExecuteGlobalTests() {
 //
 // Execute module test
 //
-bool ModuleTestRunner::ExecuteModuleTests() {
+bool TestRunner::ExecuteModuleTests() {
     //
     // 3) all modules, executing according to cmd line module specification
     //
@@ -205,7 +205,7 @@ bool ModuleTestRunner::ExecuteModuleTests() {
     return bRes;
 }
 
-bool ModuleTestRunner::ExecuteModuleTestFuncs(TestModule *testModule) {
+bool TestRunner::ExecuteModuleTestFuncs(TestModule *testModule) {
     bool bRes = true;
 
     printf("\n");
@@ -254,7 +254,7 @@ leave:
 }
 
 // Returns true if testing is to continue false otherwise..
-TestResult *ModuleTestRunner::ExecuteModuleMain(TestModule *testModule) {
+TestResult *TestRunner::ExecuteModuleMain(TestModule *testModule) {
     if (testModule->mainFunc == nullptr) return nullptr;
 
     TestResult *result = ExecuteTest(testModule->mainFunc);
@@ -266,7 +266,7 @@ TestResult *ModuleTestRunner::ExecuteModuleMain(TestModule *testModule) {
     return result;
 }
 
-void ModuleTestRunner::ExecuteModuleExit(TestModule *testModule) {
+void TestRunner::ExecuteModuleExit(TestModule *testModule) {
     if (testModule->exitFunc == nullptr) return;
     // Try call exit function on leave...
     TestResult *result = ExecuteTest(testModule->exitFunc);
@@ -286,7 +286,7 @@ void ModuleTestRunner::ExecuteModuleExit(TestModule *testModule) {
 //
 // Execute a test function and decorate it
 //
-TestResult *ModuleTestRunner::ExecuteTest(TestFunc *f) {
+TestResult *TestRunner::ExecuteTest(TestFunc *f) {
     printf("\n");
     printf("=== RUN  \t%s\n",f->symbolName.c_str());
 
@@ -315,7 +315,7 @@ TestResult *ModuleTestRunner::ExecuteTest(TestFunc *f) {
 //
 // Handle the test result and print decoration
 //
-void ModuleTestRunner::HandleTestResult(TestResult *result) {
+void TestRunner::HandleTestResult(TestResult *result) {
     double tElapsedSec = result->ElapsedTimeSec();
     if (result->Result() != kTestResult_Pass) {
         printf("=== FAIL:\t%s, %.3f sec, %d, %d, %d\n",result->SymbolName().c_str(), tElapsedSec, result->Result(), result->Errors(), result->Asserts());
@@ -331,7 +331,7 @@ void ModuleTestRunner::HandleTestResult(TestResult *result) {
 //
 // PrepareTests, creates test functions and sorts the tests into global and/or module based tests
 //
-void ModuleTestRunner::PrepareTests() {
+void TestRunner::PrepareTests() {
 
     for(auto x:module->Exports()) {
         pLogger->Debug("PrepareTests, processing symbol: %s", x.c_str());
@@ -391,7 +391,7 @@ void ModuleTestRunner::PrepareTests() {
 // 'module' - this is the code module you are testing, this can be used to filter out tests from cmd line
 // 'case'   - this is the test case
 //
-TestFunc *ModuleTestRunner::CreateTestFunc(std::string symbol) {
+TestFunc *TestRunner::CreateTestFunc(std::string symbol) {
     TestFunc *func = NULL;
 
     std::vector<std::string> funcparts;
@@ -419,7 +419,7 @@ TestFunc *ModuleTestRunner::CreateTestFunc(std::string symbol) {
     return func;
 }
 
-void ModuleTestRunner::DumpTestsToRun() {
+void TestRunner::DumpTestsToRun() {
     for(auto m : testModules) {
         bool bExec = m.second->ShouldExecute();
         printf("%c Module: %s\n",bExec?'*':'-',m.first.c_str());

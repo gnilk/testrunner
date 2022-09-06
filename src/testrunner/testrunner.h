@@ -11,11 +11,11 @@
 
 
 //
-// Module is a DLL
+// Runs test for a specific dynamic library
 //
-class ModuleTestRunner {
+class TestRunner {
 public:
-    explicit ModuleTestRunner(IDynLibrary *module);
+    explicit TestRunner(IDynLibrary *module);
     void PrepareTests();
     void ExecuteTests();
     void DumpTestsToRun();
