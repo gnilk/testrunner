@@ -12,7 +12,10 @@
 
 
 class TestFunc;
-
+//
+// TestModule is a collection of testable functions
+//  test_<module>_<case>
+//
 class TestModule {
 public:
     TestModule(std::string _name) :
@@ -44,7 +47,7 @@ public:
     std::vector<TestFunc *> testFuncs;
 };
 
-// The core structure defines a testable function which belongs to a test-module
+// The core structure defining a testable function which belongs to a test-module
 class TestFunc {
 public:
     TestFunc();

@@ -243,7 +243,7 @@ static void RunTestsForAllLibraries() {
 
 static void RunTestsForLibrary(IDynLibrary &module) {
     pLogger->Debug("Running tests for");
-    ModuleTestRunner testRunner(&module);
+    TestRunner testRunner(&module);
     testRunner.PrepareTests();
 
     testRunner.DumpTestsToRun();
