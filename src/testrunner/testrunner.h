@@ -33,6 +33,8 @@ private:
     void HandleTestResult(TestResult *result);
     TestFunc *CreateTestFunc(std::string sym);
 
+    TestModule *GetOrAddModule(std::string &module);
+
 private:
     IDynLibrary *module = nullptr;
     gnilk::ILogger *pLogger = nullptr;

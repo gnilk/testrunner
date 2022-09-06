@@ -21,6 +21,8 @@ public:
     std::string description;
     std::string testMain;
     std::string testExit;
+    bool executeTests;
+    bool listTests;
     bool printPassSummary;
     bool testGlobals;
     bool testGlobalMain;

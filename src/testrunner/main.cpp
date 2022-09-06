@@ -76,6 +76,7 @@ static void Help() {
     printf("Usage: trun [options] input\n");
     printf("Options: \n");
     printf("  -v  Verbose, increase for more!\n");
+    printf("  -l  List all tests\n");
     printf("  -d  Dump configuration before starting\n");
     printf("  -S  Include success pass in summary when done (default: off)\n");
     printf("  -D  Linux Only - disable RTLD_DEEPBIND\n");
@@ -85,6 +86,7 @@ static void Help() {
     printf("  -r  Discard return from test case (default: off)\n");
     printf("  -c  Continue on module failure (default: off)\n");
     printf("  -C  Continue on total failure (default: off)\n");
+    printf("  -x  Don't execute tests (default: off)\n");
     printf("  -m <list> List of modules to test (default: '-' (all))\n");
     printf("  -t <list> List of test cases to test (default: '-' (all))\n");
     printf("\n");
@@ -120,6 +122,12 @@ static void ParseArguments(int argc, char **argv) {
                 switch(argv[i][j]) {
                     case 'r' :
                         Config::Instance()->discardTestReturnCode = true;
+                        break;
+                    case 'l' :
+                        Config::Instance()->listTests = true;
+                        break;
+                    case 'x' :
+                        Config::Instance()->executeTests = false;
                         break;
                     case 'S' :
                         Config::Instance()->printPassSummary = true;
@@ -246,8 +254,13 @@ static void RunTestsForLibrary(IDynLibrary &module) {
     TestRunner testRunner(&module);
     testRunner.PrepareTests();
 
-    testRunner.DumpTestsToRun();
-    testRunner.ExecuteTests();
+    if (Config::Instance()->listTests) {
+        printf("Library: %s\n", module.Name().c_str());
+        testRunner.DumpTestsToRun();
+    }
+    if (Config::Instance()->executeTests) {
+        testRunner.ExecuteTests();
+    }
 }
 
 
@@ -271,18 +284,20 @@ int main(int argc, char **argv) {
 
     double tSeconds = timer.Sample();
 
-    if (ResultSummary::Instance().testsExecuted > 0) {
-        printf("-------------------\n");
-        printf("Duration......: %.3f sec\n", tSeconds);
-        printf("Tests Executed: %d\n", ResultSummary::Instance().testsExecuted);
-        printf("Tests Failed..: %d\n", ResultSummary::Instance().testsFailed);
+    if (Config::Instance()->executeTests) {
+        if (ResultSummary::Instance().testsExecuted > 0) {
+            printf("-------------------\n");
+            printf("Duration......: %.3f sec\n", tSeconds);
+            printf("Tests Executed: %d\n", ResultSummary::Instance().testsExecuted);
+            printf("Tests Failed..: %d\n", ResultSummary::Instance().testsFailed);
 
-        ResultSummary::Instance().PrintSummary(Config::Instance()->printPassSummary);
-    } else {
-        if (!isLibraryFound) {
-            printf("No dynamic library with testable modules/functions found!\n");
+            ResultSummary::Instance().PrintSummary(Config::Instance()->printPassSummary);
         } else {
-            printf("Testable modules/functions found but no tests executed (check filters)\n");
+            if (!isLibraryFound) {
+                printf("No dynamic library with testable modules/functions found!\n");
+            } else {
+                printf("Testable modules/functions found but no tests executed (check filters)\n");
+            }
         }
     }
 

@@ -48,6 +48,8 @@ Config::Config() {
     description = "C/C++ Unit Test Runner";
     testMain = "main";
     testExit = "exit";
+    executeTests = true;
+    listTests = false;
     printPassSummary = false;
     testGlobals = true;
     testGlobalMain = true;

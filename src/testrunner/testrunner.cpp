@@ -291,7 +291,7 @@ TestResult *TestRunner::ExecuteTest(TestFunc *f) {
     printf("=== RUN  \t%s\n",f->symbolName.c_str());
 
     // Invoke pre-test hook, if set - this is usually done during test_main for a specific module
-    if (f->GetTestModule()->cbPreHook != NULL) {
+    if ((f->GetTestModule() != nullptr) && (f->GetTestModule()->cbPreHook != nullptr)) {
         f->GetTestModule()->cbPreHook(TestResponseProxy::GetInstance()->Proxy());
     }
 
@@ -299,7 +299,7 @@ TestResult *TestRunner::ExecuteTest(TestFunc *f) {
     TestResult *result = f->Execute(module);
 
     // Invoke post-test hook, if set - this is usually done during test_main for a specific module
-    if (f->GetTestModule()->cbPostHook != NULL) {
+    if ((f->GetTestModule() != nullptr) && (f->GetTestModule()->cbPostHook != nullptr)) {
         f->GetTestModule()->cbPostHook(TestResponseProxy::GetInstance()->Proxy());
     }
 
@@ -353,34 +353,45 @@ void TestRunner::PrepareTests() {
         }
 
         TestModule *tModule = nullptr;
-        // Have module with this name????
-        auto it = testModules.find(moduleName);
-        if (it == testModules.end()) {
-            tModule = new TestModule(moduleName);
-            testModules.insert(std::pair<std::string, TestModule *>(moduleName, tModule));
-        } else {
-            tModule = it->second;
-        }
-
         if (func->IsGlobalMain()) {
             globals.push_back(func);
         } else if (func->IsGlobalExit()) {
             globals.push_back(func);
         } else if (func->IsGlobal()) {
+            tModule = GetOrAddModule(moduleName);
             tModule->mainFunc = func;
         } else if (func->IsModuleExit()) {
+            tModule = GetOrAddModule(moduleName);
             tModule->exitFunc = func;
         } else {
+            tModule = GetOrAddModule(moduleName);
             tModule->testFuncs.push_back(func);
         }
+
         // Link them togehter...
-        func->SetTestModule(tModule);
+        if (tModule != nullptr) {
+            func->SetTestModule(tModule);
+        }
 
 
         //modules.push_back(func);
 
     }
 }
+
+TestModule *TestRunner::GetOrAddModule(std::string &moduleName) {
+    TestModule *tModule = nullptr;
+    // Have module with this name????
+    auto it = testModules.find(moduleName);
+    if (it == testModules.end()) {
+        tModule = new TestModule(moduleName);
+        testModules.insert(std::pair<std::string, TestModule *>(moduleName, tModule));
+    } else {
+        tModule = it->second;
+    }
+    return tModule;
+}
+
 
 //
 // CreateTestFunc, creates a test function according to the following symbol rules
@@ -420,11 +431,25 @@ TestFunc *TestRunner::CreateTestFunc(std::string symbol) {
 }
 
 void TestRunner::DumpTestsToRun() {
+    if (!globals.empty()) {
+        printf("%c Globals:\n", Config::Instance()->testGlobalMain?'*':'-');
+        for (auto t: globals) {
+            printf("    ::%s (%s)\n", t->caseName.c_str(), t->symbolName.c_str());
+        }
+    }
     for(auto m : testModules) {
         bool bExec = m.second->ShouldExecute();
         printf("%c Module: %s\n",bExec?'*':'-',m.first.c_str());
+        if (m.second->mainFunc != nullptr) {
+            auto t = m.second->mainFunc;
+            printf("  m  %s (%s)\n", t->caseName.c_str(), t->symbolName.c_str());
+        }
+        if (m.second->exitFunc != nullptr) {
+            auto t = m.second->exitFunc;
+            printf("  e  %s (%s)\n", t->caseName.c_str(), t->symbolName.c_str());
+        }
         for(auto t : m.second->testFuncs) {
-            printf("  %s::%s (%s)\n", m.first.c_str(), t->caseName.c_str(), t->symbolName.c_str());
+            printf("     %s::%s (%s)\n", m.first.c_str(), t->caseName.c_str(), t->symbolName.c_str());
         }
     }
 }
