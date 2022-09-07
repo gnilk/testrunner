@@ -66,8 +66,19 @@ bool TestFunc::IsGlobalMain() {
 bool TestFunc::IsGlobalExit() {
     return (IsGlobal() && (caseName == Config::Instance()->testExit));
 }
+
 bool TestFunc::IsModuleExit() {
     return (!IsGlobal() && (caseName == Config::Instance()->testExit));
+}
+
+bool TestFunc::ShouldExecute() {
+    if (IsGlobal()) return true;
+    for (auto tc:Config::Instance()->testcases) {
+        if ((tc == "-") || (tc == caseName)) {
+            return true;
+        }
+    }
+    return false;
 }
 
 void TestFunc::ExecuteAsync() {

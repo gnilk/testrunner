@@ -217,29 +217,27 @@ bool TestRunner::ExecuteModuleTestFuncs(TestModule *testModule) {
     }
 
     for(auto testFunc : testModule->testFuncs) {
-        for (auto tc:Config::Instance()->testcases) {
-            if ((tc == "-") || (tc == testFunc->caseName)) {
+        if (!testFunc->ShouldExecute()) {
+            continue;
+        }
 
-                TestResult *result = ExecuteTest(testFunc);
+        TestResult *result = ExecuteTest(testFunc);
+        HandleTestResult(result);
 
-                HandleTestResult(result);
-
-                if (result->Result() == kTestResult_ModuleFail) {
-                    if (Config::Instance()->skipOnModuleFail) {
-                        pLogger->Info("Module test failure, skipping remaining test cases in module");
-                        goto leave;
-                    } else {
-                        pLogger->Info("Module test failure, continue anyway (configuration)");
-                    }
-                } else if (result->Result() == kTestResult_AllFail) {
-                    if (Config::Instance()->stopOnAllFail) {
-                        pLogger->Fatal("Total test failure, aborting");
-                        bRes = false;
-                        goto leave;   // Use goto to get status
-                    } else {
-                        pLogger->Info("Total test failure, continue anyway (configuration)");
-                    }
-                }
+        if (result->Result() == kTestResult_ModuleFail) {
+            if (Config::Instance()->skipOnModuleFail) {
+                pLogger->Info("Module test failure, skipping remaining test cases in module");
+                goto leave;
+            } else {
+                pLogger->Info("Module test failure, continue anyway (configuration)");
+            }
+        } else if (result->Result() == kTestResult_AllFail) {
+            if (Config::Instance()->stopOnAllFail) {
+                pLogger->Fatal("Total test failure, aborting");
+                bRes = false;
+                goto leave;   // Use goto to get status
+            } else {
+                pLogger->Info("Total test failure, continue anyway (configuration)");
             }
         }
     }
@@ -438,14 +436,17 @@ void TestRunner::DumpTestsToRun() {
         printf("%c Module: %s\n",bExec?'*':'-',m.first.c_str());
         if (m.second->mainFunc != nullptr) {
             auto t = m.second->mainFunc;
-            printf("  m  %s (%s)\n", t->caseName.c_str(), t->symbolName.c_str());
+            bool bExecTest = t->ShouldExecute() && m.second->ShouldExecute();
+            printf("  %cm %s (%s)\n", bExecTest?'*':' ',t->caseName.c_str(), t->symbolName.c_str());
         }
         if (m.second->exitFunc != nullptr) {
             auto t = m.second->exitFunc;
-            printf("  e  %s (%s)\n", t->caseName.c_str(), t->symbolName.c_str());
+            bool bExecTest = t->ShouldExecute() && m.second->ShouldExecute();
+            printf("  %ce %s (%s)\n",bExecTest?'*':' ', t->caseName.c_str(), t->symbolName.c_str());
         }
         for(auto t : m.second->testFuncs) {
-            printf("     %s::%s (%s)\n", m.first.c_str(), t->caseName.c_str(), t->symbolName.c_str());
+            bool bExecTest = t->ShouldExecute() && m.second->ShouldExecute();
+            printf("  %c  %s::%s (%s)\n", bExecTest?'*':' ',m.first.c_str(), t->caseName.c_str(), t->symbolName.c_str());
         }
     }
 }

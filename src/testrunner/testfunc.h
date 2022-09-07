@@ -61,6 +61,8 @@ public:
     bool Executed();
     void ExecuteAsync();
 
+    bool ShouldExecute();
+
     void SetTestModule(TestModule *_testModule) { testModule = _testModule; }
     TestModule *GetTestModule() { return testModule; }
 
