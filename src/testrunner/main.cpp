@@ -76,7 +76,7 @@ static void Help() {
     printf("Usage: trun [options] input\n");
     printf("Options: \n");
     printf("  -v  Verbose, increase for more!\n");
-    printf("  -l  List all tests\n");
+    printf("  -l  List all available tests\n");
     printf("  -d  Dump configuration before starting\n");
     printf("  -S  Include success pass in summary when done (default: off)\n");
     printf("  -D  Linux Only - disable RTLD_DEEPBIND\n");
@@ -107,6 +107,18 @@ static void ParseTestCaseFilters(char *filterstring) {
     std::vector<std::string> testcases;
     strutil::split(testcases, filterstring, ',');
     Config::Instance()->testcases = testcases;
+}
+
+static void ConfigureLogger() {
+    // Setup up logger according to verbose flags
+    Logger::SetAllSinkDebugLevel(Logger::kMCError);
+    if (Config::Instance()->verbose > 0) {
+        Logger::SetAllSinkDebugLevel(Logger::kMCInfo);
+        if (Config::Instance()->verbose > 1) {
+            Logger::SetAllSinkDebugLevel(Logger::kMCDebug);
+        }
+    }
+
 }
 
 static void ParseArguments(int argc, char **argv) {
@@ -184,15 +196,7 @@ static void ParseArguments(int argc, char **argv) {
 // a bit ugly but does the trick in this case        
 next_argument:;
     }
-
-    // Setup up logger according to verbose flags
-    Logger::SetAllSinkDebugLevel(Logger::kMCError);
-    if (Config::Instance()->verbose > 0) {
-	    Logger::SetAllSinkDebugLevel(Logger::kMCInfo);
-        if (Config::Instance()->verbose > 1) {
-	        Logger::SetAllSinkDebugLevel(Logger::kMCDebug);
-        }
-    }
+    ConfigureLogger();
 
     if (dumpConfig) {
         Config::Instance()->Dump();
@@ -228,6 +232,7 @@ static void ScanLibraries(std::vector<std::string> &inputs) {
             ScanLibraries(subs);
         } else {
             IDynLibrary *scanner = GetLibraryLoader();
+
             auto res = scanner->Scan(x);
             if (res) {
                 if (scanner->Exports().size() > 0) {
@@ -254,15 +259,22 @@ static void RunTestsForLibrary(IDynLibrary &module) {
     TestRunner testRunner(&module);
     testRunner.PrepareTests();
 
-    if (Config::Instance()->listTests) {
-        printf("Library: %s\n", module.Name().c_str());
-        testRunner.DumpTestsToRun();
-    }
     if (Config::Instance()->executeTests) {
         testRunner.ExecuteTests();
     }
 }
+static void DumpTestsForLibrary(IDynLibrary &module) {
+    TestRunner testRunner(&module);
+    testRunner.PrepareTests();
+    printf("=== Library: %s\n", module.Name().c_str());
+    testRunner.DumpTestsToRun();
+}
 
+static void DumpTestsForAllLibraries() {
+    for(auto m : librariesToTest) {
+        DumpTestsForLibrary(*m);
+    }
+}
 
 int main(int argc, char **argv) {
     // Cache the logger - also creates the Config singleton with default values
@@ -279,6 +291,10 @@ int main(int argc, char **argv) {
     
     timer.Reset();
     ScanLibraries(Config::Instance()->inputs);
+
+    if (Config::Instance()->listTests) {
+        DumpTestsForAllLibraries();
+    }
 
     RunTestsForAllLibraries();
 
