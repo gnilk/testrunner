@@ -31,7 +31,7 @@ DLL_EXPORT int test_module_scan(ITesting *t) {
 #ifdef APPLE
     auto res = modloader.Scan("lib/libtrun_utests.dylib");
 #else
-    TR_ASSERT(t, modloader.Scan("lib/libtrun_utests.so"));
+    auto res = modloader.Scan("lib/libtrun_utests.so");
 #endif
     TR_ASSERT(t, res);
     // We should at least find some testable stuff in our own library...
@@ -46,7 +46,7 @@ DLL_EXPORT int test_module_symbol(ITesting *t) {
 #ifdef APPLE
     auto res = modloader.Scan("lib/libtrun_utests.dylib");
 #else
-    TR_ASSERT(t, modloader.Scan("lib/libtrun_utests.so"));
+    auto res = modloader.Scan("lib/libtrun_utests.so");
 #endif
 
     TR_ASSERT(t, res);
@@ -64,7 +64,7 @@ DLL_EXPORT int test_module_copysym(ITesting *t) {
 #ifdef APPLE
     auto res = modloader.Scan("lib/libtrun_utests.dylib");
 #else
-    TR_ASSERT(t, modloader.Scan("lib/libtrun_utests.so"));
+    auto res = modloader.Scan("lib/libtrun_utests.so");
 #endif
     TR_ASSERT(t, res == true);
     TR_ASSERT(t, modloader.Exports().size() > 0);
