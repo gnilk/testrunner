@@ -104,8 +104,9 @@ include(GNUInstallDirs)
 
 if (APPLE)
 
-    set(CMAKE_INSTALL_PREFIX /usr/local)
+    target_compile_options(trun PUBLIC -Wall -Wpedantic -Wextra)
 
+    set(CMAKE_INSTALL_PREFIX /usr/local)
     set(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH} /usr/local/lib /usr/lib/system)
     find_library(COCOA_FRAMEWORK Cocoa)
     find_library(IOKIT_FRAMEWORK IOKit)
