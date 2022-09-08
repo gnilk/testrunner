@@ -154,7 +154,7 @@ bool TestRunner::ExecuteGlobalTests() {
     // 2) all other global scope tests
     // Filtering in global tests is a bit different as the test func has no module.
     bool bRes = true;
-    if (!Config::Instance()->testGlobals) {
+    if (!Config::Instance()->testModuleGlobals) {
         return bRes;
     }
     pLogger->Info("Executing global tests");
@@ -211,9 +211,11 @@ bool TestRunner::ExecuteModuleTestFuncs(TestModule *testModule) {
     printf("\n");
     printf("---> Start Module  \t%s\n",testModule->name.c_str());
 
-    auto mainResult = ExecuteModuleMain(testModule);
-    if ((mainResult != nullptr) && (mainResult->Result() != kTestResult_Pass)) {
-        return false;
+    if (Config::Instance()->testModuleGlobals) {
+        auto mainResult = ExecuteModuleMain(testModule);
+        if ((mainResult != nullptr) && (mainResult->Result() != kTestResult_Pass)) {
+            return false;
+        }
     }
 
     for(auto testFunc : testModule->testFuncs) {
@@ -243,7 +245,9 @@ bool TestRunner::ExecuteModuleTestFuncs(TestModule *testModule) {
     }
 leave:
 
-    ExecuteModuleExit(testModule);
+    if (Config::Instance()->testModuleGlobals) {
+        ExecuteModuleExit(testModule);
+    }
 
     printf("\n");
     printf("<--- End Module  \t%s\n",testModule->name.c_str());
@@ -351,18 +355,23 @@ void TestRunner::PrepareTests() {
         }
 
         if (func->IsGlobalMain()) {
+            func->SetTestScope(TestFunc::kGlobal);
             globals.push_back(func);
         } else if (func->IsGlobalExit()) {
+            func->SetTestScope(TestFunc::kGlobal);
             globals.push_back(func);
         } else {
             // These are module functions - and handled differently and with lower priority
             auto tModule = GetOrAddModule(moduleName);
             if (func->IsGlobal()) {
+                func->SetTestScope(TestFunc::kModuleMain);
                 tModule->mainFunc = func;
             } else if (func->IsModuleExit()) {
+                func->SetTestScope(TestFunc::kModuleExit);
                 tModule->exitFunc = func;
             } else {
                 tModule = GetOrAddModule(moduleName);
+                func->SetTestScope(TestFunc::kModuleCase);
                 tModule->testFuncs.push_back(func);
             }
             // Link them togehter...
@@ -434,6 +443,9 @@ void TestRunner::DumpTestsToRun() {
     for(auto m : testModules) {
         bool bExec = m.second->ShouldExecute();
         printf("%c Module: %s\n",bExec?'*':'-',m.first.c_str());
+        if (bExec) {
+            int breakme = 1;
+        }
         if (m.second->mainFunc != nullptr) {
             auto t = m.second->mainFunc;
             bool bExecTest = t->ShouldExecute() && m.second->ShouldExecute();

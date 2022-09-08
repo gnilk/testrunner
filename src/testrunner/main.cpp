@@ -8,6 +8,20 @@
  This is the testrunner for the UnitTest 'framework'. 
  Heavily inspired by GOLANG's testing framework.
 
+ Default execution is scanning all dynamic libraries starting from the current directory and going down
+ the directory tree.
+ Any exported function with name 'test_' will be considered a test function.
+
+ The following logic applies to how names are mapped.
+ test_main  - reserved, if present it is the first function called, use for global context setup
+ test_exit  - reserved, if present it is the last function called, global tear down
+
+ test_<module>      - the main for a testable module (a module can be seen as a group of function)
+                      module main is called before any test case in the module/group
+ test_<module>_exit - the exit for a testable module/group. called after all tests have been executed
+ test_<module>_<case>   - a regular test case
+
+
  All code is BSD3 License!
  
  Modified: $Date: $ by $Author: $
@@ -160,7 +174,7 @@ static void ParseArguments(int argc, char **argv) {
                         Config::Instance()->testLogFilter = true;
                         break;
                     case 'g' :
-                        Config::Instance()->testGlobals = false;
+                        Config::Instance()->testModuleGlobals = false;
                         break;
                     case 'G' :
                         Config::Instance()->testGlobalMain = false;

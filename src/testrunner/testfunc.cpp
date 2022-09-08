@@ -50,6 +50,7 @@ TestFunc::TestFunc(std::string symbolName, std::string moduleName, std::string c
     this->symbolName = symbolName;
     this->moduleName = moduleName;
     this->caseName = caseName;
+    testScope = kUnknown;
     isExecuted = false;
     pLogger = gnilk::Logger::GetLogger("TestFunc");
     testResult = nullptr;
@@ -61,18 +62,23 @@ bool TestFunc::IsGlobal() {
     return (moduleName == "-");
 }
 bool TestFunc::IsGlobalMain() {
-    return (IsGlobal() && (caseName == Config::Instance()->testMain));
+    return (IsGlobal() && (caseName == Config::Instance()->mainFuncName));
 }
 bool TestFunc::IsGlobalExit() {
-    return (IsGlobal() && (caseName == Config::Instance()->testExit));
+    return (IsGlobal() && (caseName == Config::Instance()->exitFuncName));
 }
+bool TestFunc::IsModuleMain() { {
+    return (IsGlobal() && (caseName == Config::Instance()->mainFuncName));
+}}
 
 bool TestFunc::IsModuleExit() {
-    return (!IsGlobal() && (caseName == Config::Instance()->testExit));
+    return (!IsGlobal() && (caseName == Config::Instance()->exitFuncName));
 }
 
 bool TestFunc::ShouldExecute() {
-    if (IsGlobal()) return true;
+    if ((testScope == kModuleMain) || (testScope == kModuleExit)) {
+        return Config::Instance()->testModuleGlobals;
+    }
     for (auto tc:Config::Instance()->testcases) {
         if ((tc == "-") || (tc == caseName)) {
             return true;

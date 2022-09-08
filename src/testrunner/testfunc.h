@@ -50,27 +50,40 @@ public:
 // The core structure defining a testable function which belongs to a test-module
 class TestFunc {
 public:
+    typedef enum {
+        kUnknown,
+        kGlobal,
+        kModuleMain,
+        kModuleExit,
+        kModuleCase,
+    } kTestScope;
+public:
     TestFunc();
     TestFunc(std::string symbolName, std::string moduleName, std::string caseName);
     bool IsGlobal();
     bool IsModuleExit();
+    bool IsModuleMain();
     bool IsGlobalMain();
     bool IsGlobalExit();
     TestResult *Execute(IDynLibrary *module);
     void SetExecuted();
     bool Executed();
     void ExecuteAsync();
-
     bool ShouldExecute();
 
     void SetTestModule(TestModule *_testModule) { testModule = _testModule; }
     TestModule *GetTestModule() { return testModule; }
 
+    void SetTestScope(kTestScope scope) {
+        testScope = scope;
+    }
+    kTestScope TestScope() { return testScope; }
 public:
     std::string symbolName;
     std::string moduleName;
     std::string caseName;
 private:
+    kTestScope testScope;
     bool isExecuted;
     gnilk::ILogger *pLogger;
     void HandleTestReturnCode();
