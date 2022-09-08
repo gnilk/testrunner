@@ -212,7 +212,7 @@ next_argument:;
     }
     ConfigureLogger();
 
-    if (dumpConfig) {
+    if (dumpConfig || (Config::Instance()->verbose > 1)) {
         Config::Instance()->Dump();
     }
 }
@@ -234,6 +234,7 @@ static IDynLibrary *GetLibraryLoader() {
 static void RunTestsForAllLibraries();
 static void RunTestsForLibrary(IDynLibrary &module);
 
+// Populated by ScanLibraries
 static std::vector<IDynLibrary *> librariesToTest;
 
 
@@ -269,11 +270,11 @@ static void RunTestsForAllLibraries() {
 }
 
 static void RunTestsForLibrary(IDynLibrary &module) {
-    pLogger->Debug("Running tests for");
     TestRunner testRunner(&module);
     testRunner.PrepareTests();
 
     if (Config::Instance()->executeTests) {
+        pLogger->Debug("Running tests for: %s", module.Name().c_str());
         testRunner.ExecuteTests();
     }
 }

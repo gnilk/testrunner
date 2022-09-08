@@ -47,7 +47,7 @@ using namespace gnilk;
 DynLibLinux::DynLibLinux() {
     this->handle = NULL;
     this->idxLib = -1;
-    this->pLogger = gnilk::Logger::GetLogger("Module");
+    this->pLogger = gnilk::Logger::GetLogger("Loader");
 }
 DynLibLinux::~DynLibLinux() {
     pLogger->Debug("DTOR, closing library");
@@ -161,18 +161,19 @@ bool DynLibLinux::Open() {
 
 	int cnt = 0;
 	while(std::getline(ss,to,'\n')) {
-        pLogger->Debug("got: %s", to.c_str());
         std::vector<std::string> parts;
 		strutil::split(parts,to.c_str(), ' ');
 		if (parts.size() == 3) {
 			if (parts[1] == std::string("T")) {
                 if (IsValidTestFunc(parts[2])) {
+                    pLogger->Debug("found: %s", to.c_str());
                     exports.push_back(parts[2]);
                 }
 			}
 		}
 		cnt++;
 	}
+    pLogger->Debug("found %d valid test cases out of %d symbols", (int)exports.size(), cnt);
 
     return true;
 

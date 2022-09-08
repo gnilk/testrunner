@@ -334,19 +334,18 @@ void TestRunner::HandleTestResult(TestResult *result) {
 //
 void TestRunner::PrepareTests() {
 
+    pLogger->Info("Prepare tests in library: %s", module->Name().c_str());
     for(auto x:module->Exports()) {
-        pLogger->Debug("PrepareTests, processing symbol: %s", x.c_str());
 
         TestFunc *func = CreateTestFunc(x);
         if (func == nullptr) {
             continue;
         }
 
-
         // [gnilk:2021-10-26] This was an else case and _worked_ on Windows/MacOS - not sure why!!!!
         //                    Should give a NPE due to test module not being set...
         std::string moduleName = func->moduleName;
-        pLogger->Info("Module: %s, case: %s", func->moduleName.c_str(), func->caseName.c_str());
+        pLogger->Info("  Module: %s, case: %s, Symbol: %s", func->moduleName.c_str(), func->caseName.c_str(), x.c_str());
 
         // Ok, this is the signature of the main function for a 'module' (group of functions)
         if (moduleName == "-") {
