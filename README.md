@@ -228,10 +228,11 @@ See *exshared* library for an example.
 _NOTE_: TestRunner default input is the current directory. It will search recursively for any testable functions.
 
 <pre>
-TestRunner v1.0 - macOS - C/C++ Unit Test Runner
+TestRunner v1.1-Dev - macOS - C/C++ Unit Test Runner
 Usage: trun [options] input
 Options: 
   -v  Verbose, increase for more!
+  -l  List all available tests
   -d  Dump configuration before starting
   -S  Include success pass in summary when done (default: off)
   -D  Linux Only - disable RTLD_DEEPBIND
@@ -241,6 +242,7 @@ Options:
   -r  Discard return from test case (default: off)
   -c  Continue on module failure (default: off)
   -C  Continue on total failure (default: off)
+  -x  Don't execute tests (default: off)
   -m <list> List of modules to test (default: '-' (all))
   -t <list> List of test cases to test (default: '-' (all))
 
@@ -291,8 +293,45 @@ Be very verbose (`-vv`), dump configuration (`-d`), skip global execution (`-g`)
 Same as previous but for just one specific library
 `bin/trun -vvdg -m mod lib/libexshared.dylib`
 
+# Listing of tests
+To lists all available tests without executing them run:
+`bin/trun -lx`
+This will provide a list of modules and test cases in all libraries.
+Any execution, filtering and so forth are considered in the listing hence you can run it like
+`bin/trun -lxgG -m mod lib/libexshared.dylib`
+This will give an indication of what tests the testrunner will execute.
+```
+- Globals:
+    ::exit (_test_exit)
+    ::main (_test_main)
+* Module: mod
+   m mod (_test_mod)
+   e exit (_test_mod_exit)
+  *  mod::create (_test_mod_create)
+  *  mod::dispose (_test_mod_dispose)
+- Module: pure
+     pure::create (_test_pure_create)
+     pure::dispose (_test_pure_dispose)
+     pure::main (_test_pure_main)
+ 
+ ... further output omitted...
+```
+Each module is prefixed with
+* `-` won't execute
+* `*` will execute
+
+The test cases are prefixed with
+* `*` will execute
+* Nothing
+
+The execution flag for a test case may have `m` or `e` in front this indicates 
+if the test case is a `test_main` or `test_exit` function.
+
 
 # Version history
+## v1.1
+- Internal refactoring and clean-up
+- Added ability to list test cases `-l` and not execute `-x`
 ## v1.0
 - Test summary, default only failure (-S also lists success)
 ## v0.9
