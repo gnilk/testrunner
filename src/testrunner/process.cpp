@@ -236,7 +236,7 @@ bool Process_Unix::IsFinished() {
 int Process_Unix::ConsumePipes(ProcessCallbackBase *callback) {
 
 	std::string buffer(1024,' ');
-	std::vector<pollfd> plist = { {pipe_stdout[0],POLLIN}, {pipe_stderr[0],POLLIN} };
+	std::vector<pollfd> plist = { {pipe_stdout[0],POLLIN, 0}, {pipe_stderr[0],POLLIN, 0} };
 	int rval=poll(&plist[0],plist.size(),/*timeout*/0);
     if ( plist[0].revents&POLLIN) {
       int bytes_read = read(pipe_stdout[0], &buffer[0], buffer.length());

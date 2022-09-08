@@ -24,5 +24,5 @@ private:
 #else
     mach_timebase_info_data_t    timebaseInfo;
 #endif
-    uint64_t tStart;
+    [[maybe_unused]] uint64_t tStart;
 };

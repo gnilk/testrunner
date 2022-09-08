@@ -32,7 +32,7 @@ private:
     void *handle;
     int idxLib;
     // Set this global variable - for now, so we can resolve relative offsets
-    uint8_t *ptrModuleStart;
+    //uint8_t *ptrModuleStart;
     std::vector<std::string> exports;
     std::map<std::string, int> symbols;
 

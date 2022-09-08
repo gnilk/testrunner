@@ -102,18 +102,18 @@ namespace gnilk {
     static char *StrTrim(char *s);
 
     extern "C" {
-    ILogOutputSink *LOG_CALLCONV CreateSink(const char *className) {
-        return NULL;
-    }
+    ILogOutputSink *LOG_CALLCONV CreateSink([[ maybe_unused]] const char *className) {
+        return nullptr;
+        }
     }
 
     // Loggers currently available
     static LOG_SINK_FACTORY sinkFactoryList[] =
             {
-                    "LogConsoleSink", LogConsoleSink::CreateInstance,
-                    "LogRollingFileSink", LogRollingFileSink::CreateInstance,
-                    "LogFileSink", LogFileSink::CreateInstance,
-                    NULL, NULL,
+                    {"LogConsoleSink", LogConsoleSink::CreateInstance},
+                    {"LogRollingFileSink", LogRollingFileSink::CreateInstance},
+                    {"LogFileSink", LogFileSink::CreateInstance},
+                    {NULL, NULL},
             };
 }
 
@@ -137,7 +137,7 @@ bool LogBaseSink::WithinRange(int iDbgLevel)
 // Console sink
 // outputs all debug messages to the console
 //
-ILogOutputSink *LogConsoleSink::CreateInstance(const char *className)
+ILogOutputSink *LogConsoleSink::CreateInstance([[maybe_unused]]const char *className)
 {
 	return dynamic_cast<ILogOutputSink *>(new LogConsoleSink());
 }
@@ -186,7 +186,7 @@ LogFileSink::~LogFileSink()
 	}
 }
 
-ILogOutputSink *LogFileSink::CreateInstance(const char *className)
+ILogOutputSink *LogFileSink::CreateInstance([[maybe_unused]]const char *className)
 {
 	return dynamic_cast<ILogOutputSink *>(new LogFileSink());
 }
@@ -288,7 +288,7 @@ LogRollingFileSink::~LogRollingFileSink()
 {
 
 }
-ILogOutputSink *LogRollingFileSink::CreateInstance(const char *className)
+ILogOutputSink *LogRollingFileSink::CreateInstance([[maybe_unused]]const char *className)
 {
 	return dynamic_cast<ILogOutputSink *>(new LogRollingFileSink());
 }
@@ -469,7 +469,7 @@ char *Logger::TimeString(int maxchar, char *dst)
 				struct tm *gmt = gmtime(&bla);
 				snprintf(dst,maxchar,"%.2d.%.2d.%.4d %.2d:%.2d:%.2d.%.3d",
 						 gmt->tm_mday,gmt->tm_mon,gmt->tm_year+1900, 
-						 gmt->tm_hour,gmt->tm_min,gmt->tm_sec,tmv.tv_usec/1000);
+						 gmt->tm_hour,gmt->tm_min,gmt->tm_sec,(int)tmv.tv_usec/1000);
 			}
 			break;
 			
@@ -524,14 +524,9 @@ LoggerInstance *Logger::GetInstance(std::string name) {
 
 ILogger *Logger::GetLogger(const char *name)
 {
-	ILogger *pLogger = NULL;
 	Initialize();
-
 	LoggerInstance *pInstance = GetInstance(std::string(name));
-	
-	// Have to create a new logger
 	return pInstance->pLogger;
-	
 }
 void Logger::SetAllSinkDebugLevel(int iNewDebugLevel)
 {
@@ -737,7 +732,7 @@ void Logger::WriteReportString(int mc, char *string)
 #else
 	//void *tid = NULL;
 	pthread_t tid = pthread_self();	
-	snprintf(sHdr, MAX_INDENT + 64, "%s [%p] %8s %32s - %s", sTime, tid, sLevel, sName, sIndent);
+	snprintf(sHdr, MAX_INDENT + 64, "%s [%p] %8s %32s - %s", sTime, (void *)tid, sLevel, sName, sIndent);
 #endif
 
 	// gnilk, 2018-10-18, Combine with flags here - does not affect higher level API
@@ -995,7 +990,7 @@ void LogPropertyReader::ReadFromFile(const char *filename)
 		fclose(f);
 	}
 }
-void LogPropertyReader::WriteToFile(const char *filename)
+void LogPropertyReader::WriteToFile([[maybe_unused]]const char *filename)
 {
 	// TODO: Implement this one...
 }
@@ -1066,8 +1061,8 @@ namespace gnilk {
         do {
             ofs = strTmp.find_first_of(chrSplit, pos);
 
-            if (ofs == -1) {
-                if (pos != -1) {
+            if (ofs == std::string::npos) {
+                if (pos != std::string::npos) {
                     strPart = strTmp.substr(pos, strTmp.length() - pos);
                     strList->push_back(strPart);
                     count++;

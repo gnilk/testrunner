@@ -149,7 +149,6 @@ TestResult *TestFunc::Execute(IDynLibrary *module) {
 
         {
             int s;
-            void *stkaddr;
             size_t v;
             s = pthread_attr_getstacksize(&attr, &v);
             if (s) {

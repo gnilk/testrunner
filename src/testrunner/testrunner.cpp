@@ -89,7 +89,6 @@ void TestRunner::ExecuteTests() {
         }
         ExecuteMainExit();
     }
-    double tSeconds = t.Sample();
     pLogger->Info("Module done (%.3f sec)", t.Sample());
 }
 
@@ -421,7 +420,7 @@ TestFunc *TestRunner::CreateTestFunc(std::string symbol) {
     } else {
         // merge '3' and onwards
         std::string testCase = "";
-        for(int i=2;i<funcparts.size();i++) {
+        for(size_t i=2;i<funcparts.size();i++) {
             testCase += funcparts[i];
             if (i<(funcparts.size()-1)) {
                 testCase += std::string("_");

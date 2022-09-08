@@ -180,7 +180,7 @@ bool DynLibLinux::Open() {
 
 bool DynLibLinux::Close() {
     if (handle != NULL) {
-        int res = dlclose(handle);
+        dlclose(handle);
         idxLib = -1;
         return true;
     }

@@ -133,9 +133,9 @@ namespace gnilk
 		__inline const char *GetLogfileName() { return logFileName; };
 		void SetLogfileName(const char *newName);
 
-		__inline const long GetMaxLogfileSize() { return nMaxLogfileSize; };
+		__inline long GetMaxLogfileSize() { return nMaxLogfileSize; };
 		__inline void SetMaxLogfileSize(const long nSize) { nMaxLogfileSize = nSize; };
-		__inline const int GetMaxBackupIndex() { return nMaxBackupIndex; };
+		__inline int GetMaxBackupIndex() { return nMaxBackupIndex; };
 		__inline void SetMaxBackupIndex(const int nIndex) { nMaxBackupIndex = nIndex; }; 
 
 

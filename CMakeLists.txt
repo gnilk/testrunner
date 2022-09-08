@@ -121,6 +121,7 @@ elseif (WIN32)
     target_compile_definitions(trun PUBLIC _CRT_SECURE_NO_WARNINGS)
 elseif (UNIX)
     #target_link_libraries(trun dl pthread)
+    target_compile_options(trun PUBLIC -Wall -Wpedantic -Wextra)
     list(APPEND platformlibs dl pthread)
 endif()
 
