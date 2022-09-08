@@ -432,34 +432,71 @@ TestFunc *TestRunner::CreateTestFunc(std::string symbol) {
 
     return func;
 }
+/*
+ This will dump the test in a specific dynamic library
+
+ Each module has a prefix:
+ -  Excluded from execution due to command line parameters
+ *  Will be executed
+
+ After a module the test cases are listed, like:
+ '  *m tfunc (_test_tfunc)'
+ The first four characters are execution and type indicators
+ *  Will be executed
+ m  is module main
+ e  is module exit
+    nothing - means will be skipped
+
+Example:
+* Module: mod
+  *m mod (_test_mod)                    <- this is the module main, hence the 'm'
+  *e exit (_test_mod_exit)              <- this is the module exit, hence the 'e'
+  *  mod::create (_test_mod_create)
+  *  mod::dispose (_test_mod_dispose)
+- Module: pure
+     pure::create (_test_pure_create)
+     pure::dispose (_test_pure_dispose)
+     pure::main (_test_pure_main)
+
+Module 'mod' will  be executed and all of it's functions (main,exit and regular cases)
+Module 'pure' will be skipped
+
+ */
 
 void TestRunner::DumpTestsToRun() {
+    int nModules = 0;
+    int nTestCases = 0;
+
     if (!globals.empty()) {
         printf("%c Globals:\n", Config::Instance()->testGlobalMain?'*':'-');
         for (auto t: globals) {
             printf("    ::%s (%s)\n", t->caseName.c_str(), t->symbolName.c_str());
+            nTestCases++;
         }
     }
     for(auto m : testModules) {
         bool bExec = m.second->ShouldExecute();
         printf("%c Module: %s\n",bExec?'*':'-',m.first.c_str());
-        if (bExec) {
-            int breakme = 1;
-        }
         if (m.second->mainFunc != nullptr) {
             auto t = m.second->mainFunc;
             bool bExecTest = t->ShouldExecute() && m.second->ShouldExecute();
             printf("  %cm %s (%s)\n", bExecTest?'*':' ',t->caseName.c_str(), t->symbolName.c_str());
+            nTestCases++;
         }
         if (m.second->exitFunc != nullptr) {
             auto t = m.second->exitFunc;
             bool bExecTest = t->ShouldExecute() && m.second->ShouldExecute();
             printf("  %ce %s (%s)\n",bExecTest?'*':' ', t->caseName.c_str(), t->symbolName.c_str());
+            nTestCases++;
         }
         for(auto t : m.second->testFuncs) {
             bool bExecTest = t->ShouldExecute() && m.second->ShouldExecute();
             printf("  %c  %s::%s (%s)\n", bExecTest?'*':' ',m.first.c_str(), t->caseName.c_str(), t->symbolName.c_str());
+            nTestCases++;
         }
+        nModules++;
     }
+    printf("=== Modules: %d\n", nModules);
+    printf("=== Cases..: %d\n", nTestCases);
 }
 
