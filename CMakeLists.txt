@@ -1,11 +1,7 @@
 #
 # CMAKE file for TestRunner
 #
-#set(CMAKE_OSX_ARCHITECTURES x86_64)
 
-#
-# currently doesn't work..
-#
 set(CMAKE_OSX_ARCHITECTURES "x86_64;arm64" CACHE STRING "")
 #set(CMAKE_OSX_ARCHITECTURES arm64)
 set(CMAKE_OSX_SYSROOT /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk)
