@@ -47,7 +47,7 @@
 #ifdef WIN32
 #include "module_win32.h"
 #elif __linux
-#include "dynlib_linux.h"
+#include "dynlib_unix.h"
 #else
 #include "dynlib_unix.h"
 #endif

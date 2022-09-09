@@ -24,7 +24,7 @@
  ---------------------------------------------------------------------------*/
 
 #include "dirscanner.h"
-
+#include <string.h>
 #include <string>
 #include <sys/types.h>
 #include <sys/stat.h>
