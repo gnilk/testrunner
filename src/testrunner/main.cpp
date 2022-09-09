@@ -45,7 +45,7 @@
 #include "testrunner.h"
 #include "dynlib.h"
 #ifdef WIN32
-#include "module_win32.h"
+#include "dynlib_win32.h"
 #elif __linux
 #include "dynlib_unix.h"
 #else
@@ -222,7 +222,7 @@ next_argument:;
 
 static IDynLibrary *GetLibraryLoader() {
 #ifdef WIN32
-    return new ModuleWin();
+    return new DynLibWin();
 #elif __linux
     return new DynLibLinux();
 #else

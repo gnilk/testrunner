@@ -40,6 +40,7 @@ static const char *lExtensions[]={
 DirScanner::DirScanner() {
     this->recurse = true;
     pLogger = gnilk::Logger::GetLogger("DirScanner");
+    extensions.push_back(".dll");
 }
 
 void DirScanner::DoScan(std::string path) {

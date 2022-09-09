@@ -23,10 +23,10 @@ class BaseCommand;
 //
 // TODO: Split this to a spearate .h file for each module_xxx.cpp
 //
-class ModuleWin : public IModule {
+class DynLibWin : public IDynLibrary {
 public:
-    ModuleWin();
-    virtual ~ModuleWin();
+    DynLibWin();
+    virtual ~DynLibWin();
     
 public: // IModule
     virtual void *Handle();    

@@ -65,7 +65,7 @@ if (APPLE)
     add_definitions(-DAPPLE)
 
 elseif(WIN32)
-    list(APPEND srcfiles src/testrunner/module_win32.cpp)
+    list(APPEND srcfiles src/testrunner/dynlib_win32.cpp)
     list(APPEND srcfiles src/testrunner/dirscanner_win32.cpp)
     list(APPEND srcfiles src/testrunner/timer_win32.cpp)
 
