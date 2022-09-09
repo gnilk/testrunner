@@ -11,11 +11,6 @@
  
  Modified: $Date: $ by $Author: $
  ---------------------------------------------------------------------------
- TODO: [ -:Not done, +:In progress, !:Completed]
- <pre>
-
- </pre>
- 
  
  \History
  - 2018.10.18, FKling, Implementation
@@ -46,11 +41,8 @@ double Timer::Sample() {
 
 	// Derived from: https://developer.apple.com/library/archive/qa/qa1398/_index.html
     uint64_t elapsed = mach_absolute_time() - tStart;
-
-    uint64_t elapsedNano = elapsed * timebaseInfo.numer / timebaseInfo.denom;	
-
+    uint64_t elapsedNano = elapsed * timebaseInfo.numer / timebaseInfo.denom;
 	ret = (double)(elapsedNano) / (double)(1000000000.0);
-
     return ret;
 }
 
