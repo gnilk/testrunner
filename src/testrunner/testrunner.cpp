@@ -342,8 +342,6 @@ void TestRunner::PrepareTests() {
             continue;
         }
 
-        // [gnilk:2021-10-26] This was an else case and _worked_ on Windows/MacOS - not sure why!!!!
-        //                    Should give a NPE due to test module not being set...
         std::string moduleName = func->moduleName;
         pLogger->Info("  Module: %s, case: %s, Symbol: %s", func->moduleName.c_str(), func->caseName.c_str(), x.c_str());
 
@@ -352,6 +350,8 @@ void TestRunner::PrepareTests() {
             moduleName = func->caseName;
         }
 
+        // Identify the symbol/pattern and assign it properly
+        // The 'TestScope' is a simplification for later
         if (func->IsGlobalMain()) {
             func->SetTestScope(TestFunc::kGlobal);
             globals.push_back(func);

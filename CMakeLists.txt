@@ -57,10 +57,10 @@ list(APPEND testsrc src/testrunner/tests/test_testfunc.cpp)
 
 if (APPLE)
     # list(APPEND srcfiles src/testrunner/module_mac.cpp)
-    list(APPEND srcfiles src/testrunner/dirscanner.cpp)
+    list(APPEND srcfiles src/testrunner/dirscanner_unix.cpp)
     list(APPEND srcfiles src/testrunner/timer.cpp)
     # make the 'nm' way work on mac
-    list(APPEND srcfiles src/testrunner/dynlib_linux.cpp)
+    list(APPEND srcfiles src/testrunner/dynlib_unix.cpp)
     list(APPEND srcfiles src/testrunner/process.cpp)
 
     # add mac specific unit test src
@@ -76,8 +76,8 @@ elseif(WIN32)
     add_definitions(-DWIN32_LEAN_AND_MEAN)
 
 elseif(UNIX)
-    list(APPEND srcfiles src/testrunner/dynlib_linux.cpp)
-    list(APPEND srcfiles src/testrunner/dirscanner_linux.cpp)
+    list(APPEND srcfiles src/testrunner/dynlib_unix.cpp)
+    list(APPEND srcfiles src/testrunner/dirscanner_unix.cpp)
     list(APPEND srcfiles src/testrunner/timer_linux.cpp)
     list(APPEND srcfiles src/testrunner/process.cpp)
 

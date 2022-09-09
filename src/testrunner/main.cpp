@@ -49,7 +49,7 @@
 #elif __linux
 #include "dynlib_linux.h"
 #else
-#include "dynlib_linux.h"
+#include "dynlib_unix.h"
 #endif
 #include "strutil.h"
 #include "config.h"

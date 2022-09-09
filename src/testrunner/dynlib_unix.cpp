@@ -26,7 +26,7 @@
  ---------------------------------------------------------------------------*/
 
 #include "dynlib.h"
-#include "dynlib_linux.h"
+#include "dynlib_unix.h"
 #include "strutil.h"
 #include "logger.h"
 #include "process.h"
