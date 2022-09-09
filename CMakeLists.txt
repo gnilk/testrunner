@@ -58,7 +58,7 @@ list(APPEND testsrc src/testrunner/tests/test_testfunc.cpp)
 if (APPLE)
     # list(APPEND srcfiles src/testrunner/module_mac.cpp)
     list(APPEND srcfiles src/testrunner/dirscanner_unix.cpp)
-    list(APPEND srcfiles src/testrunner/timer.cpp)
+    list(APPEND srcfiles src/testrunner/timer_macos.cpp)
     # make the 'nm' way work on mac
     list(APPEND srcfiles src/testrunner/dynlib_unix.cpp)
     list(APPEND srcfiles src/testrunner/process.cpp)
