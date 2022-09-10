@@ -67,7 +67,7 @@ if (APPLE)
 elseif(WIN32)
     list(APPEND srcfiles src/testrunner/dynlib_win32.cpp)
     list(APPEND srcfiles src/testrunner/dirscanner_win32.cpp)
-    list(APPEND srcfiles src/testrunner/timer_win32.cpp)
+    list(APPEND srcfiles src/testrunner/timer_nix.cpp)
 
     add_definitions(-DWIN32_LEAN_AND_MEAN)
 

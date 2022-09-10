@@ -24,6 +24,10 @@
  
  ---------------------------------------------------------------------------*/
 
+#ifdef WIN32
+#include <windows.h>
+#include <winnt.h>
+#endif
 #include "timer.h"
 #include <chrono>
 
