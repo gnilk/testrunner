@@ -44,6 +44,8 @@ list(APPEND srcfiles src/testrunner/responseproxy.cpp)
 list(APPEND srcfiles src/testrunner/testresult.cpp)
 list(APPEND srcfiles src/testrunner/resultsummary.cpp)
 list(APPEND srcfiles src/testrunner/asserterror.cpp)
+list(APPEND srcfiles src/testrunner/timer.cpp)
+
 
 # add unit tests
 list(APPEND testsrc src/testrunner/tests/test_timer.cpp)
@@ -51,36 +53,29 @@ list(APPEND testsrc src/testrunner/tests/test_main.cpp)
 list(APPEND testsrc src/testrunner/tests/test_strutil.cpp)
 list(APPEND testsrc src/testrunner/tests/test_testfunc.cpp)
 
-if (APPLE)
+# Platform specific
+# Unix = Apple and Linux
+if (UNIX)
     # list(APPEND srcfiles src/testrunner/module_mac.cpp)
     list(APPEND srcfiles src/testrunner/dirscanner_unix.cpp)
-    list(APPEND srcfiles src/testrunner/timer_nix.cpp)
-    # make the 'nm' way work on mac
     list(APPEND srcfiles src/testrunner/dynlib_unix.cpp)
     list(APPEND srcfiles src/testrunner/process.cpp)
 
     # add mac specific unit test src
     list(APPEND testsrc src/testrunner/tests/test_module_nix.cpp)
     list(APPEND testsrc src/testrunner/tests/test_dirscanner_nix.cpp)
-    add_definitions(-DAPPLE)
+
+    if (APPLE)
+        add_definitions(-DAPPLE)
+    else()
+        add_definitions(-DLINUX)
+    endif()
 
 elseif(WIN32)
     list(APPEND srcfiles src/testrunner/dynlib_win32.cpp)
     list(APPEND srcfiles src/testrunner/dirscanner_win32.cpp)
-    list(APPEND srcfiles src/testrunner/timer_nix.cpp)
 
     add_definitions(-DWIN32_LEAN_AND_MEAN)
-
-elseif(UNIX)
-    list(APPEND srcfiles src/testrunner/dynlib_unix.cpp)
-    list(APPEND srcfiles src/testrunner/dirscanner_unix.cpp)
-    list(APPEND srcfiles src/testrunner/timer_nix.cpp)
-    list(APPEND srcfiles src/testrunner/process.cpp)
-
-    # add linux specific unit test src
-    list(APPEND testsrc src/testrunner/tests/test_module_nix.cpp)
-    list(APPEND testsrc src/testrunner/tests/test_dirscanner_nix.cpp)
-    add_definitions(-DLINUX)
 endif()
 
 
