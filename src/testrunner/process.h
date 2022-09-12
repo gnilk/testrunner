@@ -46,8 +46,8 @@ namespace gnilk
 	public:
 		virtual void OnProcessStarted() {}
 		virtual void OnProcessExit() {}
-		virtual void OnStdOutData(std::string data) {}
-		virtual void OnStdErrData(std::string data) {}
+		virtual void OnStdOutData([[maybe_unused]] std::string data) {}
+		virtual void OnStdErrData([[maybe_unused]] std::string data) {}
 	};
 
 	class Process;
@@ -77,7 +77,7 @@ namespace gnilk
 		int pipe_stderr[2];
 		pid_t pid;
 		posix_spawn_file_actions_t child_fd_actions;
-		char **argv;
+		//char **argv;
 	};
 
 

@@ -1,6 +1,6 @@
 #include "../testinterface.h"
 #include "../testfunc.h"
-#include "../module.h"
+#include "../dynlib.h"
 #include <vector>
 #include <string>
 
@@ -16,14 +16,12 @@ static int test_mock_func(ITesting *t) {
 }
 
 // This mock's a module loader and with a single function the 'test_mock_func'..
-class ModuleMock : public IModule {
+class ModuleMock : public IDynLibrary {
 public:
     ModuleMock() = default;
     virtual ~ModuleMock() = default;
 
-    void *Handle() override {
-        return nullptr;
-    }
+    void *Handle() override { return nullptr; }
     void *FindExportedSymbol(std::string funcName) override {
         return (void *) test_mock_func;
     }

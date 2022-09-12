@@ -1,7 +1,6 @@
 #pragma once
 
 #include "config.h"
-#include "module_mac.h"
 #include "logger.h"
 #include "testfunc.h"
 #include "testresult.h"
@@ -12,13 +11,14 @@
 
 
 //
-// Module is a DLL
+// Runs test for a specific dynamic library
 //
-class ModuleTestRunner {
+class TestRunner {
 public:
-    ModuleTestRunner(IModule *module);
+    explicit TestRunner(IDynLibrary *module);
+    void PrepareTests();
     void ExecuteTests();
-
+    void DumpTestsToRun();
     static TestModule *HACK_GetCurrentTestModule();
 
 private:
@@ -27,14 +27,17 @@ private:
     bool ExecuteGlobalTests();
     bool ExecuteModuleTests();
     bool ExecuteModuleTestFuncs(TestModule *testModule);
+    TestResult *ExecuteModuleMain(TestModule *testModule);
+    void ExecuteModuleExit(TestModule *testModule);
     TestResult *ExecuteTest(TestFunc *f);
     void HandleTestResult(TestResult *result);
-    void PrepareTests();
     TestFunc *CreateTestFunc(std::string sym);
 
+    TestModule *GetOrAddModule(std::string &module);
+
 private:
-    IModule *module;
-    gnilk::ILogger *pLogger;
+    IDynLibrary *module = nullptr;
+    gnilk::ILogger *pLogger = nullptr;
     std::map<std::string, TestModule *> testModules;
     std::vector<TestFunc *> globals;
 };

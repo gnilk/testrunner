@@ -8,6 +8,20 @@
  This is the testrunner for the UnitTest 'framework'. 
  Heavily inspired by GOLANG's testing framework.
 
+ Default execution is scanning all dynamic libraries starting from the current directory and going down
+ the directory tree.
+ Any exported function with name 'test_' will be considered a test function.
+
+ The following logic applies to how names are mapped.
+ test_main  - reserved, if present it is the first function called, use for global context setup
+ test_exit  - reserved, if present it is the last function called, global tear down
+
+ test_<module>      - the main for a testable module (a module can be seen as a group of function)
+                      module main is called before any test case in the module/group
+ test_<module>_exit - the exit for a testable module/group. called after all tests have been executed
+ test_<module>_<case>   - a regular test case
+
+
  All code is BSD3 License!
  
  Modified: $Date: $ by $Author: $
@@ -29,14 +43,13 @@
 
 #include "logger.h"
 #include "testrunner.h"
-#include "module.h"
+#include "dynlib.h"
 #ifdef WIN32
-#include "module_win32.h"
+#include "dynlib_win32.h"
 #elif __linux
-#include "module_linux.h"
+#include "dynlib_unix.h"
 #else
-#include "module_mac.h"
-#include "module_linux.h"
+#include "dynlib_unix.h"
 #endif
 #include "strutil.h"
 #include "config.h"
@@ -53,7 +66,7 @@
 using namespace gnilk;
 ILogger *pLogger = NULL;
 
-static bool isModuleFound = false;
+static bool isLibraryFound = false;
 
 static void Help() {
 
@@ -77,6 +90,7 @@ static void Help() {
     printf("Usage: trun [options] input\n");
     printf("Options: \n");
     printf("  -v  Verbose, increase for more!\n");
+    printf("  -l  List all available tests\n");
     printf("  -d  Dump configuration before starting\n");
     printf("  -S  Include success pass in summary when done (default: off)\n");
     printf("  -D  Linux Only - disable RTLD_DEEPBIND\n");
@@ -86,6 +100,7 @@ static void Help() {
     printf("  -r  Discard return from test case (default: off)\n");
     printf("  -c  Continue on module failure (default: off)\n");
     printf("  -C  Continue on total failure (default: off)\n");
+    printf("  -x  Don't execute tests (default: off)\n");
     printf("  -m <list> List of modules to test (default: '-' (all))\n");
     printf("  -t <list> List of test cases to test (default: '-' (all))\n");
     printf("\n");
@@ -108,6 +123,18 @@ static void ParseTestCaseFilters(char *filterstring) {
     Config::Instance()->testcases = testcases;
 }
 
+static void ConfigureLogger() {
+    // Setup up logger according to verbose flags
+    Logger::SetAllSinkDebugLevel(Logger::kMCError);
+    if (Config::Instance()->verbose > 0) {
+        Logger::SetAllSinkDebugLevel(Logger::kMCInfo);
+        if (Config::Instance()->verbose > 1) {
+            Logger::SetAllSinkDebugLevel(Logger::kMCDebug);
+        }
+    }
+
+}
+
 static void ParseArguments(int argc, char **argv) {
 
     bool firstInput = true;
@@ -121,6 +148,12 @@ static void ParseArguments(int argc, char **argv) {
                 switch(argv[i][j]) {
                     case 'r' :
                         Config::Instance()->discardTestReturnCode = true;
+                        break;
+                    case 'l' :
+                        Config::Instance()->listTests = true;
+                        break;
+                    case 'x' :
+                        Config::Instance()->executeTests = false;
                         break;
                     case 'S' :
                         Config::Instance()->printPassSummary = true;
@@ -141,7 +174,7 @@ static void ParseArguments(int argc, char **argv) {
                         Config::Instance()->testLogFilter = true;
                         break;
                     case 'g' :
-                        Config::Instance()->testGlobals = false;
+                        Config::Instance()->testModuleGlobals = false;
                         break;
                     case 'G' :
                         Config::Instance()->testGlobalMain = false;
@@ -177,57 +210,84 @@ static void ParseArguments(int argc, char **argv) {
 // a bit ugly but does the trick in this case        
 next_argument:;
     }
+    ConfigureLogger();
 
-    // Setup up logger according to verbose flags
-    Logger::SetAllSinkDebugLevel(Logger::kMCError);
-    if (Config::Instance()->verbose > 0) {
-	    Logger::SetAllSinkDebugLevel(Logger::kMCInfo);
-        if (Config::Instance()->verbose > 1) {
-	        Logger::SetAllSinkDebugLevel(Logger::kMCDebug);
-        }
-    }
-
-    if (dumpConfig) {
+    if (dumpConfig || (Config::Instance()->verbose > 1)) {
         Config::Instance()->Dump();
     }
 }
 
-static void RunTestsForModule(IModule &module) {
-    pLogger->Debug("Running tests");
-    ModuleTestRunner testRunner(&module);
-    testRunner.ExecuteTests();
-}
 
-static IModule &GetModuleLoader() {
+
+
+static IDynLibrary *GetLibraryLoader() {
 #ifdef WIN32
-    static ModuleWin loader;
+    return new DynLibWin();
 #elif __linux
-    static ModuleLinux loader;
+    return new DynLibLinux();
 #else
-    static ModuleLinux loader;
+    return new DynLibLinux();
 #endif
-
-    return loader;
+    return nullptr;
 }
-static void ProcessInput(std::vector<std::string> &inputs) {
+
+static void RunTestsForAllLibraries();
+static void RunTestsForLibrary(IDynLibrary &module);
+
+// Populated by ScanLibraries
+static std::vector<IDynLibrary *> librariesToTest;
+
+
+static void ScanLibraries(std::vector<std::string> &inputs) {
     // Process all inputs
-    for(auto x:inputs) {
+    for (auto x: inputs) {
         if (DirScanner::IsDirectory(x)) {
             DirScanner dirscan;
             std::vector<std::string> subs = dirscan.Scan(x, true);
-            ProcessInput(subs);
+            ScanLibraries(subs);
         } else {
-            IModule &module = GetModuleLoader();
-            if (module.Scan(x)) {            
-                if (module.Exports().size() > 0) {
-                    isModuleFound = true;   // we found at least one module..
-                    pLogger->Info("Executing tests for %s", x.c_str());
-                    RunTestsForModule(module);
+            IDynLibrary *scanner = GetLibraryLoader();
+
+            auto res = scanner->Scan(x);
+            if (res) {
+                if (scanner->Exports().size() > 0) {
+
+                    isLibraryFound = true;   // we found at least one module..
+                    //pLogger->Info("Executing tests for %s", x.c_str());
+                    librariesToTest.push_back(scanner);
                 }
             } else {
                 pLogger->Error("Scan failed on '%s'", x.c_str());
             }
         }
+    }
+}
+static void RunTestsForAllLibraries() {
+    pLogger->Info("Running tests for all modules");
+    for(auto m : librariesToTest) {
+        RunTestsForLibrary(*m);
+    }
+}
+
+static void RunTestsForLibrary(IDynLibrary &module) {
+    TestRunner testRunner(&module);
+    testRunner.PrepareTests();
+
+    if (Config::Instance()->executeTests) {
+        pLogger->Debug("Running tests for: %s", module.Name().c_str());
+        testRunner.ExecuteTests();
+    }
+}
+static void DumpTestsForLibrary(IDynLibrary &module) {
+    TestRunner testRunner(&module);
+    testRunner.PrepareTests();
+    printf("=== Library: %s\n", module.Name().c_str());
+    testRunner.DumpTestsToRun();
+}
+
+static void DumpTestsForAllLibraries() {
+    for(auto m : librariesToTest) {
+        DumpTestsForLibrary(*m);
     }
 }
 
@@ -245,21 +305,30 @@ int main(int argc, char **argv) {
     Timer timer;
     
     timer.Reset();
-    ProcessInput(Config::Instance()->inputs);
+    ScanLibraries(Config::Instance()->inputs);
+
+    if (Config::Instance()->listTests) {
+        DumpTestsForAllLibraries();
+    }
+
+    RunTestsForAllLibraries();
+
     double tSeconds = timer.Sample();
 
-    if (ResultSummary::Instance().testsExecuted > 0) {
-        printf("-------------------\n");
-        printf("Duration......: %.3f sec\n", tSeconds);
-        printf("Tests Executed: %d\n", ResultSummary::Instance().testsExecuted);
-        printf("Tests Failed..: %d\n", ResultSummary::Instance().testsFailed);
+    if (Config::Instance()->executeTests) {
+        if (ResultSummary::Instance().testsExecuted > 0) {
+            printf("-------------------\n");
+            printf("Duration......: %.3f sec\n", tSeconds);
+            printf("Tests Executed: %d\n", ResultSummary::Instance().testsExecuted);
+            printf("Tests Failed..: %d\n", ResultSummary::Instance().testsFailed);
 
-        ResultSummary::Instance().PrintSummary(Config::Instance()->printPassSummary);
-    } else {
-        if (!isModuleFound) {
-            printf("No testable modules/functions found!\n");
+            ResultSummary::Instance().PrintSummary(Config::Instance()->printPassSummary);
         } else {
-            printf("Testable modules found but no tests excuted (check filters)\n");
+            if (!isLibraryFound) {
+                printf("No dynamic library with testable modules/functions found!\n");
+            } else {
+                printf("Testable modules/functions found but no tests executed (check filters)\n");
+            }
         }
     }
 

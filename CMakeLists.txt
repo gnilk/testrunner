@@ -1,11 +1,7 @@
 #
 # CMAKE file for TestRunner
 #
-#set(CMAKE_OSX_ARCHITECTURES x86_64)
 
-#
-# currently doesn't work..
-#
 set(CMAKE_OSX_ARCHITECTURES "x86_64;arm64" CACHE STRING "")
 #set(CMAKE_OSX_ARCHITECTURES arm64)
 set(CMAKE_OSX_SYSROOT /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk)
@@ -48,6 +44,8 @@ list(APPEND srcfiles src/testrunner/responseproxy.cpp)
 list(APPEND srcfiles src/testrunner/testresult.cpp)
 list(APPEND srcfiles src/testrunner/resultsummary.cpp)
 list(APPEND srcfiles src/testrunner/asserterror.cpp)
+list(APPEND srcfiles src/testrunner/timer.cpp)
+
 
 # add unit tests
 list(APPEND testsrc src/testrunner/tests/test_timer.cpp)
@@ -55,36 +53,29 @@ list(APPEND testsrc src/testrunner/tests/test_main.cpp)
 list(APPEND testsrc src/testrunner/tests/test_strutil.cpp)
 list(APPEND testsrc src/testrunner/tests/test_testfunc.cpp)
 
-if (APPLE)
-    list(APPEND srcfiles src/testrunner/module_mac.cpp)
-    list(APPEND srcfiles src/testrunner/dirscanner.cpp)
-    list(APPEND srcfiles src/testrunner/timer.cpp)
-    # make the 'nm' way work on mac
-    list(APPEND srcfiles src/testrunner/module_linux.cpp)
+# Platform specific
+# Unix = Apple and Linux
+if (UNIX)
+    # list(APPEND srcfiles src/testrunner/module_mac.cpp)
+    list(APPEND srcfiles src/testrunner/dirscanner_unix.cpp)
+    list(APPEND srcfiles src/testrunner/dynlib_unix.cpp)
     list(APPEND srcfiles src/testrunner/process.cpp)
 
     # add mac specific unit test src
     list(APPEND testsrc src/testrunner/tests/test_module_nix.cpp)
     list(APPEND testsrc src/testrunner/tests/test_dirscanner_nix.cpp)
-    add_definitions(-DAPPLE)
+
+    if (APPLE)
+        add_definitions(-DAPPLE)
+    else()
+        add_definitions(-DLINUX)
+    endif()
 
 elseif(WIN32)
-    list(APPEND srcfiles src/testrunner/module_win32.cpp)
+    list(APPEND srcfiles src/testrunner/dynlib_win32.cpp)
     list(APPEND srcfiles src/testrunner/dirscanner_win32.cpp)
-    list(APPEND srcfiles src/testrunner/timer_win32.cpp)
 
     add_definitions(-DWIN32_LEAN_AND_MEAN)
-
-elseif(UNIX)
-    list(APPEND srcfiles src/testrunner/module_linux.cpp)
-    list(APPEND srcfiles src/testrunner/dirscanner_linux.cpp)
-    list(APPEND srcfiles src/testrunner/timer_linux.cpp)
-    list(APPEND srcfiles src/testrunner/process.cpp)
-
-    # add linux specific unit test src
-    list(APPEND testsrc src/testrunner/tests/test_module_nix.cpp)
-    list(APPEND testsrc src/testrunner/tests/test_dirscanner_nix.cpp)
-    add_definitions(-DLINUX)
 endif()
 
 
@@ -104,8 +95,9 @@ include(GNUInstallDirs)
 
 if (APPLE)
 
-    set(CMAKE_INSTALL_PREFIX /usr/local)
+    target_compile_options(trun PUBLIC -Wall -Wpedantic -Wextra)
 
+    set(CMAKE_INSTALL_PREFIX /usr/local)
     set(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH} /usr/local/lib /usr/lib/system)
     find_library(COCOA_FRAMEWORK Cocoa)
     find_library(IOKIT_FRAMEWORK IOKit)
@@ -121,6 +113,7 @@ elseif (WIN32)
     target_compile_definitions(trun PUBLIC _CRT_SECURE_NO_WARNINGS)
 elseif (UNIX)
     #target_link_libraries(trun dl pthread)
+    target_compile_options(trun PUBLIC -Wall -Wpedantic -Wextra)
     list(APPEND platformlibs dl pthread)
 endif()
 
@@ -134,6 +127,7 @@ target_link_libraries(trun_utests ${platformlibs})
 add_custom_target(
         Unit_Tests ALL
         DEPENDS trun_utests
+        DEPENDS trun
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
 

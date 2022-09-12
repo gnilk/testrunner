@@ -1,12 +1,13 @@
 #pragma once
+
+#include "logger.h"
+#include "testinterface.h"
+#include "dynlib.h"
+
 #ifdef WIN32
 #include <Windows.h>
 #endif
 
-
-#include "logger.h"
-#include "testinterface.h"
-#include "module.h"
 #include <stdint.h>
 #include <vector>
 #include <string>
@@ -22,10 +23,10 @@ class BaseCommand;
 //
 // TODO: Split this to a spearate .h file for each module_xxx.cpp
 //
-class ModuleMac : public IModule {
+class DynLibWin : public IDynLibrary {
 public:
-    ModuleMac();
-    ~ModuleMac();
+    DynLibWin();
+    virtual ~DynLibWin();
     
 public: // IModule
     virtual void *Handle();    
@@ -37,23 +38,13 @@ public: // IModule
 private:
     bool Open();
     bool Close();
-    int FindImage();
-    bool ParseCommands();
     bool IsValidTestFunc(std::string funcName);
-    void ProcessSymtab(uint8_t *ptrData);
-    void ParseSymTabNames(uint8_t *ptrData);
-    void ExtractTestFunctionFromSymbols();
-    uint8_t *FromOffset32(uint32_t offset);
-    uint8_t *ModuleStart();
-    uint8_t *AlignPtr(uint8_t *ptr);
-    //void ExecuteSingleTest(std::string funcName, std::string moduleName, std::string caseName);
 
     std::string pathName;
-    void *handle;
+	HMODULE handle;
+
     int idxLib;
     // Set this global variable - for now, so we can resolve relative offsets
-    uint8_t *ptrModuleStart;
-    struct mach_header *header;
     std::vector<std::string> exports;
     std::map<std::string, int> symbols;
 

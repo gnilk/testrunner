@@ -19,10 +19,15 @@ public:
     std::vector<std::string> inputs;
     std::string version;
     std::string description;
-    std::string testMain;
-    std::string testExit;
+    // the main func name is only for the global (all modules) main: 'test_main'
+    // the module main is simply the 'test_module()' - without a test case..
+    std::string mainFuncName;   // Expected main function name after spliiting (default: 'main')
+    // the module exit function is: 'test_module_exit()' the global exit is 'test_exit'
+    std::string exitFuncName;   // Expected exit function name after spliiting (default: 'exit')
+    bool executeTests;
+    bool listTests;
     bool printPassSummary;
-    bool testGlobals;
+    bool testModuleGlobals;
     bool testGlobalMain;
     bool testLogFilter;
     bool skipOnModuleFail;

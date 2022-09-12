@@ -27,11 +27,12 @@ typedef int (CALLCONV *PTESTFUNC)(void *param);
 }
 
 // TODO: Move to generic include (platform independent)
-class IModule {
+class IDynLibrary {
 public:
+    virtual bool Scan(std::string pathName) = 0;
     virtual void *Handle() = 0;
     virtual void *FindExportedSymbol(std::string funcName) = 0;
     virtual std::vector<std::string> &Exports() = 0;
-    virtual bool Scan(std::string pathName) = 0;
     virtual std::string &Name() = 0;
 };
+

@@ -34,7 +34,6 @@
 #endif
 #include <map>
 #include "testfunc.h"
-#include "module_mac.h"
 #include "config.h"
 #include "testrunner.h"
 #include "responseproxy.h"
@@ -51,6 +50,7 @@ TestFunc::TestFunc(std::string symbolName, std::string moduleName, std::string c
     this->symbolName = symbolName;
     this->moduleName = moduleName;
     this->caseName = caseName;
+    testScope = kUnknown;
     isExecuted = false;
     pLogger = gnilk::Logger::GetLogger("TestFunc");
     testResult = nullptr;
@@ -62,13 +62,29 @@ bool TestFunc::IsGlobal() {
     return (moduleName == "-");
 }
 bool TestFunc::IsGlobalMain() {
-    return (IsGlobal() && (caseName == Config::Instance()->testMain));
+    return (IsGlobal() && (caseName == Config::Instance()->mainFuncName));
 }
 bool TestFunc::IsGlobalExit() {
-    return (IsGlobal() && (caseName == Config::Instance()->testExit));
+    return (IsGlobal() && (caseName == Config::Instance()->exitFuncName));
 }
+bool TestFunc::IsModuleMain() { {
+    return (IsGlobal() && (caseName == Config::Instance()->mainFuncName));
+}}
+
 bool TestFunc::IsModuleExit() {
-    return (!IsGlobal() && (caseName == Config::Instance()->testExit));
+    return (!IsGlobal() && (caseName == Config::Instance()->exitFuncName));
+}
+
+bool TestFunc::ShouldExecute() {
+    if ((testScope == kModuleMain) || (testScope == kModuleExit)) {
+        return Config::Instance()->testModuleGlobals;
+    }
+    for (auto tc:Config::Instance()->testcases) {
+        if ((tc == "-") || (tc == caseName)) {
+            return true;
+        }
+    }
+    return false;
 }
 
 void TestFunc::ExecuteAsync() {
@@ -98,7 +114,7 @@ static void *testfunc_thread_starter(void *arg) {
 }
 #endif
 
-TestResult *TestFunc::Execute(IModule *module) {
+TestResult *TestFunc::Execute(IDynLibrary *module) {
     pLogger->Debug("Executing test: %s", caseName.c_str());
     pLogger->Debug("  Module: %s", moduleName.c_str());
     pLogger->Debug("  Case..: %s", caseName.c_str());
@@ -133,7 +149,6 @@ TestResult *TestFunc::Execute(IModule *module) {
 
         {
             int s;
-            void *stkaddr;
             size_t v;
             s = pthread_attr_getstacksize(&attr, &v);
             if (s) {

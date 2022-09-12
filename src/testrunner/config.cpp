@@ -44,12 +44,14 @@ Config::Config() {
     inputs.push_back(".");    // Search current directory
     modules.push_back("-");
     testcases.push_back("-");
-    version = "1.0-Dev";
+    version = "1.1-Dev";
     description = "C/C++ Unit Test Runner";
-    testMain = "main";
-    testExit = "exit";
+    mainFuncName = "main";
+    exitFuncName = "exit";
+    executeTests = true;
+    listTests = false;
     printPassSummary = false;
-    testGlobals = true;
+    testModuleGlobals = true;
     testGlobalMain = true;
     testLogFilter = false;
     skipOnModuleFail = true;
@@ -74,9 +76,11 @@ void Config::Dump() {
     printf("Current Configuration\n");
     printf("TestRunner v%s - %s\n", version.c_str(), description.c_str());
     printf("  Verbose....: %s (%d)\n",verbose?"yes":"no", verbose);
+    printf("  List Tests.: %s\n", listTests?"yes":"no");
+    printf("  Run Tests..: %s\n", executeTests?"yes":"no");
     printf("  Pass in summary: %s\n", printPassSummary?"yes":"no");
-    printf("  TestMain...: %s\n", testMain.c_str());
-    printf("  Test Module Globals: %s\n", testGlobals?"yes":"no");
+    printf("  TestMain...: %s\n", mainFuncName.c_str());
+    printf("  Test Module Globals: %s\n", testModuleGlobals ? "yes" : "no");
     printf("  Test Main Global: %s\n", testGlobalMain?"yes":"no");
     printf("  TestCase Log Filter: %s\n", testLogFilter?"yes":"no");
     printf("  Response Message Size Limit: %d\n", responseMsgByteLimit);

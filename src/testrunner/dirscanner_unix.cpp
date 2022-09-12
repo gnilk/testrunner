@@ -24,7 +24,7 @@
  ---------------------------------------------------------------------------*/
 
 #include "dirscanner.h"
-
+#include <string.h>
 #include <string>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -35,22 +35,22 @@
 //
 // List of supported extensions
 //
-static const char *lExtensions[]={
-    ".dll",     // Windows
-    ".dylib",   // macOS
-    NULL
-};
+//static const char *lExtensions[]={
+//    ".dll",     // Windows
+//    ".dylib",   // macOS
+//    NULL
+//};
 
 DirScanner::DirScanner() {
     this->recurse = true;
+#ifdef APPLE
+    extensions.push_back(".dylib");
+#else
+    extensions.push_back(".so");
+#endif
     pLogger = gnilk::Logger::GetLogger("DirScanner");
 }
 
-std::vector<std::string> &DirScanner::Scan(std::string fromdir, bool recurse) {
-    this->recurse = recurse;
-    DoScan(fromdir);
-    return filenames;
-}
 
 void DirScanner::DoScan(std::string path) {
     DIR *pDir = opendir(path.c_str());
@@ -80,37 +80,6 @@ void DirScanner::CheckAddFile(std::string &filename) {
         char *fullPath = realpath(filename.c_str(),NULL);
         filenames.push_back(std::string(fullPath));
     }
-}
-
-// returns the extension of a file name
-std::string DirScanner::GetExtension(std::string &pathName)
-{
-	std::string ext;
-	int l = pathName.length()-1;
-	while ((l>0) && (pathName[l]!='.'))
-	{
-		ext.insert(ext.begin(),pathName[l]);
-		l--;
-	}
-	if ((l > 0) && (pathName[l]=='.'))
-	{
-		ext.insert(0,".");
-	}
-	return ext;
-}
-
-// Check extension from the list of supported extensions
-bool DirScanner::IsExtensionOk(std::string &extension)
-{
-	int i;
-	for (i=0;lExtensions[i]!=NULL;i++)
-	{
-		if (!strcmp(extension.c_str(),lExtensions[i]))
-		{
-			return true;
-		}
-	}
-	return false;
 }
 
 //

@@ -30,7 +30,7 @@
 #include <stdint.h>
 #include <string>
 
-#include "module.h"
+#include "dynlib.h"
 #include "strutil.h"
 #include "testrunner.h"
 #include "logger.h"
@@ -47,18 +47,18 @@
 // become a prime citizen...
 
 static TestModule *hack_glbCurrentTestModule = NULL;
-TestModule *ModuleTestRunner::HACK_GetCurrentTestModule() {
+
+TestModule *TestRunner::HACK_GetCurrentTestModule() {
     return hack_glbCurrentTestModule;
 }
 
 
 //////--- Ok, let's go...
 
-ModuleTestRunner::ModuleTestRunner(IModule *module) {
+TestRunner::TestRunner(IDynLibrary *module) {
     this->module = module;
     this->pLogger = gnilk::Logger::GetLogger("TestRunner");
 }
-
 
 
 //
@@ -72,10 +72,9 @@ ModuleTestRunner::ModuleTestRunner(IModule *module) {
 //  Module: 'mymodule'
 //  Case  : 'case_a_with_parrot'
 //
-void ModuleTestRunner::ExecuteTests() {
+void TestRunner::ExecuteTests() {
 
     // Create and sort tests according to naming convention
-    PrepareTests();
 
     Timer t;
     pLogger->Info("Starting module test for: %s", module->Name().c_str());
@@ -90,14 +89,13 @@ void ModuleTestRunner::ExecuteTests() {
         }
         ExecuteMainExit();
     }
-    double tSeconds = t.Sample();
     pLogger->Info("Module done (%.3f sec)", t.Sample());
 }
 
 //
 // Execute main test, false if fail (i.e. return code is 'AllFail')
 //
-bool ModuleTestRunner::ExecuteMain() {
+bool TestRunner::ExecuteMain() {
     // 1) call test_main which is used to initalized anything shared between tests
     bool bRes = true;
     if (!Config::Instance()->testGlobalMain) {
@@ -122,7 +120,7 @@ bool ModuleTestRunner::ExecuteMain() {
     return bRes;
 }
 
-bool ModuleTestRunner::ExecuteMainExit() {
+bool TestRunner::ExecuteMainExit() {
     // 1) call test_main which is used to initalized anything shared between tests
     bool bRes = true;
     if (!Config::Instance()->testGlobalMain) {
@@ -151,12 +149,11 @@ bool ModuleTestRunner::ExecuteMainExit() {
 //
 // Execute any global test but main, returns false on test-fail (ModuleFail/AllFail)
 //
-bool ModuleTestRunner::ExecuteGlobalTests() {
+bool TestRunner::ExecuteGlobalTests() {
     // 2) all other global scope tests
     // Filtering in global tests is a bit different as the test func has no module.
-
     bool bRes = true;
-    if (!Config::Instance()->testGlobals) {
+    if (!Config::Instance()->testModuleGlobals) {
         return bRes;
     }
     pLogger->Info("Executing global tests");
@@ -165,138 +162,91 @@ bool ModuleTestRunner::ExecuteGlobalTests() {
         if (f->Executed()) {
             continue;
         }
-
-        for (auto m:Config::Instance()->modules) {
-            //pLogger->Debug("func: %s, module: %s\n", f->caseName.c_str(),f->moduleName.c_str());
-            if ((m == "-") || (m == f->caseName)) {
-                TestResult *result = ExecuteTest(f);
-                HandleTestResult(result);
-                if ((result->Result() == kTestResult_AllFail) || (result->Result() == kTestResult_ModuleFail)) {
-                    if (Config::Instance()->skipOnModuleFail) {
-                        pLogger->Info("Module test failure, skipping remaining test cases in module");
-                        bRes = false;
-                        goto leave;
-                    } else {
-                        pLogger->Info("Module test failure, continue anyway (configuration)");
-                    }
-                }
-
-                if (result->Result() == kTestResult_AllFail) {
-                    if (Config::Instance()->stopOnAllFail) {
-                        pLogger->Info("Total test failure, aborting");
-                        bRes = false;
-                        goto leave;
-                    } else {
-                        pLogger->Info("Total test failure, continue anyway (configuration)");
-                    }
-                }
-            }
-        }
     }
-leave:;
+
     pLogger->Info("Done: global tests\n\n");
     return bRes;
 }
 
 //
-// Execute and module test
+// Execute module test
 //
-bool ModuleTestRunner::ExecuteModuleTests() {
+bool TestRunner::ExecuteModuleTests() {
     //
     // 3) all modules, executing according to cmd line module specification
     //
     bool bRes = true;
     pLogger->Info("Executing module tests");
-    for (auto m:Config::Instance()->modules) {
 
-		for (auto tmit:testModules) {
-		    TestModule *testModule = tmit.second;
-            // Already executed?
-            if (testModule->Executed()) {
-				pLogger->Debug("Tests for '%s' already executed, skipping",testModule->name.c_str());
-				continue;
-            }
-            // Execute global or if we match the module name
-            if ((m == "-") || (m == testModule->name)) {
-                pLogger->Info("Executing tests for module: %s", testModule->name.c_str());
+    for (auto tmit:testModules) {
+        TestModule *testModule = tmit.second;
 
-                hack_glbCurrentTestModule = testModule;
-                ExecuteModuleTestFuncs(testModule);
-                testModule->bExecuted = true;
-                hack_glbCurrentTestModule = NULL;
-            }
-        } // modules
-    } // config->Modules
+        if (!testModule->ShouldExecute()) {
+            // Skip, this is not part of the configured filtered..
+            continue;
+        }
+        // Already executed?
+        if (testModule->Executed()) {
+            pLogger->Debug("Tests for '%s' already executed, skipping",testModule->name.c_str());
+            continue;
+        }
+        // Execute global or if we match the module name
+        pLogger->Info("Executing tests for module: %s", testModule->name.c_str());
+
+        // The module-main should execute here..
+
+        hack_glbCurrentTestModule = testModule;
+        ExecuteModuleTestFuncs(testModule);
+        testModule->bExecuted = true;
+        hack_glbCurrentTestModule = NULL;
+    } // modules
     pLogger->Info("Done: module tests\n\n");
     return bRes;
 }
 
-bool ModuleTestRunner::ExecuteModuleTestFuncs(TestModule *testModule) {
+bool TestRunner::ExecuteModuleTestFuncs(TestModule *testModule) {
     bool bRes = true;
-
 
     printf("\n");
     printf("---> Start Module  \t%s\n",testModule->name.c_str());
 
-
-    if (testModule->mainFunc != NULL) {
-        TestResult *result = ExecuteTest(testModule->mainFunc);
-        if (result == NULL) {
-            pLogger->Error("Test result for main is NULL!!!");
+    if (Config::Instance()->testModuleGlobals) {
+        auto mainResult = ExecuteModuleMain(testModule);
+        if ((mainResult != nullptr) && (mainResult->Result() != kTestResult_Pass)) {
             return false;
-        }
-
-        HandleTestResult(result);
-        if (result->Result() != kTestResult_Pass) {
-            pLogger->Error("Module main failed, skipping further tests");
-            return true;
         }
     }
 
     for(auto testFunc : testModule->testFuncs) {
-        for (auto tc:Config::Instance()->testcases) {
-            if ((tc == "-") || (tc == testFunc->caseName)) {
+        if (!testFunc->ShouldExecute()) {
+            continue;
+        }
 
-                TestResult *result = ExecuteTest(testFunc);
+        TestResult *result = ExecuteTest(testFunc);
+        HandleTestResult(result);
 
-                HandleTestResult(result);
-
-                if (result->Result() == kTestResult_ModuleFail) {
-                    if (Config::Instance()->skipOnModuleFail) {
-                        pLogger->Info("Module test failure, skipping remaining test cases in module");
-                        goto leave;
-                    } else {
-                        pLogger->Info("Module test failure, continue anyway (configuration)");
-                    }
-                } else if (result->Result() == kTestResult_AllFail) {
-                    if (Config::Instance()->stopOnAllFail) {
-                        pLogger->Fatal("Total test failure, aborting");
-                        bRes = false;
-                        goto leave;   // Use goto to get status
-                    } else {
-                        pLogger->Info("Total test failure, continue anyway (configuration)");
-                    }
-                }
+        if (result->Result() == kTestResult_ModuleFail) {
+            if (Config::Instance()->skipOnModuleFail) {
+                pLogger->Info("Module test failure, skipping remaining test cases in module");
+                goto leave;
+            } else {
+                pLogger->Info("Module test failure, continue anyway (configuration)");
+            }
+        } else if (result->Result() == kTestResult_AllFail) {
+            if (Config::Instance()->stopOnAllFail) {
+                pLogger->Fatal("Total test failure, aborting");
+                bRes = false;
+                goto leave;   // Use goto to get status
+            } else {
+                pLogger->Info("Total test failure, continue anyway (configuration)");
             }
         }
     }
 leave:
 
-    // Try call exit function on leave...
-    if (testModule->exitFunc != NULL) {
-        TestResult *result = ExecuteTest(testModule->exitFunc);
-        if (result == NULL) {
-            pLogger->Error("Test result for exit is NULL!!!");
-            return false;
-        }
-
-        HandleTestResult(result);
-        if (result->Result() != kTestResult_Pass) {
-            pLogger->Error("Module exit failed");
-        }
+    if (Config::Instance()->testModuleGlobals) {
+        ExecuteModuleExit(testModule);
     }
-
-
 
     printf("\n");
     printf("<--- End Module  \t%s\n",testModule->name.c_str());
@@ -304,16 +254,45 @@ leave:
     return bRes;
 }
 
+// Returns true if testing is to continue false otherwise..
+TestResult *TestRunner::ExecuteModuleMain(TestModule *testModule) {
+    if (testModule->mainFunc == nullptr) return nullptr;
+
+    TestResult *result = ExecuteTest(testModule->mainFunc);
+    if (result == nullptr) {
+        pLogger->Error("Test result for main is NULL!!!");
+        return nullptr;
+    }
+    HandleTestResult(result);
+    return result;
+}
+
+void TestRunner::ExecuteModuleExit(TestModule *testModule) {
+    if (testModule->exitFunc == nullptr) return;
+    // Try call exit function on leave...
+    TestResult *result = ExecuteTest(testModule->exitFunc);
+    if (result == nullptr) {
+        pLogger->Error("Test result for exit is NULL!!!");
+        return;
+    }
+
+    HandleTestResult(result);
+    if (result->Result() != kTestResult_Pass) {
+        pLogger->Error("Module exit failed");
+    }
+}
+
+
 
 //
 // Execute a test function and decorate it
 //
-TestResult *ModuleTestRunner::ExecuteTest(TestFunc *f) {
+TestResult *TestRunner::ExecuteTest(TestFunc *f) {
     printf("\n");
     printf("=== RUN  \t%s\n",f->symbolName.c_str());
 
     // Invoke pre-test hook, if set - this is usually done during test_main for a specific module
-    if (f->GetTestModule()->cbPreHook != NULL) {
+    if ((f->GetTestModule() != nullptr) && (f->GetTestModule()->cbPreHook != nullptr)) {
         f->GetTestModule()->cbPreHook(TestResponseProxy::GetInstance()->Proxy());
     }
 
@@ -321,7 +300,7 @@ TestResult *ModuleTestRunner::ExecuteTest(TestFunc *f) {
     TestResult *result = f->Execute(module);
 
     // Invoke post-test hook, if set - this is usually done during test_main for a specific module
-    if (f->GetTestModule()->cbPostHook != NULL) {
+    if ((f->GetTestModule() != nullptr) && (f->GetTestModule()->cbPostHook != nullptr)) {
         f->GetTestModule()->cbPostHook(TestResponseProxy::GetInstance()->Proxy());
     }
 
@@ -337,74 +316,83 @@ TestResult *ModuleTestRunner::ExecuteTest(TestFunc *f) {
 //
 // Handle the test result and print decoration
 //
-void ModuleTestRunner::HandleTestResult(TestResult *result) {
-        int numError = result->Errors();
-        double tElapsedSec = result->ElapsedTimeSec();
-        if (result->Result() != kTestResult_Pass) {
+void TestRunner::HandleTestResult(TestResult *result) {
+    double tElapsedSec = result->ElapsedTimeSec();
+    if (result->Result() != kTestResult_Pass) {
+        printf("=== FAIL:\t%s, %.3f sec, %d, %d, %d\n",result->SymbolName().c_str(), tElapsedSec, result->Result(), result->Errors(), result->Asserts());
+    } else {
+        if ((result->Errors() != 0) || (result->Asserts() != 0)) {
             printf("=== FAIL:\t%s, %.3f sec, %d, %d, %d\n",result->SymbolName().c_str(), tElapsedSec, result->Result(), result->Errors(), result->Asserts());
         } else {
-            if ((result->Errors() != 0) || (result->Asserts() != 0)) {
-                printf("=== FAIL:\t%s, %.3f sec, %d, %d, %d\n",result->SymbolName().c_str(), tElapsedSec, result->Result(), result->Errors(), result->Asserts());
-            } else {
-                printf("=== PASS:\t%s, %.3f sec, %d\n",result->SymbolName().c_str(),tElapsedSec, result->Result());
-            }
+            printf("=== PASS:\t%s, %.3f sec, %d\n",result->SymbolName().c_str(),tElapsedSec, result->Result());
         }
+    }
 }
 
 //
 // PrepareTests, creates test functions and sorts the tests into global and/or module based tests
 //
-void ModuleTestRunner::PrepareTests() {
+void TestRunner::PrepareTests() {
 
+    pLogger->Info("Prepare tests in library: %s", module->Name().c_str());
     for(auto x:module->Exports()) {
-        pLogger->Debug("PrepareTests, processing symbol: %s", x.c_str());
 
         TestFunc *func = CreateTestFunc(x);
         if (func == nullptr) {
             continue;
         }
 
-
-        // [gnilk:2021-10-26] This was an else case and _worked_ on Windows/MacOS - not sure why!!!!
-        //                    Should give a NPE due to test module not being set...
         std::string moduleName = func->moduleName;
-        pLogger->Info("Module: %s, case: %s", func->moduleName.c_str(), func->caseName.c_str());
+        pLogger->Info("  Module: %s, case: %s, Symbol: %s", func->moduleName.c_str(), func->caseName.c_str(), x.c_str());
 
         // Ok, this is the signature of the main function for a 'module' (group of functions)
         if (moduleName == "-") {
             moduleName = func->caseName;
         }
 
-        TestModule *tModule = NULL;
-        // Have module with this name????
-        auto it = testModules.find(moduleName);
-        if (it == testModules.end()) {
-            tModule = new TestModule(moduleName);
-            testModules.insert(std::pair<std::string, TestModule *>(moduleName, tModule));
-        } else {
-            tModule = it->second;
-        }
-
-
+        // Identify the symbol/pattern and assign it properly
+        // The 'TestScope' is a simplification for later
         if (func->IsGlobalMain()) {
+            func->SetTestScope(TestFunc::kGlobal);
             globals.push_back(func);
         } else if (func->IsGlobalExit()) {
+            func->SetTestScope(TestFunc::kGlobal);
             globals.push_back(func);
-        } else if (func->IsGlobal()) {
-            tModule->mainFunc = func;
-        } else if (func->IsModuleExit()) {
-            tModule->exitFunc = func;
         } else {
-            tModule->testFuncs.push_back(func);
+            // These are module functions - and handled differently and with lower priority
+            auto tModule = GetOrAddModule(moduleName);
+            if (func->IsGlobal()) {
+                func->SetTestScope(TestFunc::kModuleMain);
+                tModule->mainFunc = func;
+            } else if (func->IsModuleExit()) {
+                func->SetTestScope(TestFunc::kModuleExit);
+                tModule->exitFunc = func;
+            } else {
+                tModule = GetOrAddModule(moduleName);
+                func->SetTestScope(TestFunc::kModuleCase);
+                tModule->testFuncs.push_back(func);
+            }
+            // Link them togehter...
+            if (tModule != nullptr) {
+                func->SetTestModule(tModule);
+            }
         }
-        // Link them togehter...
-        func->SetTestModule(tModule);
-
-
-        //modules.push_back(func);
-
     }
 }
+
+TestModule *TestRunner::GetOrAddModule(std::string &moduleName) {
+    TestModule *tModule = nullptr;
+    // Have module with this name????
+    auto it = testModules.find(moduleName);
+    if (it == testModules.end()) {
+        tModule = new TestModule(moduleName);
+        testModules.insert(std::pair<std::string, TestModule *>(moduleName, tModule));
+    } else {
+        tModule = it->second;
+    }
+    return tModule;
+}
+
 
 //
 // CreateTestFunc, creates a test function according to the following symbol rules
@@ -415,7 +403,7 @@ void ModuleTestRunner::PrepareTests() {
 // 'module' - this is the code module you are testing, this can be used to filter out tests from cmd line
 // 'case'   - this is the test case
 //
-TestFunc *ModuleTestRunner::CreateTestFunc(std::string symbol) {
+TestFunc *TestRunner::CreateTestFunc(std::string symbol) {
     TestFunc *func = NULL;
 
     std::vector<std::string> funcparts;
@@ -431,7 +419,7 @@ TestFunc *ModuleTestRunner::CreateTestFunc(std::string symbol) {
     } else {
         // merge '3' and onwards
         std::string testCase = "";
-        for(int i=2;i<funcparts.size();i++) {
+        for(size_t i=2;i<funcparts.size();i++) {
             testCase += funcparts[i];
             if (i<(funcparts.size()-1)) {
                 testCase += std::string("_");
@@ -442,5 +430,71 @@ TestFunc *ModuleTestRunner::CreateTestFunc(std::string symbol) {
 
     return func;
 }
+/*
+ This will dump the test in a specific dynamic library
 
+ Each module has a prefix:
+ -  Excluded from execution due to command line parameters
+ *  Will be executed
+
+ After a module the test cases are listed, like:
+ '  *m tfunc (_test_tfunc)'
+ The first four characters are execution and type indicators
+ *  Will be executed
+ m  is module main
+ e  is module exit
+    nothing - means will be skipped
+
+Example:
+* Module: mod
+  *m mod (_test_mod)                    <- this is the module main, hence the 'm'
+  *e exit (_test_mod_exit)              <- this is the module exit, hence the 'e'
+  *  mod::create (_test_mod_create)
+  *  mod::dispose (_test_mod_dispose)
+- Module: pure
+     pure::create (_test_pure_create)
+     pure::dispose (_test_pure_dispose)
+     pure::main (_test_pure_main)
+
+Module 'mod' will  be executed and all of it's functions (main,exit and regular cases)
+Module 'pure' will be skipped
+
+ */
+
+void TestRunner::DumpTestsToRun() {
+    int nModules = 0;
+    int nTestCases = 0;
+
+    if (!globals.empty()) {
+        printf("%c Globals:\n", Config::Instance()->testGlobalMain?'*':'-');
+        for (auto t: globals) {
+            printf("    ::%s (%s)\n", t->caseName.c_str(), t->symbolName.c_str());
+            nTestCases++;
+        }
+    }
+    for(auto m : testModules) {
+        bool bExec = m.second->ShouldExecute();
+        printf("%c Module: %s\n",bExec?'*':'-',m.first.c_str());
+        if (m.second->mainFunc != nullptr) {
+            auto t = m.second->mainFunc;
+            bool bExecTest = t->ShouldExecute() && m.second->ShouldExecute();
+            printf("  %cm %s (%s)\n", bExecTest?'*':' ',t->caseName.c_str(), t->symbolName.c_str());
+            nTestCases++;
+        }
+        if (m.second->exitFunc != nullptr) {
+            auto t = m.second->exitFunc;
+            bool bExecTest = t->ShouldExecute() && m.second->ShouldExecute();
+            printf("  %ce %s (%s)\n",bExecTest?'*':' ', t->caseName.c_str(), t->symbolName.c_str());
+            nTestCases++;
+        }
+        for(auto t : m.second->testFuncs) {
+            bool bExecTest = t->ShouldExecute() && m.second->ShouldExecute();
+            printf("  %c  %s::%s (%s)\n", bExecTest?'*':' ',m.first.c_str(), t->caseName.c_str(), t->symbolName.c_str());
+            nTestCases++;
+        }
+        nModules++;
+    }
+    printf("=== Modules: %d\n", nModules);
+    printf("=== Cases..: %d\n", nTestCases);
+}
 

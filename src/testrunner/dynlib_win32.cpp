@@ -26,8 +26,8 @@
 #include <Windows.h>
 #endif
 
-#include "module.h"
-#include "module_win32.h"
+#include "dynlib.h"
+#include "dynlib_win32.h"
 #include "strutil.h"
 #include "logger.h"
 
@@ -48,14 +48,14 @@ static void PrintWin32Error(gnilk::ILogger *pLogger, char *title) {
                   NULL, err,
                   MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
                   (LPSTR)&msg, 0 , NULL);
-    pLogger->Error("%s: %d, %s\n", title, err, msg);
+    pLogger->Error("%s: %d, %s", title, err, msg);
 }
 
-ModuleWin::ModuleWin() {
+DynLibWin::DynLibWin() {
     this->handle = NULL;
-    this->pLogger = gnilk::Logger::GetLogger("ModuleWin");
+    this->pLogger = gnilk::Logger::GetLogger("DynLibWin");
 }
-ModuleWin::~ModuleWin() {
+DynLibWin::~DynLibWin() {
     pLogger->Debug("DTOR, closing library");
     Close();
 }
@@ -64,14 +64,14 @@ ModuleWin::~ModuleWin() {
 // Handle, returns a handle to the library for this module
 // NULL if not opened or failed to open
 //
-void *ModuleWin::Handle() {
+void *DynLibWin::Handle() {
     return handle;
 }
 
 //
 // FindExportedSymbol, returns a handle (function pointer) to the exported symbol
 //
-void *ModuleWin::FindExportedSymbol(std::string funcName) {
+void *DynLibWin::FindExportedSymbol(std::string funcName) {
   
    // TODO: Strip leading '_' from funcName...
 
@@ -94,21 +94,24 @@ void *ModuleWin::FindExportedSymbol(std::string funcName) {
 //
 // Exports, returns all valid test functions
 //
-std::vector<std::string> &ModuleWin::Exports() {
+std::vector<std::string> &DynLibWin::Exports() {
     return exports;
 }
 
 //
 // Scan, scans a dynamic library for exported test functions
 //
-bool ModuleWin::Scan(std::string pathName) {
+bool DynLibWin::Scan(std::string pathName) {
     this->pathName = pathName;
 
-    pLogger->Debug("ModuleWin::Scan, entering, pathName: %s\n", pathName.c_str());
+    char cwd[MAX_PATH+1];
+    GetCurrentDirectory(MAX_PATH, cwd);
+
+    pLogger->Debug("DynLibWin::Scan, entering CWD=%s, pathName=%s", cwd, pathName.c_str());
     if (!Open()) {
         return false;
     }
-    pLogger->Debug("ModuleWin::Open ok");
+    pLogger->Debug("DynLibWin::Open ok");
 
 
     // pLogger->Debug("File type: 0x%.8x", header->filetype);
@@ -116,7 +119,7 @@ bool ModuleWin::Scan(std::string pathName) {
     // pLogger->Debug("Cmds: %d", header->ncmds);
     // pLogger->Debug("Size of header: %lu\n", sizeof(struct mach_header_64));
  
-    pLogger->Debug("ModuleWin::Scan, leaving");
+    pLogger->Debug("DynLibWin::Scan, leaving");
 
     return true;
 }
@@ -129,19 +132,19 @@ bool ModuleWin::Scan(std::string pathName) {
 //
 // Open, opens the dynamic library and scan's for exported symbols
 //
-bool ModuleWin::Open() {
+bool DynLibWin::Open() {
 
     // See: https://stackoverflow.com/questions/1128150/win32-api-to-enumerate-dll-export-functions
     
     HMODULE lib = LoadLibraryEx(pathName.c_str(), NULL, DONT_RESOLVE_DLL_REFERENCES);
     if (lib == NULL) {
-		pLogger->Error("LoadLibraryEx failed, with code: %d\n", GetLastError());
+		pLogger->Error("LoadLibraryEx failed, with code: %d", GetLastError());
         return false;
     }
     
 	uint64_t pLibStart = (uint64_t)lib;
 	if (((PIMAGE_DOS_HEADER)lib)->e_magic != IMAGE_DOS_SIGNATURE) {
-		pLogger->Error("PIMAGE DOS HEADER magic mismatch\n");
+		pLogger->Error("PIMAGE DOS HEADER magic mismatch");
 		return false;
 	}
     assert(((PIMAGE_DOS_HEADER)lib)->e_magic == IMAGE_DOS_SIGNATURE);
@@ -149,7 +152,7 @@ bool ModuleWin::Open() {
     PIMAGE_NT_HEADERS header = (PIMAGE_NT_HEADERS)((BYTE *)lib + ((PIMAGE_DOS_HEADER)lib)->e_lfanew);
 
 	if (header->Signature != IMAGE_NT_SIGNATURE) {
-		pLogger->Error("Header signature mistmatch!\n");
+		pLogger->Error("Header signature mistmatch!");
 		return false;
 	}
 	assert(header->Signature == IMAGE_NT_SIGNATURE);
@@ -157,14 +160,14 @@ bool ModuleWin::Open() {
 
 	switch (header->OptionalHeader.Magic) {
 	case IMAGE_NT_OPTIONAL_HDR32_MAGIC:
-		pLogger->Debug("32bit DLL Header found\n");
+		pLogger->Debug("32bit DLL Header found");
 #ifdef _WIN64
-		pLogger->Error("32 bit DLL in 64bit context not allowed!\n");
+		pLogger->Error("32 bit DLL in 64bit context not allowed!");
 		return false;
 #endif
 		break;
 	case IMAGE_NT_OPTIONAL_HDR64_MAGIC:
-		pLogger->Debug("Ok, 64bit DLL Header found\n");
+		pLogger->Debug("Ok, 64bit DLL Header found");
 #ifdef _WIN64
 #else
 		pLogger->Error("64 bit DLL in 32bit context not allowed!\n");
@@ -172,14 +175,14 @@ bool ModuleWin::Open() {
 #endif
 		break;
 	default:
-		printf(" - Unknown/Unsupported DLL header type found\n");
+		printf(" - Unknown/Unsupported DLL header type found");
 		return 1;
 		break;
 	}
 
 	
 	if (header->OptionalHeader.NumberOfRvaAndSizes == 0) {
-		pLogger->Error("Number of RVA and Sizes is zero!\n");
+		pLogger->Error("Number of RVA and Sizes is zero!");
 		return false;
 	}
 	assert(header->OptionalHeader.NumberOfRvaAndSizes > 0);
@@ -193,17 +196,17 @@ bool ModuleWin::Open() {
     //assert(exports->AddressOfNames != 0);
     BYTE** names = (BYTE**)(pLibStart + exports->AddressOfNames);
 
-	pLogger->Debug("Num Exports: %d\n", exports->NumberOfNames);
+	pLogger->Debug("Num Exports: %d", exports->NumberOfNames);
 
     for (int i = 0; i < exports->NumberOfNames; i++) {
 		char* ptrName = (char *)((BYTE*)lib + ((DWORD*)names)[i]);
         std::string name(ptrName);
         if (IsValidTestFunc(name)) {
-			pLogger->Debug("[OK] '%s' - valid test func\n", ptrName);
+			pLogger->Debug("[OK] '%s' - valid test func", ptrName);
 			this->exports.push_back(name);
 		}
 		else {
-			pLogger->Debug("[NOK] '%s' invalid test func\n", ptrName);
+			pLogger->Debug("[NOK] '%s' invalid test func", ptrName);
 		}
     }
     // Let's free the library and open it properly
@@ -212,14 +215,18 @@ bool ModuleWin::Open() {
 
 	handle = LoadLibrary(pathName.c_str());
     if (handle == NULL) {
+        char buffer[256];
+        GetCurrentDirectory(256, buffer);
         PrintWin32Error(pLogger, (char *)"Final LoadLibrary failed");
+        pLogger->Debug("Tried loading from: %s\n", buffer);
+        pLogger->Debug("Hint: If you are mixing build envs. MSVC and GCC/CLang this might lead to dependencies not found");w
         return false;
     }
 
     return true;    
 }
 
-bool ModuleWin::Close() {
+bool DynLibWin::Close() {
     if (handle != NULL) {
 		FreeLibrary(handle);
         return true;
@@ -230,7 +237,7 @@ bool ModuleWin::Close() {
 //
 // Validates a function name as a test function
 //
-bool ModuleWin::IsValidTestFunc(std::string funcName) {
+bool DynLibWin::IsValidTestFunc(std::string funcName) {
     // The function table is what really matters
     if (funcName.find("test_",0) == 0) {
         return true;

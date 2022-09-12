@@ -25,8 +25,8 @@
  
  ---------------------------------------------------------------------------*/
 
-#include "module.h"
-#include "module_linux.h"
+#include "dynlib.h"
+#include "dynlib_unix.h"
 #include "strutil.h"
 #include "logger.h"
 #include "process.h"
@@ -44,12 +44,12 @@
 
 using namespace gnilk;
 
-ModuleLinux::ModuleLinux() {
+DynLibLinux::DynLibLinux() {
     this->handle = NULL;
     this->idxLib = -1;
-    this->pLogger = gnilk::Logger::GetLogger("Module");
+    this->pLogger = gnilk::Logger::GetLogger("Loader");
 }
-ModuleLinux::~ModuleLinux() {
+DynLibLinux::~DynLibLinux() {
     pLogger->Debug("DTOR, closing library");
     Close();
 }
@@ -58,14 +58,14 @@ ModuleLinux::~ModuleLinux() {
 // Handle, returns a handle to the library for this module
 // NULL if not opened or failed to open
 //
-void *ModuleLinux::Handle() {
+void *DynLibLinux::Handle() {
     return handle;
 }
 
 //
 // FindExportedSymbol, returns a handle (function pointer) to the exported symbol
 //
-void *ModuleLinux::FindExportedSymbol(std::string funcName) {
+void *DynLibLinux::FindExportedSymbol(std::string funcName) {
   
    // TODO: Strip leading '_' from funcName...
 
@@ -85,24 +85,23 @@ void *ModuleLinux::FindExportedSymbol(std::string funcName) {
 //
 // Exports, returns all valid test functions
 //
-std::vector<std::string> &ModuleLinux::Exports() {
+std::vector<std::string> &DynLibLinux::Exports() {
     return exports;
 }
 
 //
 // Scan, scans a dynamic library for exported test functions
 //
-bool ModuleLinux::Scan(std::string pathName) {
+bool DynLibLinux::Scan(std::string pathName) {
     this->pathName = pathName;
 
     pLogger->Debug("Scan, entering");
     if (!Open()) {
         pLogger->Debug("Open failed");
-       return false;
+        return false;
     }
 
     pLogger->Debug("Scan, leaving");
-
     return true;
 }
 
@@ -125,7 +124,7 @@ protected:
 //
 // Open, opens the dynamic library and scan's for exported symbols
 //
-bool ModuleLinux::Open() {
+bool DynLibLinux::Open() {
 
     int openFlags = RTLD_LAZY;
 
@@ -162,26 +161,27 @@ bool ModuleLinux::Open() {
 
 	int cnt = 0;
 	while(std::getline(ss,to,'\n')) {
-        pLogger->Debug("got: %s", to.c_str());
         std::vector<std::string> parts;
 		strutil::split(parts,to.c_str(), ' ');
 		if (parts.size() == 3) {
 			if (parts[1] == std::string("T")) {
                 if (IsValidTestFunc(parts[2])) {
+                    pLogger->Debug("found: %s", to.c_str());
                     exports.push_back(parts[2]);
                 }
 			}
 		}
 		cnt++;
 	}
+    pLogger->Debug("found %d valid test cases out of %d symbols", (int)exports.size(), cnt);
 
     return true;
 
 }
 
-bool ModuleLinux::Close() {
+bool DynLibLinux::Close() {
     if (handle != NULL) {
-        int res = dlclose(handle);
+        dlclose(handle);
         idxLib = -1;
         return true;
     }
@@ -191,7 +191,7 @@ bool ModuleLinux::Close() {
 //
 // Validates a function name as a test function
 //
-bool ModuleLinux::IsValidTestFunc(std::string funcName) {
+bool DynLibLinux::IsValidTestFunc(std::string funcName) {
     // The function table is what really matters
     if (funcName.find("test_",0) == 0) {
         return true;

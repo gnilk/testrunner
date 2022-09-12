@@ -2,9 +2,8 @@
  File    : timer.cpp
  Author  : FKling
  Version : -
- Orginal : 2018-10-18
+ Orginal : 2020-01-08
  Descr   : Simple timer to measure duration between Reset/Sample call's
-
 
  Part of testrunner
  BSD3 License!
@@ -18,38 +17,42 @@
  
  
  \History
- - 2018.10.18, FKling, Implementation
+ - 2020.01.08, FKling, Implementation
  
  ---------------------------------------------------------------------------*/
 
+#ifdef WIN32
+#include <windows.h>
+#include <winnt.h>
+#endif
 #include "timer.h"
-#include <mach/mach_time.h>
-#include <CoreServices/CoreServices.h>
+#include <chrono>
+
+typedef std::chrono::steady_clock Clock;
 
 Timer::Timer() {
     Reset();
 }
 
 //
-// Reset starting point for clock
+// Restet starting point for clock
 //
 void Timer::Reset() {
-    tStart = mach_absolute_time();
-    mach_timebase_info(&timebaseInfo);
+    time_start = Clock::now();
 }
 
 //
 // Sample the time between last reset and now, return as double in seconds
+// Note: This could be a one-liner but I had to debug and decided to leave it like this as it makes it easier to read..
 //
 double Timer::Sample() {
-    double ret;
+    double ret = 0.0;
 
-	// Derived from: https://developer.apple.com/library/archive/qa/qa1398/_index.html
-    uint64_t elapsed = mach_absolute_time() - tStart;
+    auto elapsed = Clock::now();
+    auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed - time_start).count();
 
-    uint64_t elapsedNano = elapsed * timebaseInfo.numer / timebaseInfo.denom;	
-
-	ret = (double)(elapsedNano) / (double)(1000000000.0);
+    ret = ms / 1000.0f;
+  
 
     return ret;
 }

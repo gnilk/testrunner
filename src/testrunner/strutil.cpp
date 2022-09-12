@@ -46,11 +46,11 @@ static std::string whiteSpaces( " \f\n\r\t\v" );
 void split(std::vector<std::string> &strings, const char *strInput, int splitChar) {
   std::string input(strInput);
   size_t iPos = 0;
-  while(iPos != -1)
+  while(iPos != std::string::npos)
   {
       size_t iStart = iPos;
       iPos = input.find(splitChar,iPos);
-      if (iPos != -1)
+      if (iPos != std::string::npos)
       {
           std::string str = input.substr(iStart, iPos-iStart);
           trim(str);
