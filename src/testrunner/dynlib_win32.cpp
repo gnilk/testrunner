@@ -48,7 +48,7 @@ static void PrintWin32Error(gnilk::ILogger *pLogger, char *title) {
                   NULL, err,
                   MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
                   (LPSTR)&msg, 0 , NULL);
-    pLogger->Error("%s: %d, %s\n", title, err, msg);
+    pLogger->Error("%s: %d, %s", title, err, msg);
 }
 
 DynLibWin::DynLibWin() {
@@ -104,7 +104,10 @@ std::vector<std::string> &DynLibWin::Exports() {
 bool DynLibWin::Scan(std::string pathName) {
     this->pathName = pathName;
 
-    pLogger->Debug("DynLibWin::Scan, entering, pathName: %s\n", pathName.c_str());
+    char cwd[MAX_PATH+1];
+    GetCurrentDirectory(MAX_PATH, cwd);
+
+    pLogger->Debug("DynLibWin::Scan, entering CWD=%s, pathName=%s", cwd, pathName.c_str());
     if (!Open()) {
         return false;
     }
@@ -135,13 +138,13 @@ bool DynLibWin::Open() {
     
     HMODULE lib = LoadLibraryEx(pathName.c_str(), NULL, DONT_RESOLVE_DLL_REFERENCES);
     if (lib == NULL) {
-		pLogger->Error("LoadLibraryEx failed, with code: %d\n", GetLastError());
+		pLogger->Error("LoadLibraryEx failed, with code: %d", GetLastError());
         return false;
     }
     
 	uint64_t pLibStart = (uint64_t)lib;
 	if (((PIMAGE_DOS_HEADER)lib)->e_magic != IMAGE_DOS_SIGNATURE) {
-		pLogger->Error("PIMAGE DOS HEADER magic mismatch\n");
+		pLogger->Error("PIMAGE DOS HEADER magic mismatch");
 		return false;
 	}
     assert(((PIMAGE_DOS_HEADER)lib)->e_magic == IMAGE_DOS_SIGNATURE);
@@ -149,7 +152,7 @@ bool DynLibWin::Open() {
     PIMAGE_NT_HEADERS header = (PIMAGE_NT_HEADERS)((BYTE *)lib + ((PIMAGE_DOS_HEADER)lib)->e_lfanew);
 
 	if (header->Signature != IMAGE_NT_SIGNATURE) {
-		pLogger->Error("Header signature mistmatch!\n");
+		pLogger->Error("Header signature mistmatch!");
 		return false;
 	}
 	assert(header->Signature == IMAGE_NT_SIGNATURE);
@@ -157,14 +160,14 @@ bool DynLibWin::Open() {
 
 	switch (header->OptionalHeader.Magic) {
 	case IMAGE_NT_OPTIONAL_HDR32_MAGIC:
-		pLogger->Debug("32bit DLL Header found\n");
+		pLogger->Debug("32bit DLL Header found");
 #ifdef _WIN64
-		pLogger->Error("32 bit DLL in 64bit context not allowed!\n");
+		pLogger->Error("32 bit DLL in 64bit context not allowed!");
 		return false;
 #endif
 		break;
 	case IMAGE_NT_OPTIONAL_HDR64_MAGIC:
-		pLogger->Debug("Ok, 64bit DLL Header found\n");
+		pLogger->Debug("Ok, 64bit DLL Header found");
 #ifdef _WIN64
 #else
 		pLogger->Error("64 bit DLL in 32bit context not allowed!\n");
@@ -172,14 +175,14 @@ bool DynLibWin::Open() {
 #endif
 		break;
 	default:
-		printf(" - Unknown/Unsupported DLL header type found\n");
+		printf(" - Unknown/Unsupported DLL header type found");
 		return 1;
 		break;
 	}
 
 	
 	if (header->OptionalHeader.NumberOfRvaAndSizes == 0) {
-		pLogger->Error("Number of RVA and Sizes is zero!\n");
+		pLogger->Error("Number of RVA and Sizes is zero!");
 		return false;
 	}
 	assert(header->OptionalHeader.NumberOfRvaAndSizes > 0);
@@ -193,17 +196,17 @@ bool DynLibWin::Open() {
     //assert(exports->AddressOfNames != 0);
     BYTE** names = (BYTE**)(pLibStart + exports->AddressOfNames);
 
-	pLogger->Debug("Num Exports: %d\n", exports->NumberOfNames);
+	pLogger->Debug("Num Exports: %d", exports->NumberOfNames);
 
     for (int i = 0; i < exports->NumberOfNames; i++) {
 		char* ptrName = (char *)((BYTE*)lib + ((DWORD*)names)[i]);
         std::string name(ptrName);
         if (IsValidTestFunc(name)) {
-			pLogger->Debug("[OK] '%s' - valid test func\n", ptrName);
+			pLogger->Debug("[OK] '%s' - valid test func", ptrName);
 			this->exports.push_back(name);
 		}
 		else {
-			pLogger->Debug("[NOK] '%s' invalid test func\n", ptrName);
+			pLogger->Debug("[NOK] '%s' invalid test func", ptrName);
 		}
     }
     // Let's free the library and open it properly
@@ -212,7 +215,11 @@ bool DynLibWin::Open() {
 
 	handle = LoadLibrary(pathName.c_str());
     if (handle == NULL) {
+        char buffer[256];
+        GetCurrentDirectory(256, buffer);
         PrintWin32Error(pLogger, (char *)"Final LoadLibrary failed");
+        pLogger->Debug("Tried loading from: %s\n", buffer);
+        pLogger->Debug("Hint: If you are mixing build envs. MSVC and GCC/CLang this might lead to dependencies not found");w
         return false;
     }
 

@@ -403,12 +403,13 @@ void Logger::SendToSinks(int dbgLevel, char *hdr, char *string)
 
 
 #ifdef WIN32
+#ifdef _MSC_VER
 struct timezone 
 {
 	int  tz_minuteswest; /* minutes W of Greenwich */
 	int  tz_dsttime;     /* type of dst correction */
 };
-
+#endif
 static int gettimeofday(struct timeval *tv, struct timezone *tz)
 {
 	FILETIME ft;
@@ -728,7 +729,7 @@ void Logger::WriteReportString(int mc, char *string)
 #ifdef WIN32
 	DWORD tid = 0;
 	tid = GetCurrentThreadId();	
-	snprintf(sHdr, MAX_INDENT + 64, "%s [%.8x] %8s %32s - %s", sTime, tid, sLevel, sName, sIndent);
+	snprintf(sHdr, MAX_INDENT + 64, "%s [%.8x] %8s %32s - %s", sTime, (unsigned int)tid, sLevel, sName, sIndent);
 #else
 	//void *tid = NULL;
 	pthread_t tid = pthread_self();	
