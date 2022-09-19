@@ -172,6 +172,7 @@ static void ParseArguments(int argc, char **argv) {
                         break;
                     case 's' :
                         Config::Instance()->testLogFilter = true;
+                        Config::Instance()->surpressProgressMsg = true;
                         break;
                     case 'g' :
                         Config::Instance()->testModuleGlobals = false;
@@ -281,7 +282,9 @@ static void RunTestsForLibrary(IDynLibrary &module) {
 static void DumpTestsForLibrary(IDynLibrary &module) {
     TestRunner testRunner(&module);
     testRunner.PrepareTests();
-    printf("=== Library: %s\n", module.Name().c_str());
+    if (!Config::Instance()->surpressProgressMsg) {
+        printf("=== Library: %s\n", module.Name().c_str());
+    }
     testRunner.DumpTestsToRun();
 }
 
@@ -317,6 +320,7 @@ int main(int argc, char **argv) {
 
     if (Config::Instance()->executeTests) {
         if (ResultSummary::Instance().testsExecuted > 0) {
+            // TODO: This should move to the reporting module!!!
             printf("-------------------\n");
             printf("Duration......: %.3f sec\n", tSeconds);
             printf("Tests Executed: %d\n", ResultSummary::Instance().testsExecuted);

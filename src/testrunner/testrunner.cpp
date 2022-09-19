@@ -207,8 +207,10 @@ bool TestRunner::ExecuteModuleTests() {
 bool TestRunner::ExecuteModuleTestFuncs(TestModule *testModule) {
     bool bRes = true;
 
-    printf("\n");
-    printf("---> Start Module  \t%s\n",testModule->name.c_str());
+    if (!Config::Instance()->surpressProgressMsg) {
+        printf("\n");
+        printf("---> Start Module  \t%s\n", testModule->name.c_str());
+    }
 
     if (Config::Instance()->testModuleGlobals) {
         auto mainResult = ExecuteModuleMain(testModule);
@@ -248,8 +250,10 @@ leave:
         ExecuteModuleExit(testModule);
     }
 
-    printf("\n");
-    printf("<--- End Module  \t%s\n",testModule->name.c_str());
+    if (!Config::Instance()->surpressProgressMsg) {
+        printf("\n");
+        printf("<--- End Module  \t%s\n", testModule->name.c_str());
+    }
 
     return bRes;
 }
@@ -288,8 +292,10 @@ void TestRunner::ExecuteModuleExit(TestModule *testModule) {
 // Execute a test function and decorate it
 //
 TestResult *TestRunner::ExecuteTest(TestFunc *f) {
-    printf("\n");
-    printf("=== RUN  \t%s\n",f->symbolName.c_str());
+    if (!Config::Instance()->surpressProgressMsg) {
+        printf("\n");
+        printf("=== RUN  \t%s\n", f->symbolName.c_str());
+    }
 
     // Invoke pre-test hook, if set - this is usually done during test_main for a specific module
     if ((f->GetTestModule() != nullptr) && (f->GetTestModule()->cbPreHook != nullptr)) {
@@ -318,13 +324,17 @@ TestResult *TestRunner::ExecuteTest(TestFunc *f) {
 //
 void TestRunner::HandleTestResult(TestResult *result) {
     double tElapsedSec = result->ElapsedTimeSec();
-    if (result->Result() != kTestResult_Pass) {
-        printf("=== FAIL:\t%s, %.3f sec, %d, %d, %d\n",result->SymbolName().c_str(), tElapsedSec, result->Result(), result->Errors(), result->Asserts());
-    } else {
-        if ((result->Errors() != 0) || (result->Asserts() != 0)) {
-            printf("=== FAIL:\t%s, %.3f sec, %d, %d, %d\n",result->SymbolName().c_str(), tElapsedSec, result->Result(), result->Errors(), result->Asserts());
+    if (!Config::Instance()->surpressProgressMsg) {
+        if (result->Result() != kTestResult_Pass) {
+            printf("=== FAIL:\t%s, %.3f sec, %d, %d, %d\n", result->SymbolName().c_str(), tElapsedSec, result->Result(),
+                   result->Errors(), result->Asserts());
         } else {
-            printf("=== PASS:\t%s, %.3f sec, %d\n",result->SymbolName().c_str(),tElapsedSec, result->Result());
+            if ((result->Errors() != 0) || (result->Asserts() != 0)) {
+                printf("=== FAIL:\t%s, %.3f sec, %d, %d, %d\n", result->SymbolName().c_str(), tElapsedSec,
+                       result->Result(), result->Errors(), result->Asserts());
+            } else {
+                printf("=== PASS:\t%s, %.3f sec, %d\n", result->SymbolName().c_str(), tElapsedSec, result->Result());
+            }
         }
     }
 }
