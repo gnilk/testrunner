@@ -56,7 +56,7 @@ Config::Config() {
     testLogFilter = false;
     skipOnModuleFail = true;
     stopOnAllFail = true;
-    surpressProgressMsg = false;
+    suppressProgressMsg = false;
     discardTestReturnCode = false;
     linuxUseDeepBinding = true;
     responseMsgByteLimit = 1024 * 8;

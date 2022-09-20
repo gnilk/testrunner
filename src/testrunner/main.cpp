@@ -44,6 +44,8 @@
 #include "logger.h"
 #include "testrunner.h"
 #include "dynlib.h"
+#include <unistd.h>
+
 #ifdef WIN32
 #include "dynlib_win32.h"
 #elif __linux
@@ -172,7 +174,7 @@ static void ParseArguments(int argc, char **argv) {
                         break;
                     case 's' :
                         Config::Instance()->testLogFilter = true;
-                        Config::Instance()->surpressProgressMsg = true;
+                        Config::Instance()->suppressProgressMsg = true;
                         break;
                     case 'g' :
                         Config::Instance()->testModuleGlobals = false;
@@ -282,9 +284,7 @@ static void RunTestsForLibrary(IDynLibrary &module) {
 static void DumpTestsForLibrary(IDynLibrary &module) {
     TestRunner testRunner(&module);
     testRunner.PrepareTests();
-    if (!Config::Instance()->surpressProgressMsg) {
         printf("=== Library: %s\n", module.Name().c_str());
-    }
     testRunner.DumpTestsToRun();
 }
 
@@ -305,6 +305,15 @@ int main(int argc, char **argv) {
 	pLogger->Info("Windows x86 (32 bit) build");
 #endif
 
+    // Suppressing messages? - kill stdout but save it for later...
+    int saveStdout = -1;
+    if (Config::Instance()->suppressProgressMsg) {
+        saveStdout = dup(STDOUT_FILENO);
+        // Note: We don't really care about the result here, at least not for now
+        freopen("/dev/null", "w+", stdout);
+    }
+
+
     Timer timer;
     
     timer.Reset();
@@ -316,8 +325,15 @@ int main(int argc, char **argv) {
 
     RunTestsForAllLibraries();
 
-    double tSeconds = timer.Sample();
+    // Restore stdout - in order for reporting to work...
+    if (Config::Instance()->suppressProgressMsg) {
+        if ((stdout = fdopen(saveStdout, "w")) == nullptr) {
+            fprintf(stderr, "Unable to restore stdout: %d\n", errno);
+            return 0;
+        }
+    }
 
+    double tSeconds = timer.Sample();
     if (Config::Instance()->executeTests) {
         if (ResultSummary::Instance().testsExecuted > 0) {
             // TODO: This should move to the reporting module!!!

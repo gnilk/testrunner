@@ -32,7 +32,7 @@ public:
     bool testLogFilter;
     bool skipOnModuleFail;
     bool stopOnAllFail;
-    bool surpressProgressMsg;
+    bool suppressProgressMsg;
     bool discardTestReturnCode;
     bool linuxUseDeepBinding;     // Causes dlopen to use RTLD_DEEPBIND
     gnilk::ILogger *pLogger;
