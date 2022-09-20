@@ -21,7 +21,7 @@ void ResultsReportJSON::PrintSummary() {
     fprintf(fout, "  \"Summary\":{\n");
     fprintf(fout, "    \"DurationSec\":%f,\n", ResultSummary::Instance().durationSec);
     fprintf(fout, "    \"TestsExecuted\":%d,\n", ResultSummary::Instance().testsExecuted);
-    fprintf(fout, "    \"TestsFailed\":%d,\n", ResultSummary::Instance().testsFailed);
+    fprintf(fout, "    \"TestsFailed\":%d\n", ResultSummary::Instance().testsFailed);
     fprintf(fout, "  }");
     bHadSummary = true;
 
@@ -91,7 +91,7 @@ void ResultsReportJSON::PrintPasses(std::vector<TestResult *> &results) {
         // Only print this the first time if we have any...
         fprintf(fout, "      {\n");
         fprintf(fout, "         \"Status\":\"%s\",\n", resultToName[r->Result()].c_str());
-        fprintf(fout, "         \"Symbol\":\"%s\",\n", r->SymbolName().c_str());
+        fprintf(fout, "         \"Symbol\":\"%s\"\n", r->SymbolName().c_str());
         fprintf(fout, "      }");
         bNeedComma = true;
     }
