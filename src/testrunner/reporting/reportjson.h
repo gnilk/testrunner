@@ -17,6 +17,7 @@ public:
 private:
     bool bHadFailures = false;
     bool bHadSuccess = false;
+    bool bHadSummary = false;
     FILE *fout = nullptr;
 };
 

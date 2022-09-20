@@ -243,6 +243,7 @@ Options:
   -c  Continue on module failure (default: off)
   -C  Continue on total failure (default: off)
   -x  Don't execute tests (default: off)
+  -R  <name> Use reporting module (default: console)
   -m <list> List of modules to test (default: '-' (all))
   -t <list> List of test cases to test (default: '-' (all))
 
@@ -327,11 +328,69 @@ The test cases are prefixed with
 The execution flag for a test case may have `m` or `e` in front this indicates 
 if the test case is a `test_main` or `test_exit` function.
 
+# Reporting
+The classic console output reporting has been extended to support reporting modules.  To list all available reporting modules run:
+`trun -R list`
+This will dump the list of reporting module and then exit the program (without running any tests).
+
+Currently (v1.1-DEV) the output would look like:
+```
+Reporting modules:
+  console
+  json
+```
+
+The default reporting module is `console` thus keeping with previous way of working.
+
+To specify another reporting module simply do: `trun -R json`. In order to make the report the only output
+you can combine it with the silent (`-s`) switch, which will now suppress all output.
+
+## JSON Format Example
+The JSON format is currently (at best) experimental
+
+Example after running: `bin/trun -sSR json lib/libtrun_utests.dylib` (on macOS).<br> 
+JSON Format (some results omitted):
+```json
+{
+   "Summary": {
+      "DurationSec": 1.150000,
+      "TestsExecuted": 33,
+      "TestsFailed": 4
+   },
+   "Failures": [
+      {
+         "Status": "TestFail",
+         "Symbol": "_test_pure_main",
+         "AssertValid": false
+      },
+      {
+         "Status": "TestFail",
+         "Symbol": "_test_shared_b_assert",
+         "AssertValid": true,
+         "Assert": {
+            "File": "/Users/gnilk/src/github.com/testrunner/src/exshared/exshared.cpp",
+            "Line": 39,
+            "Message": "1 == 2"
+         }
+      }
+   ],
+   "Passes": [
+      {
+         "Status": "Pass",
+         "Symbol": "_test_main"
+      }
+   ]
+}
+```
+
+<b>Note:</b> Passes are only reported IF you include it in the summary (`-S`).
 
 # Version history
 ## v1.1
 - Internal refactoring and clean-up
 - Added ability to list test cases `-l` and not execute `-x`
+- Added reporting (-R <module>) default is the console.
+- Added suppression of stdout in silent mode (-s)
 ## v1.0
 - Test summary, default only failure (-S also lists success)
 ## v0.9

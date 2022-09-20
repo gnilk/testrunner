@@ -328,7 +328,12 @@ int main(int argc, char **argv) {
     if (Config::Instance()->suppressProgressMsg) {
         saveStdout = dup(STDOUT_FILENO);
         // Note: We don't really care about the result here, at least not for now
+#ifdef WIN32
+        // VERIFY THIS!!!!
+        freopen("nul", "w+", stdout);
+#else
         freopen("/dev/null", "w+", stdout);
+#endif
     }
 
 

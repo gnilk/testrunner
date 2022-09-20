@@ -3,6 +3,7 @@
 //
 
 #include "reportjson.h"
+#include "../resultsummary.h"
 #include <map>
 #include <string>
 #include <cstdint>
@@ -18,10 +19,15 @@ void ResultsReportJSON::End() {
 }
 void ResultsReportJSON::PrintSummary() {
     fprintf(fout, "  \"Summary\":{\n");
-    fprintf(fout, "  },");
+    fprintf(fout, "    \"DurationSec\":%f,\n", ResultSummary::Instance().durationSec);
+    fprintf(fout, "    \"TestsExecuted\":%d,\n", ResultSummary::Instance().testsExecuted);
+    fprintf(fout, "    \"TestsFailed\":%d,\n", ResultSummary::Instance().testsFailed);
+    fprintf(fout, "  }");
+    bHadSummary = true;
+
 }
 void ResultsReportJSON::PrintFailures(std::vector<TestResult *> &results) {
-    if (bHadSuccess) {
+    if (bHadSuccess || bHadSummary) {
         fprintf(fout,",\n");
     }
 
@@ -62,7 +68,7 @@ void ResultsReportJSON::PrintFailures(std::vector<TestResult *> &results) {
     bHadFailures = true;
 }
 void ResultsReportJSON::PrintPasses(std::vector<TestResult *> &results) {
-    if (bHadFailures) {
+    if (bHadFailures || bHadSummary) {
         fprintf(fout,",\n");
     }
     fprintf(fout, "  \"Passes\":[\n");
