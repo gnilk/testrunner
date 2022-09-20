@@ -103,6 +103,7 @@ static void Help() {
     printf("  -c  Continue on module failure (default: off)\n");
     printf("  -C  Continue on total failure (default: off)\n");
     printf("  -x  Don't execute tests (default: off)\n");
+    printf("  -R  <name> Use reporting module (default: console)\n");
     printf("  -m <list> List of modules to test (default: '-' (all))\n");
     printf("  -t <list> List of test cases to test (default: '-' (all))\n");
     printf("\n");
@@ -137,7 +138,8 @@ static void ConfigureLogger() {
 
 }
 
-static void ParseArguments(int argc, char **argv) {
+// Returns false if we should leave the program directly, true if we are to continue
+static bool ParseArguments(int argc, char **argv) {
 
     bool firstInput = true;
     bool dumpConfig = false;
@@ -192,6 +194,10 @@ static void ParseArguments(int argc, char **argv) {
                     case 'v' :
                         Config::Instance()->verbose++;
                         break;
+                    case 'R' :
+                        Config::Instance()->reportingModule = std::string(argv[++i]);
+                        goto next_argument;
+                        break;
                     default:
                         printf("Unknown option: %c\n", argv[i][j]);
                     case '?' :
@@ -215,9 +221,17 @@ next_argument:;
     }
     ConfigureLogger();
 
+    bool bContinue = true;
     if (dumpConfig || (Config::Instance()->verbose > 1)) {
         Config::Instance()->Dump();
+        bContinue = false;
     }
+    // Special case here - if we specify list as the reporting module we just dump them and leave
+    if (Config::Instance()->reportingModule == "list") {
+        ResultSummary::Instance().ListReportingModules();
+        bContinue = false;
+    }
+    return bContinue;
 }
 
 
@@ -297,13 +311,17 @@ static void DumpTestsForAllLibraries() {
 int main(int argc, char **argv) {
     // Cache the logger - also creates the Config singleton with default values
     pLogger = Config::Instance()->pLogger;
-    ParseArguments(argc, argv);
+    if (!ParseArguments(argc, argv)) {
+        return 0;
+    }
 
 #ifdef _WIN64
 	pLogger->Info("Windows x64 (64 bit) build");
 #elif WIN32
 	pLogger->Info("Windows x86 (32 bit) build");
 #endif
+
+
 
     // Suppressing messages? - kill stdout but save it for later...
     int saveStdout = -1;
@@ -323,7 +341,9 @@ int main(int argc, char **argv) {
         DumpTestsForAllLibraries();
     }
 
+    printf("--> Start Global\n");
     RunTestsForAllLibraries();
+    printf("<-- End Global\n");
 
     // Restore stdout - in order for reporting to work...
     if (Config::Instance()->suppressProgressMsg) {
@@ -333,17 +353,14 @@ int main(int argc, char **argv) {
         }
     }
 
-    double tSeconds = timer.Sample();
+    // Reporting
+    ResultSummary::Instance().durationSec = timer.Sample();
     if (Config::Instance()->executeTests) {
         if (ResultSummary::Instance().testsExecuted > 0) {
-            // TODO: This should move to the reporting module!!!
-            printf("-------------------\n");
-            printf("Duration......: %.3f sec\n", tSeconds);
-            printf("Tests Executed: %d\n", ResultSummary::Instance().testsExecuted);
-            printf("Tests Failed..: %d\n", ResultSummary::Instance().testsFailed);
-
             ResultSummary::Instance().PrintSummary(Config::Instance()->printPassSummary);
         } else {
+            // This should be made available in the report - in case we are running headless we want this in the JSON
+            // output...
             if (!isLibraryFound) {
                 printf("No dynamic library with testable modules/functions found!\n");
             } else {

@@ -8,14 +8,17 @@ public:
     static ResultSummary &Instance();
     void PrintSummary(bool bPrintSuccess);
 
-    void PrintFailureDetails();
-    void PrintPassDetails();
+    void ListReportingModules();
+
 public:
     int testsExecuted = 0;
     int testsFailed = 0;
+    double durationSec = 0.0;
     std::vector<TestResult *> results;
 private:
     ResultSummary() = default;
 };
+
+
 
 

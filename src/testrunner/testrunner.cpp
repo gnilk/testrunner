@@ -80,6 +80,8 @@ void TestRunner::ExecuteTests() {
     pLogger->Info("Starting module test for: %s", module->Name().c_str());
     t.Reset();
 
+    printf("---> Start Module  \t%s\n",module->Name().c_str());
+
     // 1) Execute main
     if (ExecuteMain()) {
         // 2) Execute global
@@ -89,6 +91,8 @@ void TestRunner::ExecuteTests() {
         }
         ExecuteMainExit();
     }
+
+    printf("<--- End Module  \t%s\n",module->Name().c_str());
     pLogger->Info("Module done (%.3f sec)", t.Sample());
 }
 
@@ -207,9 +211,6 @@ bool TestRunner::ExecuteModuleTests() {
 bool TestRunner::ExecuteModuleTestFuncs(TestModule *testModule) {
     bool bRes = true;
 
-    printf("\n");
-    printf("---> Start Module  \t%s\n",testModule->name.c_str());
-
     if (Config::Instance()->testModuleGlobals) {
         auto mainResult = ExecuteModuleMain(testModule);
         if ((mainResult != nullptr) && (mainResult->Result() != kTestResult_Pass)) {
@@ -248,9 +249,6 @@ leave:
         ExecuteModuleExit(testModule);
     }
 
-    printf("\n");
-    printf("<--- End Module  \t%s\n",testModule->name.c_str());
-
     return bRes;
 }
 
@@ -288,7 +286,6 @@ void TestRunner::ExecuteModuleExit(TestModule *testModule) {
 // Execute a test function and decorate it
 //
 TestResult *TestRunner::ExecuteTest(TestFunc *f) {
-    printf("\n");
     printf("=== RUN  \t%s\n",f->symbolName.c_str());
 
     // Invoke pre-test hook, if set - this is usually done during test_main for a specific module
@@ -327,6 +324,7 @@ void TestRunner::HandleTestResult(TestResult *result) {
             printf("=== PASS:\t%s, %.3f sec, %d\n",result->SymbolName().c_str(),tElapsedSec, result->Result());
         }
     }
+    printf("\n");
 }
 
 //

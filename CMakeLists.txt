@@ -46,6 +46,11 @@ list(APPEND srcfiles src/testrunner/resultsummary.cpp)
 list(APPEND srcfiles src/testrunner/asserterror.cpp)
 list(APPEND srcfiles src/testrunner/timer.cpp)
 
+# reporting
+list(APPEND srcfiles src/testrunner/reporting/reportingbase.h)
+list(APPEND srcfiles src/testrunner/reporting/reportjson.h src/testrunner/reporting/reportjson.cpp)
+list(APPEND srcfiles src/testrunner/reporting/reportconsole.h src/testrunner/reporting/reportconsole.cpp)
+
 
 # add unit tests
 list(APPEND testsrc src/testrunner/tests/test_timer.cpp)

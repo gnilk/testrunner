@@ -24,6 +24,7 @@ public:
     std::string mainFuncName;   // Expected main function name after spliiting (default: 'main')
     // the module exit function is: 'test_module_exit()' the global exit is 'test_exit'
     std::string exitFuncName;   // Expected exit function name after spliiting (default: 'exit')
+    std::string reportingModule;
     bool executeTests;
     bool listTests;
     bool printPassSummary;

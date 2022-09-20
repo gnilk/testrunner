@@ -48,6 +48,7 @@ Config::Config() {
     description = "C/C++ Unit Test Runner";
     mainFuncName = "main";
     exitFuncName = "exit";
+    reportingModule = "console";
     executeTests = true;
     listTests = false;
     printPassSummary = false;
