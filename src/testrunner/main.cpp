@@ -329,7 +329,6 @@ int main(int argc, char **argv) {
         saveStdout = dup(STDOUT_FILENO);
         // Note: We don't really care about the result here, at least not for now
 #ifdef WIN32
-        // VERIFY THIS!!!!
         freopen("nul", "w+", stdout);
 #else
         freopen("/dev/null", "w+", stdout);
@@ -352,7 +351,12 @@ int main(int argc, char **argv) {
 
     // Restore stdout - in order for reporting to work...
     if (Config::Instance()->suppressProgressMsg) {
-        if ((stdout = fdopen(saveStdout, "w")) == nullptr) {
+//        // WIN32 - this doesn't work - bummer...
+//        if ((stdout = fdopen(saveStdout, "w")) == nullptr) {
+//            fprintf(stderr, "Unable to restore stdout: %d\n", errno);
+//            return 0;
+//        }
+        if (dup2(saveStdout, STDOUT_FILENO) < 0) {
             fprintf(stderr, "Unable to restore stdout: %d\n", errno);
             return 0;
         }
