@@ -331,7 +331,10 @@ int main(int argc, char **argv) {
 #ifdef WIN32
         freopen("nul", "w+", stdout);
 #else
-        freopen("/dev/null", "w+", stdout);
+        if (freopen("/dev/null", "w+", stdout) == nullptr) {
+            fprintf(stderr, "ERR: Unable to open /dev/null\n");
+            return -1;
+        }
 #endif
     }
 
@@ -351,11 +354,9 @@ int main(int argc, char **argv) {
 
     // Restore stdout - in order for reporting to work...
     if (Config::Instance()->suppressProgressMsg) {
-//        // WIN32 - this doesn't work - bummer...
-//        if ((stdout = fdopen(saveStdout, "w")) == nullptr) {
-//            fprintf(stderr, "Unable to restore stdout: %d\n", errno);
-//            return 0;
-//        }
+        // On macOS/Linux we need to flush what-ever is in the cache before we restore/duplicate the stdout
+        // otherwise we might have the console data written once a proper file-desc is attached to stdout
+        fflush(stdout);
         if (dup2(saveStdout, STDOUT_FILENO) < 0) {
             fprintf(stderr, "Unable to restore stdout: %d\n", errno);
             return 0;
