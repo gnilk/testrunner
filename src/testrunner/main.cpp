@@ -39,12 +39,21 @@
  ---------------------------------------------------------------------------*/
 #ifdef WIN32
 #include <Windows.h>
+#include <io.h>
+// ok, the windows console handling is quite horrible if compared to macOS/Linux...
+// this ought to solve it for my purposes
+#ifndef STDOUT_FILENO
+    #define STDOUT_FILENO 1
+#endif
+#else
+#include <unistd.h>
 #endif
 
 #include "logger.h"
 #include "testrunner.h"
 #include "dynlib.h"
-#include <unistd.h>
+
+
 
 #ifdef WIN32
 #include "dynlib_win32.h"
