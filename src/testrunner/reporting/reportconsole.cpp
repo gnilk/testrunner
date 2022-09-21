@@ -11,6 +11,14 @@ void ResultsReportConsole::Begin() {
     printf("\n-------------------\n");
 }
 
+void ResultsReportConsole::PrintReport() {
+    PrintSummary();
+    PrintFailures(ResultSummary::Instance().Results());
+    if (Config::Instance()->printPassSummary) {
+        PrintPasses(ResultSummary::Instance().Results());
+    }
+}
+
 
 void ResultsReportConsole::PrintSummary() {
     printf("Duration......: %.3f sec\n", ResultSummary::Instance().durationSec);
@@ -18,7 +26,7 @@ void ResultsReportConsole::PrintSummary() {
     printf("Tests Failed..: %d\n", ResultSummary::Instance().testsFailed);
 }
 
-void ResultsReportConsole::PrintFailures(std::vector<TestResult *> &results) {
+void ResultsReportConsole::PrintFailures(const std::vector<const TestResult *> &results) {
     bool haveHeader = false;
     for(auto r : results) {
         if (r->Result() != kTestResult_Pass) {
@@ -40,7 +48,7 @@ void ResultsReportConsole::PrintFailures(std::vector<TestResult *> &results) {
         }
     }
 }
-void ResultsReportConsole::PrintPasses(std::vector<TestResult *> &results) {
+void ResultsReportConsole::PrintPasses(const std::vector<const TestResult *> &results) {
     bool haveHeader = false;
     for(auto r : results) {
         if (r->Result() == kTestResult_Pass) {

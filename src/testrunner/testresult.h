@@ -38,13 +38,13 @@ class TestResult {
 public:
     TestResult(std::string symbolName);
     // Property access, getters
-    kTestResult Result() { return testResult; }
-    int Errors() { return numError; }
-    int Asserts() { return numAssert; }
-    double ElapsedTimeSec() { return tElapsedSec; }
-    std::string &SymbolName() { return symbolName; }
+    kTestResult Result() const { return testResult; }
+    int Errors() const { return numError; }
+    int Asserts() const { return numAssert; }
+    double ElapsedTimeSec() const { return tElapsedSec; }
+    const std::string &SymbolName() const { return symbolName; }
 
-    const class AssertError &AssertError() { return assertError; };
+    const class AssertError &AssertError() const { return assertError; };
 
     // Setters
     void SetResult(kTestResult result) { this->testResult = result; }

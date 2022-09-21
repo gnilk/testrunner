@@ -19,9 +19,9 @@ public:
 public: // IDynLibrary
     bool Scan(std::string pathName) override;
     void *Handle() override;
-    std::vector<std::string> &Exports() override;
+    const std::vector<std::string> &Exports() const override;
     void *FindExportedSymbol(std::string funcName) override;
-    std::string &Name() override { return pathName; };
+    const std::string &Name() const override { return pathName; };
 
 private:
     bool Open();

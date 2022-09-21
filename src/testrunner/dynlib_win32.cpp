@@ -94,7 +94,7 @@ void *DynLibWin::FindExportedSymbol(std::string funcName) {
 //
 // Exports, returns all valid test functions
 //
-std::vector<std::string> &DynLibWin::Exports() {
+const std::vector<std::string> &DynLibWin::Exports() const {
     return exports;
 }
 

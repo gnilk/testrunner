@@ -47,8 +47,9 @@ list(APPEND srcfiles src/testrunner/asserterror.cpp)
 list(APPEND srcfiles src/testrunner/timer.cpp)
 
 # reporting
-list(APPEND srcfiles src/testrunner/reporting/reportingbase.h)
+list(APPEND srcfiles src/testrunner/reporting/reportingbase.h src/testrunner/reporting/reportingbase.cpp)
 list(APPEND srcfiles src/testrunner/reporting/reportjson.h src/testrunner/reporting/reportjson.cpp)
+list(APPEND srcfiles src/testrunner/reporting/reportjsonext.h src/testrunner/reporting/reportjsonext.cpp)
 list(APPEND srcfiles src/testrunner/reporting/reportconsole.h src/testrunner/reporting/reportconsole.cpp)
 
 

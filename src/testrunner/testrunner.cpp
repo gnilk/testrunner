@@ -3,7 +3,7 @@
  Author  : FKling
  Version : -
  Orginal : 2018-10-18
- Descr   : Core for running all test cases found within a module (shared library)
+ Descr   : Core for running all test cases found within a library (shared library)
 
  
  Part of testrunner
@@ -42,7 +42,7 @@
 //
 // TODO: REFACTOR THIS!!!!!!!!!!!
 // I want access to the current group of function under test from the test-response proxy in order to
-// allow pre/post hooks to be set on a per-module level...   problem is that the modules were implicitly defined
+// allow pre/post hooks to be set on a per-library level...   problem is that the modules were implicitly defined
 // in previous version and I really don't have time to properly refactor the code so that modules (lousy name)
 // become a prime citizen...
 
@@ -55,8 +55,8 @@ TestModule *TestRunner::HACK_GetCurrentTestModule() {
 
 //////--- Ok, let's go...
 
-TestRunner::TestRunner(IDynLibrary *module) {
-    this->module = module;
+TestRunner::TestRunner(IDynLibrary *library) {
+    this->library = library;
     this->pLogger = gnilk::Logger::GetLogger("TestRunner");
 }
 
@@ -65,8 +65,8 @@ TestRunner::TestRunner(IDynLibrary *module) {
 // ExecuteTests, will execute all tests exported for a library
 // Tests are executed according to the following rules:
 // 1) test_main is called, this is used to setup context for all other tests
-// 2) Global tests are called, this is tests without a module (note: a global case can't have '_' in case name)
-// 3) Module tests are called, following the pattern 'test_<module>_<case>'
+// 2) Global tests are called, this is tests without a library (note: a global case can't have '_' in case name)
+// 3) Module tests are called, following the pattern 'test_<library>_<case>'
 // 
 // Parsing rules states that a test named 'test_mymodule_case_a_with_parrot' will be treated like:
 //  Module: 'mymodule'
@@ -77,10 +77,10 @@ void TestRunner::ExecuteTests() {
     // Create and sort tests according to naming convention
 
     Timer t;
-    pLogger->Info("Starting module test for: %s", module->Name().c_str());
+    pLogger->Info("Starting library test for: %s", library->Name().c_str());
     t.Reset();
 
-    printf("---> Start Module  \t%s\n",module->Name().c_str());
+    printf("---> Start Module  \t%s\n", library->Name().c_str());
 
     // 1) Execute main
     if (ExecuteMain()) {
@@ -92,7 +92,7 @@ void TestRunner::ExecuteTests() {
         ExecuteMainExit();
     }
 
-    printf("<--- End Module  \t%s\n",module->Name().c_str());
+    printf("<--- End Module  \t%s\n", library->Name().c_str());
     pLogger->Info("Module done (%.3f sec)", t.Sample());
 }
 
@@ -155,7 +155,7 @@ bool TestRunner::ExecuteMainExit() {
 //
 bool TestRunner::ExecuteGlobalTests() {
     // 2) all other global scope tests
-    // Filtering in global tests is a bit different as the test func has no module.
+    // Filtering in global tests is a bit different as the test func has no library.
     bool bRes = true;
     if (!Config::Instance()->testModuleGlobals) {
         return bRes;
@@ -173,14 +173,14 @@ bool TestRunner::ExecuteGlobalTests() {
 }
 
 //
-// Execute module test
+// Execute library test
 //
 bool TestRunner::ExecuteModuleTests() {
     //
-    // 3) all modules, executing according to cmd line module specification
+    // 3) all modules, executing according to cmd line library specification
     //
     bool bRes = true;
-    pLogger->Info("Executing module tests");
+    pLogger->Info("Executing library tests");
 
     for (auto tmit:testModules) {
         TestModule *testModule = tmit.second;
@@ -194,17 +194,17 @@ bool TestRunner::ExecuteModuleTests() {
             pLogger->Debug("Tests for '%s' already executed, skipping",testModule->name.c_str());
             continue;
         }
-        // Execute global or if we match the module name
-        pLogger->Info("Executing tests for module: %s", testModule->name.c_str());
+        // Execute global or if we match the library name
+        pLogger->Info("Executing tests for library: %s", testModule->name.c_str());
 
-        // The module-main should execute here..
+        // The library-main should execute here..
 
         hack_glbCurrentTestModule = testModule;
         ExecuteModuleTestFuncs(testModule);
         testModule->bExecuted = true;
         hack_glbCurrentTestModule = NULL;
     } // modules
-    pLogger->Info("Done: module tests\n\n");
+    pLogger->Info("Done: library tests\n\n");
     return bRes;
 }
 
@@ -228,7 +228,7 @@ bool TestRunner::ExecuteModuleTestFuncs(TestModule *testModule) {
 
         if (result->Result() == kTestResult_ModuleFail) {
             if (Config::Instance()->skipOnModuleFail) {
-                pLogger->Info("Module test failure, skipping remaining test cases in module");
+                pLogger->Info("Module test failure, skipping remaining test cases in library");
                 goto leave;
             } else {
                 pLogger->Info("Module test failure, continue anyway (configuration)");
@@ -288,25 +288,20 @@ void TestRunner::ExecuteModuleExit(TestModule *testModule) {
 TestResult *TestRunner::ExecuteTest(TestFunc *f) {
     printf("=== RUN  \t%s\n",f->symbolName.c_str());
 
-    // Invoke pre-test hook, if set - this is usually done during test_main for a specific module
+    // Invoke pre-test hook, if set - this is usually done during test_main for a specific library
     if ((f->GetTestModule() != nullptr) && (f->GetTestModule()->cbPreHook != nullptr)) {
         f->GetTestModule()->cbPreHook(TestResponseProxy::GetInstance()->Proxy());
     }
 
     // Execute the test...
-    TestResult *result = f->Execute(module);
+    TestResult *result = f->Execute(library);
 
-    // Invoke post-test hook, if set - this is usually done during test_main for a specific module
+    // Invoke post-test hook, if set - this is usually done during test_main for a specific library
     if ((f->GetTestModule() != nullptr) && (f->GetTestModule()->cbPostHook != nullptr)) {
         f->GetTestModule()->cbPostHook(TestResponseProxy::GetInstance()->Proxy());
     }
 
-    ResultSummary::Instance().results.push_back(result);
-
-    ResultSummary::Instance().testsExecuted++;
-    if (result->Result() != kTestResult_Pass) {
-        ResultSummary::Instance().testsFailed++;
-    }
+    ResultSummary::Instance().AddResult(f);
     return result;
 }
 
@@ -328,22 +323,24 @@ void TestRunner::HandleTestResult(TestResult *result) {
 }
 
 //
-// PrepareTests, creates test functions and sorts the tests into global and/or module based tests
+// PrepareTests, creates test functions and sorts the tests into global and/or library based tests
 //
 void TestRunner::PrepareTests() {
 
-    pLogger->Info("Prepare tests in library: %s", module->Name().c_str());
-    for(auto x:module->Exports()) {
+    pLogger->Info("Prepare tests in library: %s", library->Name().c_str());
+    for(auto x:library->Exports()) {
 
         TestFunc *func = CreateTestFunc(x);
         if (func == nullptr) {
             continue;
         }
 
+        func->SetLibrary(library);
+
         std::string moduleName = func->moduleName;
         pLogger->Info("  Module: %s, case: %s, Symbol: %s", func->moduleName.c_str(), func->caseName.c_str(), x.c_str());
 
-        // Ok, this is the signature of the main function for a 'module' (group of functions)
+        // Ok, this is the signature of the main function for a 'library' (group of functions)
         if (moduleName == "-") {
             moduleName = func->caseName;
         }
@@ -357,7 +354,7 @@ void TestRunner::PrepareTests() {
             func->SetTestScope(TestFunc::kGlobal);
             globals.push_back(func);
         } else {
-            // These are module functions - and handled differently and with lower priority
+            // These are library functions - and handled differently and with lower priority
             auto tModule = GetOrAddModule(moduleName);
             if (func->IsGlobal()) {
                 func->SetTestScope(TestFunc::kModuleMain);
@@ -380,7 +377,7 @@ void TestRunner::PrepareTests() {
 
 TestModule *TestRunner::GetOrAddModule(std::string &moduleName) {
     TestModule *tModule = nullptr;
-    // Have module with this name????
+    // Have library with this name????
     auto it = testModules.find(moduleName);
     if (it == testModules.end()) {
         tModule = new TestModule(moduleName);
@@ -394,11 +391,11 @@ TestModule *TestRunner::GetOrAddModule(std::string &moduleName) {
 
 //
 // CreateTestFunc, creates a test function according to the following symbol rules
-//  test_<module>_<case>
+//  test_<library>_<case>
 //
 // A function with just 'test' will be discarded with a Warning
 //
-// 'module' - this is the code module you are testing, this can be used to filter out tests from cmd line
+// 'library' - this is the code library you are testing, this can be used to filter out tests from cmd line
 // 'case'   - this is the test case
 //
 TestFunc *TestRunner::CreateTestFunc(std::string symbol) {
@@ -408,8 +405,8 @@ TestFunc *TestRunner::CreateTestFunc(std::string symbol) {
     strutil::split(funcparts, symbol.c_str(), '_');
 
     if (funcparts.size() == 1) {
-        pLogger->Warning("Bare test function: '%s' (skipping), consider renaming: (test_<module>_<case>)", symbol.c_str());
-        return NULL;
+        pLogger->Warning("Bare test function: '%s' (skipping), consider renaming: (test_<library>_<case>)", symbol.c_str());
+        return nullptr;
     } else if (funcparts.size() == 2) {
         func = new TestFunc(symbol,"-", funcparts[1]);
     } else if (funcparts.size() == 3) {
@@ -431,22 +428,22 @@ TestFunc *TestRunner::CreateTestFunc(std::string symbol) {
 /*
  This will dump the test in a specific dynamic library
 
- Each module has a prefix:
+ Each library has a prefix:
  -  Excluded from execution due to command line parameters
  *  Will be executed
 
- After a module the test cases are listed, like:
+ After a library the test cases are listed, like:
  '  *m tfunc (_test_tfunc)'
  The first four characters are execution and type indicators
  *  Will be executed
- m  is module main
- e  is module exit
+ m  is library main
+ e  is library exit
     nothing - means will be skipped
 
 Example:
 * Module: mod
-  *m mod (_test_mod)                    <- this is the module main, hence the 'm'
-  *e exit (_test_mod_exit)              <- this is the module exit, hence the 'e'
+  *m mod (_test_mod)                    <- this is the library main, hence the 'm'
+  *e exit (_test_mod_exit)              <- this is the library exit, hence the 'e'
   *  mod::create (_test_mod_create)
   *  mod::dispose (_test_mod_dispose)
 - Module: pure

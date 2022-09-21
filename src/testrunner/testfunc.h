@@ -14,7 +14,7 @@
 class TestFunc;
 //
 // TestModule is a collection of testable functions
-//  test_<module>_<case>
+//  test_<library>_<case>
 //
 class TestModule {
 public:
@@ -47,7 +47,7 @@ public:
     std::vector<TestFunc *> testFuncs;
 };
 
-// The core structure defining a testable function which belongs to a test-module
+// The core structure defining a testable function which belongs to a test-library
 class TestFunc {
 public:
     typedef enum {
@@ -72,11 +72,14 @@ public:
     bool ShouldExecute();
 
     void SetTestModule(TestModule *_testModule) { testModule = _testModule; }
+    void SetLibrary(IDynLibrary *dynLibrary) { library = dynLibrary; }
     TestModule *GetTestModule() { return testModule; }
+    const IDynLibrary *Library() const { return library; }
 
     void SetTestScope(kTestScope scope) {
         testScope = scope;
     }
+    const TestResult *Result() const { return testResult; }
     kTestScope TestScope() { return testScope; }
 public:
     std::string symbolName;
@@ -88,8 +91,10 @@ private:
     gnilk::ILogger *pLogger;
     void HandleTestReturnCode();
 
+    IDynLibrary *library;
     TestModule *testModule;
     TestResponseProxy *trp;
+
 
     PTESTFUNC pFunc;
     int testReturnCode;

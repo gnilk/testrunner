@@ -35,7 +35,7 @@ struct ITesting {
     void (*Warning)(int line, const char *file, const char *format, ...); 
     // Errors - affect test execution
     void (*Error)(int line, const char *file, const char *format, ...); // Current test, proceed to next
-    void (*Fatal)(int line, const char *file, const char *format, ...); // Current test, stop module and proceed to next
+    void (*Fatal)(int line, const char *file, const char *format, ...); // Current test, stop library and proceed to next
     void (*Abort)(int line, const char *file, const char *format, ...); // Current test, stop execution
     // Asserts
     void (*AssertError)(const char *exp, const char *file, const int line);

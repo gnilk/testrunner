@@ -11,67 +11,65 @@
 
 void ResultsReportJSON::Begin() {
     fout = stdout;
-    fprintf(fout, "{\n");
+    WriteLine("{");
+    PushIndent();
 }
 void ResultsReportJSON::End() {
-    printf("\n");
-    fprintf(fout, "}\n");
+    WriteLine("");
+    PopIndent();
+    WriteLine("}");
 }
-void ResultsReportJSON::PrintSummary() {
-    fprintf(fout, "  \"Summary\":{\n");
-    fprintf(fout, "    \"DurationSec\":%f,\n", ResultSummary::Instance().durationSec);
-    fprintf(fout, "    \"TestsExecuted\":%d,\n", ResultSummary::Instance().testsExecuted);
-    fprintf(fout, "    \"TestsFailed\":%d\n", ResultSummary::Instance().testsFailed);
-    fprintf(fout, "  }");
-    bHadSummary = true;
 
+void ResultsReportJSON::PrintReport() {
+    PrintSummary();
+    PrintFailures(ResultSummary::Instance().Results());
+    if (Config::Instance()->printPassSummary) {
+        PrintPasses(ResultSummary::Instance().Results());
+    }
 }
-void ResultsReportJSON::PrintFailures(std::vector<TestResult *> &results) {
+
+void ResultsReportJSON::PrintSummary() {
+
+    WriteLine("\"Summary\":{");
+    PushIndent();
+    WriteLine("\"DurationSec\":%f,", ResultSummary::Instance().durationSec);
+    WriteLine("\"TestsExecuted\":%d,", ResultSummary::Instance().testsExecuted);
+    WriteLine("\"TestsFailed\":%d", ResultSummary::Instance().testsFailed);
+    PopIndent();
+    Write("}");
+    bHadSummary = true;
+}
+void ResultsReportJSON::PrintFailures(const std::vector<const TestResult *> &results) {
     if (bHadSuccess || bHadSummary) {
         fprintf(fout,",\n");
     }
 
-    fprintf(fout, "  \"Failures\":[\n");
-    static std::map<kTestResult, std::string> resultToName={
-            {kTestResult_Pass, "Pass"},
-            {kTestResult_AllFail, "AllFail"},
-            {kTestResult_ModuleFail,"ModuleFail"},
-            {kTestResult_TestFail, "TestFail"},
-    };
+    WriteLine("\"Failures\":[");
+    PushIndent();
     bool bNeedComma = false;
 
     for (auto r : results) {
         if (r->Result() != kTestResult_Pass) {
             if (bNeedComma) {
-                fprintf(fout, ",\n");
+                WriteNoIndent(",\n");
             }
-            // Only print this the first time if we have any...
-            fprintf(fout, "      {\n");
-            fprintf(fout, "         \"Status\":\"%s\",\n", resultToName[r->Result()].c_str());
-            fprintf(fout, "         \"Symbol\":\"%s\",\n", r->SymbolName().c_str());
-            if (r->AssertError().isValid) {
-                fprintf(fout, "         \"AssertValid\":true,\n");
-                fprintf(fout, "         \"Assert\": {\n");
-                fprintf(fout, "            \"File\": \"%s\",\n", r->AssertError().file.c_str());
-                fprintf(fout, "            \"Line\": %d,\n", r->AssertError().line);
-                fprintf(fout, "            \"Message\": \"%s\"\n", r->AssertError().message.c_str());
-                fprintf(fout, "         }\n");
-            } else {
-                fprintf(fout, "         \"AssertValid\":false\n");
-            }
-            fprintf(fout, "      }");
+            PrintTestResult(r);
             bNeedComma = true;
         }
     }
-    fprintf(fout, "\n");
-    fprintf(fout, "   ]");
+    PopIndent();
+    WriteLine("");
+    Write("]");
     bHadFailures = true;
 }
-void ResultsReportJSON::PrintPasses(std::vector<TestResult *> &results) {
+
+void ResultsReportJSON::PrintPasses(const std::vector<const TestResult *> &results) {
     if (bHadFailures || bHadSummary) {
-        fprintf(fout,",\n");
+        WriteNoIndent(",\n");
+        //fprintf(fout,",\n");
     }
-    fprintf(fout, "  \"Passes\":[\n");
+    WriteLine(R"("Passes":[)");
+    PushIndent();
     static std::map<kTestResult, std::string> resultToName={
             {kTestResult_Pass, "Pass"},
             {kTestResult_AllFail, "AllFail"},
@@ -85,18 +83,46 @@ void ResultsReportJSON::PrintPasses(std::vector<TestResult *> &results) {
             continue;
         }
         if (bNeedComma) {
-            fprintf(fout, ",\n");
+            WriteNoIndent(",\n");
         }
-
-        // Only print this the first time if we have any...
-        fprintf(fout, "      {\n");
-        fprintf(fout, "         \"Status\":\"%s\",\n", resultToName[r->Result()].c_str());
-        fprintf(fout, "         \"Symbol\":\"%s\"\n", r->SymbolName().c_str());
-        fprintf(fout, "      }");
+        PrintTestResult(r);
         bNeedComma = true;
     }
-    fprintf(fout, "\n");
-    fprintf(fout, "   ]");
+    PopIndent();
+    WriteLine("");
+    Write("]");
 
     bHadSuccess = true;
 }
+
+void ResultsReportJSON::PrintTestResult(const TestResult *result) {
+    // Only print this the first time if we have any...
+    static std::map<kTestResult, std::string> resultToName={
+            {kTestResult_Pass, "Pass"},
+            {kTestResult_AllFail, "AllFail"},
+            {kTestResult_ModuleFail,"ModuleFail"},
+            {kTestResult_TestFail, "TestFail"},
+    };
+    WriteLine("{");
+    PushIndent();
+    WriteLine(R"("Status" : "%s",)", resultToName[result->Result()].c_str());
+    WriteLine(R"("Symbol" : "%s",)", result->SymbolName().c_str());
+    WriteLine(R"("DurationSec" : %f,)", result->ElapsedTimeSec());
+    if (result->AssertError().isValid) {
+        WriteLine(R"("IsAssertValid" : true,)");
+        WriteLine(R"("Assert" : {)");
+        PushIndent();
+        WriteLine(R"("File" : "%s",)", result->AssertError().file.c_str());
+        WriteLine(R"("Line" : %d,)", result->AssertError().line);
+        WriteLine(R"("Message" : "%s")", result->AssertError().message.c_str());
+        PopIndent();
+        WriteLine("}");
+    } else {
+        WriteLine(R"("IsAssertValid" : false)");
+    }
+    PopIndent();
+    Write("}");
+
+}
+
+

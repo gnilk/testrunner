@@ -35,7 +35,7 @@ As Windows don't have a default place to store 3rd party include files you need 
 ## Basics
 The runner looks for exported functions within dynamic libraries. The exported function must match the following pattern:
 
-`test_<module>_<testcase>`
+`test_<library>_<testcase>`
 
 _NOTE:_ In order to use the testrunner on your project you must compile your project as a dynamic library. And for Windows you must explicitly mark functions for export.
 
@@ -43,8 +43,8 @@ _NOTE:_ In order to use the testrunner on your project you must compile your pro
 * Any test cased must be prefixed with 'test_' otherwise the runner will not pick them up
 * test_main, reserved for first function called in a test run (see test execution)
 * test_exit, reserved for last function called in a test run (see test execution)
-* test_abc (only one underscore), called module main, called first for a module
-* test_module_exit (special test case name), called last in a module run
+* test_abc (only one underscore), called library main, called first for a library
+* test_module_exit (special test case name), called last in a library run
 
 Do NOT use these reserved names (_main, _exit) for anything else.
 
@@ -52,13 +52,13 @@ Do NOT use these reserved names (_main, _exit) for anything else.
 The runner executes tests in the following order:
 1. test_main, always executed
 2. global functions (i.e. test_toplevel, just one underscore in name), can be switched off (-g)
-3. module functions
-   - module main (test_module)
-   - any other module function (test_module_XYZ)
-   - module exit (test_module_exit) 
+3. library functions
+   - library main (test_module)
+   - any other library function (test_module_XYZ)
+   - library exit (test_module_exit) 
 4. test_exit, always executed last
 
-The order of module functions can be controlled via the `-m` switch. Default is to test all modules (`-m -`) but it is possible to change the order like: `-m shared,-` this will first test the module `shared` before proceeding with all other modules.
+The order of library functions can be controlled via the `-m` switch. Default is to test all modules (`-m -`) but it is possible to change the order like: `-m shared,-` this will first test the library `shared` before proceeding with all other modules.
 
 ### Pass/Fail distinction
 Each test case should return `kTR_Pass` if no error occured. It is possible to discard the return code (`-r`) and the test runner will deduce the result based on interface call's.
@@ -75,11 +75,11 @@ The structure of the pass/fail output is:
 There are 5 result codes:
 - _0_, test pass (`kTestResult_Pass`)
 - _1_, test fail (`kTestResult_TestFail`)
-- _2_, module fail (`kTestResult_ModuleFail`)
+- _2_, library fail (`kTestResult_ModuleFail`)
 - _3_, all fail (`kTestResult_AllFail`)
 - _4_, not executed (`kTestResult_NotExecuted`) - not used
 
-_module fail_ means that a test case aborted any further testing of the current module.
+_module fail_ means that a test case aborted any further testing of the current library.
 
 _all fail_ means that a test case aborted all further testing for the current dylib.
 
@@ -94,7 +94,7 @@ struct ITesting {
     void (*Warning)(int line, const char *file, const char *format, ...); 
     // Errors - affect test execution
     void (*Error)(int line, const char *file, const char *format, ...); // Current test, proceed to next
-    void (*Fatal)(int line, const char *file, const char *format, ...); // Current test, stop module and proceed to next
+    void (*Fatal)(int line, const char *file, const char *format, ...); // Current test, stop library and proceed to next
     void (*Abort)(int line, const char *file, const char *format, ...); // Current test, stop execution
 };
 ```
@@ -112,8 +112,8 @@ Use it like:
 ```    
 
 ### Advanced functionality
-It is possible to register a pre/post callback hook for a test. You can/should set them in your module main. You can reset them (set to null) in your test exit.
-For instance assume you have a memory allocation tracking module and you want to make sure you are not leaking memory.
+It is possible to register a pre/post callback hook for a test. You can/should set them in your library main. You can reset them (set to null) in your test exit.
+For instance assume you have a memory allocation tracking library and you want to make sure you are not leaking memory.
 ```
     int test_module(ITesting *t) {
         // Setup callback's
@@ -133,13 +133,13 @@ For instance assume you have a memory allocation tracking module and you want to
         return kTR_Pass;
     }
     
-    // This will be called before any test case in this module
+    // This will be called before any test case in this library
     static void MyPreCase(ITesting *t) {
         // Reset statistics for every case before it's run
         MemoryTracker_Reset();
     }
     
-    // This will be called after any test cast in this module
+    // This will be called after any test cast in this library
     static void MyPostCase(ITesting *t) {
         // Dump results
         MemoryTracker_Dump();
@@ -173,7 +173,7 @@ extern "C" {
 		return kTR_Pass;
 	}
 
-    // module (shared) casde 'sleep' are called afterwards
+    // library (shared) casde 'sleep' are called afterwards
 	int test_shared_sleep(ITesting *t) {
 		t->Debug(__LINE__, __FILE__, "sleeping for 100ms");
 		t->Info(__LINE__, __FILE__, "this is an info message");
@@ -195,7 +195,7 @@ extern "C" {
 	}
 
 	int test_shared_b_fatal(ITesting *t) {
-		t->Fatal(__LINE__, __FILE__,"this is a fatal error (stop all further cases for module)");
+		t->Fatal(__LINE__, __FILE__,"this is a fatal error (stop all further cases for library)");
 		return kTR_FailModule;
 	}
 
@@ -236,14 +236,14 @@ Options:
   -d  Dump configuration before starting
   -S  Include success pass in summary when done (default: off)
   -D  Linux Only - disable RTLD_DEEPBIND
-  -g  Skip module globals (default: off)
+  -g  Skip library globals (default: off)
   -G  Skip global main (default: off)
   -s  Silent, surpress messages from test cases (default: off)
   -r  Discard return from test case (default: off)
-  -c  Continue on module failure (default: off)
+  -c  Continue on library failure (default: off)
   -C  Continue on total failure (default: off)
   -x  Don't execute tests (default: off)
-  -R  <name> Use reporting module (default: console)
+  -R  <name> Use reporting library (default: console)
   -m <list> List of modules to test (default: '-' (all))
   -t <list> List of test cases to test (default: '-' (all))
 
@@ -251,7 +251,7 @@ Input should be a directory or list of dylib's to be tested, default is current 
 </pre>
 
 ### Examples
-Be silent (`-s`) and continue even if a module fails `(-c)` or a global case fails (`-C`), test only cases in module `shared`.
+Be silent (`-s`) and continue even if a library fails `(-c)` or a global case fails (`-C`), test only cases in library `shared`.
 
 `bin/trun -scC -m shared .`
 
@@ -284,7 +284,7 @@ Failed:
   [Tma]: _test_pure_main
   [Tma]: _test_shared_a_error
   [Tma]: _test_shared_b_assert, /src/testrunner/src/exshared/exshared.cpp:39, 1 == 2
-  [tMa]: _test_shared_b_fatal, /src/testrunner/src/exshared/exshared.cpp:32, this is a fatal error (stop all further cases for module)
+  [tMa]: _test_shared_b_fatal, /src/testrunner/src/exshared/exshared.cpp:32, this is a fatal error (stop all further cases for library)
   [tmA]: _test_shared_c_abort, /src/testrunner/src/exshared/exshared.cpp:44, this is an abort error (stop any further testing)
 </pre>
 
@@ -317,7 +317,7 @@ This will give an indication of what tests the testrunner will execute.
  
  ... further output omitted...
 ```
-Each module is prefixed with
+Each library is prefixed with
 * `-` won't execute
 * `*` will execute
 
@@ -331,7 +331,7 @@ if the test case is a `test_main` or `test_exit` function.
 # Reporting
 The classic console output reporting has been extended to support reporting modules.  To list all available reporting modules run:
 `trun -R list`
-This will dump the list of reporting module and then exit the program (without running any tests).
+This will dump the list of reporting library and then exit the program (without running any tests).
 
 Currently (v1.1-DEV) the output would look like:
 ```
@@ -340,9 +340,9 @@ Reporting modules:
   json
 ```
 
-The default reporting module is `console` thus keeping with previous way of working.
+The default reporting library is `console` thus keeping with previous way of working.
 
-To specify another reporting module simply do: `trun -R json`. In order to make the report the only output
+To specify another reporting library simply do: `trun -R json`. In order to make the report the only output
 you can combine it with the silent (`-s`) switch, which will now suppress all output.
 
 ## JSON Format Example
@@ -389,7 +389,7 @@ JSON Format (some results omitted):
 ## v1.1
 - Internal refactoring and clean-up
 - Added ability to list test cases `-l` and not execute `-x`
-- Added reporting (-R <module>) default is the console.
+- Added reporting (-R <library>) default is the console.
 - Added suppression of stdout in silent mode (-s)
 ## v1.0
 - Test summary, default only failure (-S also lists success)
@@ -397,7 +397,7 @@ JSON Format (some results omitted):
 - macOS M1 (arm64) support
 - changed macOS to use Linux DL loader (through nm)
 ## v0.8
-- Special module exit function 'test_module_exit' for post-test-module teardown
+- Special library exit function 'test_module_exit' for post-test-library teardown
 
 ## v0.7
 - Special function 'test_exit' for post-test system teardown
@@ -416,7 +416,7 @@ JSON Format (some results omitted):
 - Added 'TR_ASSERT' macro for easier parameter checking
 
 ## v0.2
-- Added '-t' option to run specific tests in a module
+- Added '-t' option to run specific tests in a library
 
 ## v0.1
 First released version

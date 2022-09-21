@@ -15,7 +15,7 @@
 //
 class TestRunner {
 public:
-    explicit TestRunner(IDynLibrary *module);
+    explicit TestRunner(IDynLibrary *library);
     void PrepareTests();
     void ExecuteTests();
     void DumpTestsToRun();
@@ -36,7 +36,7 @@ private:
     TestModule *GetOrAddModule(std::string &module);
 
 private:
-    IDynLibrary *module = nullptr;
+    IDynLibrary *library = nullptr;
     gnilk::ILogger *pLogger = nullptr;
     std::map<std::string, TestModule *> testModules;
     std::vector<TestFunc *> globals;

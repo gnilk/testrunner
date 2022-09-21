@@ -29,7 +29,7 @@ extern "C" {
 	}
 	DLL_EXPORT int test_shared_b_fatal(ITesting *t) {
 		printf("test_shared_b_fatal, got called\n");
-		t->Fatal(__LINE__, __FILE__,"this is a fatal error (stop all further cases for module)");
+		t->Fatal(__LINE__, __FILE__,"this is a fatal error (stop all further cases for library)");
         printf("test_shared_b_fatal, THIS SHOULD NOT BE VISISLBE!\n");
 		return kTR_FailModule;
 	}
@@ -47,7 +47,7 @@ extern "C" {
 
 
 	DLL_EXPORT int test_mod(ITesting *t) {
-		t->Debug(__LINE__, __FILE__, "test_mod, module main got called");
+		t->Debug(__LINE__, __FILE__, "test_mod, library main got called");
 		return kTR_Pass;
 	}
 	DLL_EXPORT int test_mod_create(ITesting *t) {
@@ -59,7 +59,7 @@ extern "C" {
 		return kTR_Pass;
 	}
     DLL_EXPORT int test_mod_exit(ITesting *t) {
-        t->Debug(__LINE__, __FILE__, "test_mod_exit, module exit got called");
+        t->Debug(__LINE__, __FILE__, "test_mod_exit, library exit got called");
         return kTR_Pass;
     }
 

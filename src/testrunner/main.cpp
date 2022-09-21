@@ -16,10 +16,10 @@
  test_main  - reserved, if present it is the first function called, use for global context setup
  test_exit  - reserved, if present it is the last function called, global tear down
 
- test_<module>      - the main for a testable module (a module can be seen as a group of function)
-                      module main is called before any test case in the module/group
- test_<module>_exit - the exit for a testable module/group. called after all tests have been executed
- test_<module>_<case>   - a regular test case
+ test_<library>      - the main for a testable library (a library can be seen as a group of function)
+                      library main is called before any test case in the library/group
+ test_<library>_exit - the exit for a testable library/group. called after all tests have been executed
+ test_<library>_<case>   - a regular test case
 
 
  All code is BSD3 License!
@@ -96,14 +96,14 @@ static void Help() {
     printf("  -d  Dump configuration before starting\n");
     printf("  -S  Include success pass in summary when done (default: off)\n");
     printf("  -D  Linux Only - disable RTLD_DEEPBIND\n");
-    printf("  -g  Skip module globals (default: off)\n");
+    printf("  -g  Skip library globals (default: off)\n");
     printf("  -G  Skip global main (default: off)\n");
     printf("  -s  Silent, surpress messages from test cases (default: off)\n");
     printf("  -r  Discard return from test case (default: off)\n");
-    printf("  -c  Continue on module failure (default: off)\n");
+    printf("  -c  Continue on library failure (default: off)\n");
     printf("  -C  Continue on total failure (default: off)\n");
     printf("  -x  Don't execute tests (default: off)\n");
-    printf("  -R  <name> Use reporting module (default: console)\n");
+    printf("  -R  <name> Use reporting library (default: console)\n");
     printf("  -m <list> List of modules to test (default: '-' (all))\n");
     printf("  -t <list> List of test cases to test (default: '-' (all))\n");
     printf("\n");
@@ -188,7 +188,7 @@ static bool ParseArguments(int argc, char **argv) {
                         ParseTestCaseFilters(argv[++i]);
                         goto next_argument;
                     case 'm' :
-                        // Parse module filter
+                        // Parse library filter
                         ParseModuleFilters(argv[++i]);                        
                         goto next_argument;
                     case 'v' :
@@ -226,7 +226,7 @@ next_argument:;
         Config::Instance()->Dump();
         bContinue = false;
     }
-    // Special case here - if we specify list as the reporting module we just dump them and leave
+    // Special case here - if we specify list as the reporting library we just dump them and leave
     if (Config::Instance()->reportingModule == "list") {
         ResultSummary::Instance().ListReportingModules();
         bContinue = false;
@@ -249,7 +249,7 @@ static IDynLibrary *GetLibraryLoader() {
 }
 
 static void RunTestsForAllLibraries();
-static void RunTestsForLibrary(IDynLibrary &module);
+static void RunTestsForLibrary(IDynLibrary &library);
 
 // Populated by ScanLibraries
 static std::vector<IDynLibrary *> librariesToTest;
@@ -269,7 +269,7 @@ static void ScanLibraries(std::vector<std::string> &inputs) {
             if (res) {
                 if (scanner->Exports().size() > 0) {
 
-                    isLibraryFound = true;   // we found at least one module..
+                    isLibraryFound = true;   // we found at least one library..
                     //pLogger->Info("Executing tests for %s", x.c_str());
                     librariesToTest.push_back(scanner);
                 }
@@ -281,24 +281,24 @@ static void ScanLibraries(std::vector<std::string> &inputs) {
 }
 static void RunTestsForAllLibraries() {
     pLogger->Info("Running tests for all modules");
-    for(auto m : librariesToTest) {
-        RunTestsForLibrary(*m);
+    for(auto lib : librariesToTest) {
+        RunTestsForLibrary(*lib);
     }
 }
 
-static void RunTestsForLibrary(IDynLibrary &module) {
-    TestRunner testRunner(&module);
+static void RunTestsForLibrary(IDynLibrary &library) {
+    TestRunner testRunner(&library);
     testRunner.PrepareTests();
 
     if (Config::Instance()->executeTests) {
-        pLogger->Debug("Running tests for: %s", module.Name().c_str());
+        pLogger->Debug("Running tests for: %s", library.Name().c_str());
         testRunner.ExecuteTests();
     }
 }
-static void DumpTestsForLibrary(IDynLibrary &module) {
-    TestRunner testRunner(&module);
+static void DumpTestsForLibrary(IDynLibrary &library) {
+    TestRunner testRunner(&library);
     testRunner.PrepareTests();
-        printf("=== Library: %s\n", module.Name().c_str());
+        printf("=== Library: %s\n", library.Name().c_str());
     testRunner.DumpTestsToRun();
 }
 

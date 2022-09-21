@@ -10,9 +10,11 @@
 class ResultsReportConsole : public ResultsReportPinterBase {
 public:
     void Begin() override;
-    void PrintSummary() override;
-    void PrintFailures(std::vector<TestResult *> &results) override;
-    void PrintPasses(std::vector<TestResult *> &results) override;
+    void PrintReport() override;
+protected:
+    void PrintSummary();
+    void PrintFailures(const std::vector<const TestResult *> &results);
+    void PrintPasses(const std::vector<const TestResult *> &results);
 };
 
 #endif //TESTRUNNER_REPORTCONSOLE_H

@@ -230,7 +230,7 @@ TestResponseProxy *TestResponseProxy::GetInstance() {
     // NOTE: Figure out how this should work
     //       Where is threading occuring and who owns this
     //       Currently this function is called from the 'testfunc.cpp' where also threading
-    //       is happening. But that's not quite right. Instead a module should have this in order
+    //       is happening. But that's not quite right. Instead a library should have this in order
     //       to allow parallell testing of modules but not within modules!
     //       Currently all testing is purely sequentially executed so this does not matter!
 

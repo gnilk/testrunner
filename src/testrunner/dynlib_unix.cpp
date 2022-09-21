@@ -55,7 +55,7 @@ DynLibLinux::~DynLibLinux() {
 }
 
 //
-// Handle, returns a handle to the library for this module
+// Handle, returns a handle to the library for this library
 // NULL if not opened or failed to open
 //
 void *DynLibLinux::Handle() {
@@ -85,7 +85,7 @@ void *DynLibLinux::FindExportedSymbol(std::string funcName) {
 //
 // Exports, returns all valid test functions
 //
-std::vector<std::string> &DynLibLinux::Exports() {
+const std::vector<std::string> &DynLibLinux::Exports() const {
     return exports;
 }
 
@@ -128,7 +128,7 @@ bool DynLibLinux::Open() {
 
     int openFlags = RTLD_LAZY;
 
-    // NOTE: The RTLD_DEEPBIND will override the default symbol resolve mechanism causing module externals to be
+    // NOTE: The RTLD_DEEPBIND will override the default symbol resolve mechanism causing library externals to be
     //       in favor of hosting exe..  That is - if a symbol is defined twice (exe and lib) RTLD_DEEPBIND will
     //       prioritize the symbol belonging to the lib...
     //

@@ -86,7 +86,7 @@ void Config::Dump() {
     printf("  Test Main Global: %s\n", testGlobalMain?"yes":"no");
     printf("  TestCase Log Filter: %s\n", testLogFilter?"yes":"no");
     printf("  Response Message Size Limit: %d\n", responseMsgByteLimit);
-    printf("  Skip rest on module failure: %s\n", skipOnModuleFail?"yes":"no");
+    printf("  Skip rest on library failure: %s\n", skipOnModuleFail?"yes":"no");
     printf("  Stop on full failure: %s\n", stopOnAllFail?"yes":"no");
     printf("  Discard test return code: %s\n", discardTestReturnCode?"yes":"no");
     printf("  Modules:\n");

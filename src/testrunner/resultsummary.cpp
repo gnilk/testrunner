@@ -11,9 +11,10 @@
 #include "resultsummary.h"
 #include "reporting/reportingbase.h"
 
-// Include any reporting module we have
+// Include any reporting library we have
 #include "reporting/reportjson.h"
 #include "reporting/reportconsole.h"
+#include "reporting/reportjsonext.h"
 
 // Only one instance...
 static ResultSummary *glb_Instance = nullptr;
@@ -21,11 +22,12 @@ static ResultSummary *glb_Instance = nullptr;
 using ReportFactory = std::function<ResultsReportPinterBase *()>;
 
 // Add new reporting modules here
-// NOTE: Must be lowercase for module name - we are converting everything to lower case before lookup
+// NOTE: Must be lowercase for library name - we are converting everything to lower case before lookup
 // DO NOT USE THE SPECIAL NAME 'list'
 static std::map<std::string_view, ReportFactory > reportFactories = {
         {"console",[] () { return new ResultsReportConsole(); } },
         {"json",[] () { return new ResultsReportJSON(); } },
+        {"jsonext",[] () { return new ResultsReportJSONExtensive(); } },
 };
 
 void ResultSummary::PrintSummary(bool bPrintSuccess) {
@@ -37,7 +39,7 @@ void ResultSummary::PrintSummary(bool bPrintSuccess) {
     if (reportFactories.find(reportingModule) == reportFactories.end()) {
         // not found, or special name..
         if (reportingModule != "list") {
-            printf("ERR: No such reporting module '%s'\n", Config::Instance()->reportingModule.c_str());
+            printf("ERR: No such reporting library '%s'\n", Config::Instance()->reportingModule.c_str());
         }
         ListReportingModules();
         return;
@@ -50,11 +52,7 @@ void ResultSummary::PrintSummary(bool bPrintSuccess) {
     }
 
     reportInstance->Begin();
-    reportInstance->PrintSummary();
-    reportInstance->PrintFailures(results);
-    if (bPrintSuccess) {
-        reportInstance->PrintPasses(results);
-    }
+    reportInstance->PrintReport();
     reportInstance->End();
 }
 
@@ -65,6 +63,19 @@ void ResultSummary::ListReportingModules() {
     }
 }
 
+void ResultSummary::AddResult(TestFunc *tfunc) {
+    auto result = tfunc->Result();
+    testFunctions.push_back(tfunc);
+    results.push_back(result);
+
+    //results.push_back(tfunc->);
+
+    ResultSummary::Instance().testsExecuted++;
+    if (result->Result() != kTestResult_Pass) {
+        ResultSummary::Instance().testsFailed++;
+    }
+
+}
 
 ResultSummary &ResultSummary::Instance() {
     if (glb_Instance == nullptr) {

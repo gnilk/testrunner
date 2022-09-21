@@ -51,7 +51,7 @@ private:
     int errorCount;
 
     std::string symbolName; // current symbol under test
-    std::string moduleName; // current module under test
+    std::string moduleName; // current library under test
     gnilk::ILogger *pLogger;
 
     

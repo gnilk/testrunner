@@ -20,20 +20,17 @@
 //
 class BaseCommand;
 
-//
-// TODO: Split this to a spearate .h file for each module_xxx.cpp
-//
 class DynLibWin : public IDynLibrary {
 public:
     DynLibWin();
     virtual ~DynLibWin();
     
-public: // IModule
-    virtual void *Handle();    
-    virtual std::vector<std::string> &Exports();
-    virtual void *FindExportedSymbol(std::string funcName);
-    virtual bool Scan(std::string pathName);
-    virtual std::string &Name() { return pathName; };
+public: // IDynLibrary
+    void *Handle() override;
+    void *FindExportedSymbol(std::string funcName) override;
+    bool Scan(std::string pathName) override;
+    const std::vector<std::string> &Exports() const override;
+    const std::string &Name() const override { return pathName; };
 
 private:
     bool Open();

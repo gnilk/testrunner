@@ -15,7 +15,7 @@ static int test_mock_func(ITesting *t) {
     return kTR_Pass;
 }
 
-// This mock's a module loader and with a single function the 'test_mock_func'..
+// This mock's a library loader and with a single function the 'test_mock_func'..
 class ModuleMock : public IDynLibrary {
 public:
     ModuleMock() = default;
@@ -25,14 +25,14 @@ public:
     void *FindExportedSymbol(std::string funcName) override {
         return (void *) test_mock_func;
     }
-    std::vector<std::string> &Exports() override {
+    const std::vector<std::string> &Exports() const override {
         static std::vector<string> dummy={"test_mock_func"};
         return dummy;
     }
     bool Scan(std::string pathName) override {
         return true;
     }
-    std::string &Name() override {
+    const std::string &Name() const override {
         static std::string name = "mockmodule";
         return name;
     }

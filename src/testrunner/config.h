@@ -20,9 +20,9 @@ public:
     std::string version;
     std::string description;
     // the main func name is only for the global (all modules) main: 'test_main'
-    // the module main is simply the 'test_module()' - without a test case..
+    // the library main is simply the 'test_module()' - without a test case..
     std::string mainFuncName;   // Expected main function name after spliiting (default: 'main')
-    // the module exit function is: 'test_module_exit()' the global exit is 'test_exit'
+    // the library exit function is: 'test_module_exit()' the global exit is 'test_exit'
     std::string exitFuncName;   // Expected exit function name after spliiting (default: 'exit')
     std::string reportingModule;
     bool executeTests;

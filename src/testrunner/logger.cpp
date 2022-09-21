@@ -26,7 +26,7 @@
    ! Level filtering [sink levels]
    ! Global properties [early filtering]
    ! Introduce more debug levels to reduce noise
-   - Support for module exclusion/inclusion lists
+   - Support for library exclusion/inclusion lists
    ! Rolling file appender would be nice!
    - Support for threading
    - Unicode support...
@@ -724,7 +724,7 @@ void Logger::WriteReportString(int mc, char *string)
 	
 	TimeString(32, sTime);
 	// Create the special header string
-	// Format: "time [thread] msglevel module - "
+	// Format: "time [thread] msglevel library - "
 
 #ifdef WIN32
 	DWORD tid = 0;
