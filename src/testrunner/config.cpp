@@ -25,6 +25,7 @@
 #include "config.h"
 #include "logger.h"
 #include <string>
+#include "resultsummary.h"
 
 static Config *gblConfig = NULL;
 
@@ -49,6 +50,7 @@ Config::Config() {
     mainFuncName = "main";
     exitFuncName = "exit";
     reportingModule = "console";
+    reportIndent = 8;
     executeTests = true;
     listTests = false;
     printPassSummary = false;
@@ -88,7 +90,10 @@ void Config::Dump() {
     printf("  Response Message Size Limit: %d\n", responseMsgByteLimit);
     printf("  Skip rest on library failure: %s\n", skipOnModuleFail?"yes":"no");
     printf("  Stop on full failure: %s\n", stopOnAllFail?"yes":"no");
+    printf("  Silent mode: %s\n", suppressProgressMsg?"yes":"no");
     printf("  Discard test return code: %s\n", discardTestReturnCode?"yes":"no");
+    printf("  Reporting module: %s\n", reportingModule.c_str());
+    printf("  Reporting indent size: %d\n", reportIndent);
     printf("  Modules:\n");
     for(auto x:modules) {
         printf("    %s\n", x.c_str());
@@ -102,6 +107,7 @@ void Config::Dump() {
         printf("    %s\n", x.c_str());
 
     }
+    ResultSummary::Instance().ListReportingModules();
     printf("\n");
 
 }

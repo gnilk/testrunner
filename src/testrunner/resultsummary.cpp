@@ -30,7 +30,7 @@ static std::map<std::string_view, ReportFactory > reportFactories = {
         {"jsonext",[] () { return new ResultsReportJSONExtensive(); } },
 };
 
-void ResultSummary::PrintSummary(bool bPrintSuccess) {
+void ResultSummary::PrintSummary() {
 
     // strutil mutates the incoming string - let's not do that in this instance...
     auto reportingModule = std::string(Config::Instance()->reportingModule);
@@ -57,9 +57,9 @@ void ResultSummary::PrintSummary(bool bPrintSuccess) {
 }
 
 void ResultSummary::ListReportingModules() {
-    printf("Reporting modules:\n");
+    printf("  Reporting modules:\n");
     for(auto rm : reportFactories) {
-        printf("  %s\n", rm.first.data());
+        printf("    %s\n", rm.first.data());
     }
 }
 

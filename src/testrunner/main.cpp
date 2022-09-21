@@ -366,8 +366,9 @@ int main(int argc, char **argv) {
     // Reporting
     ResultSummary::Instance().durationSec = timer.Sample();
     if (Config::Instance()->executeTests) {
+        // This should probably go away - as we want full reporting in headless mode...
         if (ResultSummary::Instance().testsExecuted > 0) {
-            ResultSummary::Instance().PrintSummary(Config::Instance()->printPassSummary);
+            ResultSummary::Instance().PrintSummary();
         } else {
             // This should be made available in the report - in case we are running headless we want this in the JSON
             // output...

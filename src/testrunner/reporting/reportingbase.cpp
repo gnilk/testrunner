@@ -12,19 +12,19 @@ ResultsReportPinterBase::ResultsReportPinterBase() {
     indent = "";
 }
 void ResultsReportPinterBase::PushIndent() {
-    int nSpaces = 8;
-    for(int i=0;i<nSpaces;i++) {
+    size_t nSpaces = 8;
+    for(size_t i=0;i<nSpaces;i++) {
         indent.push_back(' ');
     }
 }
 void ResultsReportPinterBase::PopIndent() {
-    int nSpaces = 8;
+    size_t nSpaces = 8;
 
     if (indent.size() < nSpaces) {
         indent = "";
     }
 
-    for(int i=0;i<nSpaces;i++) {
+    for(size_t i=0;i<nSpaces;i++) {
         indent.pop_back();
     }
 }

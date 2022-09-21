@@ -8,7 +8,7 @@
 class ResultSummary {
 public:
     static ResultSummary &Instance();
-    void PrintSummary(bool bPrintSuccess);
+    void PrintSummary();
 
     void AddResult(TestFunc *tfunc);
     void ListReportingModules();

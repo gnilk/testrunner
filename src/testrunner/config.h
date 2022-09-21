@@ -25,6 +25,7 @@ public:
     // the library exit function is: 'test_module_exit()' the global exit is 'test_exit'
     std::string exitFuncName;   // Expected exit function name after spliiting (default: 'exit')
     std::string reportingModule;
+    int reportIndent;
     bool executeTests;
     bool listTests;
     bool printPassSummary;
