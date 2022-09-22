@@ -120,10 +120,11 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions);WIN32;_CRT_SECURE_NO_WARNINGS;_LIB</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions);WIN32;_CRT_SECURE_NO_WARNINGS;_LIB;WIN32_MEAN_AND_LEAN</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>
@@ -154,10 +155,14 @@
     <ClInclude Include="..\..\src\testrunner\asserterror.h" />
     <ClInclude Include="..\..\src\testrunner\config.h" />
     <ClInclude Include="..\..\src\testrunner\dirscanner.h" />
+    <ClInclude Include="..\..\src\testrunner\dynlib_win32.h" />
     <ClInclude Include="..\..\src\testrunner\logger.h" />
     <ClInclude Include="..\..\src\testrunner\logger_internal.h" />
-    <ClInclude Include="..\..\src\testrunner\module.h" />
-    <ClInclude Include="..\..\src\testrunner\module_win32.h" />
+    <ClInclude Include="..\..\src\testrunner\platform.h" />
+    <ClInclude Include="..\..\src\testrunner\reporting\reportconsole.h" />
+    <ClInclude Include="..\..\src\testrunner\reporting\reportingbase.h" />
+    <ClInclude Include="..\..\src\testrunner\reporting\reportjson.h" />
+    <ClInclude Include="..\..\src\testrunner\reporting\reportjsonext.h" />
     <ClInclude Include="..\..\src\testrunner\responseproxy.h" />
     <ClInclude Include="..\..\src\testrunner\resultsummary.h" />
     <ClInclude Include="..\..\src\testrunner\strutil.h" />
@@ -173,15 +178,19 @@
     <ClCompile Include="..\..\src\testrunner\asserterror.cpp" />
     <ClCompile Include="..\..\src\testrunner\config.cpp" />
     <ClCompile Include="..\..\src\testrunner\dirscanner_win32.cpp" />
+    <ClCompile Include="..\..\src\testrunner\dynlib_win32.cpp" />
     <ClCompile Include="..\..\src\testrunner\logger.cpp" />
-    <ClCompile Include="..\..\src\testrunner\module_win32.cpp" />
+    <ClCompile Include="..\..\src\testrunner\reporting\reportconsole.cpp" />
+    <ClCompile Include="..\..\src\testrunner\reporting\reportingbase.cpp" />
+    <ClCompile Include="..\..\src\testrunner\reporting\reportjson.cpp" />
+    <ClCompile Include="..\..\src\testrunner\reporting\reportjsonext.cpp" />
     <ClCompile Include="..\..\src\testrunner\responseproxy.cpp" />
     <ClCompile Include="..\..\src\testrunner\resultsummary.cpp" />
     <ClCompile Include="..\..\src\testrunner\strutil.cpp" />
     <ClCompile Include="..\..\src\testrunner\testfunc.cpp" />
     <ClCompile Include="..\..\src\testrunner\testresult.cpp" />
     <ClCompile Include="..\..\src\testrunner\testrunner.cpp" />
-    <ClCompile Include="..\..\src\testrunner\timer_win32.cpp" />
+    <ClCompile Include="..\..\src\testrunner\timer.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>

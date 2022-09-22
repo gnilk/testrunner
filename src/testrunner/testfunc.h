@@ -1,4 +1,5 @@
 #pragma once
+#include "platform.h"
 
 #include "dynlib.h"
 #include "config.h"

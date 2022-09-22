@@ -21,11 +21,11 @@
  
  ---------------------------------------------------------------------------*/
 
-#include "dirscanner.h"
-
-#include <string>
 #include <Windows.h>
 #include <winnt.h>
+
+#include <string>
+#include "dirscanner.h"
 
 
 //

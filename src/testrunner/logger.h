@@ -37,6 +37,8 @@ Changes:
 2005-12-12 | FKling          | memory leak, free generated debugstring
 
 ---------------------------------------------------------------------------*/
+#include "platform.h"
+
 #include <stdlib.h>
 #include <stdio.h>
 

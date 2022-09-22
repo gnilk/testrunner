@@ -1,5 +1,7 @@
 #pragma once
 
+#include "platform.h"
+
 #include "config.h"
 #include "logger.h"
 #include "testfunc.h"

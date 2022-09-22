@@ -1,6 +1,7 @@
 #pragma once
 
 #if defined(WIN32)
+#include "platform.h"
 #include <winnt.h>
 #endif
 #include <stdint.h>

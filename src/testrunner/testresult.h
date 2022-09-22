@@ -23,6 +23,7 @@
  
  ---------------------------------------------------------------------------*/
 
+#include "platform.h"
 #include <string>
 #include "asserterror.h"
 

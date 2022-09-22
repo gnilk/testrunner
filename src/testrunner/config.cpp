@@ -21,7 +21,6 @@
  - 2018.10.18, FKling, Implementation
  
  ---------------------------------------------------------------------------*/
-
 #include "config.h"
 #include "logger.h"
 #include <string>
