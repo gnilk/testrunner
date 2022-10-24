@@ -83,6 +83,7 @@ bool TestFunc::ShouldExecute() {
     if ((testScope == kModuleMain) || (testScope == kModuleExit)) {
         return Config::Instance()->testModuleGlobals;
     }
+
     for (auto tc:Config::Instance()->testcases) {
         if ((tc == "-") || (tc == caseName)) {
             return CheckDependenciesExecuted();
@@ -90,20 +91,40 @@ bool TestFunc::ShouldExecute() {
     }
     return false;
 }
+bool TestFunc::ShouldExecuteNoDeps() {
+    if (this->isExecuted) {
+        return false;
+    }
+    if ((testScope == kModuleMain) || (testScope == kModuleExit)) {
+        return Config::Instance()->testModuleGlobals;
+    }
+
+    for (auto tc:Config::Instance()->testcases) {
+        if ((tc == "-") || (tc == caseName)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 
 bool TestFunc::CheckDependenciesExecuted() {
     // Check dependencies
+    bool res = true;
     for (auto depName : dependencies) {
         auto depFun = testModule->TestCaseFromName(depName);
         if ((depFun == nullptr) || (depFun == this)) {
             printf("WARNING: Can't depend on yourself!!!!!\n");
             continue;
         }
+
         if (!depFun->isExecuted) {
+            if (!depFun->ShouldExecute()) {
+                pLogger->Warning("Case '%s' has dependency '%s' that won't be executed!!!", caseName.c_str(), depFun->caseName.c_str());
+            }
             return false;
         }
     }
-
     return true;
 }
 
@@ -245,6 +266,6 @@ bool TestFunc::Executed() {
 
 
 void TestFunc::SetDependencyList(const char *dependencyList) {
-    printf("Setting dependency for '%s' (%s) to: %s\n", caseName.c_str(), symbolName.c_str(), dependencyList);
+    pLogger->Debug("Setting dependency for '%s' (%s) to: %s\n", caseName.c_str(), symbolName.c_str(), dependencyList);
     strutil::split(dependencies, dependencyList, ',');
 }

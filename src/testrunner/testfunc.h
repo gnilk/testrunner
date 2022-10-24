@@ -38,6 +38,7 @@ public:
     bool Executed();
     void ExecuteAsync();
     bool ShouldExecute();
+    bool ShouldExecuteNoDeps();
     bool CheckDependenciesExecuted();
 
     void SetTestModule(TestModule *_testModule) { testModule = _testModule; }
@@ -46,6 +47,7 @@ public:
     const IDynLibrary *Library() const { return library; }
 
     void SetDependencyList(const char *dependencyList);
+    const std::vector<std::string> &Dependencies() const { return dependencies; }
 
     void SetTestScope(kTestScope scope) {
         testScope = scope;
@@ -112,6 +114,23 @@ public:
         for(auto func : testFuncs) {
             if (func->caseName == caseName) {
                 func->SetDependencyList(dependencyList);
+            }
+        }
+    }
+
+    void ResolveDependencies() {
+        auto pLogger = gnilk::Logger::GetLogger("TestModule");
+
+        for(auto testFunc : testFuncs) {
+            // Check if we should execute if it wasn't for dependencies
+            if (testFunc->ShouldExecuteNoDeps() && !testFunc->ShouldExecute()) {
+                for (auto &dep : testFunc->Dependencies()) {
+                    auto depFunc = TestCaseFromName(dep);
+                    if (!depFunc->ShouldExecute()) {
+                        pLogger->Info("Case '%s' has dependency '%s' added to execution list", testFunc->caseName.c_str(), dep.c_str());
+                        Config::Instance()->testcases.push_back(dep);       // Add this explicitly to execution list...
+                    }
+                }
             }
         }
     }

@@ -218,7 +218,13 @@ bool TestRunner::ExecuteModuleTestFuncs(TestModule *testModule) {
         }
     }
 
-    for(auto dummyTestFunc : testModule->testFuncs) {
+    // Resolve dependencies, this is after 'main' has run and they are now configured...
+    testModule->ResolveDependencies();
+
+
+    // Two passes, first pass will ensure dependencies have run, second pass the rest...
+    for(int pass = 0;pass<2;pass++) {
+        pLogger->Info("Pass: %d", pass);
         for (auto testFunc: testModule->testFuncs) {
             if (!testFunc->ShouldExecute()) {
                 continue;
@@ -375,6 +381,9 @@ void TestRunner::PrepareTests() {
             }
         }
     }
+
+    // Note: We can't resolve dependencies here as they are configured during library main
+
 }
 
 TestModule *TestRunner::GetOrAddModule(std::string &moduleName) {
