@@ -96,13 +96,18 @@ struct ITesting {
     void (*Error)(int line, const char *file, const char *format, ...); // Current test, proceed to next
     void (*Fatal)(int line, const char *file, const char *format, ...); // Current test, stop library and proceed to next
     void (*Abort)(int line, const char *file, const char *format, ...); // Current test, stop execution
+    // Hooks
+    void (*SetPreCaseCallback)(void(*)(ITesting *));
+    void (*SetPostCaseCallback)(void(*)(ITesting *));
+    // Dependency handling
+    void (*CaseDepends)(const char *caseName, const char *dependencyList);
 };
 ```
 
 ### Assert Macro
 There is an assert macro (TR_ASSERT) which works like a regular assert but is testinterface aware.
 Use it like:
-```
+```cpp
     int test_module_func(ITesting *t) {
         bool res = exeute_a_test();
         // Assert it's true
@@ -110,6 +115,34 @@ Use it like:
         return kTR_Pass;
     }
 ```    
+
+### Case dependencies
+Sometimes it is quite convienient to control order of test execution or ability to allow tests to depend on other tests.
+For instance reading data from a database depends on both the connection to DB having been established and the data written.
+Same for encoding/decoding. The decoder normally depends on having some encoding data written.
+
+This is configured in runtime during execution of the module/library main function.
+Like:
+```cpp
+int test_module(ITesting *t) {
+    t->CaseDepends("decoding", "encoding");
+    // Read depends on both write and connect
+    t->CaseDepends("read", "write,connect");
+    // Write depends only on connect
+    t->CaseDepends("write", "connect");
+    return kTR_Pass;
+}
+int test_module_endcoding(ITesting *t) {
+    // do encoding tests here
+    return kTR_Pass;
+}
+int test_module_decoding(ITesting *t) {
+    // do decoding tests here
+    return kTR_Pass;
+}
+```
+
+During execution the test-runner will ensure that the encoding test is being executed before the decoding test.
 
 ### Advanced functionality
 It is possible to register a pre/post callback hook for a test. You can/should set them in your library main. You can reset them (set to null) in your test exit.
@@ -386,6 +419,8 @@ JSON Format (some results omitted):
 <b>Note:</b> Passes are only reported IF you include it in the summary (`-S`).
 
 # Version history
+## v1.2-DEV
+- Added ability to configure dependencies between cases within a library
 ## v1.1
 - Internal refactoring and clean-up
 - Added ability to list test cases `-l` and not execute `-x`
