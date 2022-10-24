@@ -40,6 +40,7 @@ public: // ITesting mirroring
     void SetPreCaseCallback(TRUN_PRE_POST_HOOK_DELEGATE cbPreCase);
     void SetPostCaseCallback(TRUN_PRE_POST_HOOK_DELEGATE cbPostCase);
 
+    void CaseDepends(const char *caseName, const char *dependencyList);
 
 private:
     TestResponseProxy();

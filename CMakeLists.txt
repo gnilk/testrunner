@@ -58,6 +58,7 @@ list(APPEND testsrc src/testrunner/tests/test_timer.cpp)
 list(APPEND testsrc src/testrunner/tests/test_main.cpp)
 list(APPEND testsrc src/testrunner/tests/test_strutil.cpp)
 list(APPEND testsrc src/testrunner/tests/test_testfunc.cpp)
+list(APPEND testsrc src/testrunner/tests/test_depends.cpp)
 
 # Platform specific
 # Unix = Apple and Linux

@@ -13,40 +13,7 @@
 
 
 class TestFunc;
-//
-// TestModule is a collection of testable functions
-//  test_<library>_<case>
-//
-class TestModule {
-public:
-    TestModule(std::string _name) :
-        name(_name),
-        bExecuted(false),
-        mainFunc(nullptr),
-        exitFunc(nullptr),
-        cbPreHook(nullptr),
-        cbPostHook(nullptr) {};
-    bool Executed() { return bExecuted; }
-    bool ShouldExecute() {
-        for (auto m:Config::Instance()->modules) {
-            if ((m == "-") || (m == name)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-public:
-    std::string name;
-    bool bExecuted;
-    TestFunc *mainFunc;
-    TestFunc *exitFunc;
-
-    TRUN_PRE_POST_HOOK_DELEGATE *cbPreHook;
-    TRUN_PRE_POST_HOOK_DELEGATE *cbPostHook;
-
-    std::vector<TestFunc *> testFuncs;
-};
+class TestModule;
 
 // The core structure defining a testable function which belongs to a test-library
 class TestFunc {
@@ -71,11 +38,14 @@ public:
     bool Executed();
     void ExecuteAsync();
     bool ShouldExecute();
+    bool CheckDependenciesExecuted();
 
     void SetTestModule(TestModule *_testModule) { testModule = _testModule; }
     void SetLibrary(IDynLibrary *dynLibrary) { library = dynLibrary; }
     TestModule *GetTestModule() { return testModule; }
     const IDynLibrary *Library() const { return library; }
+
+    void SetDependencyList(const char *dependencyList);
 
     void SetTestScope(kTestScope scope) {
         testScope = scope;
@@ -96,9 +66,64 @@ private:
     TestModule *testModule;
     TestResponseProxy *trp;
 
+    std::vector<std::string> dependencies;
 
     PTESTFUNC pFunc;
     int testReturnCode;
     TestResult *testResult;
 
+};
+
+
+//
+// TestModule is a collection of testable functions
+//  test_<library>_<case>
+//
+class TestModule {
+public:
+    TestModule(std::string _name) :
+            name(_name),
+            bExecuted(false),
+            mainFunc(nullptr),
+            exitFunc(nullptr),
+            cbPreHook(nullptr),
+            cbPostHook(nullptr) {};
+    bool Executed() { return bExecuted; }
+    bool ShouldExecute() {
+        for (auto m:Config::Instance()->modules) {
+            if ((m == "-") || (m == name)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    TestFunc *TestCaseFromName(const std::string &caseName) {
+        for (auto func : testFuncs) {
+            if (func->caseName == caseName) {
+                return func;
+            }
+        }
+        return nullptr;
+    }
+
+    void SetDependencyForCase(const char *caseName, const char *dependencyList) {
+        std::string strName(caseName);
+        for(auto func : testFuncs) {
+            if (func->caseName == caseName) {
+                func->SetDependencyList(dependencyList);
+            }
+        }
+    }
+
+public:
+    std::string name;
+    bool bExecuted;
+    TestFunc *mainFunc;
+    TestFunc *exitFunc;
+
+    TRUN_PRE_POST_HOOK_DELEGATE *cbPreHook;
+    TRUN_PRE_POST_HOOK_DELEGATE *cbPostHook;
+
+    std::vector<TestFunc *> testFuncs;
 };

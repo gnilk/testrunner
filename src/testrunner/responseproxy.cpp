@@ -53,6 +53,7 @@ static void int_trp_abort(int line, const char *file, const char *format, ...);
 static void int_trp_assert_error(const char *exp, const char *file, int line);
 static void int_trp_hook_precase(TRUN_PRE_POST_HOOK_DELEGATE cbPreCase);
 static void int_trp_hook_postcase(TRUN_PRE_POST_HOOK_DELEGATE cbPostCase);
+static void int_trp_casedepend(const char *caseName, const char *dependencyList);
 
 // Holds a calling proxy per thread
 #ifdef WIN32
@@ -75,6 +76,7 @@ TestResponseProxy::TestResponseProxy() {
     this->trp->AssertError = int_trp_assert_error;
     this->trp->SetPreCaseCallback = int_trp_hook_precase;
     this->trp->SetPostCaseCallback = int_trp_hook_postcase;
+    this->trp->CaseDepends = int_trp_casedepend;
 }
 
 void TestResponseProxy::Begin(std::string symbolName, std::string moduleName) {
@@ -220,6 +222,15 @@ void TestResponseProxy::SetPostCaseCallback(TRUN_PRE_POST_HOOK_DELEGATE cbPostCa
     }
 }
 
+void TestResponseProxy::CaseDepends(const char *caseName, const char *dependencyList) {
+    printf("!!!!!!! SETTING DPENDENCY LIST for '%s' !!!!!!!!!!\n", caseName);
+    TestModule *testModule = TestRunner::HACK_GetCurrentTestModule();
+    if (testModule != nullptr) {
+        testModule->SetDependencyForCase(caseName, dependencyList);
+    }
+
+}
+
 
 
 static TestResponseProxy *glbResponseProxy = NULL;
@@ -341,3 +352,9 @@ static void int_trp_hook_postcase(TRUN_PRE_POST_HOOK_DELEGATE cbPostCase) {
     TestResponseProxy *trp = TestResponseProxy::GetInstance();
     trp->SetPostCaseCallback(cbPostCase);
 }
+
+static void int_trp_casedepend(const char *caseName, const char *dependencyList) {
+    TestResponseProxy *trp = TestResponseProxy::GetInstance();
+    trp->CaseDepends(caseName, dependencyList);
+}
+

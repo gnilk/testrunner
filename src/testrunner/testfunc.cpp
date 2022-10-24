@@ -37,6 +37,7 @@
 #include "config.h"
 #include "testrunner.h"
 #include "responseproxy.h"
+#include "strutil.h"
 #include <string>
 
 
@@ -76,16 +77,36 @@ bool TestFunc::IsModuleExit() {
 }
 
 bool TestFunc::ShouldExecute() {
+    if (this->isExecuted) {
+        return false;
+    }
     if ((testScope == kModuleMain) || (testScope == kModuleExit)) {
         return Config::Instance()->testModuleGlobals;
     }
     for (auto tc:Config::Instance()->testcases) {
         if ((tc == "-") || (tc == caseName)) {
-            return true;
+            return CheckDependenciesExecuted();
         }
     }
     return false;
 }
+
+bool TestFunc::CheckDependenciesExecuted() {
+    // Check dependencies
+    for (auto depName : dependencies) {
+        auto depFun = testModule->TestCaseFromName(depName);
+        if ((depFun == nullptr) || (depFun == this)) {
+            printf("WARNING: Can't depend on yourself!!!!!\n");
+            continue;
+        }
+        if (!depFun->isExecuted) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 
 void TestFunc::ExecuteAsync() {
     // 1) Setup test response proxy
@@ -220,4 +241,10 @@ void TestFunc::SetExecuted() {
 
 bool TestFunc::Executed() {
     return isExecuted;
+}
+
+
+void TestFunc::SetDependencyList(const char *dependencyList) {
+    printf("Setting dependency for '%s' (%s) to: %s\n", caseName.c_str(), symbolName.c_str(), dependencyList);
+    strutil::split(dependencies, dependencyList, ',');
 }

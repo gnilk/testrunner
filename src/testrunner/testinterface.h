@@ -42,6 +42,8 @@ struct ITesting {
     // Hooks
     void (*SetPreCaseCallback)(void(*)(ITesting *));
     void (*SetPostCaseCallback)(void(*)(ITesting *));
+    // Dependency handling
+    void (*CaseDepends)(const char *caseName, const char *dependencyList);
 };
 
 #ifdef __cplusplus

@@ -218,28 +218,30 @@ bool TestRunner::ExecuteModuleTestFuncs(TestModule *testModule) {
         }
     }
 
-    for(auto testFunc : testModule->testFuncs) {
-        if (!testFunc->ShouldExecute()) {
-            continue;
-        }
-
-        TestResult *result = ExecuteTest(testFunc);
-        HandleTestResult(result);
-
-        if (result->Result() == kTestResult_ModuleFail) {
-            if (Config::Instance()->skipOnModuleFail) {
-                pLogger->Info("Module test failure, skipping remaining test cases in library");
-                goto leave;
-            } else {
-                pLogger->Info("Module test failure, continue anyway (configuration)");
+    for(auto dummyTestFunc : testModule->testFuncs) {
+        for (auto testFunc: testModule->testFuncs) {
+            if (!testFunc->ShouldExecute()) {
+                continue;
             }
-        } else if (result->Result() == kTestResult_AllFail) {
-            if (Config::Instance()->stopOnAllFail) {
-                pLogger->Fatal("Total test failure, aborting");
-                bRes = false;
-                goto leave;   // Use goto to get status
-            } else {
-                pLogger->Info("Total test failure, continue anyway (configuration)");
+
+            TestResult *result = ExecuteTest(testFunc);
+            HandleTestResult(result);
+
+            if (result->Result() == kTestResult_ModuleFail) {
+                if (Config::Instance()->skipOnModuleFail) {
+                    pLogger->Info("Module test failure, skipping remaining test cases in library");
+                    goto leave;
+                } else {
+                    pLogger->Info("Module test failure, continue anyway (configuration)");
+                }
+            } else if (result->Result() == kTestResult_AllFail) {
+                if (Config::Instance()->stopOnAllFail) {
+                    pLogger->Fatal("Total test failure, aborting");
+                    bRes = false;
+                    goto leave;   // Use goto to get status
+                } else {
+                    pLogger->Info("Total test failure, continue anyway (configuration)");
+                }
             }
         }
     }
