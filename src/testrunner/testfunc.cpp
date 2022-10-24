@@ -110,7 +110,6 @@ bool TestFunc::ShouldExecuteNoDeps() {
 
 bool TestFunc::CheckDependenciesExecuted() {
     // Check dependencies
-    bool res = true;
     for (auto depName : dependencies) {
         auto depFun = testModule->TestCaseFromName(depName);
         if ((depFun == nullptr) || (depFun == this)) {
