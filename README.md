@@ -86,7 +86,7 @@ _all fail_ means that a test case aborted all further testing for the current dy
 ### ITesting interface
 
 The ITesting interface (see: `testinterface.h`) is the only argument supplied to the test case.
-```
+```cpp
 struct ITesting {
     // Just info output - doesn't affect test execution
     void (*Debug)(int line, const char *file, const char *format, ...); 
@@ -147,7 +147,7 @@ During execution the test-runner will ensure that the encoding test is being exe
 ### Advanced functionality
 It is possible to register a pre/post callback hook for a test. You can/should set them in your library main. You can reset them (set to null) in your test exit.
 For instance assume you have a memory allocation tracking library and you want to make sure you are not leaking memory.
-```
+```cpp
     int test_module(ITesting *t) {
         // Setup callback's
         t->SetPreCaseCallback(MyPreCase);
