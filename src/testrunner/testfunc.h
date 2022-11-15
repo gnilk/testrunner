@@ -8,6 +8,7 @@
 #include "responseproxy.h"
 #include "testinterface.h"
 #include "testhooks.h"
+#include "strutil.h"
 #include <string>
 
 
@@ -93,7 +94,7 @@ public:
     bool Executed() { return bExecuted; }
     bool ShouldExecute() {
         for (auto m:Config::Instance()->modules) {
-            if ((m == "-") || (m == name)) {
+            if ((m == "-") || (strutil::match(name, m))) {
                 return true;
             }
         }

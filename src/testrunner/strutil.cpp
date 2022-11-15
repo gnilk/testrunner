@@ -99,8 +99,8 @@ namespace strutil {
         bool isMatch = true;
 
         // forward search
-        int stringIndex = 0;
-        int patternIndex = 0;
+        size_t stringIndex = 0;
+        size_t patternIndex = 0;
         while(patternIndex < patternLen) {
             // printf("1: s[%d]='%c', p[%d]='%c'\n", stringIndex, string[stringIndex], patternIndex, pattern[patternIndex]);
             if (string[stringIndex] == pattern[patternIndex]) {

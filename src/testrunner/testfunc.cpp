@@ -85,7 +85,7 @@ bool TestFunc::ShouldExecute() {
     }
 
     for (auto tc:Config::Instance()->testcases) {
-        if ((tc == "-") || (tc == caseName)) {
+        if ((tc == "-") || (strutil::match(caseName, tc))) {
             return CheckDependenciesExecuted();
         }
     }
@@ -100,7 +100,7 @@ bool TestFunc::ShouldExecuteNoDeps() {
     }
 
     for (auto tc:Config::Instance()->testcases) {
-        if ((tc == "-") || (tc == caseName)) {
+        if ((tc == "-") || (strutil::match(caseName, tc))) {
             return true;
         }
     }
