@@ -8,6 +8,11 @@ extern "C" {
 DLL_EXPORT int test_tfunc(ITesting *t);
 DLL_EXPORT int test_tfunc_globals(ITesting *t);
 DLL_EXPORT int test_tfunc_exec(ITesting *t);
+DLL_EXPORT int test_tfunc_casefilter_simple(ITesting *t);
+DLL_EXPORT int test_tfunc_casefilter_splitmid(ITesting *t);
+DLL_EXPORT int test_tfunc_casefilter_trailing(ITesting *t);
+DLL_EXPORT int test_tfunc_modfilter_simple(ITesting *t);
+DLL_EXPORT int test_tfunc_modfilter_trailing(ITesting *t);
 }
 
 static int test_mock_func(ITesting *t) {
@@ -68,5 +73,65 @@ DLL_EXPORT int test_tfunc_exec(ITesting *t) {
     TR_ASSERT(t, testResult->Result() == kTestResult_Pass);
 
 
+    return kTR_Pass;
+}
+
+DLL_EXPORT int test_tfunc_casefilter_simple(ITesting *t) {
+    ModuleMock mockModule;
+    auto testCasesOrig = Config::Instance()->testcases;
+
+    Config::Instance()->testcases = {"func*"};
+    TestFunc func("test_mock_func", "mock", "funcflurp");
+    TR_ASSERT(t, func.ShouldExecute());
+
+    Config::Instance()->testcases = testCasesOrig;
+    return kTR_Pass;
+}
+
+DLL_EXPORT int test_tfunc_casefilter_splitmid(ITesting *t) {
+    ModuleMock mockModule;
+    auto testCasesOrig = Config::Instance()->testcases;
+
+    Config::Instance()->testcases = {"fn_*_case"};
+    TestFunc func("test_mock_func", "mock", "fn_test_case");
+    TR_ASSERT(t, func.ShouldExecute());
+
+    Config::Instance()->testcases = testCasesOrig;
+    return kTR_Pass;
+}
+
+DLL_EXPORT int test_tfunc_casefilter_trailing(ITesting *t) {
+    ModuleMock mockModule;
+    auto testCasesOrig = Config::Instance()->testcases;
+
+    Config::Instance()->testcases = {"*flurp"};
+    TestFunc func("test_mock_func", "mock", "funcflurp");
+    TR_ASSERT(t, func.ShouldExecute());
+
+    Config::Instance()->testcases = testCasesOrig;
+    return kTR_Pass;
+}
+
+DLL_EXPORT int test_tfunc_modfilter_simple(ITesting *t) {
+    ModuleMock mockModule;
+    auto modulesOrig = Config::Instance()->modules;
+
+    Config::Instance()->modules = {"base*"};
+    TestFunc func("test_mock_func", "basemod", "func");
+    TR_ASSERT(t, func.ShouldExecute());
+
+    Config::Instance()->modules = modulesOrig;
+    return kTR_Pass;
+}
+
+DLL_EXPORT int test_tfunc_modfilter_trailing(ITesting *t) {
+    ModuleMock mockModule;
+    auto modulesOrig = Config::Instance()->modules;
+
+    Config::Instance()->modules = {"*mod"};
+    TestFunc func("test_mock_func", "basemod", "func");
+    TR_ASSERT(t, func.ShouldExecute());
+
+    Config::Instance()->modules = modulesOrig;
     return kTR_Pass;
 }
