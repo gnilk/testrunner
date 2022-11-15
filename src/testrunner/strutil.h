@@ -8,4 +8,7 @@ namespace strutil {
     std::string &to_lower(std::string &str);
     std::string &to_upper(std::string &str);
     void split(std::vector<std::string> &strings, const char *strInput, int splitChar);
+
+    bool match(const std::string &string, const std::string &pattern);
+    bool match(const char *string, const char *pattern);
 }
