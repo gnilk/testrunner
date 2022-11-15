@@ -15,6 +15,7 @@ DLL_EXPORT int test_strutil_trimempty(ITesting *t);
 DLL_EXPORT int test_strutil_trimcustom(ITesting *t);
 DLL_EXPORT int test_strutil_split(ITesting *t);
 DLL_EXPORT int test_strutil_split2(ITesting *t);
+DLL_EXPORT int test_strutil_match(ITesting *t);
 }
 
 
@@ -57,5 +58,12 @@ DLL_EXPORT int test_strutil_trimcustom(ITesting *t) {
     std::string str("   \"dump\"  ");
     str = strutil::trim(str," \"\n");
     TR_ASSERT(t,str == "dump");
+    return kTR_Pass;
+}
+DLL_EXPORT int test_strutil_match(ITesting *t) {
+    TR_ASSERT(t, strutil::match("funcflurp", "*flurp"));
+    TR_ASSERT(t, strutil::match("mod_apa_bpa", "mod_*_bpa"));
+    TR_ASSERT(t, strutil::match("mod_apa_bpa", "mod*"));
+    TR_ASSERT(t, !strutil::match("mod_apa_bpa", "mod_bpa_*"));
     return kTR_Pass;
 }
