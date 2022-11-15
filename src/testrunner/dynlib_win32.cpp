@@ -218,7 +218,7 @@ bool DynLibWin::Open() {
         char buffer[256];
         GetCurrentDirectory(256, buffer);
         PrintWin32Error(pLogger, (char *)"Final LoadLibrary failed");
-        pLogger->Debug("Tried loading from: %s\n", buffer);
+        pLogger->Debug("Tried loading: '%s' from: '%s'\n", pathName.c_str(), buffer);
         pLogger->Debug("Hint: If you are mixing build envs. MSVC and GCC/CLang this might lead to dependencies not found");
         return false;
     }
