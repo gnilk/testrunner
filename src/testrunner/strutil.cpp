@@ -86,68 +86,50 @@ namespace strutil {
     }
 
 //
-// Linear search pattern matching with wild-card...
+// Simplified 'fnmatch' can't handle multiple search terms like: '*test*func'
 //
-// Note: the pattern can't contain the wild-card (i.e. no support for escaping)
-//
-// This can probably be done a gazillion times faster but this works as I want it to and there are no hard
-// performance requirements in my use case...
-//
-    bool match(const char *string, const char *pattern) {
-        auto stringLen = strlen(string);
-        auto patternLen = strlen(pattern);
+    bool match(const char *str, const char *pattern) {
+        const char *ptrString = str;
+        const char *ptrPattern = pattern;
 
-        bool isMatch = true;
+        char c,p;
+        while((c = *ptrString) != '\0') {
+            p = *ptrPattern;
 
-        // forward search
-        size_t stringIndex = 0;
-        size_t patternIndex = 0;
-        while(patternIndex < patternLen) {
-            // printf("1: s[%d]='%c', p[%d]='%c'\n", stringIndex, string[stringIndex], patternIndex, pattern[patternIndex]);
-            if (string[stringIndex] == pattern[patternIndex]) {
-                stringIndex++;
-                patternIndex++;
-                // String is at an end...
-                if (stringIndex == stringLen) {
-                    // if pattern is also ending, we have a match, otherwise not...
-                    if (patternIndex == patternLen) {
-                        isMatch = true;
-                    } else {
-                        isMatch = false;
+            switch(p) {
+                case '*' :
+                    if (*(ptrPattern + 1) == '\0') {
+                        return true;
                     }
-                    break;
-                }
-                continue;
-            }
+                    ptrPattern++;
 
-            // Is this the wildcard???
-            if (pattern[patternIndex] != '*') {
-                return false;
+                    // This is should be modified to handle multiple search terms...
+                    while((*ptrPattern != *ptrString) && (*ptrString != '\0')) {
+                        ptrString++;
+                    }
+
+                    // Now recursively search for next match and then proceed...
+                    while(*ptrString != '\0') {
+                        if (match(ptrString, ptrPattern)) {
+                            break;
+                        }
+                        ptrString++;
+                    }
+
+                    if (*ptrString == '\0') {
+                        return false;
+                    }
+                    continue;
+                    break;
+                default :
+                    if (p != c) {
+                        return false;
+                    }
             }
-            // Last char???
-            if (patternIndex == (patternLen-1)) {
-                return true;
-            }
-            // printf("WC '*', search catch-up\n");
-            // This was the last char, so let's tag the string as matched..
-            // next char
-            patternIndex++;
-            // Pattern continues, we should check if we 'catch up' from 'i'...
-            while(stringIndex<stringLen) {
-                // printf("2: s[%d]='%c', p[%d]='%c'\n", stringIndex, string[stringIndex], patternIndex, pattern[patternIndex]);
-                // pattern and string are rematched, continue from here...
-                if (string[stringIndex] == pattern[patternIndex]) {
-                    // printf("String rematch, go back to start...\n");
-                    goto cntsearch;
-                }
-                stringIndex++;
-            }
-            isMatch = false;
-            // if we get here, the strings never matched up again and we should quit...
-            break;
-            cntsearch:;
+            ptrPattern++;
+            ptrString++;
         }
-        return isMatch;
+        return true;
     }
 
     bool match(const std::string &string, const std::string &pattern) {
