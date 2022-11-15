@@ -23,6 +23,7 @@
 
 #include <string>
 #include <vector>
+#include <string.h>
 #include "strutil.h"
 
 namespace strutil {
