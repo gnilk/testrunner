@@ -117,6 +117,7 @@ static void Help() {
     printf("  -t <list> List of test cases to test (default: '-' (all))\n");
     printf("\n");
     printf("Input should be a directory or list of dylib's to be tested, default is current directory ('.')\n");
+    printf("Module and test case list can use wild cards, like: -m encode -t json*\n");
     printf("\n");
 }
 static void ParseModuleFilters(char *filterstring) {

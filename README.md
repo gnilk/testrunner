@@ -281,6 +281,7 @@ Options:
   -t <list> List of test cases to test (default: '-' (all))
 
 Input should be a directory or list of dylib's to be tested, default is current directory ('.')
+Module and test case list can use wild cards, like: -m encode -t json*
 </pre>
 
 ### Examples
@@ -421,6 +422,7 @@ JSON Format (some results omitted):
 # Version history
 ## v1.2-DEV
 - Added ability to configure dependencies between cases within a library
+- Added wild cards for modules and test case specification on cmd line
 ## v1.1
 - Internal refactoring and clean-up
 - Added ability to list test cases `-l` and not execute `-x`
