@@ -139,7 +139,7 @@ bool LogBaseSink::WithinRange(int iDbgLevel)
 //
 ILogOutputSink *LogConsoleSink::CreateInstance([[maybe_unused]]const char *className)
 {
-	return dynamic_cast<ILogOutputSink *>(new LogConsoleSink());
+	return static_cast<ILogOutputSink *>(new LogConsoleSink());
 }
 
 void LogConsoleSink::Initialize(int argc, char **argv)
@@ -188,7 +188,7 @@ LogFileSink::~LogFileSink()
 
 ILogOutputSink *LogFileSink::CreateInstance([[maybe_unused]]const char *className)
 {
-	return dynamic_cast<ILogOutputSink *>(new LogFileSink());
+	return static_cast<ILogOutputSink *>(new LogFileSink());
 }
 
 void LogFileSink::ParseArgs(int argc, char **argv)
@@ -290,7 +290,7 @@ LogRollingFileSink::~LogRollingFileSink()
 }
 ILogOutputSink *LogRollingFileSink::CreateInstance([[maybe_unused]]const char *className)
 {
-	return dynamic_cast<ILogOutputSink *>(new LogRollingFileSink());
+	return static_cast<ILogOutputSink *>(new LogRollingFileSink());
 }
 
 char *LogRollingFileSink::GetFileName(char *dst, int idx)
@@ -549,7 +549,7 @@ void Logger::SetAllSinkDebugLevel(int iNewDebugLevel)
 // Without initialization
 void Logger::AddSink(ILogOutputSink *pSink, const char *sName)
 {
-	LogBaseSink *pBase = dynamic_cast<LogBaseSink *> (pSink);
+	LogBaseSink *pBase = static_cast<LogBaseSink *> (pSink);
 	if (pBase != NULL) {
 		pBase->SetName(sName);
 	}
@@ -595,7 +595,7 @@ void Logger::RebuildSinksFromConfiguration()
 		std::string sinkName = arAppenders[i] + ".class";
 		if (properties.GetValue(sinkName.c_str(), className, 256, NULL)) 
 		{
-			LogBaseSink *pSink = dynamic_cast<LogBaseSink *>(CreateSink(className));
+			LogBaseSink *pSink = static_cast<LogBaseSink *>(CreateSink(className));
 			if (pSink != NULL)
 			{
 				// 1) Extract all known properties and put to sink
@@ -726,14 +726,18 @@ void Logger::WriteReportString(int mc, char *string)
 	// Create the special header string
 	// Format: "time [thread] msglevel library - "
 
-#ifdef WIN32
-	DWORD tid = 0;
-	tid = GetCurrentThreadId();	
-	snprintf(sHdr, MAX_INDENT + 64, "%s [%.8x] %8s %32s - %s", sTime, (unsigned int)tid, sLevel, sName, sIndent);
+#if defined(TRUN_EMBEDDED_MCU)
+    snprintf(sHdr, MAX_INDENT + 64, "%s [%.8x] %8s %32s - %s", sTime, (unsigned int)0, sLevel, sName, sIndent);
 #else
-	//void *tid = NULL;
-	pthread_t tid = pthread_self();	
-	snprintf(sHdr, MAX_INDENT + 64, "%s [%p] %8s %32s - %s", sTime, (void *)tid, sLevel, sName, sIndent);
+    #if defined(WIN32)
+	    DWORD tid = 0;
+	    tid = GetCurrentThreadId();
+	    snprintf(sHdr, MAX_INDENT + 64, "%s [%.8x] %8s %32s - %s", sTime, (unsigned int)tid, sLevel, sName, sIndent);
+    #else
+	    //void *tid = NULL;
+	    pthread_t tid = pthread_self();
+	    snprintf(sHdr, MAX_INDENT + 64, "%s [%p] %8s %32s - %s", sTime, (void *)tid, sLevel, sName, sIndent);
+    #endif
 #endif
 
 	// gnilk, 2018-10-18, Combine with flags here - does not affect higher level API

@@ -234,7 +234,9 @@ next_argument:;
     bool bContinue = true;
     if (dumpConfig || (Config::Instance()->verbose > 1)) {
         Config::Instance()->Dump();
-        bContinue = false;
+        if (dumpConfig) {
+            bContinue = false;
+        }
     }
     // Special case here - if we specify list as the reporting library we just dump them and leave
     if (Config::Instance()->reportingModule == "list") {
