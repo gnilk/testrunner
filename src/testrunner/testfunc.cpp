@@ -159,7 +159,7 @@ void TestFunc::ExecuteAsync() {
 // Pthread wrapper..
 static void *testfunc_thread_starter(void *arg) {
     TestFunc *func = reinterpret_cast<TestFunc*>(arg);
-    func->ExecuteAsync();
+    func->ExecuteSync();
     return NULL;
 }
 
