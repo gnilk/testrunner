@@ -1,8 +1,8 @@
 #pragma once
 
-#include "logger.h"
-#include "testinterface.h"
-#include "dynlib.h"
+#include "../logger.h"
+#include "../testinterface.h"
+#include "../dynlib.h"
 
 
 #include <stdint.h>

@@ -25,12 +25,13 @@
  
  ---------------------------------------------------------------------------*/
 
-#include "dynlib.h"
-#include "dynlib_unix.h"
-#include "strutil.h"
-#include "logger.h"
+#include "../dynlib.h"
+#include "../strutil.h"
+#include "../logger.h"
+#include "../config.h"
+
 #include "process.h"
-#include "config.h"
+#include "dynlib_unix.h"
 
 #include <dlfcn.h>
 

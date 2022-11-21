@@ -59,7 +59,7 @@ public:
 #include <stdlib.h>
 #include <stdarg.h>
 
-#include "logger.h"
+#include "../logger.h"
 #include "process.h"
 
 

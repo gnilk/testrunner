@@ -6,7 +6,7 @@
 #include "../config.h"
 #include "../testinterface.h"
 #include "../dynlib.h"
-#include "../dynlib_unix.h"
+#include "../unix/dynlib_unix.h"
 
 extern "C" {
 DLL_EXPORT int test_module(ITesting *t);

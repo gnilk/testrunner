@@ -23,7 +23,7 @@
  
  ---------------------------------------------------------------------------*/
 
-#include "dirscanner.h"
+#include "../dirscanner.h"
 #include <string.h>
 #include <string>
 #include <sys/types.h>

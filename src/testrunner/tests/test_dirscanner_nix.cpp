@@ -4,6 +4,8 @@
 #include "../testinterface.h"
 #include "../dirscanner.h"
 
+using namespace trun;
+
 extern "C" {
     DLL_EXPORT int test_dirscan(ITesting *t);
     DLL_EXPORT int test_dirscan_scan(ITesting *t);
