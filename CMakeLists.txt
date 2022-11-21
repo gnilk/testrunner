@@ -48,9 +48,14 @@ list(APPEND srcfiles src/testrunner/timer.cpp)
 
 # reporting
 list(APPEND srcfiles src/testrunner/reporting/reportingbase.h src/testrunner/reporting/reportingbase.cpp)
-list(APPEND srcfiles src/testrunner/reporting/reportjson.h src/testrunner/reporting/reportjson.cpp)
-list(APPEND srcfiles src/testrunner/reporting/reportjsonext.h src/testrunner/reporting/reportjsonext.cpp)
 list(APPEND srcfiles src/testrunner/reporting/reportconsole.h src/testrunner/reporting/reportconsole.cpp)
+
+list(APPEND rprtsrcfiles src/testrunner/reporting/reportjsonext.h src/testrunner/reporting/reportjsonext.cpp)
+list(APPEND rprtsrcfiles src/testrunner/reporting/reportjson.h src/testrunner/reporting/reportjson.cpp)
+
+# embedded
+list(APPEND embedsrc src/testrunner/dynlib_embedded.cpp src/testrunner/dynlib_embedded.h)
+list(APPEND embedsrc src/testrunner/trunembedded.cpp src/testrunner/trunembedded.h)
 
 
 # add unit tests
@@ -63,10 +68,9 @@ list(APPEND testsrc src/testrunner/tests/test_depends.cpp)
 # Platform specific
 # Unix = Apple and Linux
 if (UNIX)
-    # list(APPEND srcfiles src/testrunner/module_mac.cpp)
-    list(APPEND srcfiles src/testrunner/dirscanner_unix.cpp)
-    list(APPEND srcfiles src/testrunner/dynlib_unix.cpp)
-    list(APPEND srcfiles src/testrunner/process.cpp)
+    list(APPEND execsrcfiles src/testrunner/dirscanner_unix.cpp)
+    list(APPEND execsrcfiles src/testrunner/dynlib_unix.cpp)
+    list(APPEND execsrcfiles src/testrunner/process.cpp)
 
     # add mac specific unit test src
     list(APPEND testsrc src/testrunner/tests/test_module_nix.cpp)
@@ -79,24 +83,43 @@ if (UNIX)
     endif()
 
 elseif(WIN32)
-    list(APPEND srcfiles src/testrunner/dynlib_win32.cpp)
-    list(APPEND srcfiles src/testrunner/dirscanner_win32.cpp)
+    list(APPEND execsrcfiles src/testrunner/dynlib_win32.cpp)
+    list(APPEND execsrcfiles src/testrunner/dirscanner_win32.cpp)
 
     add_definitions(-DWIN32_LEAN_AND_MEAN)
 endif()
 
 
 # Create executeable
-add_executable(trun src/testrunner/main.cpp ${srcfiles})
+add_executable(trun src/testrunner/main.cpp ${srcfiles} ${execsrcfiles} ${rprtsrcfiles})
+target_compile_definitions(trun PUBLIC TRUN_HAVE_EXT_REPORTING)
 target_include_directories(trun PRIVATE inc)
 target_include_directories(trun PRIVATE .)
 set_property(TARGET trun PROPERTY CXX_STANDARD 17)
 
 # Create unit-test library
-add_library(trun_utests SHARED ${srcfiles} ${testsrc})
+add_library(trun_utests SHARED ${srcfiles} ${testsrc} ${rprtsrcfiles} ${execsrcfiles})
+target_compile_definitions(trun PUBLIC TRUN_HAVE_EXT_REPORTING)
 target_include_directories(trun_utests PRIVATE inc)
 target_include_directories(trun_utests PRIVATE .)
 set_property(TARGET trun_utests PROPERTY CXX_STANDARD 17)
+
+#
+# Create the library for embedding trun functionality in your executeable
+# Note: The embedded library DO NOT include extended reporting (JSON/JSONExt)
+#
+add_library(trunlib STATIC ${srcfiles} ${embedsrc})
+target_include_directories(trunlib PRIVATE inc)
+target_include_directories(trunlib PRIVATE .)
+set_property(TARGET trunlib PROPERTY CXX_STANDARD 17)
+
+#
+# Build the embedded example
+#
+add_executable(trunembedded src/exembedded/main_embedded.cpp)
+target_include_directories(trunembedded PUBLIC ${CMAKE_SOURCE_DIR})
+
+
 
 include(GNUInstallDirs)
 
@@ -126,6 +149,8 @@ endif()
 
 target_link_libraries(trun ${platformlibs})
 target_link_libraries(trun_utests ${platformlibs})
+target_link_libraries(trunlib)
+target_link_libraries(trunembedded trunlib ${platformlibs})
 
 #
 # This custom target depends also on 'trun' directly - so we build the test runner and run the unit tests with it..

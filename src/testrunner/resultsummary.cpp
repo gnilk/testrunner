@@ -12,9 +12,13 @@
 #include "reporting/reportingbase.h"
 
 // Include any reporting library we have
-#include "reporting/reportjson.h"
 #include "reporting/reportconsole.h"
+
+// This is defined for the console application but not for the embedded library (default)
+#if defined(TRUN_HAVE_EXT_REPORTING)
+#include "reporting/reportjson.h"
 #include "reporting/reportjsonext.h"
+#endif
 
 // Only one instance...
 static ResultSummary *glb_Instance = nullptr;
@@ -26,8 +30,10 @@ using ReportFactory = std::function<ResultsReportPinterBase *()>;
 // DO NOT USE THE SPECIAL NAME 'list'
 static std::map<std::string_view, ReportFactory > reportFactories = {
         {"console",[] () { return new ResultsReportConsole(); } },
+#if defined(TRUN_HAVE_EXT_REPORTING)
         {"json",[] () { return new ResultsReportJSON(); } },
         {"jsonext",[] () { return new ResultsReportJSONExtensive(); } },
+#endif
 };
 
 void ResultSummary::PrintSummary() {
