@@ -93,6 +93,7 @@ endif()
 # Create executeable
 add_executable(trun src/testrunner/main.cpp ${srcfiles} ${execsrcfiles} ${rprtsrcfiles})
 target_compile_definitions(trun PUBLIC TRUN_HAVE_EXT_REPORTING)
+target_compile_definitions(trun PUBLIC TRUN_HAVE_THREADS)
 target_include_directories(trun PRIVATE inc)
 target_include_directories(trun PRIVATE .)
 set_property(TARGET trun PROPERTY CXX_STANDARD 17)
@@ -100,13 +101,16 @@ set_property(TARGET trun PROPERTY CXX_STANDARD 17)
 # Create unit-test library
 add_library(trun_utests SHARED ${srcfiles} ${testsrc} ${rprtsrcfiles} ${execsrcfiles})
 target_compile_definitions(trun PUBLIC TRUN_HAVE_EXT_REPORTING)
+target_compile_definitions(trun PUBLIC TRUN_HAVE_THREADS)
 target_include_directories(trun_utests PRIVATE inc)
 target_include_directories(trun_utests PRIVATE .)
 set_property(TARGET trun_utests PROPERTY CXX_STANDARD 17)
 
 #
 # Create the library for embedding trun functionality in your executeable
-# Note: The embedded library DO NOT include extended reporting (JSON/JSONExt)
+# Note: The embedded library DO NOT include
+# - extended reporting (JSON/JSONExt)
+# - threading of tests
 #
 add_library(trunlib STATIC ${srcfiles} ${embedsrc})
 target_include_directories(trunlib PRIVATE inc)

@@ -20,11 +20,11 @@ namespace trun {
         isInitialized = true;
     }
 
-    void AddTestCase(std::string symbolName, PTESTFUNC func) {
+    void AddTestCase(std::string symbolName, PTESTCASE func) {
         if (!isInitialized) {
             Initialize();
         }
-        dynlib.AddTestFunc(symbolName, func);
+        dynlib.AddTestFunc(symbolName, (PTESTFUNC)func);
     }
 
     void RunTests() {
