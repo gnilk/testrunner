@@ -27,6 +27,8 @@
 #include <string>
 #include "dirscanner.h"
 
+using namespace trun;
+
 
 //
 // List of supported extensions
@@ -39,7 +41,7 @@ static const char *lExtensions[]={
 
 DirScanner::DirScanner() {
     this->recurse = true;
-    pLogger = gnilk::Logger::GetLogger("DirScanner");
+    pLogger = Logger::GetLogger("DirScanner");
     extensions.push_back(".dll");
 }
 

@@ -39,11 +39,11 @@ namespace trun {
     // helpers
     static void ConfigureLogger() {
         // Setup up logger according to verbose flags
-        gnilk::Logger::SetAllSinkDebugLevel(gnilk::Logger::kMCError);
+        Logger::SetAllSinkDebugLevel(Logger::kMCError);
         if (Config::Instance()->verbose > 0) {
-            gnilk::Logger::SetAllSinkDebugLevel(gnilk::Logger::kMCInfo);
+            Logger::SetAllSinkDebugLevel(Logger::kMCInfo);
             if (Config::Instance()->verbose > 1) {
-                gnilk::Logger::SetAllSinkDebugLevel(gnilk::Logger::kMCDebug);
+                Logger::SetAllSinkDebugLevel(Logger::kMCDebug);
             }
         }
 

@@ -3,6 +3,7 @@
 //
 
 #include "dynlib_embedded.h"
+using namespace trun;
 
 bool DynLibEmbedded::AddTestFunc(std::string name, PTESTFUNC func) {
     testfuncs[name] = func;

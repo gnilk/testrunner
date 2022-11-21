@@ -27,37 +27,41 @@
 #include <string>
 #include "asserterror.h"
 
-typedef enum {
-    kTestResult_Pass = 0,
-    kTestResult_TestFail = 1,
-    kTestResult_ModuleFail = 2,
-    kTestResult_AllFail = 3,        
-    kTestResult_NotExecuted = 4,
-} kTestResult;
+namespace trun {
 
-class TestResult {
-public:
-    TestResult(std::string symbolName);
-    // Property access, getters
-    kTestResult Result() const { return testResult; }
-    int Errors() const { return numError; }
-    int Asserts() const { return numAssert; }
-    double ElapsedTimeSec() const { return tElapsedSec; }
-    const std::string &SymbolName() const { return symbolName; }
+    typedef enum {
+        kTestResult_Pass = 0,
+        kTestResult_TestFail = 1,
+        kTestResult_ModuleFail = 2,
+        kTestResult_AllFail = 3,
+        kTestResult_NotExecuted = 4,
+    } kTestResult;
 
-    const class AssertError &AssertError() const { return assertError; };
+    class TestResult {
+    public:
+        TestResult(std::string symbolName);
+        // Property access, getters
+        kTestResult Result() const { return testResult; }
+        int Errors() const { return numError; }
+        int Asserts() const { return numAssert; }
+        double ElapsedTimeSec() const { return tElapsedSec; }
+        const std::string &SymbolName() const { return symbolName; }
 
-    // Setters
-    void SetResult(kTestResult result) { this->testResult = result; }
-    void SetTimeElapsedSec(double t) { tElapsedSec = t; }
-    void SetNumberOfErrors(int count) {numError = count;}
-    void SetNumberOfAsserts(int count) {numAssert = count;}
-    void SetAssertError(class AssertError &other);
-private:
-    class AssertError assertError;
-    kTestResult testResult;
-    double tElapsedSec;
-    int numError;
-    int numAssert;
-    std::string symbolName;
-};
+        const class AssertError &AssertError() const { return assertError; };
+
+        // Setters
+        void SetResult(kTestResult result) { this->testResult = result; }
+        void SetTimeElapsedSec(double t) { tElapsedSec = t; }
+        void SetNumberOfErrors(int count) { numError = count; }
+        void SetNumberOfAsserts(int count) { numAssert = count; }
+        void SetAssertError(class AssertError &other);
+    private:
+        class AssertError assertError;
+
+        kTestResult testResult;
+        double tElapsedSec;
+        int numError;
+        int numAssert;
+        std::string symbolName;
+    };
+}

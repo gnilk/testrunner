@@ -26,9 +26,9 @@
 #include <string>
 #include "resultsummary.h"
 
-static Config *gblConfig = NULL;
+using namespace trun;
 
-using namespace gnilk;
+static Config *gblConfig = NULL;
 
 
 Config *Config::Instance() {

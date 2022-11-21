@@ -6,6 +6,7 @@
 #include "../resultsummary.h"
 #include "../testfunc.h"
 #include "../testresult.h"
+using namespace trun;
 
 void ResultsReportJSONExtensive::Begin() {
     ResultsReportJSON::Begin();

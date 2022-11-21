@@ -24,6 +24,8 @@
 #include "testresult.h"
 #include <string>
 
+using namespace trun;
+
 TestResult::TestResult(std::string symbolName) {
     testResult = kTestResult_NotExecuted;
     this->symbolName = symbolName;

@@ -7,18 +7,20 @@
 
 #include "reportjson.h"
 
-class ResultsReportJSONExtensive : public ResultsReportJSON {
-public:
-    void Begin() override;
-    void End() override;
-    void PrintReport() override;
-protected:
+namespace trun {
 
-private:
-    void PrintFuncResult(const TestFunc *function);
+   class ResultsReportJSONExtensive : public ResultsReportJSON {
+    public:
+        void Begin() override;
+        void End() override;
+        void PrintReport() override;
+    protected:
 
-    void DumpNewStruct();
-};
+    private:
+        void PrintFuncResult(const TestFunc *function);
 
+        void DumpNewStruct();
+    };
+}
 
 #endif //TESTRUNNER_REPORTJSONEXT_H

@@ -54,7 +54,7 @@ Changes:
 
 using namespace std;
 
-namespace gnilk
+namespace trun
 {
 #ifdef WIN32
 #define LOG_CALLCONV __stdcall

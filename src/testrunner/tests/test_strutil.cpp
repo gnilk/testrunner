@@ -26,7 +26,7 @@ DLL_EXPORT int test_strutil(ITesting *t) {
 int test_strutil_trimempty(ITesting *t) {
     std::string s("\r\n");
 
-    strutil::trim(s);
+    trun::trim(s);
     TR_ASSERT(t, s.size() == 0);
 
     return kTR_Pass;
@@ -34,14 +34,14 @@ int test_strutil_trimempty(ITesting *t) {
 
 int test_strutil_split(ITesting *t) {
     std::vector<std::string> strings;
-    strutil::split(strings, "apa,bpa,cpa", ',');
+    trun::split(strings, "apa,bpa,cpa", ',');
     TR_ASSERT(t, strings.size() == 3);
     return kTR_Pass;
 }
 
 int test_strutil_split2(ITesting *t) {
     std::vector<std::string> strings;
-    strutil::split(strings, "a,b,c,d,", ',');
+    trun::split(strings, "a,b,c,d,", ',');
     //printf("%d\n", (int)strings.size());
     TR_ASSERT(t, strings.size() == 4);
     return kTR_Pass;
@@ -49,21 +49,21 @@ int test_strutil_split2(ITesting *t) {
 
 DLL_EXPORT int test_strutil_trim(ITesting *t) {
     std::string str("   dump  ");
-    strutil::trim(str);
+    trun::trim(str);
     TR_ASSERT(t,str == "dump");
     return kTR_Pass;
 }
 
 DLL_EXPORT int test_strutil_trimcustom(ITesting *t) {
     std::string str("   \"dump\"  ");
-    str = strutil::trim(str," \"\n");
+    str = trun::trim(str, " \"\n");
     TR_ASSERT(t,str == "dump");
     return kTR_Pass;
 }
 DLL_EXPORT int test_strutil_match(ITesting *t) {
-    TR_ASSERT(t, strutil::match("funcflurp", "*flurp"));
-    TR_ASSERT(t, strutil::match("mod_apa_bpa", "mod_*_bpa"));
-    TR_ASSERT(t, strutil::match("mod_apa_bpa", "mod*"));
-    TR_ASSERT(t, !strutil::match("mod_apa_bpa", "mod_bpa_*"));
+    TR_ASSERT(t, trun::match("funcflurp", "*flurp"));
+    TR_ASSERT(t, trun::match("mod_apa_bpa", "mod_*_bpa"));
+    TR_ASSERT(t, trun::match("mod_apa_bpa", "mod*"));
+    TR_ASSERT(t, !trun::match("mod_apa_bpa", "mod_bpa_*"));
     return kTR_Pass;
 }

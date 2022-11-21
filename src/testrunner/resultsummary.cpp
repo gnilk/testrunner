@@ -20,6 +20,8 @@
 #include "reporting/reportjsonext.h"
 #endif
 
+using namespace trun;
+
 // Only one instance...
 static ResultSummary *glb_Instance = nullptr;
 
@@ -40,7 +42,7 @@ void ResultSummary::PrintSummary() {
 
     // strutil mutates the incoming string - let's not do that in this instance...
     auto reportingModule = std::string(Config::Instance()->reportingModule);
-    strutil::to_lower(reportingModule);
+    trun::to_lower(reportingModule);
 
     if (reportFactories.find(reportingModule) == reportFactories.end()) {
         // not found, or special name..

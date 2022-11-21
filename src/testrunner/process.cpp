@@ -20,7 +20,7 @@ Note: Remove any "Logger" references if you just want to use this...
 /*
 Example:
 	// Without callbacks - will just execute without feedback
-	gnilk::Process proc("ping");
+	Process proc("ping");
 	proc.AddArgument("-c %",5);
 	proc.AddArgument("www.google.com");
 	proc.ExecuteAndWait();
@@ -29,7 +29,7 @@ Example:
 
 	// Consuming callbacks
 	MyProcCallbacks cb;
-	gnilk::Process proc("ping");
+	Process proc("ping");
 	proc.SetCallback(&cb);
 	proc.AddArgument("-c %",5);
 	proc.AddArgument("www.google.com");
@@ -63,7 +63,7 @@ public:
 #include "process.h"
 
 
-using namespace gnilk;
+using namespace trun;
 
 Process::Process(std::string command) {
 	this->command = command;

@@ -5,6 +5,7 @@
 #include "../resultsummary.h"
 #include "reportconsole.h"
 #include <cstdio>
+using namespace trun;
 
 
 void ResultsReportConsole::Begin() {

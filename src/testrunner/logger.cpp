@@ -96,7 +96,7 @@
 
 using namespace std;
 
-namespace gnilk {
+namespace trun {
     static int StrExplode(std::vector<std::string> *strList, char *mString, int chrSplit);
 
     static char *StrTrim(char *s);
@@ -117,7 +117,7 @@ namespace gnilk {
             };
 }
 
-using namespace gnilk;
+using namespace trun;
 
 bool LogBaseSink::WithinRange(int iDbgLevel) 
 { 
@@ -1036,7 +1036,7 @@ void LogPropertyReader::SetValue(const char *key, const char *value)
 //
 // Internal helpers
 //
-namespace gnilk {
+namespace trun {
 
     static char *StrTrim(char *s) {
         char *ptr;

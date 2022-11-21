@@ -18,34 +18,36 @@
 //
 // Keep the following MacOS specfic
 //
-class BaseCommand;
+namespace trun {
+    class BaseCommand;
 
-class DynLibWin : public IDynLibrary {
-public:
-    DynLibWin();
-    virtual ~DynLibWin();
-    
-public: // IDynLibrary
-    void *Handle() override;
-    PTESTFUNC FindExportedSymbol(std::string funcName) override;
-    bool Scan(std::string pathName) override;
-    const std::vector<std::string> &Exports() const override;
-    const std::string &Name() const override { return pathName; };
+    class DynLibWin : public IDynLibrary {
+    public:
+        DynLibWin();
+        virtual ~DynLibWin();
 
-private:
-    bool Open();
-    bool Close();
-    bool IsValidTestFunc(std::string funcName);
+    public: // IDynLibrary
+        void *Handle() override;
+        PTESTFUNC FindExportedSymbol(std::string funcName) override;
+        bool Scan(std::string pathName) override;
+        const std::vector<std::string> &Exports() const override;
+        const std::string &Name() const override { return pathName; };
 
-    std::string pathName;
-	HMODULE handle;
+    private:
+        bool Open();
+        bool Close();
+        bool IsValidTestFunc(std::string funcName);
 
-    int idxLib;
-    // Set this global variable - for now, so we can resolve relative offsets
-    std::vector<std::string> exports;
-    std::map<std::string, int> symbols;
+        std::string pathName;
+        HMODULE handle;
 
-    gnilk::ILogger *pLogger;
-};
+        int idxLib;
+        // Set this global variable - for now, so we can resolve relative offsets
+        std::vector<std::string> exports;
+        std::map<std::string, int> symbols;
+
+        ILogger *pLogger;
+    };
 
 
+}

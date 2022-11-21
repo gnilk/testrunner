@@ -26,7 +26,7 @@
 #include <string.h>
 #include "strutil.h"
 
-namespace strutil {
+namespace trun {
 
     std::string& ltrim(std::string& str, const std::string& chars /* = "\t\n\v\f\r " */) {
         str.erase(0, str.find_first_not_of(chars));

@@ -30,7 +30,7 @@ Note: Remove any "Logger" references if you just want to use this...
 #include <list>
 
 
-namespace gnilk
+namespace trun
 {
 
 	class ProcessCallbackInterface {

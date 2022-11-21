@@ -35,7 +35,7 @@ Changes:
 
 using namespace std;
 
-namespace gnilk
+namespace trun
 {
 	#define LOG_CONF_LOGFILE ("logfilename")
 	#define LOG_CONF_MAXLOGSIZE ("maxlogsize")

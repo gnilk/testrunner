@@ -43,7 +43,9 @@
 #include <map>
 #include <string>
 
+using namespace trun;
 
+// Trampoline functions
 static void int_trp_debug(int line, const char *file, const char *format, ...);
 static void int_trp_info(int line, const char *file, const char *format, ...);
 static void int_trp_warning(int line, const char *file, const char *format, ...);
@@ -85,13 +87,13 @@ void TestResponseProxy::Begin(std::string symbolName, std::string moduleName) {
     errorCount = 0;
     assertCount = 0;
     testResult = kTestResult_Pass;
-    pLogger = gnilk::Logger::GetLogger(moduleName.c_str());
+    pLogger = Logger::GetLogger(moduleName.c_str());
 
     // Apply verbose filtering to log output from test cases or not??
     if (!Config::Instance()->testLogFilter) {
-        pLogger->Enable(gnilk::Logger::kFlags_PassThrough);
+        pLogger->Enable(Logger::kFlags_PassThrough);
     } else {
-        pLogger->Enable(gnilk::Logger::kFlags_BlockAll);
+        pLogger->Enable(Logger::kFlags_BlockAll);
     } 
     
 
@@ -126,15 +128,12 @@ kTestResult TestResponseProxy::Result() {
 
 // ITesting mirror
 void TestResponseProxy::Debug(int line, const char *file, std::string message) {
-    //gnilk::ILogger *pLogger = gnilk::Logger::GetLogger(moduleName.c_str());
     pLogger->Debug("%s:%d:%s", file, line, message.c_str());
 }
 void TestResponseProxy::Info(int line, const char *file, std::string message) {
-    //gnilk::ILogger *pLogger = gnilk::Logger::GetLogger(moduleName.c_str());
     pLogger->Info("%s:%d:%s", file, line, message.c_str());
 }
 void TestResponseProxy::Warning(int line, const char *file, std::string message) {
-    //gnilk::ILogger *pLogger = gnilk::Logger::GetLogger(moduleName.c_str());
     pLogger->Warning("%s:%d:%s", file, line, message.c_str());
 }
 
@@ -142,7 +141,6 @@ void TestResponseProxy::Warning(int line, const char *file, std::string message)
 // All error functions will abort the running test!!!
 //
 void TestResponseProxy::Error(int line, const char *file, std::string message) {
-    //gnilk::ILogger *pLogger = gnilk::Logger::GetLogger(moduleName.c_str());
     pLogger->Error("%s:%d:%s", file, line, message.c_str());
     this->errorCount++;
     if (testResult < kTestResult_TestFail) {
@@ -156,7 +154,6 @@ void TestResponseProxy::Error(int line, const char *file, std::string message) {
 }
 
 void TestResponseProxy::Fatal(int line, const char *file, std::string message) {
-    //gnilk::ILogger *pLogger = gnilk::Logger::GetLogger(symbolName.c_str());
     pLogger->Critical("%s:%d: %s", file, line, message.c_str());
     this->errorCount++;
     if (testResult < kTestResult_ModuleFail) {
@@ -172,7 +169,6 @@ void TestResponseProxy::Fatal(int line, const char *file, std::string message) {
 }
 
 void TestResponseProxy::Abort(int line, const char *file, std::string message) {
-    //gnilk::ILogger *pLogger = gnilk::Logger::GetLogger(symbolName.c_str());
     pLogger->Fatal("%s:%d: %s", file, line, message.c_str());
     this->errorCount++;
     if (testResult < kTestResult_AllFail) {
@@ -246,28 +242,10 @@ TestResponseProxy *TestResponseProxy::GetInstance() {
     //       Currently all testing is purely sequentially executed so this does not matter!
 
 
-    // [2020-01-28, gnilk] Just test coding
     if (glbResponseProxy == NULL) {
         glbResponseProxy = new TestResponseProxy();
     }
     return glbResponseProxy;
-
-//    gnilk::ILogger *pLogger = gnilk::Logger::GetLogger("TestResponseProxy");
-//
-//    if (trpLookup.find(tid) == trpLookup.end()) {
-//        pLogger->Debug("GetInstance, allocating new instance with tid: 0x%.8x", tid);
-//        TestResponseProxy *trp = new TestResponseProxy();
-//#ifdef WIN32
-//		trpLookup.insert(std::pair<DWORD, TestResponseProxy*>(tid, trp));
-//#else
-//		trpLookup.insert(std::pair<pthread_t, TestResponseProxy*>(tid, trp));
-//#endif
-//        return trp;
-//    } else {
-//        //pLogger->Debug("GetInstance, returning existing proxy instance for tid: 0x%.8x", tid);
-//    }
-//    return trpLookup[tid];
-
 }
 
 //
@@ -296,7 +274,7 @@ TestResponseProxy *TestResponseProxy::GetInstance() {
 
 static bool IsMsgSizeOk(uint32_t szbuf) {
     if (szbuf > Config::Instance()->responseMsgByteLimit) {
-        gnilk::ILogger *pLogger = gnilk::Logger::GetLogger("TestResponseProxy");    
+        auto pLogger = Logger::GetLogger("TestResponseProxy");
         pLogger->Error("Message buffer exceeds limit (%d bytes), truncating..");
         return false;
     }

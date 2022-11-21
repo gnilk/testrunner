@@ -46,6 +46,10 @@
 // in previous version and I really don't have time to properly refactor the code so that modules (lousy name)
 // become a prime citizen...
 
+
+using namespace trun;
+
+
 static TestModule *hack_glbCurrentTestModule = NULL;
 
 TestModule *TestRunner::HACK_GetCurrentTestModule() {
@@ -57,7 +61,7 @@ TestModule *TestRunner::HACK_GetCurrentTestModule() {
 
 TestRunner::TestRunner(IDynLibrary *library) {
     this->library = library;
-    this->pLogger = gnilk::Logger::GetLogger("TestRunner");
+    this->pLogger = Logger::GetLogger("TestRunner");
 }
 
 
@@ -413,7 +417,7 @@ TestFunc *TestRunner::CreateTestFunc(std::string symbol) {
     TestFunc *func = NULL;
 
     std::vector<std::string> funcparts;
-    strutil::split(funcparts, symbol.c_str(), '_');
+    trun::split(funcparts, symbol.c_str(), '_');
 
     if (funcparts.size() == 1) {
         pLogger->Warning("Bare test function: '%s' (skipping), consider renaming: (test_<library>_<case>)", symbol.c_str());

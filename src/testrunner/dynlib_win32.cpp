@@ -41,7 +41,9 @@
 #include <functional>
 #include <utility>
 
-static void PrintWin32Error(gnilk::ILogger *pLogger, char *title) {
+using namespace trun;
+
+static void PrintWin32Error(ILogger *pLogger, char *title) {
     char *msg;
     DWORD err = GetLastError();
     FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
@@ -53,7 +55,7 @@ static void PrintWin32Error(gnilk::ILogger *pLogger, char *title) {
 
 DynLibWin::DynLibWin() {
     this->handle = NULL;
-    this->pLogger = gnilk::Logger::GetLogger("DynLibWin");
+    this->pLogger = Logger::GetLogger("DynLibWin");
 }
 DynLibWin::~DynLibWin() {
     pLogger->Debug("DTOR, closing library");

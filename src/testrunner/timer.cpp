@@ -28,6 +28,8 @@
 #include "timer.h"
 #include <chrono>
 
+using namespace trun;
+
 typedef std::chrono::steady_clock Clock;
 
 Timer::Timer() {

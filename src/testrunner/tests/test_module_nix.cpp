@@ -15,12 +15,13 @@ DLL_EXPORT int test_module_symbol(ITesting *t);
 DLL_EXPORT int test_module_copysym(ITesting *t);
 }
 
+using namespace trun;
 
 DLL_EXPORT int test_module(ITesting *t) {
     // Since we are testing the internals we will be linking against
     // the runner configuration instance and affect the global logger etc..
     Config::Instance();
-    gnilk::Logger::SetAllSinkDebugLevel(gnilk::Logger::kMCError);
+    Logger::SetAllSinkDebugLevel(Logger::kMCError);
 
     return kTR_Pass;
 }

@@ -74,7 +74,7 @@
 #include <functional>
 
 
-using namespace gnilk;
+using namespace trun;
 ILogger *pLogger = NULL;
 
 static bool isLibraryFound = false;
@@ -122,7 +122,7 @@ static void Help() {
 }
 static void ParseModuleFilters(char *filterstring) {
     std::vector<std::string> modules;
-    strutil::split(modules, filterstring, ',');
+    trun::split(modules, filterstring, ',');
 
     // for(auto m:modules) {
     //     pLogger->Debug("  %s\n", m.c_str());
@@ -132,7 +132,7 @@ static void ParseModuleFilters(char *filterstring) {
 }
 static void ParseTestCaseFilters(char *filterstring) {
     std::vector<std::string> testcases;
-    strutil::split(testcases, filterstring, ',');
+    trun::split(testcases, filterstring, ',');
     Config::Instance()->testcases = testcases;
 }
 

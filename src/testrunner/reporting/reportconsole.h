@@ -7,14 +7,15 @@
 
 #include "reportingbase.h"
 
-class ResultsReportConsole : public ResultsReportPinterBase {
-public:
-    void Begin() override;
-    void PrintReport() override;
-protected:
-    void PrintSummary();
-    void PrintFailures(const std::vector<const TestResult *> &results);
-    void PrintPasses(const std::vector<const TestResult *> &results);
-};
-
+namespace trun {
+    class ResultsReportConsole : public ResultsReportPinterBase {
+    public:
+        void Begin() override;
+        void PrintReport() override;
+    protected:
+        void PrintSummary();
+        void PrintFailures(const std::vector<const TestResult *> &results);
+        void PrintPasses(const std::vector<const TestResult *> &results);
+    };
+}
 #endif //TESTRUNNER_REPORTCONSOLE_H

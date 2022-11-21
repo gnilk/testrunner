@@ -31,6 +31,7 @@
 #include <dirent.h>
 #include <dlfcn.h>
 
+using namespace trun;
 
 //
 // List of supported extensions
@@ -48,7 +49,7 @@ DirScanner::DirScanner() {
 #else
     extensions.push_back(".so");
 #endif
-    pLogger = gnilk::Logger::GetLogger("DirScanner");
+    pLogger = Logger::GetLogger("DirScanner");
 }
 
 

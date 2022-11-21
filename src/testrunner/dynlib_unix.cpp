@@ -42,12 +42,12 @@
 #include <sstream>
 
 
-using namespace gnilk;
+using namespace trun;
 
 DynLibLinux::DynLibLinux() {
     this->handle = NULL;
     this->idxLib = -1;
-    this->pLogger = gnilk::Logger::GetLogger("Loader");
+    this->pLogger = Logger::GetLogger("Loader");
 }
 DynLibLinux::~DynLibLinux() {
     pLogger->Debug("DTOR, closing library");
@@ -162,7 +162,7 @@ bool DynLibLinux::Open() {
 	int cnt = 0;
 	while(std::getline(ss,to,'\n')) {
         std::vector<std::string> parts;
-		strutil::split(parts,to.c_str(), ' ');
+		trun::split(parts, to.c_str(), ' ');
 		if (parts.size() == 3) {
 			if (parts[1] == std::string("T")) {
                 if (IsValidTestFunc(parts[2])) {

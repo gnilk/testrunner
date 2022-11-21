@@ -8,6 +8,8 @@ extern "C" {
     DLL_EXPORT int test_main(ITesting *t);
 }
 
+using namespace trun;
+
 // this is the global test main - if you need to setup something for the whole test-suite, do it here..
 DLL_EXPORT int test_main(ITesting *t) {
 
@@ -15,7 +17,7 @@ DLL_EXPORT int test_main(ITesting *t) {
     // otherwise it will be reinitialized later by functions under test
     Config::Instance();
     // Now set the log-level, we just want errors (this is for the library and not for the testrunner)
-    gnilk::Logger::SetAllSinkDebugLevel(gnilk::Logger::kMCError);
+    Logger::SetAllSinkDebugLevel(Logger::kMCError);
 
     return kTR_Pass;
 }

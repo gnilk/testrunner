@@ -42,10 +42,12 @@
 #include "strutil.h"
 #include <string>
 
+using namespace trun;
+
 
 TestFunc::TestFunc() {
     isExecuted = false;
-    pLogger = gnilk::Logger::GetLogger("TestFunc");
+    pLogger = Logger::GetLogger("TestFunc");
     testModule = nullptr;
 }
 
@@ -55,7 +57,7 @@ TestFunc::TestFunc(std::string symbolName, std::string moduleName, std::string c
     this->caseName = caseName;
     testScope = kUnknown;
     isExecuted = false;
-    pLogger = gnilk::Logger::GetLogger("TestFunc");
+    pLogger = Logger::GetLogger("TestFunc");
     testResult = nullptr;
     testReturnCode = -1;
     testModule = nullptr;
@@ -87,7 +89,7 @@ bool TestFunc::ShouldExecute() {
     }
 
     for (auto tc:Config::Instance()->testcases) {
-        if ((tc == "-") || (strutil::match(caseName, tc))) {
+        if ((tc == "-") || (trun::match(caseName, tc))) {
             return CheckDependenciesExecuted();
         }
     }
@@ -102,7 +104,7 @@ bool TestFunc::ShouldExecuteNoDeps() {
     }
 
     for (auto tc:Config::Instance()->testcases) {
-        if ((tc == "-") || (strutil::match(caseName, tc))) {
+        if ((tc == "-") || (trun::match(caseName, tc))) {
             return true;
         }
     }
@@ -276,5 +278,5 @@ bool TestFunc::Executed() {
 
 void TestFunc::SetDependencyList(const char *dependencyList) {
     pLogger->Debug("Setting dependency for '%s' (%s) to: %s\n", caseName.c_str(), symbolName.c_str(), dependencyList);
-    strutil::split(dependencies, dependencyList, ',');
+    trun::split(dependencies, dependencyList, ',');
 }

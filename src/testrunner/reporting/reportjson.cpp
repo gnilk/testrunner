@@ -8,6 +8,7 @@
 #include <string>
 #include <cstdint>
 #include <cstdio>
+using namespace trun;
 
 void ResultsReportJSON::Begin() {
     fout = stdout;
