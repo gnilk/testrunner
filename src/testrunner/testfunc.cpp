@@ -29,8 +29,10 @@
 #ifdef WIN32
 #include <Windows.h>
 #else
-#include <pthread.h>
-#include <thread>
+    #if TRUN_HAVE_THREADS
+        #include <pthread.h>
+        #include <thread>
+    #endif
 #endif
 #include <map>
 #include "testfunc.h"
@@ -128,7 +130,7 @@ bool TestFunc::CheckDependenciesExecuted() {
 }
 
 
-void TestFunc::ExecuteAsync() {
+void TestFunc::ExecuteSync() {
     // 1) Setup test response proxy
     // This is currently a global instance - not good!
 
@@ -142,8 +144,15 @@ void TestFunc::ExecuteAsync() {
 #ifdef WIN32
 DWORD WINAPI testfunc_thread_starter(LPVOID lpParam) {
     TestFunc* func = reinterpret_cast<TestFunc*>(lpParam);
-    func->ExecuteAsync();
+    func->ExecuteSync();
     return NULL;
+}
+
+void TestFunc::ExecuteAsync() {
+    DWORD dwThreadID;
+    HANDLE hThread = CreateThread(NULL, 0, testfunc_thread_starter, this, 0, &dwThreadID);
+    pLogger->Debug("Execute, waiting for thread");
+    WaitForSingleObject(hThread, INFINITE);
 }
 
 #else
@@ -152,6 +161,33 @@ static void *testfunc_thread_starter(void *arg) {
     TestFunc *func = reinterpret_cast<TestFunc*>(arg);
     func->ExecuteAsync();
     return NULL;
+}
+
+void TestFunc::ExecuteAsync() {
+        pthread_attr_t attr;
+        pthread_t hThread;
+        int err;
+        pthread_attr_init(&attr);
+
+        {
+            int s;
+            size_t v;
+            s = pthread_attr_getstacksize(&attr, &v);
+            if (s) {
+                pLogger->Error("Failed to fetch stack size: %d\n", s);
+            } else {
+                pLogger->Debug("Thread Stack size = %d kbytes\n", v/1024);
+
+            }
+        }
+
+        if ((err = pthread_create(&hThread,&attr,testfunc_thread_starter, this))) {
+            pLogger->Error("pthread_create, failed with code: %d\n", err);
+            exit(1);
+        }
+        pLogger->Debug("Execute, waiting for thread");
+        void *ret;
+        pthread_join(hThread, &ret);
 }
 #endif
 
@@ -177,38 +213,13 @@ TestResult *TestFunc::Execute(IDynLibrary *module) {
         // Execute the test in it's own thread.
         // This allows the test to be aborted when the response proxy is called
         testResult = new TestResult(symbolName);
-#ifdef WIN32
-        DWORD dwThreadID;
-        HANDLE hThread = CreateThread(NULL, 0, testfunc_thread_starter, this, 0, &dwThreadID);
-        pLogger->Debug("Execute, waiting for thread");
-        WaitForSingleObject(hThread, INFINITE);
-#else
-        pthread_attr_t attr;
-        pthread_t hThread;
-        int err;
-        pthread_attr_init(&attr);
 
-        {
-            int s;
-            size_t v;
-            s = pthread_attr_getstacksize(&attr, &v);
-            if (s) {
-                pLogger->Error("Failed to fetch stack size: %d\n", s);
-            } else {
-                pLogger->Debug("Thread Stack size = %d kbytes\n", v/1024);
-
-            }
-        }
-
-        if ((err = pthread_create(&hThread,&attr,testfunc_thread_starter, this))) {
-            pLogger->Error("pthread_create, failed with code: %d\n", err);
-            exit(1);
-        }
-        pLogger->Debug("Execute, waiting for thread");
-        void *ret;
-        pthread_join(hThread, &ret);
-#endif
+#if defined(TRUN_HAVE_THREADS)
+        ExecuteAsync();
         pLogger->Debug("Execute, thread done...\n");
+#else
+        ExecuteSync();
+#endif
 
         trp->End();
         testResult->SetAssertError(trp->GetAssertError());
@@ -216,7 +227,6 @@ TestResult *TestFunc::Execute(IDynLibrary *module) {
         testResult->SetNumberOfErrors(trp->Errors());
         testResult->SetNumberOfAsserts(trp->Asserts());
         testResult->SetTimeElapsedSec(trp->ElapsedTimeInSec());
-
 
         // Overwrite the result based on return code
         HandleTestReturnCode();

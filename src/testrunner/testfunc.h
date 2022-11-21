@@ -37,7 +37,6 @@ public:
     TestResult *Execute(IDynLibrary *module);
     void SetExecuted();
     bool Executed();
-    void ExecuteAsync();
     bool ShouldExecute();
     bool ShouldExecuteNoDeps();
     bool CheckDependenciesExecuted();
@@ -55,6 +54,12 @@ public:
     }
     const TestResult *Result() const { return testResult; }
     kTestScope TestScope() { return testScope; }
+
+public:
+    // Note: Must be public as we are executing through Win32 Threading layer...
+    void ExecuteSync();
+private:
+    void ExecuteAsync();
 public:
     std::string symbolName;
     std::string moduleName;
