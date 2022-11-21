@@ -6,14 +6,14 @@
 #define TESTRUNNER_TRUNEMBEDDED_H
 
 #include "testinterface.h"
-
 #include <string>
-#include "dynlib.h"
-
 
 namespace trun {
 
-    typedef int (CALLCONV *PTESTCASE)(ITesting *param);
+    extern "C" {
+        typedef int (*PTESTCASE)(ITesting *param);
+    }
+
 
 
     void Initialize();

@@ -26,7 +26,6 @@ include_directories("${PROJECT_SOURCE_DIR}")
 #
 # Example test libraries
 #
-
 list(APPEND sharedlib src/exshared/exshared.cpp src/exshared/pure.c)
 list(APPEND staticlib src/exstatic/exstatic.cpp)
 
@@ -54,7 +53,7 @@ list(APPEND rprtsrcfiles src/testrunner/reporting/reportjsonext.h src/testrunner
 list(APPEND rprtsrcfiles src/testrunner/reporting/reportjson.h src/testrunner/reporting/reportjson.cpp)
 
 # embedded
-list(APPEND embedsrc src/testrunner/dynlib_embedded.cpp src/testrunner/dynlib_embedded.h)
+list(APPEND embedsrc src/testrunner/embedded/dynlib_embedded.cpp src/testrunner/embedded/dynlib_embedded.h)
 list(APPEND embedsrc src/testrunner/trunembedded.cpp src/testrunner/trunembedded.h)
 
 
@@ -89,21 +88,22 @@ elseif(WIN32)
     add_definitions(-DWIN32_LEAN_AND_MEAN)
 endif()
 
+message(STATUS source: ${CMAKE_SOURCE_DIR})
 
 # Create executeable
-add_executable(trun src/testrunner/main.cpp ${srcfiles} ${execsrcfiles} ${rprtsrcfiles})
+add_executable(trun src/app/main.cpp ${srcfiles} ${execsrcfiles} ${rprtsrcfiles})
 target_compile_definitions(trun PUBLIC TRUN_HAVE_EXT_REPORTING)
 target_compile_definitions(trun PUBLIC TRUN_HAVE_THREADS)
-target_include_directories(trun PRIVATE inc)
-target_include_directories(trun PRIVATE .)
+target_include_directories(trun PRIVATE ${CMAKE_SOURCE_DIR})
+target_include_directories(trun PRIVATE ${CMAKE_SOURCE_DIR}/testrunner)
 set_property(TARGET trun PROPERTY CXX_STANDARD 17)
 
 # Create unit-test library
 add_library(trun_utests SHARED ${srcfiles} ${testsrc} ${rprtsrcfiles} ${execsrcfiles})
-target_compile_definitions(trun PUBLIC TRUN_HAVE_EXT_REPORTING)
-target_compile_definitions(trun PUBLIC TRUN_HAVE_THREADS)
-target_include_directories(trun_utests PRIVATE inc)
-target_include_directories(trun_utests PRIVATE .)
+target_compile_definitions(trun_utests PUBLIC TRUN_HAVE_EXT_REPORTING)
+target_compile_definitions(trun_utests PUBLIC TRUN_HAVE_THREADS)
+target_include_directories(trun_utests PRIVATE ${CMAKE_SOURCE_DIR})
+target_include_directories(trun_utests PRIVATE ${CMAKE_SOURCE_DIR}/testrunner)
 set_property(TARGET trun_utests PROPERTY CXX_STANDARD 17)
 
 #
@@ -113,8 +113,8 @@ set_property(TARGET trun_utests PROPERTY CXX_STANDARD 17)
 # - threading of tests
 #
 add_library(trunlib STATIC ${srcfiles} ${embedsrc})
-target_include_directories(trunlib PRIVATE inc)
-target_include_directories(trunlib PRIVATE .)
+target_include_directories(trunlib PRIVATE ${CMAKE_SOURCE_DIR})
+target_include_directories(trunlib PRIVATE ${CMAKE_SOURCE_DIR}/testrunner)
 set_property(TARGET trunlib PROPERTY CXX_STANDARD 17)
 
 #
@@ -122,6 +122,8 @@ set_property(TARGET trunlib PROPERTY CXX_STANDARD 17)
 #
 add_executable(trunembedded src/exembedded/main_embedded.cpp)
 target_include_directories(trunembedded PUBLIC ${CMAKE_SOURCE_DIR})
+target_include_directories(trunembedded PRIVATE ${CMAKE_SOURCE_DIR}/testrunner)
+
 
 
 
@@ -167,5 +169,6 @@ add_custom_target(
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-install(FILES "src/testrunner/testinterface.h" TYPE INCLUDE)
-install(TARGETS trun RUNTIME DESTINATION bin)
+install(FILES "src/testrunner/testinterface.h" "src/testrunner/trunembedded.h" TYPE INCLUDE)
+install(TARGETS trun RUNTIME)
+install(TARGETS trunlib LIBRARY)

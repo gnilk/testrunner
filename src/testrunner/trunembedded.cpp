@@ -4,7 +4,7 @@
 
 #include "trunembedded.h"
 #include "testrunner.h"
-#include "dynlib_embedded.h"
+#include "src/testrunner/embedded/dynlib_embedded.h"
 
 namespace trun {
     static DynLibEmbedded dynlib;

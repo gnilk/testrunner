@@ -726,9 +726,7 @@ void Logger::WriteReportString(int mc, char *string)
 	// Create the special header string
 	// Format: "time [thread] msglevel library - "
 
-#if defined(TRUN_EMBEDDED_MCU)
-    snprintf(sHdr, MAX_INDENT + 64, "%s [%.8x] %8s %32s - %s", sTime, (unsigned int)0, sLevel, sName, sIndent);
-#else
+#if defined(TRUN_HAVE_THREADS)
     #if defined(WIN32)
 	    DWORD tid = 0;
 	    tid = GetCurrentThreadId();
@@ -738,6 +736,8 @@ void Logger::WriteReportString(int mc, char *string)
 	    pthread_t tid = pthread_self();
 	    snprintf(sHdr, MAX_INDENT + 64, "%s [%p] %8s %32s - %s", sTime, (void *)tid, sLevel, sName, sIndent);
     #endif
+#else
+    snprintf(sHdr, MAX_INDENT + 64, "%s [%.8x] %8s %32s - %s", sTime, (unsigned int)0, sLevel, sName, sIndent);
 #endif
 
 	// gnilk, 2018-10-18, Combine with flags here - does not affect higher level API

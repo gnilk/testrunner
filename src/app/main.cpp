@@ -49,9 +49,9 @@
 #include <unistd.h>
 #endif
 
-#include "logger.h"
-#include "testrunner.h"
-#include "dynlib.h"
+#include "src/testrunner/logger.h"
+#include "src/testrunner/testrunner.h"
+#include "src/testrunner/dynlib.h"
 
 
 
