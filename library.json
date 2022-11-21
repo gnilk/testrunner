@@ -1,0 +1,37 @@
+{
+  "name": "Testrunner",
+  "version": "1.0.0",
+  "repository":
+  {
+    "type": "git",
+    "url": "https://github.com/gnilk/testrunner.git"
+  },
+  "platforms" : "*",
+  "frameworks" : "*",
+  "export" : {
+    "include" : [
+      "CMakeLists.txt",
+      "library.json",
+      "src/*"
+    ]
+  },
+  "header" : [
+    "testinterface.h",
+    "trunembedded.h"
+  ],
+  "build" : {
+    "flags": "-std=c++17 -DTRUN_EMBEDDED_MCU",
+    "unflags" : "-std=gnu++11",
+    "libArchive": true,
+    "srcDir" : "src/testrunner",
+    "srcFilter" : [
+      "+<*>",
+      "-<tests/>",
+      "-<unix/>",
+      "-<win32/>",
+      "-<main.cpp>"
+    ]
+  },
+  "dependencies": [
+  ]
+}
