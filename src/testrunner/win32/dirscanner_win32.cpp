@@ -25,7 +25,7 @@
 #include <winnt.h>
 
 #include <string>
-#include "dirscanner.h"
+#include "../dirscanner.h"
 
 using namespace trun;
 

@@ -12,6 +12,8 @@
 // using dev-version, instead of install version... self-hosting..
 #include "../testinterface.h"
 
+using namespace trun;
+
 extern "C" {
     DLL_EXPORT int test_timer(ITesting *t);
     DLL_EXPORT int test_timer_sample(ITesting *t);

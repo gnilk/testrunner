@@ -56,11 +56,11 @@
 
 
 #ifdef WIN32
-#include "dynlib_win32.h"
+#include "win32/dynlib_win32.h"
 #elif __linux
-#include "dynlib_unix.h"
+#include "unix/dynlib_unix.h"
 #else
-#include "dynlib_unix.h"
+#include "unix/dynlib_unix.h"
 #endif
 #include "strutil.h"
 #include "config.h"

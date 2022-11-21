@@ -4,6 +4,9 @@
 #include <vector>
 #include <string>
 
+using namespace trun;
+
+
 extern "C" {
 DLL_EXPORT int test_tfunc(ITesting *t);
 DLL_EXPORT int test_tfunc_globals(ITesting *t);
@@ -14,6 +17,7 @@ DLL_EXPORT int test_tfunc_casefilter_trailing(ITesting *t);
 DLL_EXPORT int test_tfunc_modfilter_simple(ITesting *t);
 DLL_EXPORT int test_tfunc_modfilter_trailing(ITesting *t);
 }
+
 
 static int test_mock_func(ITesting *t) {
     printf("INTERNAL MOCKED TEST FUNCTION!\n");

@@ -68,9 +68,9 @@ list(APPEND testsrc src/testrunner/tests/test_depends.cpp)
 # Platform specific
 # Unix = Apple and Linux
 if (UNIX)
-    list(APPEND execsrcfiles src/testrunner/dirscanner_unix.cpp)
-    list(APPEND execsrcfiles src/testrunner/dynlib_unix.cpp)
-    list(APPEND execsrcfiles src/testrunner/process.cpp)
+    list(APPEND execsrcfiles src/testrunner/unix/dirscanner_unix.cpp)
+    list(APPEND execsrcfiles src/testrunner/unix/dynlib_unix.cpp)
+    list(APPEND execsrcfiles src/testrunner/unix/process.cpp)
 
     # add mac specific unit test src
     list(APPEND testsrc src/testrunner/tests/test_module_nix.cpp)
@@ -83,8 +83,8 @@ if (UNIX)
     endif()
 
 elseif(WIN32)
-    list(APPEND execsrcfiles src/testrunner/dynlib_win32.cpp)
-    list(APPEND execsrcfiles src/testrunner/dirscanner_win32.cpp)
+    list(APPEND execsrcfiles src/testrunner/win32/dynlib_win32.cpp)
+    list(APPEND execsrcfiles src/testrunner/win32/dirscanner_win32.cpp)
 
     add_definitions(-DWIN32_LEAN_AND_MEAN)
 endif()

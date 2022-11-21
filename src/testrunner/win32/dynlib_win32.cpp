@@ -22,14 +22,13 @@
  - 2019.10.24, FKling, Implementation
  
  ---------------------------------------------------------------------------*/
-#ifdef WIN32
 #include <Windows.h>
-#endif
 
-#include "dynlib.h"
+#include "../dynlib.h"
+#include "../strutil.h"
+#include "../logger.h"
+
 #include "dynlib_win32.h"
-#include "strutil.h"
-#include "logger.h"
 
 #include <Windows.h>
 #include <assert.h>
