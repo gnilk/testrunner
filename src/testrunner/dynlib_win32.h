@@ -27,7 +27,7 @@ public:
     
 public: // IDynLibrary
     void *Handle() override;
-    void *FindExportedSymbol(std::string funcName) override;
+    PTESTFUNC FindExportedSymbol(std::string funcName) override;
     bool Scan(std::string pathName) override;
     const std::vector<std::string> &Exports() const override;
     const std::string &Name() const override { return pathName; };

@@ -27,8 +27,8 @@ public:
     virtual ~ModuleMock() = default;
 
     void *Handle() override { return nullptr; }
-    void *FindExportedSymbol(std::string funcName) override {
-        return (void *) test_mock_func;
+    PTESTFUNC FindExportedSymbol(std::string funcName) override {
+        return (PTESTFUNC) test_mock_func;
     }
     const std::vector<std::string> &Exports() const override {
         static std::vector<string> dummy={"test_mock_func"};

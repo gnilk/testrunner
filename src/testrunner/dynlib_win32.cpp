@@ -71,7 +71,7 @@ void *DynLibWin::Handle() {
 //
 // FindExportedSymbol, returns a handle (function pointer) to the exported symbol
 //
-void *DynLibWin::FindExportedSymbol(std::string funcName) {
+PTESTFUNC DynLibWin::FindExportedSymbol(std::string funcName) {
   
    // TODO: Strip leading '_' from funcName...
 
@@ -88,7 +88,7 @@ void *DynLibWin::FindExportedSymbol(std::string funcName) {
         pLogger->Debug("FindExportedSymbol, unable to find symbol '%s'", exportName.c_str());
         return NULL;
     }
-    return ptrInvoke;
+    return (PTESTFUNC)ptrInvoke;
 }
 
 //
