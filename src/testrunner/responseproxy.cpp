@@ -146,10 +146,12 @@ void TestResponseProxy::Error(int line, const char *file, std::string message) {
     if (testResult < kTestResult_TestFail) {
         testResult = kTestResult_TestFail;
     }
-#ifdef WIN32    
-    TerminateThread(GetCurrentThread(),0);
-#else
-    pthread_exit(NULL);
+#ifdef TRUN_HAVE_THREADS
+    #ifdef WIN32
+        TerminateThread(GetCurrentThread(),0);
+    #else
+        pthread_exit(NULL);
+    #endif
 #endif
 }
 
@@ -161,10 +163,12 @@ void TestResponseProxy::Fatal(int line, const char *file, std::string message) {
     }
     assertError.Set(AssertError::kAssert_Fatal, line, file, message);
 
-#ifdef WIN32    
-    TerminateThread(GetCurrentThread(), 0);
-#else
-    pthread_exit(NULL);
+#ifdef TRUN_HAVE_THREADS
+    #ifdef WIN32
+        TerminateThread(GetCurrentThread(), 0);
+    #else
+        pthread_exit(NULL);
+    #endif
 #endif
 }
 
@@ -175,12 +179,14 @@ void TestResponseProxy::Abort(int line, const char *file, std::string message) {
         testResult = kTestResult_AllFail;
     }
     assertError.Set(AssertError::kAssert_Abort, line, file, message);
-#ifdef WIN32
-    if (!TerminateThread(GetCurrentThread(), 0)) {
-        pLogger->Error("Terminating thread...\n");
-    }
-#else
-    pthread_exit(NULL);
+#ifdef TRUN_HAVE_THREADS
+    #ifdef WIN32
+        if (!TerminateThread(GetCurrentThread(), 0)) {
+            pLogger->Error("Terminating thread...\n");
+        }
+    #else
+        pthread_exit(NULL);
+    #endif
 #endif
 }
 
@@ -192,10 +198,12 @@ void TestResponseProxy::AssertError(const char *exp, const char *file, const int
         testResult = kTestResult_TestFail;
     }
     assertError.Set(AssertError::kAssert_Error, line, file, exp);
-#ifdef WIN32
-    TerminateThread(GetCurrentThread(), 0);
-#else
-    pthread_exit(NULL);
+#ifdef TRUN_HAVE_THREADS
+    #ifdef WIN32
+        TerminateThread(GetCurrentThread(), 0);
+    #else
+        pthread_exit(NULL);
+    #endif
 #endif
 }
 

@@ -31,6 +31,8 @@ DLL_EXPORT int test_emb_exit(ITesting *t) {
     return kTR_Pass;
 }
 DLL_EXPORT int test_emb_func1(ITesting *t) {
+    TR_ASSERT(t, 1==2);
+    printf("Should not be shown\n!");
     return kTR_Pass;
 }
 DLL_EXPORT int test_emb_func2(ITesting *t) {
@@ -46,7 +48,7 @@ int main(int argc, char **argv) {
     trun::AddTestCase("test_emb_func2", test_emb_func2);
 
     // Run some tests...
-    trun::RunTests();
+    trun::RunTests("-", "-");
 
     return 0;
 }

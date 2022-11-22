@@ -121,6 +121,7 @@ set_property(TARGET trunlib PROPERTY CXX_STANDARD 17)
 # Build the embedded example
 #
 add_executable(trunembedded src/exembedded/main_embedded.cpp)
+target_compile_definitions(trunembedded PUBLIC TRUN_SINGLE_THREAD)
 target_include_directories(trunembedded PUBLIC ${CMAKE_SOURCE_DIR})
 target_include_directories(trunembedded PRIVATE ${CMAKE_SOURCE_DIR}/testrunner)
 

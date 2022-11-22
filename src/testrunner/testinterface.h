@@ -19,10 +19,20 @@ extern "C" {
 #define kTR_FailModule 0x20
 #define kTR_FailAll 0x30
 
-//#define TR_ASSERT(__t,_exp_) (!(_exp_)?t->AssertFail(#_exp_, __FILE__, __LINE__))
+//
+// If you embed the trun library you need to specify if you run single threaded or not!
+// The default (no config) is multithreading as this is the main use case...
+//
+// By default, the trunembbeded library is built with without threading support...
+//
+#ifdef TRUN_SINGLE_THREAD
+#define TR_ASSERT(t, _exp_) \
+    ((void) ((_exp_) ? ((void)0) : ((ITesting *)t)->AssertError(#_exp_,__FILE__, __LINE__))); \
+    return kTR_Fail;
+#else
 #define TR_ASSERT(t, _exp_) \
     ((void) ((_exp_) ? ((void)0) : ((ITesting *)t)->AssertError(#_exp_,__FILE__, __LINE__)))
-
+#endif
 
 //
 // Callback interface for test reporting

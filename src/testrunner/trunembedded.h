@@ -17,8 +17,8 @@ namespace trun {
 
 
     void Initialize();
-    void AddTestCase(std::string symbolName, PTESTCASE func);
-    void RunTests();
+    void AddTestCase(const char *symbolName, PTESTCASE func);
+    void RunTests(const char *moduleFilter, const char *caseFilter);
 }
 
 #endif //TESTRUNNER_TRUNEMBEDDED_H
