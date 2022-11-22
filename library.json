@@ -20,7 +20,11 @@
     "trunembedded.h"
   ],
   "build" : {
-    "flags": "-std=c++17 -DTRUN_EMBEDDED_MCU -DTRUN_SINGLE_THREAD",
+    "flags": [
+      "-std=c++17",
+      "-DTRUN_EMBEDDED_MCU",
+      "-DTRUN_SINGLE_THREAD"
+    ],
     "unflags" : "-std=gnu++11",
     "libArchive": true,
     "srcDir" : "src/testrunner",
