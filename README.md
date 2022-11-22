@@ -6,6 +6,8 @@ C/C++ Unit Test 'Framework'.
 Heavy GOLANG inspired unit test framework for C/C++.
 Currently works on macOS(arm/x86)/Linux/Windows (x86/x64)
 
+<b>NEW:</b> Also works on certain embedded platforms (tested on ESP32)
+
 # Building
 You need CMake and GCC/Clang or Visual Studio (Windows). Tested with Visual Studio 17 and 19. The Windows version can be built in a 32 or 64 bit mode. Do note that the 32 bit don't support 64 bit DLL's and vice verse. 
 
@@ -29,6 +31,40 @@ To build release version: 'msbuild ALL_BUILD.vcxproj -p:Configuration=Release'.
 The default will build 64bit with Visual Studio 2019 and 32bit with Visual Studio 2017.
 
 As Windows don't have a default place to store 3rd party include files you need to copy the 'testinterface.h' file somewhere common on your environment. You want to include this file in your unit tests (note: It's optional).
+
+## Embedded
+<b>Only tested with PlatformIO as build system</b>
+
+Clone the repository into your `lib_extras_dir`, if you use Arduino as underlying framework this is the library 
+directory for Arduino. Add it as a dependency in your `platformio.ini` file.
+```text
+lib_extra_dirs =
+    ${sysenv.HOMEPATH}/Documents/Arduino/libraries
+
+lib_deps =
+    testrunner
+```
+You must then, in source, add your test cases and kick it off manually, like this:
+```c++
+// Assuming Arduino style application...
+void setup() {
+    // Add some test cases
+    trun::AddTestCase("test_main", test_main);
+    trun::AddTestCase("test_emb", test_emb);
+    trun::AddTestCase("test_emb_exit", test_emb_exit);
+    trun::AddTestCase("test_emb_func1",  test_emb_func1);
+    trun::AddTestCase("test_emb_func2", test_emb_func2);
+
+    // Run some tests...
+    trun::RunTests("-", "-");
+}
+``` 
+
+### Limitations on embedded
+- No threading, all tests are executed on the main thread
+- Internal logging has been disabled (not possible to execute in verbose mode)
+- Assumes `stdout` is mapped to console serial port (or similar)
+- Only console reporting available 
 
 # Usage
 
@@ -423,6 +459,7 @@ JSON Format (some results omitted):
 ## v1.2-DEV
 - Added ability to configure dependencies between cases within a library
 - Added wild cards for modules and test case specification on cmd line
+- *WIP:* Supported for embedded systems 
 ## v1.1
 - Internal refactoring and clean-up
 - Added ability to list test cases `-l` and not execute `-x`

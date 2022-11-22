@@ -1,6 +1,6 @@
 {
   "name": "Testrunner",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "repository":
   {
     "type": "git",
@@ -20,7 +20,7 @@
     "trunembedded.h"
   ],
   "build" : {
-    "flags": "-std=c++17 -DTRUN_EMBEDDED_MCU",
+    "flags": "-std=c++17 -DTRUN_EMBEDDED_MCU -DTRUN_SINGLE_THREAD",
     "unflags" : "-std=gnu++11",
     "libArchive": true,
     "srcDir" : "src/testrunner",
