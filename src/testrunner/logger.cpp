@@ -91,7 +91,7 @@
 
 #define DBGLEVEL_MASK_LEVEL(a) ((a) & 0xffff)
 #define DBGLEVEL_MASK_FLAGS(a) ((a>>16) & 0x7fff)
-#define DBGLEVEL_COMBINE(__level, __flags) (__level&0xffff | ((__flags & 0x7fff) << 16))
+#define DBGLEVEL_COMBINE(__level, __flags) (((__level) & 0xffff) | (((__flags) & 0x7fff) << 16))
 	//dbgLevel = dbgLevel & 0xffff | ((flags & 0x7fff) << 16);
 
 using namespace std;
@@ -758,6 +758,7 @@ void Logger::GenerateIndentString()
 // string. The reason why it is not in a function is because of the va_xxx functions.
 // Event is essentially a container around the buffer which makes a query for the buffer
 // upon creation and releases it in the destructor
+#ifndef TRUN_EMBEDDED_MCU
 #define WRITE_REPORT_STRING(__DBGTYPE__) \
 	va_list	values;														\
 	char * newstr = NULL;												\
@@ -779,6 +780,16 @@ void Logger::GenerateIndentString()
 	} catch(...) {														\
 	}																	\
 
+#else
+#define WRITE_REPORT_STRING(__DBGTYPE__) \
+    va_list values;                                \
+    char buffer[128];                               \
+    va_start(values, sFormat);                      \
+    vsnprintf(buffer, 128, sFormat, values);        \
+    va_end(values);                                 \
+    Logger::WriteReportString(__DBGTYPE__, buffer);
+
+#endif
 void Logger::WriteLine(int iDbgLevel, const char *sFormat,...)
 {
 	// Always write stuff without global filtering - let appenders figure it out..
