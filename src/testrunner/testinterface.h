@@ -27,8 +27,8 @@ extern "C" {
 //
 #ifdef TRUN_SINGLE_THREAD
 #define TR_ASSERT(t, _exp_) \
-    ((void) ((_exp_) ? ((void)0) : ((ITesting *)t)->AssertError(#_exp_,__FILE__, __LINE__))); \
-    return kTR_Fail;
+    if (!_exp_) { ((ITesting *)t)->AssertError(#_exp_,__FILE__, __LINE__); return kTR_Fail; }
+
 #else
 #define TR_ASSERT(t, _exp_) \
     ((void) ((_exp_) ? ((void)0) : ((ITesting *)t)->AssertError(#_exp_,__FILE__, __LINE__)))
