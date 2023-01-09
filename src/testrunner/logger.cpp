@@ -778,17 +778,16 @@ void Logger::GenerateIndentString()
 		} while(res < 0);												\
 		Logger::WriteReportString(__DBGTYPE__, pBuf->GetBuffer());		\
 	} catch(...) {														\
-	}																	\
+	}
 
 #else
 #define WRITE_REPORT_STRING(__DBGTYPE__) \
-    va_list values;                                \
-    char buffer[128];                               \
-    va_start(values, sFormat);                      \
-    vsnprintf(buffer, 128, sFormat, values);        \
-    va_end(values);                                 \
+    va_list values;                      \
+    char buffer[128];                    \
+    va_start(values, sFormat);           \
+    vsnprintf(buffer, 128, sFormat, values);\
+    va_end(values);                      \
     Logger::WriteReportString(__DBGTYPE__, buffer);
-
 #endif
 void Logger::WriteLine(int iDbgLevel, const char *sFormat,...)
 {
