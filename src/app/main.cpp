@@ -24,18 +24,6 @@
 
  All code is BSD3 License!
  
- Modified: $Date: $ by $Author: $
- ---------------------------------------------------------------------------
- TODO: [ -:Not done, +:In progress, !:Completed]
- <pre>
-
- </pre>
- 
- 
- \History
- - 2018.12.21, FKling, Support for test case specification and skipping of test_main
- - 2018.10.18, FKling, Implementation
- 
  ---------------------------------------------------------------------------*/
 #ifdef WIN32
 #include <Windows.h>
