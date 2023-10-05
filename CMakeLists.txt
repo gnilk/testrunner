@@ -34,16 +34,17 @@ add_library(exstatic STATIC ${staticlib})
 
 
 ## all files but the main application file
-list(APPEND srcfiles src/testrunner/strutil.cpp)
-list(APPEND srcfiles src/testrunner/testrunner.cpp)
-list(APPEND srcfiles src/testrunner/logger.cpp)
-list(APPEND srcfiles src/testrunner/config.cpp)
-list(APPEND srcfiles src/testrunner/testfunc.cpp)
-list(APPEND srcfiles src/testrunner/responseproxy.cpp)
-list(APPEND srcfiles src/testrunner/testresult.cpp)
-list(APPEND srcfiles src/testrunner/resultsummary.cpp)
 list(APPEND srcfiles src/testrunner/asserterror.cpp)
+list(APPEND srcfiles src/testrunner/config.cpp)
+list(APPEND srcfiles src/testrunner/glob.cpp src/testrunner/glob.h)
+list(APPEND srcfiles src/testrunner/logger.cpp)
+list(APPEND srcfiles src/testrunner/responseproxy.cpp)
+list(APPEND srcfiles src/testrunner/resultsummary.cpp)
+list(APPEND srcfiles src/testrunner/strutil.cpp)
 list(APPEND srcfiles src/testrunner/timer.cpp)
+list(APPEND srcfiles src/testrunner/testfunc.cpp)
+list(APPEND srcfiles src/testrunner/testresult.cpp)
+list(APPEND srcfiles src/testrunner/testrunner.cpp)
 
 # reporting
 list(APPEND srcfiles src/testrunner/reporting/reportingbase.h src/testrunner/reporting/reportingbase.cpp)
