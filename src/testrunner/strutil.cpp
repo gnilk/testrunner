@@ -25,6 +25,7 @@
 #include <vector>
 #include <string.h>
 #include "strutil.h"
+#include "glob.h"
 
 namespace trun {
 
@@ -89,51 +90,11 @@ namespace trun {
 // Simplified 'fnmatch' can't handle multiple search terms like: '*test*func'
 //
     bool match(const char *str, const char *pattern) {
-        const char *ptrString = str;
-        const char *ptrPattern = pattern;
-
-        char c,p;
-        while((c = *ptrString) != '\0') {
-            p = *ptrPattern;
-
-            switch(p) {
-                case '*' :
-                    if (*(ptrPattern + 1) == '\0') {
-                        return true;
-                    }
-                    ptrPattern++;
-
-                    // This is should be modified to handle multiple search terms...
-                    while((*ptrPattern != *ptrString) && (*ptrString != '\0')) {
-                        ptrString++;
-                    }
-
-                    // Now recursively search for next match and then proceed...
-                    while(*ptrString != '\0') {
-                        if (match(ptrString, ptrPattern)) {
-                            break;
-                        }
-                        ptrString++;
-                    }
-
-                    if (*ptrString == '\0') {
-                        return false;
-                    }
-                    continue;
-                    break;
-                default :
-                    if (p != c) {
-                        return false;
-                    }
-            }
-            ptrPattern++;
-            ptrString++;
-        }
-        return true;
+        return (Glob::Match(pattern, str) == Glob::kMatch::Match);
     }
 
     bool match(const std::string &string, const std::string &pattern) {
-        return match(string.c_str(), pattern.c_str());
+        return (Glob::Match(pattern, string) == Glob::kMatch::Match);
     }
 
 }
