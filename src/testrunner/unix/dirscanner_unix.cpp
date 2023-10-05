@@ -79,7 +79,9 @@ void DirScanner::CheckAddFile(std::string &filename) {
     if (IsExtensionOk(ext)) {
         // Need proper path to file
         char *fullPath = realpath(filename.c_str(),NULL);
-        filenames.push_back(std::string(fullPath));
+        if (fullPath != nullptr) {
+            filenames.push_back(std::string(fullPath));
+        }
     }
 }
 
