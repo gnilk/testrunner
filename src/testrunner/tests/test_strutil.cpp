@@ -65,5 +65,8 @@ DLL_EXPORT int test_strutil_match(ITesting *t) {
     TR_ASSERT(t, trun::match("mod_apa_bpa", "mod_*_bpa"));
     TR_ASSERT(t, trun::match("mod_apa_bpa", "mod*"));
     TR_ASSERT(t, !trun::match("mod_apa_bpa", "mod_bpa_*"));
+    TR_ASSERT(t, !trun::match("test_mod_func1", "func"));
+    TR_ASSERT(t, !trun::match("func", "func1"));
+    TR_ASSERT(t, !trun::match("sometestfunc", "sometest"));
     return kTR_Pass;
 }
