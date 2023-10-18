@@ -1,15 +1,17 @@
 #ifndef __GNILK_TEST_INTERFACE_H__
 #define __GNILK_TEST_INTERFACE_H__
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #ifdef WIN32
+#define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 #define DLL_EXPORT __declspec(dllexport)
 #else
 #define DLL_EXPORT
+#endif
+
+
+#ifdef __cplusplus
+extern "C" {
 #endif
 
 
