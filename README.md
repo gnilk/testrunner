@@ -17,6 +17,12 @@ You need CMake and GCC/Clang or Visual Studio (Windows). Tested with Visual Stud
 4) Run cmake 'cmake ..'
 5) Run 'make' or 'msbuild ALL_BUILD.vcxproj'
 
+## Dependencies
+On Linux and macOS you need 'nm' installed - this come from binutils. On Linux just do:
+```shell
+sudo apt install binutils
+```
+
 ## Apple macOS
 Just run 'make; sudo make install'. The binary (trun) will be installed in /usr/local/bin and the testinterface.h in /usr/local/include.
 <b>Note:</b> The macOs version depends on 'nm' (from binutils) when scanning a library for test functions.
