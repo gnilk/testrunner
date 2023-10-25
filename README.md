@@ -18,7 +18,7 @@ You need CMake and GCC/Clang or Visual Studio (Windows). Tested with Visual Stud
 5) Run 'make' or 'msbuild ALL_BUILD.vcxproj'
 
 ## Dependencies
-On Linux and macOS you need 'nm' installed - and the development header - this come from binutils. On Linux just do:
+On Linux and macOS you need 'nm' installed - and the development headers - this come from binutils. On Linux just do:
 ```shell
 sudo apt install binutils binutils-dev
 ```
