@@ -16,6 +16,8 @@ DLL_EXPORT int test_strutil_trimcustom(ITesting *t);
 DLL_EXPORT int test_strutil_split(ITesting *t);
 DLL_EXPORT int test_strutil_split2(ITesting *t);
 DLL_EXPORT int test_strutil_match(ITesting *t);
+DLL_EXPORT int test_strutil_negmatch(ITesting *t);
+DLL_EXPORT int test_strutil_compmatch(ITesting *t);
 }
 
 
@@ -68,5 +70,24 @@ DLL_EXPORT int test_strutil_match(ITesting *t) {
     TR_ASSERT(t, !trun::match("test_mod_func1", "func"));
     TR_ASSERT(t, !trun::match("func", "func1"));
     TR_ASSERT(t, !trun::match("sometestfunc", "sometest"));
+    return kTR_Pass;
+}
+
+DLL_EXPORT int test_strutil_negmatch(ITesting *t) {
+    TR_ASSERT(t, !trun::match("func", "!func*"));
+    TR_ASSERT(t, !trun::match("funcflurp", "!func*"));
+    return kTR_Pass;
+}
+DLL_EXPORT int test_strutil_compmatch(ITesting *t) {
+    std::vector<std::string> patterns = {"!func", "flurp"};
+    std::vector<std::string> cases = {"func", "flurp", "apa"};
+    std::string tc = "flurp";
+
+    int flag = 1;
+    for(auto p : patterns) {
+        auto isMatch = trun::match(tc, p);
+        flag &= isMatch?1:0;
+    }
+    printf("flag: %d\n", flag);
     return kTR_Pass;
 }
