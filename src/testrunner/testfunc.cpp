@@ -38,6 +38,7 @@
 #include "testfunc.h"
 #include "config.h"
 #include "testrunner.h"
+#include "testmodule.h"
 #include "responseproxy.h"
 #include "strutil.h"
 #include <string>
@@ -95,9 +96,15 @@ bool TestFunc::ShouldExecute() {
             continue;;
         }
         auto isMatch = trun::match(caseName, tc);
-        executeFlag &= isMatch?1:0;
-
+        if ((isMatch) && (tc[0]!='!')) {
+            executeFlag = 1;
+            goto leave;
+        }
+        if ((!isMatch) && (tc[0]=='!')) {
+            executeFlag = 0;
+        }
     }
+leave:
     if (executeFlag) {
         return CheckDependenciesExecuted();
     }

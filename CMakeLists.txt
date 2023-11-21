@@ -40,7 +40,8 @@ list(APPEND srcfiles src/testrunner/responseproxy.cpp)
 list(APPEND srcfiles src/testrunner/resultsummary.cpp)
 list(APPEND srcfiles src/testrunner/strutil.cpp)
 list(APPEND srcfiles src/testrunner/timer.cpp)
-list(APPEND srcfiles src/testrunner/testfunc.cpp)
+list(APPEND srcfiles src/testrunner/testfunc.cpp src/testrunner/testfunc.h)
+list(APPEND srcfiles src/testrunner/testmodule.cpp src/testrunner/testmodule.h)
 list(APPEND srcfiles src/testrunner/testresult.cpp)
 list(APPEND srcfiles src/testrunner/testrunner.cpp)
 
@@ -61,6 +62,7 @@ list(APPEND testsrc src/testrunner/tests/test_timer.cpp)
 list(APPEND testsrc src/testrunner/tests/test_main.cpp)
 list(APPEND testsrc src/testrunner/tests/test_strutil.cpp)
 list(APPEND testsrc src/testrunner/tests/test_testfunc.cpp)
+list(APPEND testsrc src/testrunner/tests/test_testmod.cpp)
 list(APPEND testsrc src/testrunner/tests/test_depends.cpp)
 
 # Platform specific
