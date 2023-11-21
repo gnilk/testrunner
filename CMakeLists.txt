@@ -14,8 +14,6 @@ endif()
 project(testrunner)
 
 set(CMAKE_SOURCE_DIR ./src)
-set(CMAKE_BINARY_DIR ./bin)
-set(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR})
 set(LIBRARY_OUTPUT_PATH ./lib)
 
 
@@ -153,6 +151,33 @@ elseif (UNIX)
     #target_link_libraries(trun dl pthread)
     target_compile_options(trun PUBLIC -Wall -Wpedantic -Wextra)
     list(APPEND platformlibs dl pthread)
+
+    include(GNUInstallDirs)
+
+    install(TARGETS trun RUNTIME DESTINATION bin)
+    install(TARGETS trunlib LIBRARY)
+    install(FILES "src/testrunner/testinterface.h" "src/testrunner/trunembedded.h" TYPE INCLUDE)
+
+    message(STATUS "Linux target - setting up CPACK")
+
+    SET(CPACK_GENERATOR "DEB")
+
+    SET(CPACK_PACKAGE_VERSION_MAJOR 1)
+    SET(CPACK_PACKAGE_VERSION_MINOR 3)
+    SET(CPACK_PACKAGE_VERSION_PATCH 0)
+
+    SET(CPACK_DEBIAN_PACKAGE_MAINTAINER "gnilk") #required
+    SET(CPACK_PACKAGE_VENDOR "gnilk")
+    SET(CPACK_PACKAGE_NAME "testrunner")
+    SET(CPACK_PACKAGE_DESCRIPTION "C/C++ Unit Test Framework")
+    SET(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Heavily GoLang inspired unit testing for C/C++")
+    SET(CPACK_PACKAGE_HOMEPAGE_URL "https://github.com/gnilk/testrunner")
+    SET(CPACK_DEBIAN_PACKAGE_MAINTAINER "gnilk") #required
+    SET(CPACK_DEBIAN_PACKAGE_SHLIBDEPS YES)
+
+    include(CPack)
+
+
 endif()
 
 target_link_libraries(trun ${platformlibs})
@@ -171,6 +196,6 @@ add_custom_target(
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-install(FILES "src/testrunner/testinterface.h" "src/testrunner/trunembedded.h" TYPE INCLUDE)
-install(TARGETS trun RUNTIME)
-install(TARGETS trunlib LIBRARY)
+#install(FILES "src/testrunner/testinterface.h" "src/testrunner/trunembedded.h" TYPE INCLUDE)
+#install(TARGETS trun RUNTIME)
+#install(TARGETS trunlib LIBRARY)
