@@ -11,6 +11,11 @@ Glob::kMatch Glob::Match(const std::string &pattern, const std::string &string) 
 }
 
 Glob::kMatch Glob::Match(const char *pattern, const char *text) {
+    bool bNegateMatch = false;
+    if (*pattern == '!') {
+        bNegateMatch = true;
+        pattern++;
+    }
     while(*pattern != '\0' && *text != '\0') {
         switch (*pattern) {
             case '?' :
@@ -24,14 +29,14 @@ Glob::kMatch Glob::Match(const char *pattern, const char *text) {
                 }
                 text = std::next(text);
             }
-                break;
+            break;
 
             default :
                 if (*pattern == *text) {
                     pattern = std::next(pattern);
                     text = std::next(text);
                 } else {
-                    return kMatch::NoMatch;
+                    return bNegateMatch?kMatch::Match:kMatch::NoMatch;
                 }
                 break;
         }
@@ -39,9 +44,9 @@ Glob::kMatch Glob::Match(const char *pattern, const char *text) {
     if (*text == '\0') {
         while (*pattern == '*') pattern = std::next(pattern);
         if (*pattern == '\0') {
-            return kMatch::Match;
+            return bNegateMatch?kMatch::NoMatch:kMatch::Match;
         }
     }
 
-    return kMatch::NoMatch;
+    return bNegateMatch?kMatch::Match:kMatch::NoMatch;
 }
