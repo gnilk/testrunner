@@ -98,13 +98,20 @@ namespace trun {
                 cbPreHook(nullptr),
                 cbPostHook(nullptr) {};
         bool Executed() { return bExecuted; }
+
         bool ShouldExecute() {
+            int executeFlag = 1;
+
             for (auto m: Config::Instance()->modules) {
-                if ((m == "-") || (trun::match(name, m))) {
-                    return true;
+                if (m == "-") {
+                    executeFlag = 1;
+                    continue;;
                 }
+                auto isMatch = trun::match(name, m);
+                executeFlag &= isMatch?1:0;
             }
-            return false;
+
+            return (executeFlag==1);
         }
 
         TestFunc *TestCaseFromName(const std::string &caseName) {
