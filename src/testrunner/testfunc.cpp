@@ -88,10 +88,18 @@ bool TestFunc::ShouldExecute() {
         return Config::Instance()->testModuleGlobals;
     }
 
+    int executeFlag = 1;
     for (auto tc:Config::Instance()->testcases) {
-        if ((tc == "-") || (trun::match(caseName, tc))) {
-            return CheckDependenciesExecuted();
+        if (tc == "-") {
+            executeFlag = 1;
+            continue;;
         }
+        auto isMatch = trun::match(caseName, tc);
+        executeFlag &= isMatch?1:0;
+
+    }
+    if (executeFlag) {
+        return CheckDependenciesExecuted();
     }
     return false;
 }
