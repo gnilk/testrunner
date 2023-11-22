@@ -14,7 +14,8 @@ namespace trun {
         typedef int (*PTESTCASE)(ITesting *param);
     }
 
-
+    // Macro to simplify adding test-cases on embedded - natively you don't need this as we resolve symbols in runtime
+    #define TRUN_ADD_TEST(_TC_) do { trun::AddTestCase(#_TC_, _TC_); } while(0)
 
     void Initialize();
     void AddTestCase(const char *symbolName, PTESTCASE func);
