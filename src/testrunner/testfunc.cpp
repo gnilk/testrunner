@@ -100,7 +100,7 @@ bool TestFunc::ShouldExecute() {
             executeFlag = 1;
             goto leave;
         }
-        if ((!isMatch) && (tc[0]=='!')) {
+        if (!isMatch) {
             executeFlag = 0;
         }
     }

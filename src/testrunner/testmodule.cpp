@@ -30,7 +30,7 @@ bool TestModule::ShouldExecute() const {
             executeFlag = 1;
             goto leave;
         }
-        if ((!isMatch) && (m[0]=='!')) {
+        if (!isMatch) {
             executeFlag = 0;
         }
     }
