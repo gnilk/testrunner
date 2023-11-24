@@ -2,11 +2,13 @@
 #define __GNILK_TEST_INTERFACE_H__
 
 #ifdef WIN32
-#define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
-#define DLL_EXPORT __declspec(dllexport)
+    #ifndef WIN32_LEAN_AND_MEAN
+        #define WIN32_LEAN_AND_MEAN
+    #endif
+    #include <Windows.h>
+    #define DLL_EXPORT __declspec(dllexport)
 #else
-#define DLL_EXPORT
+    #define DLL_EXPORT
 #endif
 
 
