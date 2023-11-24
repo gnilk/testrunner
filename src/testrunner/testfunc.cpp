@@ -80,6 +80,10 @@ bool TestFunc::IsModuleMain() { {
 bool TestFunc::IsModuleExit() {
     return (!IsGlobal() && (caseName == Config::Instance()->exitFuncName));
 }
+//__inline__ static void trap_instruction(void)
+//{
+//    __asm__ volatile("int $0x03");
+//}
 
 bool TestFunc::ShouldExecute() {
     if (this->isExecuted) {
@@ -89,19 +93,22 @@ bool TestFunc::ShouldExecute() {
         return Config::Instance()->testModuleGlobals;
     }
 
+
+    // FIXME: THIS REALLY NEEDS TO BE REWORKED PROPERLY!
     int executeFlag = 1;
     for (auto tc:Config::Instance()->testcases) {
         if (tc == "-") {
             executeFlag = 1;
-            continue;;
+            continue;
         }
         auto isMatch = trun::match(caseName, tc);
+        if (!isMatch && (tc[0]=='!')) {
+            executeFlag = 0;
+            goto leave;
+        }
         if ((isMatch) && (tc[0]!='!')) {
             executeFlag = 1;
             goto leave;
-        }
-        if (!isMatch) {
-            executeFlag = 0;
         }
     }
 leave:

@@ -68,8 +68,7 @@ void TestModule::ResolveDependencies() {
                 if (!depFunc->ShouldExecute()) {
                     pLogger->Info("Case '%s' has dependency '%s' added to execution list",
                                   testFunc->caseName.c_str(), dep.c_str());
-                    Config::Instance()->testcases.push_back(
-                            dep);       // Add this explicitly to execution list...
+                    Config::Instance()->testcases.push_back(dep);       // Add this explicitly to execution list...
                 }
             }
         }

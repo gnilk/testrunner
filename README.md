@@ -463,7 +463,8 @@ JSON Format (some results omitted):
 
 # Version history
 ## v1.3-Dev
-- Test module and case selection can now negate (use: '!'), like `trun -t !case` run all but not case.. 
+- Test module and case selection can now negate (use: '!'), like `trun -t !case` run all but not case..
+- Embedded version is now verified on ESP32 (espressif-idf) and NRF52 (with Zephyr)
 ## v1.2-DEV
 - Added ability to configure dependencies between cases within a library
 - Added wild cards for modules and test case specification on cmd line
