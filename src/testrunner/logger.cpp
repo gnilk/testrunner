@@ -51,7 +51,6 @@
 #include <winsock.h>
 #endif
 
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -83,6 +82,20 @@
 #include "logger.h"
 #include "logger_internal.h"
 
+#ifdef TRUN_NO_STRDUP
+#warning "No strdup - using internal bad version"
+static char *strdup(const char *str) {
+	size_t len = strlen (str) + 1;
+	char *copy = (char *)malloc (len);
+	if (copy) {
+		memcpy (copy, str, len);
+	}
+	return copy;
+}
+#endif
+
+
+
 
 #define DEFAULT_DEBUG_LEVEL 0		// used by constructors, default is output everything
 #define DEFAULT_SINK_NAME ("")
@@ -93,6 +106,11 @@
 #define DBGLEVEL_MASK_FLAGS(a) ((a>>16) & 0x7fff)
 #define DBGLEVEL_COMBINE(__level, __flags) (((__level) & 0xffff) | (((__flags) & 0x7fff) << 16))
 	//dbgLevel = dbgLevel & 0xffff | ((flags & 0x7fff) << 16);
+
+#define LOG_SZ_GB(x) ((x)*1024*1024*1024)
+#define LOG_SZ_MB(x) ((x)*1024*1024)
+#define LOG_SZ_KB(x) ((x)*1024)
+
 
 using namespace std;
 
@@ -111,8 +129,10 @@ namespace trun {
     static LOG_SINK_FACTORY sinkFactoryList[] =
             {
                     {"LogConsoleSink", LogConsoleSink::CreateInstance},
+#ifndef TRUN_EMBEDDED_MCU
                     {"LogRollingFileSink", LogRollingFileSink::CreateInstance},
                     {"LogFileSink", LogFileSink::CreateInstance},
+#endif
                     {NULL, NULL},
             };
 }
@@ -171,6 +191,7 @@ void LogConsoleSink::Close()
 	// close file here
 }
 
+#ifndef TRUN_EMBEDDED_MCU
 // --------------------------------------------------------------------------
 //
 // Simple file sink
@@ -275,9 +296,6 @@ void LogFileSink::Close()
 //
 // Rolling file sink
 //
-#define LOG_SZ_GB(x) ((x)*1024*1024*1024)
-#define LOG_SZ_MB(x) ((x)*1024*1024)
-#define LOG_SZ_KB(x) ((x)*1024)
 
 #define LOG_MAX_FILENAME 255
 
@@ -373,7 +391,7 @@ int LogRollingFileSink::WriteLine(int dbgLevel, char *hdr, char *string)
 	}
 	return res;
 }
-
+#endif //TRUN_EMBEDDED_MCU
 
 /////////
 //
@@ -994,6 +1012,7 @@ void LogPropertyReader::ParseLine(char *_line)
 
 void LogPropertyReader::ReadFromFile(const char *filename)
 {
+#ifndef TRUN_EMBEDDED_MCU
 	char line[256];
 	FILE *f = fopen(filename, "rb");
 	if (f != NULL)
@@ -1004,6 +1023,7 @@ void LogPropertyReader::ReadFromFile(const char *filename)
 		}
 		fclose(f);
 	}
+#endif
 }
 void LogPropertyReader::WriteToFile([[maybe_unused]]const char *filename)
 {

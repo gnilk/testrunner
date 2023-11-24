@@ -196,7 +196,7 @@ namespace trun
 
 		static ILogOutputSink * LOG_CALLCONV CreateInstance(const char *className);
 	};
-	
+#ifndef DTRUN_EMBEDDED_MCU
 	class LogFileSink : public LogBaseSink
 	{
 	protected:
@@ -233,6 +233,7 @@ namespace trun
 
 		static ILogOutputSink * LOG_CALLCONV CreateInstance(const char *className);
 	};
+#endif
 	
 	class LoggerInstance
 	{
