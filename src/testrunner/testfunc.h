@@ -60,8 +60,13 @@ namespace trun {
         // Note: Must be public as we are executing through Win32 Threading layer...
         void ExecuteSync();
     private:
+#ifdef WIN32
+            // Windows has no conditional compile - so always declare
+            void ExecuteAsync();
+#else
 #ifdef TRUN_HAVE_THREADS
             void ExecuteAsync();
+#endif
 #endif
     public:
         std::string symbolName;
