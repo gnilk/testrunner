@@ -465,6 +465,7 @@ JSON Format (some results omitted):
 ## v1.4
 - Test module and case selection can now negate (use: '!'), like `trun -t -,!case` run all but not case..
 - Embedded version is now verified on ESP32 (espressif-idf) and NRF52 (with Zephyr)
+- On Linux you can now build .deb package files
 ## v1.2-DEV
 - Added ability to configure dependencies between cases within a library
 - Added wild cards for modules and test case specification on cmd line
