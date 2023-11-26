@@ -97,6 +97,33 @@ namespace trun {
         return (Glob::Match(pattern, string) == Glob::kMatch::Match);
     }
 
+    bool caseMatch(const std::string &caseName, const std::vector<std::string> &caseList) {
+        // FIXME: THIS REALLY NEEDS TO BE REWORKED PROPERLY!
+        int executeFlag = 0;
+        for (auto tc: caseList) {
+            if (tc == "-") {
+                executeFlag = 1;
+                continue;
+            }
+            if (tc[0]=='!') {
+                auto negTC = tc.substr(1);
+                auto isMatch = trun::match(caseName, negTC);
+                if (isMatch) {
+                    executeFlag = 0;
+                    goto leave;
+                }
+            } else {
+                auto isMatch = trun::match(caseName, tc);
+                if (isMatch) {
+                    executeFlag = 1;
+                    goto leave;
+                }
+            }
+        }
+        leave:
+            return executeFlag?true:false;
+    }
+
 }
 
 
