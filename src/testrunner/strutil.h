@@ -1,7 +1,10 @@
 #pragma once
 #include <string>
+#include <vector>
 
 namespace trun {
+    // Note: Thes functions are snake-case for historical reasons (this file, in various shapes and forms, exists in many of my projects)
+
     std::string& ltrim(std::string& str, const std::string& chars = "\t\n\v\f\r ");
     std::string& rtrim(std::string& str, const std::string& chars = "\t\n\v\f\r ");
     std::string& trim(std::string& str, const std::string& chars = "\t\n\v\f\r ");
@@ -11,4 +14,6 @@ namespace trun {
 
     bool match(const std::string &string, const std::string &pattern);
     bool match(const char *string, const char *pattern);
+
+    bool caseMatch(const std::string &caseName, const std::vector<std::string> &caseList);
 }

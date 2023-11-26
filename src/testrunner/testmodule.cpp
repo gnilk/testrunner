@@ -18,24 +18,7 @@
 using namespace trun;
 
 bool TestModule::ShouldExecute() const {
-    int executeFlag = 0;
-
-    for (auto m: Config::Instance()->modules) {
-        if (m == "-") {
-            executeFlag = 1;
-            continue;;
-        }
-        auto isMatch = trun::match(name, m);
-        if ((isMatch) && (m[0]!='!')) {
-            executeFlag = 1;
-            goto leave;
-        }
-        if (!isMatch) {
-            executeFlag = 0;
-        }
-    }
-leave:
-    return (executeFlag==1);
+    return caseMatch(name, Config::Instance()->modules);
 }
 
 TestFunc *TestModule::TestCaseFromName(const std::string &caseName) const {
@@ -68,8 +51,7 @@ void TestModule::ResolveDependencies() {
                 if (!depFunc->ShouldExecute()) {
                     pLogger->Info("Case '%s' has dependency '%s' added to execution list",
                                   testFunc->caseName.c_str(), dep.c_str());
-                    Config::Instance()->testcases.push_back(
-                            dep);       // Add this explicitly to execution list...
+                    Config::Instance()->testcases.push_back(dep);       // Add this explicitly to execution list...
                 }
             }
         }

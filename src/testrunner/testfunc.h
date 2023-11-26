@@ -14,7 +14,6 @@
 namespace trun {
 
     class TestFunc;
-
     class TestModule;
 
 // The core structure defining a testable function which belongs to a test-library
