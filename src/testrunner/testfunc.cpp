@@ -93,30 +93,12 @@ bool TestFunc::ShouldExecute() {
         return Config::Instance()->testModuleGlobals;
     }
 
-
-    // FIXME: THIS REALLY NEEDS TO BE REWORKED PROPERLY!
-    int executeFlag = 1;
-    for (auto tc:Config::Instance()->testcases) {
-        if (tc == "-") {
-            executeFlag = 1;
-            continue;
-        }
-        auto isMatch = trun::match(caseName, tc);
-        if (!isMatch && (tc[0]=='!')) {
-            executeFlag = 0;
-            goto leave;
-        }
-        if ((isMatch) && (tc[0]!='!')) {
-            executeFlag = 1;
-            goto leave;
-        }
-    }
-leave:
-    if (executeFlag) {
+    if (caseMatch(caseName, Config::Instance()->testcases)) {
         return CheckDependenciesExecuted();
     }
     return false;
 }
+
 bool TestFunc::ShouldExecuteNoDeps() {
     if (this->isExecuted) {
         return false;
@@ -125,12 +107,7 @@ bool TestFunc::ShouldExecuteNoDeps() {
         return Config::Instance()->testModuleGlobals;
     }
 
-    for (auto tc:Config::Instance()->testcases) {
-        if ((tc == "-") || (trun::match(caseName, tc))) {
-            return true;
-        }
-    }
-    return false;
+    return caseMatch(caseName, Config::Instance()->testcases);
 }
 
 
