@@ -146,6 +146,14 @@ if (APPLE)
     message(STATUS IncludeDir: "${CMAKE_INSTALL_PREFIX}")
     list(APPEND platformlibs ${COCOA_FRAMEWORK} ${IOKIT_FRAMEWORK} ${CORE_FRAMEWORK} ${SYSTEM_FRAMEWORK})
 
+
+    include(GNUInstallDirs)
+
+    install(TARGETS trun RUNTIME DESTINATION bin)
+    install(TARGETS trunlib LIBRARY)
+    install(FILES "src/testrunner/testinterface.h" "src/testrunner/trunembedded.h" TYPE INCLUDE)
+
+
 elseif (WIN32)
     target_link_libraries(trun)
     target_compile_definitions(trun PUBLIC _CRT_SECURE_NO_WARNINGS)
