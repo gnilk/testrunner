@@ -462,8 +462,8 @@ JSON Format (some results omitted):
 <b>Note:</b> Passes are only reported IF you include it in the summary (`-S`).
 
 # Version history
-## v1.3-Dev
-- Test module and case selection can now negate (use: '!'), like `trun -t !case` run all but not case..
+## v1.4
+- Test module and case selection can now negate (use: '!'), like `trun -t -,!case` run all but not case..
 - Embedded version is now verified on ESP32 (espressif-idf) and NRF52 (with Zephyr)
 ## v1.2-DEV
 - Added ability to configure dependencies between cases within a library
