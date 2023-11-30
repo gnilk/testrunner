@@ -13,11 +13,20 @@
 
 extern "C" {
     DLL_EXPORT int test_testmod(ITesting *t);
+    DLL_EXPORT int test_testmod_exit(ITesting *t);
     DLL_EXPORT int test_testmod_shouldexec(ITesting *t);
+    // Enable this to test how testrunner proceeds for different exit codes
+    // note: this test is interactive (for now)
+    // DLL_EXPORT int test_testmod_enterexit(ITesting *t);
 }
 DLL_EXPORT int test_testmod(ITesting *t) {
+    t->CaseDepends("shouldexec", "enterexit");
     return kTR_Pass;
 }
+DLL_EXPORT int test_testmod_exit(ITesting *t) {
+    return kTR_Pass;
+}
+
 DLL_EXPORT int test_testmod_shouldexec(ITesting *t) {
     trun::TestModule tmod("thread");
     trun::TestModule tmod2("atomicmutex");
@@ -40,4 +49,9 @@ DLL_EXPORT int test_testmod_shouldexec(ITesting *t) {
 
     trun::Config::Instance()->modules = oldModules;
     return kTR_Pass;
+}
+
+DLL_EXPORT int test_testmod_enterexit(ITesting *t) {
+
+    return kTR_FailModule;
 }
