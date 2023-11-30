@@ -265,6 +265,8 @@ void TestFunc::HandleTestReturnCode() {
         case kTR_FailAll :
             testResult->SetResult(kTestResult_AllFail);
             break;
+        default:
+            testResult->SetResult(kTestResult_InvalidReturnCode);
     }
 }
 
