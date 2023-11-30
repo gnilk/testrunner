@@ -173,7 +173,7 @@ elseif (UNIX)
     SET(CPACK_GENERATOR "DEB")
 
     SET(CPACK_PACKAGE_VERSION_MAJOR 1)
-    SET(CPACK_PACKAGE_VERSION_MINOR 3)
+    SET(CPACK_PACKAGE_VERSION_MINOR 4)
     SET(CPACK_PACKAGE_VERSION_PATCH 0)
 
     SET(CPACK_DEBIAN_PACKAGE_MAINTAINER "gnilk") #required
@@ -209,3 +209,7 @@ add_custom_target(
 #install(FILES "src/testrunner/testinterface.h" "src/testrunner/trunembedded.h" TYPE INCLUDE)
 #install(TARGETS trun RUNTIME)
 #install(TARGETS trunlib LIBRARY)
+
+if(CMAKE_BUILD_TYPE STREQUAL Debug)
+    add_dependencies(trun trun_utests)
+endif()
