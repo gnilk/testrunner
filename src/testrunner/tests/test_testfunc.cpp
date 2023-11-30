@@ -9,15 +9,17 @@ using namespace trun;
 
 
 extern "C" {
-DLL_EXPORT int test_tfunc(ITesting *t);
-DLL_EXPORT int test_tfunc_globals(ITesting *t);
-DLL_EXPORT int test_tfunc_exec(ITesting *t);
-DLL_EXPORT int test_tfunc_casefilter_simple(ITesting *t);
-DLL_EXPORT int test_tfunc_casefilter_splitmid(ITesting *t);
-DLL_EXPORT int test_tfunc_casefilter_trailing(ITesting *t);
-DLL_EXPORT int test_tfunc_modfilter_simple(ITesting *t);
-DLL_EXPORT int test_tfunc_modfilter_trailing(ITesting *t);
-DLL_EXPORT int test_tfunc_casematch_simple(ITesting *t);
+    DLL_EXPORT int test_tfunc(ITesting *t);
+    DLL_EXPORT int test_tfunc_globals(ITesting *t);
+    DLL_EXPORT int test_tfunc_exec(ITesting *t);
+    DLL_EXPORT int test_tfunc_casefilter_simple(ITesting *t);
+    DLL_EXPORT int test_tfunc_casefilter_splitmid(ITesting *t);
+    DLL_EXPORT int test_tfunc_casefilter_trailing(ITesting *t);
+    DLL_EXPORT int test_tfunc_modfilter_simple(ITesting *t);
+    DLL_EXPORT int test_tfunc_modfilter_trailing(ITesting *t);
+    DLL_EXPORT int test_tfunc_casematch_simple(ITesting *t);
+    DLL_EXPORT int test_tfunc_empty(ITesting *t);
+    DLL_EXPORT int test_tfunc_illegalreturn(ITesting *t);
 }
 
 
@@ -157,4 +159,10 @@ DLL_EXPORT int test_tfunc_casematch_simple(ITesting *t) {
     Config::Instance()->testcases = testCasesOrig;
     return kTR_Pass;
 
+}
+DLL_EXPORT int test_tfunc_empty(ITesting *t) {
+    return kTR_Pass;
+}
+DLL_EXPORT int test_tfunc_illegalreturn(ITesting *t) {
+    return -1;
 }
