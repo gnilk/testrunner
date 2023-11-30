@@ -35,6 +35,7 @@ namespace trun {
         kTestResult_ModuleFail = 2,
         kTestResult_AllFail = 3,
         kTestResult_NotExecuted = 4,
+        kTestResult_InvalidReturnCode = 5,
     } kTestResult;
 
     class TestResult {
