@@ -100,9 +100,11 @@ void ResultsReportJSON::PrintTestResult(const TestResult *result) {
     // Only print this the first time if we have any...
     static std::map<kTestResult, std::string> resultToName={
             {kTestResult_Pass, "Pass"},
-            {kTestResult_AllFail, "AllFail"},
-            {kTestResult_ModuleFail,"ModuleFail"},
             {kTestResult_TestFail, "TestFail"},
+            {kTestResult_ModuleFail,"ModuleFail"},
+            {kTestResult_AllFail, "AllFail"},
+            {kTestResult_NotExecuted, "NotExecuted"},
+            {kTestResult_InvalidReturnCode, "Invalid Return Code!"},
     };
     WriteLine("{");
     PushIndent();
