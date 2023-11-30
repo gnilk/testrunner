@@ -323,7 +323,11 @@ TestResult *TestRunner::ExecuteTest(TestFunc *f) {
 void TestRunner::HandleTestResult(TestResult *result) {
     double tElapsedSec = result->ElapsedTimeSec();
     if (result->Result() != kTestResult_Pass) {
-        printf("=== FAIL:\t%s, %.3f sec, %d, %d, %d\n",result->SymbolName().c_str(), tElapsedSec, result->Result(), result->Errors(), result->Asserts());
+        if (result->Result() == kTestResult_InvalidReturnCode) {
+            printf("=== INVALID RETURN CODE (%d) for %s", result->Result(), result->SymbolName().c_str());
+        } else {
+            printf("=== FAIL:\t%s, %.3f sec, %d, %d, %d\n",result->SymbolName().c_str(), tElapsedSec, result->Result(), result->Errors(), result->Asserts());
+        }
     } else {
         if ((result->Errors() != 0) || (result->Asserts() != 0)) {
             printf("=== FAIL:\t%s, %.3f sec, %d, %d, %d\n",result->SymbolName().c_str(), tElapsedSec, result->Result(), result->Errors(), result->Asserts());
