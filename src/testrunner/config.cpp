@@ -49,6 +49,7 @@ Config::Config() {
     mainFuncName = "main";
     exitFuncName = "exit";
     reportingModule = "console";
+    reportFile = "-";
     reportIndent = 8;
     executeTests = true;
     listTests = false;

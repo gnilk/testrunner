@@ -101,6 +101,7 @@ static void Help() {
     printf("  -C  Continue on total failure (default: off)\n");
     printf("  -x  Don't execute tests (default: off)\n");
     printf("  -R  <name> Use reporting library (default: console)\n");
+    printf("  -O  <file> Report final result to this file, use '-' for stdout (default: -)\n");
     printf("  -m <list> List of modules to test (default: '-' (all))\n");
     printf("  -t <list> List of test cases to test (default: '-' (all))\n");
     printf("\n");
@@ -194,6 +195,10 @@ static bool ParseArguments(int argc, char **argv) {
                         break;
                     case 'R' :
                         Config::Instance()->reportingModule = std::string(argv[++i]);
+                        goto next_argument;
+                        break;
+                    case 'O' :
+                        Config::Instance()->reportFile = std::string(argv[++i]);
                         goto next_argument;
                         break;
                     default:

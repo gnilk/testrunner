@@ -28,6 +28,7 @@ namespace trun {
         // the library exit function is: 'test_module_exit()' the global exit is 'test_exit'
         std::string exitFuncName;   // Expected exit function name after spliiting (default: 'exit')
         std::string reportingModule;
+        std::string reportFile;
         int reportIndent;
         bool executeTests;
         bool listTests;
