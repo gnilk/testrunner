@@ -3,11 +3,28 @@
 //
 
 #include "reportingbase.h"
+#include "../config.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
 using namespace trun;
 
+void ResultsReportPinterBase::Begin() {
+    if (Config::Instance()->reportFile == "-") {
+        fout = stdout;
+    } else {
+        fout = fopen(Config::Instance()->reportFile.c_str(), "w+");
+        if (fout == nullptr) {
+            fprintf(stderr, "Err: unable to create report file '%s'\n", Config::Instance()->reportFile.c_str());
+            fout = stdout;
+        }
+    }
+}
+void ResultsReportPinterBase::End() {
+    if (fout != stdout) {
+        fclose(fout);
+    }
+}
 ResultsReportPinterBase::ResultsReportPinterBase() {
     fout = stdout;
     indent = "";

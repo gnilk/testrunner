@@ -13,8 +13,8 @@ namespace trun {
     public:
         ResultsReportPinterBase();
         virtual ~ResultsReportPinterBase() = default;
-        virtual void Begin() {}
-        virtual void End() {}
+        virtual void Begin();
+        virtual void End();
         virtual void PrintReport() {};
 
 

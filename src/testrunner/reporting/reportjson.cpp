@@ -11,7 +11,7 @@
 using namespace trun;
 
 void ResultsReportJSON::Begin() {
-    fout = stdout;
+    ResultsReportPinterBase::Begin();
     WriteLine("{");
     PushIndent();
 }
@@ -19,6 +19,9 @@ void ResultsReportJSON::End() {
     WriteLine("");
     PopIndent();
     WriteLine("}");
+
+
+    ResultsReportPinterBase::End();
 }
 
 void ResultsReportJSON::PrintReport() {

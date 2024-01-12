@@ -11,6 +11,7 @@ namespace trun {
     class ResultsReportConsole : public ResultsReportPinterBase {
     public:
         void Begin() override;
+        void End() override;
         void PrintReport() override;
     protected:
         void PrintSummary();
