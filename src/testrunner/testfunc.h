@@ -86,8 +86,8 @@ namespace trun {
         std::vector<std::string> dependencies;
 
         PTESTFUNC pFunc;
-        int testReturnCode;
-        TestResult *testResult = nullptr;
+        int testReturnCode = -1;
+        TestResult *testResult;
 
     };
 }

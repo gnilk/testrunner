@@ -230,8 +230,6 @@ TestResult *TestFunc::Execute(IDynLibrary *module) {
         testResult->SetNumberOfErrors(trp->Errors());
         testResult->SetNumberOfAsserts(trp->Asserts());
         testResult->SetTimeElapsedSec(trp->ElapsedTimeInSec());
-
-        // Overwrite the result based on return code
         HandleTestReturnCode();
     } else {
         pLogger->Error("Execute, unable to find exported symbol '%s' for case: %s\n", symbolName.c_str(), caseName.c_str());
@@ -266,7 +264,14 @@ void TestFunc::HandleTestReturnCode() {
             testResult->SetResult(kTestResult_AllFail);
             break;
         default:
-            testResult->SetResult(kTestResult_InvalidReturnCode);
+            if ((testResult->Errors() > 0) || (testResult->Asserts() > 0)) {
+                // in this case we have called 'thread_exit' and we don't have a return code..
+                testResult->SetResult(kTestResult_TestFail);
+            } else {
+                // This could be depending on 'strict' checking flag (fail in strict mode)
+                testResult->SetResult(kTestResult_InvalidReturnCode);
+            }
+
     }
 }
 
