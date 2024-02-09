@@ -462,6 +462,8 @@ JSON Format (some results omitted):
 <b>Note:</b> Passes are only reported IF you include it in the summary (`-S`).
 
 # Version history
+## v1.5.1
+- BUG: JSON reporting was not escaping strings properly leading to JSON was wrongly produced
 ## v1.5
 - Possible to specify report file -O <file> 
 ## v1.4
