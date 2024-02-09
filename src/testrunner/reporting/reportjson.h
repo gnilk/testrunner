@@ -22,6 +22,7 @@ namespace trun {
         void PrintPasses(const std::vector<const TestResult *> &results);
     protected:
         void PrintTestResult(const TestResult *result);
+        std::string EscapeString(const std::string &str);
     protected:
         bool bHadFailures = false;
         bool bHadSuccess = false;

@@ -120,7 +120,7 @@ void ResultsReportJSON::PrintTestResult(const TestResult *result) {
         PushIndent();
         WriteLine(R"("File" : "%s",)", result->AssertError().file.c_str());
         WriteLine(R"("Line" : %d,)", result->AssertError().line);
-        WriteLine(R"("Message" : "%s")", result->AssertError().message.c_str());
+        WriteLine(R"("Message" : "%s")", EscapeString(result->AssertError().message).c_str());
         PopIndent();
         WriteLine("}");
     } else {
@@ -131,4 +131,19 @@ void ResultsReportJSON::PrintTestResult(const TestResult *result) {
 
 }
 
+// Quick and dirty escaping special json chars..
+std::string ResultsReportJSON::EscapeString(const std::string &str) {
+    std::string strIllegal = "\"\\";
+    std::string strEscaped;
+    for(auto c : str) {
+        // Just skip this - we do not forward tab's, bells, new lines and whatever...
+        if (c < 31) continue;
+        if (strIllegal.find(c) != std::string::npos) {
+            strEscaped += '\\';
+        }
+        strEscaped += c;
+    }
+
+    return strEscaped;
+}
 
