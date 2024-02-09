@@ -87,7 +87,7 @@ namespace trun {
 
         PTESTFUNC pFunc;
         int testReturnCode = -1;
-        TestResult *testResult;
+        TestResult *testResult = nullptr;
 
     };
 }
