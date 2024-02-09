@@ -53,6 +53,8 @@ namespace trun {
             testScope = scope;
         }
         const TestResult *Result() const { return testResult; }
+        // I use this in the unit test in order to create a mock-up result...
+        void UTEST_SetMockResultPtr(TestResult *pMockResult) { testResult = pMockResult; }
         kTestScope TestScope() { return testScope; }
 
     public:
@@ -77,15 +79,15 @@ namespace trun {
         ILogger *pLogger;
         void HandleTestReturnCode();
 
-        IDynLibrary *library;
-        TestModule *testModule;
-        TestResponseProxy *trp;
+        IDynLibrary *library = nullptr;
+        TestModule *testModule = nullptr;
+        TestResponseProxy *trp = nullptr;
 
         std::vector<std::string> dependencies;
 
         PTESTFUNC pFunc;
         int testReturnCode;
-        TestResult *testResult;
+        TestResult *testResult = nullptr;
 
     };
 }
