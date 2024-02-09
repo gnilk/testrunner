@@ -58,12 +58,13 @@ list(APPEND embedsrc src/testrunner/trunembedded.cpp src/testrunner/trunembedded
 
 
 # add unit tests
-list(APPEND testsrc src/testrunner/tests/test_timer.cpp)
+list(APPEND testsrc src/testrunner/tests/test_depends.cpp)
+list(APPEND testsrc src/testrunner/tests/test_jsonreport.cpp)
 list(APPEND testsrc src/testrunner/tests/test_main.cpp)
 list(APPEND testsrc src/testrunner/tests/test_strutil.cpp)
 list(APPEND testsrc src/testrunner/tests/test_testfunc.cpp)
 list(APPEND testsrc src/testrunner/tests/test_testmod.cpp)
-list(APPEND testsrc src/testrunner/tests/test_depends.cpp)
+list(APPEND testsrc src/testrunner/tests/test_timer.cpp)
 
 # Platform specific
 # Unix = Apple and Linux
