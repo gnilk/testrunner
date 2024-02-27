@@ -52,9 +52,14 @@ static void PrintWin32Error(ILogger *pLogger, char *title) {
     pLogger->Error("%s: %d, %s", title, err, msg);
 }
 
+IDynLibrary::Ref DynLibWin::Create() {
+    return std::make_shared<DynLibWin>();
+}
+
 DynLibWin::DynLibWin() {
     this->pLogger = Logger::GetLogger("DynLibWin");
 }
+
 DynLibWin::~DynLibWin() {
     pLogger->Debug("DTOR, closing library");
     Close();

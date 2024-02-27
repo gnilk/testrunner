@@ -45,6 +45,10 @@
 
 using namespace trun;
 
+IDynLibrary::Ref DynLibLinux::Create() {
+    return std::make_shared<DynLibLinux>();
+}
+
 DynLibLinux::DynLibLinux() {
     this->pLogger = Logger::GetLogger("Loader");
 }

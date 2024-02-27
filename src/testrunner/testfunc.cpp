@@ -202,7 +202,7 @@ void TestFunc::ExecuteAsync() {
 #endif
 #endif
 
-TestResult::Ref TestFunc::Execute(IDynLibrary *module) {
+TestResult::Ref TestFunc::Execute(IDynLibrary::Ref module) {
     pLogger->Debug("Executing test: %s", caseName.c_str());
     pLogger->Debug("  Module: %s", moduleName.c_str());
     pLogger->Debug("  Case..: %s", caseName.c_str());

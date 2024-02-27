@@ -59,7 +59,7 @@ TestModule::Ref TestRunner::HACK_GetCurrentTestModule() {
 
 //////--- Ok, let's go...
 
-TestRunner::TestRunner(IDynLibrary *library) {
+TestRunner::TestRunner(IDynLibrary::Ref library) {
     this->library = library;
     this->pLogger = Logger::GetLogger("TestRunner");
 }

@@ -245,22 +245,22 @@ next_argument:;
 
 
 
-static IDynLibrary *GetLibraryLoader() {
+static IDynLibrary::Ref GetLibraryLoader() {
 #ifdef WIN32
-    return new DynLibWin();
+    return DynLibWin::Create();
 #elif __linux
-    return new DynLibLinux();
+    return DynLibLinux::Create();
 #else
-    return new DynLibLinux();
+    return new DynLibLinux::Create();
 #endif
-    return nullptr;
+    return {};
 }
 
 static void RunTestsForAllLibraries();
-static void RunTestsForLibrary(IDynLibrary &library);
+static void RunTestsForLibrary(IDynLibrary::Ref library);
 
 // Populated by ScanLibraries
-static std::vector<IDynLibrary *> librariesToTest;
+static std::vector<IDynLibrary::Ref> librariesToTest;
 
 
 static void ScanLibraries(std::vector<std::string> &inputs) {
@@ -271,7 +271,11 @@ static void ScanLibraries(std::vector<std::string> &inputs) {
             std::vector<std::string> subs = dirscan.Scan(x, true);
             ScanLibraries(subs);
         } else {
-            IDynLibrary *scanner = GetLibraryLoader();
+            IDynLibrary::Ref scanner = GetLibraryLoader();
+            if (scanner == nullptr) {
+                pLogger->Error("No library loader/scanner - unsupported platform?");
+                exit(1);
+            }
 
             auto res = scanner->Scan(x);
             if (res) {
@@ -290,29 +294,29 @@ static void ScanLibraries(std::vector<std::string> &inputs) {
 static void RunTestsForAllLibraries() {
     pLogger->Info("Running tests for all modules");
     for(auto lib : librariesToTest) {
-        RunTestsForLibrary(*lib);
+        RunTestsForLibrary(lib);
     }
 }
 
-static void RunTestsForLibrary(IDynLibrary &library) {
-    TestRunner testRunner(&library);
+static void RunTestsForLibrary(IDynLibrary::Ref library) {
+    TestRunner testRunner(library);
     testRunner.PrepareTests();
 
     if (Config::Instance().executeTests) {
-        pLogger->Debug("Running tests for: %s", library.Name().c_str());
+        pLogger->Debug("Running tests for: %s", library->Name().c_str());
         testRunner.ExecuteTests();
     }
 }
-static void DumpTestsForLibrary(IDynLibrary &library) {
-    TestRunner testRunner(&library);
+static void DumpTestsForLibrary(IDynLibrary::Ref library) {
+    TestRunner testRunner(library);
     testRunner.PrepareTests();
-        printf("=== Library: %s\n", library.Name().c_str());
+        printf("=== Library: %s\n", library->Name().c_str());
     testRunner.DumpTestsToRun();
 }
 
 static void DumpTestsForAllLibraries() {
     for(auto m : librariesToTest) {
-        DumpTestsForLibrary(*m);
+        DumpTestsForLibrary(m);
     }
 }
 

@@ -63,7 +63,7 @@ DLL_EXPORT int test_tfunc_globals(ITesting *t) {
 }
 
 DLL_EXPORT int test_tfunc_exec(ITesting *t) {
-    ModuleMock mockModule;
+    ModuleMock::Ref mockModule = std::make_shared<ModuleMock>();
     TestFunc func("test_mock_func", "mock", "func");
     TR_ASSERT(t, !func.IsGlobal());
     TR_ASSERT(t, !func.IsGlobalMain());
@@ -74,7 +74,7 @@ DLL_EXPORT int test_tfunc_exec(ITesting *t) {
     // This will actually test quite a bunch of things - more like an integration test as the TestFunc is fairly
     // high-level. We are testing: TestResponseProxy, AssertError, TestResult, etc...
     //
-    auto testResult = func.Execute(&mockModule);
+    auto testResult = func.Execute(mockModule);
     TR_ASSERT(t, testResult != nullptr);
 
     TR_ASSERT(t, testResult->Errors() == 0);
@@ -85,7 +85,7 @@ DLL_EXPORT int test_tfunc_exec(ITesting *t) {
 }
 
 DLL_EXPORT int test_tfunc_casefilter_simple(ITesting *t) {
-    ModuleMock mockModule;
+    ModuleMock::Ref mockModule = std::make_shared<ModuleMock>();
     auto testCasesOrig = Config::Instance().testcases;
 
     Config::Instance().testcases = {"func*"};
@@ -97,7 +97,7 @@ DLL_EXPORT int test_tfunc_casefilter_simple(ITesting *t) {
 }
 
 DLL_EXPORT int test_tfunc_casefilter_splitmid(ITesting *t) {
-    ModuleMock mockModule;
+    ModuleMock::Ref mockModule = std::make_shared<ModuleMock>();
     auto testCasesOrig = Config::Instance().testcases;
 
     Config::Instance().testcases = {"fn_*_case"};
@@ -109,7 +109,7 @@ DLL_EXPORT int test_tfunc_casefilter_splitmid(ITesting *t) {
 }
 
 DLL_EXPORT int test_tfunc_casefilter_trailing(ITesting *t) {
-    ModuleMock mockModule;
+    ModuleMock::Ref mockModule = std::make_shared<ModuleMock>();
     auto testCasesOrig = Config::Instance().testcases;
 
     Config::Instance().testcases = {"*flurp"};
@@ -121,7 +121,7 @@ DLL_EXPORT int test_tfunc_casefilter_trailing(ITesting *t) {
 }
 
 DLL_EXPORT int test_tfunc_modfilter_simple(ITesting *t) {
-    ModuleMock mockModule;
+    ModuleMock::Ref mockModule = std::make_shared<ModuleMock>();
     auto modulesOrig = Config::Instance().modules;
 
     Config::Instance().modules = {"base*"};
@@ -133,7 +133,7 @@ DLL_EXPORT int test_tfunc_modfilter_simple(ITesting *t) {
 }
 
 DLL_EXPORT int test_tfunc_modfilter_trailing(ITesting *t) {
-    ModuleMock mockModule;
+    ModuleMock::Ref mockModule = std::make_shared<ModuleMock>();
     auto modulesOrig = Config::Instance().modules;
 
     Config::Instance().modules = {"*mod"};
@@ -146,7 +146,7 @@ DLL_EXPORT int test_tfunc_modfilter_trailing(ITesting *t) {
 
 
 DLL_EXPORT int test_tfunc_casematch_simple(ITesting *t) {
-    ModuleMock mockModule;
+    ModuleMock::Ref mockModule = std::make_shared<ModuleMock>();
     auto testCasesOrig = Config::Instance().testcases;
 
     Config::Instance().testcases = {"-","caseA","!caseB"};

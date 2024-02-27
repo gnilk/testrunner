@@ -38,19 +38,14 @@ namespace trun {
         bool IsModuleMain();
         bool IsGlobalMain();
         bool IsGlobalExit();
-        TestResult::Ref Execute(IDynLibrary *module);
+        TestResult::Ref Execute(IDynLibrary::Ref module);
         void SetExecuted();
         bool Executed();
         bool ShouldExecute();
         bool ShouldExecuteNoDeps();
-        //bool CheckDependenciesExecuted();
 
-        // FIXME: these two classes need to reference each other...
-        //void SetTestModule(TestModule::Ref newTestModule) { testModule = newTestModule; }
-        //TestModule *GetTestModule() { return testModule; }
-
-        void SetLibrary(IDynLibrary *dynLibrary) { library = dynLibrary; }
-        const IDynLibrary *Library() const { return library; }
+        void SetLibrary(IDynLibrary::Ref dynLibrary) { library = dynLibrary; }
+        const IDynLibrary::Ref Library() const { return library; }
 
         void SetDependencyList(const char *dependencyList);
         const std::vector<std::string> &Dependencies() const { return dependencies; }
@@ -92,7 +87,7 @@ namespace trun {
         bool isExecuted = false;
         ILogger *pLogger = nullptr;
 
-        IDynLibrary *library = nullptr;
+        IDynLibrary::Ref library = nullptr;
 
         TestResponseProxy *trp = nullptr;
         std::vector<std::string> dependencies;

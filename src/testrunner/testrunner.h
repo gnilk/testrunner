@@ -19,7 +19,7 @@ namespace trun {
 //
     class TestRunner {
     public:
-        explicit TestRunner(IDynLibrary *library);
+        explicit TestRunner(IDynLibrary::Ref library);
         void PrepareTests();
         void ExecuteTests();
         void DumpTestsToRun();
@@ -50,7 +50,7 @@ namespace trun {
         TestModule::Ref GetOrAddModule(std::string &module);
 
     private:
-        IDynLibrary *library = nullptr;
+        IDynLibrary::Ref library = nullptr;
         ILogger *pLogger = nullptr;
         std::map<std::string, TestModule::Ref> testModules;
         std::vector<TestFunc::Ref> globals;

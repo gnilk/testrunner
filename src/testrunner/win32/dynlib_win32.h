@@ -23,6 +23,7 @@ namespace trun {
 
     class DynLibWin : public IDynLibrary {
     public:
+        static IDynLibrary::Ref Create();
         DynLibWin();
         virtual ~DynLibWin();
 
