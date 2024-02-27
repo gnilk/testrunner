@@ -201,14 +201,17 @@ static bool ParseArguments(int argc, char **argv) {
                         Config::Instance()->reportFile = std::string(argv[++i]);
                         goto next_argument;
                         break;
-                    default:
-                        printf("Unknown option: %c\n", argv[i][j]);
                     case '?' :
                     case 'h' :
                     case 'H' :
                         Help();
                         exit(1);
                         break;
+                    default:
+                        printf("Unknown option: %c\n", argv[i][j]);
+                        Help();
+                        exit(1);
+
                 }
                 j++;
             }
