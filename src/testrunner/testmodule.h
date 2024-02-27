@@ -30,27 +30,27 @@ namespace trun {
 
         bool ShouldExecute() const;
 
-        TestFunc *TestCaseFromName(const std::string &caseName) const;
+        TestFunc::Ref TestCaseFromName(const std::string &caseName) const;
         void SetDependencyForCase(const char *caseName, const char *dependencyList);
 
-        const std::vector<TestFunc *> Dependencies() const {
+        const std::vector<TestFunc::Ref> Dependencies() const {
             return dependencies;
         }
-        bool HaveDependency(TestFunc *func);
+        bool HaveDependency(const TestFunc::Ref &func) const;
 
         void ResolveDependencies();
-        size_t ResolveDependenciesForTest(std::vector<TestFunc *> &outDeps, TestFunc *testFunc) const;
+        size_t ResolveDependenciesForTest(std::vector<TestFunc::Ref> &outDeps, const TestFunc::Ref &testFunc) const;
     private:
     public:
         std::string name;
         bool bExecuted = false;
-        TestFunc *mainFunc = nullptr;
-        TestFunc *exitFunc = nullptr;
+        TestFunc::Ref mainFunc = nullptr;
+        TestFunc::Ref exitFunc = nullptr;
 
         TRUN_PRE_POST_HOOK_DELEGATE *cbPreHook = nullptr;
         TRUN_PRE_POST_HOOK_DELEGATE *cbPostHook = nullptr;
 
-        std::vector<TestFunc *> dependencies;
-        std::vector<TestFunc *> testFuncs;
+        std::vector<TestFunc::Ref> dependencies;
+        std::vector<TestFunc::Ref> testFuncs;
     };
 }

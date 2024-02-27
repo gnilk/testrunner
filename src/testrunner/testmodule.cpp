@@ -33,7 +33,7 @@ bool TestModule::ShouldExecute() const {
     return caseMatch(name, Config::Instance()->modules);
 }
 
-TestFunc *TestModule::TestCaseFromName(const std::string &caseName) const {
+TestFunc::Ref TestModule::TestCaseFromName(const std::string &caseName) const {
     for (auto func: testFuncs) {
         if (func->CaseName() == caseName) {
             return func;
@@ -70,7 +70,7 @@ void TestModule::ResolveDependencies() {
     }
 }
 
-size_t TestModule::ResolveDependenciesForTest(std::vector<TestFunc *> &outDeps, TestFunc *testFunc) const {
+size_t TestModule::ResolveDependenciesForTest(std::vector<TestFunc::Ref> &outDeps, const TestFunc::Ref &testFunc) const {
     for(auto &dep : testFunc->Dependencies()) {
         auto depFunc = TestCaseFromName(dep);
         // Add if not already present...
@@ -83,7 +83,7 @@ size_t TestModule::ResolveDependenciesForTest(std::vector<TestFunc *> &outDeps, 
 
 
 
-bool TestModule::HaveDependency(TestFunc *func) {
+bool TestModule::HaveDependency(const TestFunc::Ref &func) const {
     return (std::find(dependencies.begin(), dependencies.end(), func) != dependencies.end());
 }
 

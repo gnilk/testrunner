@@ -45,7 +45,11 @@
 
 using namespace trun;
 
+TestFunc::Ref TestFunc::Create(std::string symbolName, std::string moduleName, std::string caseName) {
+    return std::make_shared<TestFunc>(symbolName, moduleName, caseName);
+}
 
+// Default CTOR only used for unit testing
 TestFunc::TestFunc() {
     isExecuted = false;
     pLogger = Logger::GetLogger("TestFunc");
@@ -147,7 +151,7 @@ void TestFunc::ExecuteSync() {
 
 #ifdef WIN32
 DWORD WINAPI testfunc_thread_starter(LPVOID lpParam) {
-    TestFunc* func = reinterpret_cast<TestFunc*>(lpParam);
+    TestFunc* func = reinterpret_cast<TestFunc *>(lpParam);
     func->ExecuteSync();
     return NULL;
 }

@@ -53,7 +53,7 @@ void ResultsReportJSONExtensive::DumpNewStruct() {
     Write("]");
 }
 
-void ResultsReportJSONExtensive::PrintFuncResult(const TestFunc *testFunction) {
+void ResultsReportJSONExtensive::PrintFuncResult(const TestFunc::Ref &testFunction) {
     WriteLine("{");
     PushIndent();
     if (testFunction->Library() != nullptr) {

@@ -37,15 +37,15 @@ namespace trun {
         bool ExecuteGlobalTests();
         bool ExecuteModuleTests();
         bool ExecuteModuleTestFuncs(TestModule::Ref testModule);
-        kRunResultAction ExecuteTestWithDependencies(const TestModule::Ref &testModule, TestFunc *testCase);
-        TestResult::Ref ExecuteModuleMain(TestModule::Ref testModule);
+        kRunResultAction ExecuteTestWithDependencies(const TestModule::Ref &testModule, TestFunc::Ref testCase);
+        TestResult::Ref ExecuteModuleMain(const TestModule::Ref &testModule);
         void ExecuteModuleExit(TestModule::Ref testModule);
-        TestResult::Ref ExecuteTest(TestModule::Ref testModule, TestFunc *testCase);
+        TestResult::Ref ExecuteTest(const TestModule::Ref &testModule, const TestFunc::Ref &testCase);
         void HandleTestResult(TestResult::Ref result);
-        TestFunc *CreateTestFunc(std::string sym);
+        TestFunc::Ref CreateTestFunc(std::string sym);
 
 
-        kRunResultAction CheckResultIfContinue(TestResult::Ref result);
+        kRunResultAction CheckResultIfContinue(const TestResult::Ref &result) const;
 
         TestModule::Ref GetOrAddModule(std::string &module);
 
@@ -53,6 +53,6 @@ namespace trun {
         IDynLibrary *library = nullptr;
         ILogger *pLogger = nullptr;
         std::map<std::string, TestModule::Ref> testModules;
-        std::vector<TestFunc *> globals;
+        std::vector<TestFunc::Ref> globals;
     };
 }

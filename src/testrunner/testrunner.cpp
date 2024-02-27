@@ -257,8 +257,8 @@ leave:
 
 // Recursive call...
 // FIXME: This can't handle circular dependencies
-TestRunner::kRunResultAction TestRunner::ExecuteTestWithDependencies(const TestModule::Ref &testModule, TestFunc *testCase) {
-    std::vector<TestFunc *> deps;
+TestRunner::kRunResultAction TestRunner::ExecuteTestWithDependencies(const TestModule::Ref &testModule, TestFunc::Ref testCase) {
+    std::vector<TestFunc::Ref> deps;
 
     if (testCase->Executed()) {
         return kRunResultAction::kContinue;
@@ -267,7 +267,7 @@ TestRunner::kRunResultAction TestRunner::ExecuteTestWithDependencies(const TestM
     pLogger->Debug("ExecuteTestWithDependencies: %s", testCase->SymbolName().c_str());
 
     if (testModule->ResolveDependenciesForTest(deps, testCase)) {
-        for(auto depTestCase : deps) {
+        for(const auto &depTestCase : deps) {
             // Is this dependency already executed?
             if (depTestCase->Executed()) continue;
 
@@ -284,7 +284,7 @@ TestRunner::kRunResultAction TestRunner::ExecuteTestWithDependencies(const TestM
     return CheckResultIfContinue(testResult);
 }
 
-TestRunner::kRunResultAction TestRunner::CheckResultIfContinue(TestResult::Ref result) {
+TestRunner::kRunResultAction TestRunner::CheckResultIfContinue(const TestResult::Ref &result) const {
     if (result->Result() == kTestResult_ModuleFail) {
         if (Config::Instance()->skipOnModuleFail) {
             pLogger->Info("Module test failure, skipping remaining test cases in library");
@@ -305,7 +305,7 @@ TestRunner::kRunResultAction TestRunner::CheckResultIfContinue(TestResult::Ref r
 }
 
 // Returns true if testing is to continue false otherwise..
-TestResult::Ref TestRunner::ExecuteModuleMain(TestModule::Ref testModule) {
+TestResult::Ref TestRunner::ExecuteModuleMain(const TestModule::Ref &testModule) {
     if (testModule->mainFunc == nullptr) return nullptr;
 
     TestResult::Ref result = ExecuteTest(testModule, testModule->mainFunc);
@@ -338,7 +338,7 @@ void TestRunner::ExecuteModuleExit(TestModule::Ref testModule) {
 //
 // Execute a test function and decorate it
 //
-TestResult::Ref TestRunner::ExecuteTest(TestModule::Ref testModule, TestFunc *testCase) {
+TestResult::Ref TestRunner::ExecuteTest(const TestModule::Ref &testModule, const TestFunc::Ref &testCase) {
     printf("=== RUN  \t%s\n",testCase->SymbolName().c_str());
 
     // Invoke pre-test hook, if set - this is usually done during test_main for a specific library
@@ -387,7 +387,7 @@ void TestRunner::PrepareTests() {
     pLogger->Info("Prepare tests in library: %s", library->Name().c_str());
     for(auto x:library->Exports()) {
 
-        TestFunc *func = CreateTestFunc(x);
+        TestFunc::Ref func = CreateTestFunc(x);
         if (func == nullptr) {
             continue;
         }
@@ -458,8 +458,8 @@ TestModule::Ref TestRunner::GetOrAddModule(std::string &moduleName) {
 // 'library' - this is the code library you are testing, this can be used to filter out tests from cmd line
 // 'case'   - this is the test case
 //
-TestFunc *TestRunner::CreateTestFunc(std::string symbol) {
-    TestFunc *func = nullptr;
+TestFunc::Ref TestRunner::CreateTestFunc(std::string symbol) {
+    TestFunc::Ref func = nullptr;
 
     std::vector<std::string> funcparts;
     trun::split(funcparts, symbol.c_str(), '_');
@@ -468,9 +468,9 @@ TestFunc *TestRunner::CreateTestFunc(std::string symbol) {
         pLogger->Warning("Bare test function: '%s' (skipping), consider renaming: (test_<library>_<case>)", symbol.c_str());
         return nullptr;
     } else if (funcparts.size() == 2) {
-        func = new TestFunc(symbol,"-", funcparts[1]);
+        func = TestFunc::Create(symbol,"-", funcparts[1]);
     } else if (funcparts.size() == 3) {
-        func = new TestFunc(symbol, funcparts[1], funcparts[2]);
+        func = TestFunc::Create(symbol, funcparts[1], funcparts[2]);
     } else {
         // merge '3' and onwards
         std::string testCase = "";
@@ -480,7 +480,7 @@ TestFunc *TestRunner::CreateTestFunc(std::string symbol) {
                 testCase += std::string("_");
             }
         }
-        func = new TestFunc(symbol, funcparts[1], testCase);
+        func = TestFunc::Create(symbol, funcparts[1], testCase);
     }
 
     return func;

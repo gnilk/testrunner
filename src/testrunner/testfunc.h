@@ -1,4 +1,8 @@
 #pragma once
+
+#include <string>
+#include <memory>
+
 #include "platform.h"
 
 #include "dynlib.h"
@@ -9,15 +13,14 @@
 #include "testinterface.h"
 #include "testhooks.h"
 #include "strutil.h"
-#include <string>
 
 namespace trun {
 
-    class TestFunc;
-
-// The core structure defining a testable function which belongs to a test-library
+    // The core structure defining a testable function which belongs to a test-module
     class TestFunc {
     public:
+        using Ref = shared_ptr<TestFunc>;
+
         enum class kTestScope {
             kUnknown,
             kGlobal,
@@ -26,6 +29,8 @@ namespace trun {
             kModuleCase,
         };
     public:
+        static TestFunc::Ref Create(std::string symbolName, std::string moduleName, std::string caseName);
+
         TestFunc();
         TestFunc(std::string symbolName, std::string moduleName, std::string caseName);
         bool IsGlobal();

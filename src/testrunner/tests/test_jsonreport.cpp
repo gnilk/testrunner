@@ -1,6 +1,8 @@
 //
 // Created by gnilk on 09.02.24.
 //
+#include <memory>
+
 #include "../config.h"
 #include "../testinterface.h"
 #include "../testresult.h"
@@ -16,7 +18,7 @@ DLL_EXPORT int test_jsonreport(ITesting *t) {
     return kTR_Pass;
 }
 DLL_EXPORT int test_jsonreport_escape(ITesting *t) {
-    trun::TestFunc tfunc;
+    auto tfunc = std::make_shared<trun::TestFunc>();
     auto result = trun::TestResult::Create("dummy");
     result->SetResult(trun::kTestResult_TestFail);
     trun::AssertError assertError;
@@ -24,10 +26,10 @@ DLL_EXPORT int test_jsonreport_escape(ITesting *t) {
     assertError.Set(trun::AssertError::kAssert_Error, 0, "dummy.cpp", assertErrMsg);
     result->SetAssertError(assertError);
 
-    tfunc.UTEST_SetMockResultPtr(result);
+    tfunc->UTEST_SetMockResultPtr(result);
 
     // Add this to the global result summary instance
-    trun::ResultSummary::Instance().AddResult(&tfunc);
+    trun::ResultSummary::Instance().AddResult(tfunc);
 
     trun::ResultsReportJSON jsonReport;
     jsonReport.Begin();
