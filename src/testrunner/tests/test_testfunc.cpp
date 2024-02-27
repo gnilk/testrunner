@@ -35,14 +35,14 @@ public:
     virtual ~ModuleMock() = default;
 
     void *Handle() override { return nullptr; }
-    PTESTFUNC FindExportedSymbol(std::string funcName) override {
+    PTESTFUNC FindExportedSymbol(const std::string &funcName) override {
         return (PTESTFUNC) test_mock_func;
     }
     const std::vector<std::string> &Exports() const override {
         static std::vector<string> dummy={"test_mock_func"};
         return dummy;
     }
-    bool Scan(std::string pathName) override {
+    bool Scan(const std::string &pathName) override {
         return true;
     }
     const std::string &Name() const override {

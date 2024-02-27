@@ -28,8 +28,8 @@ namespace trun {
 
     public: // IDynLibrary
         void *Handle() override;
-        PTESTFUNC FindExportedSymbol(std::string funcName) override;
-        bool Scan(std::string pathName) override;
+        PTESTFUNC FindExportedSymbol(const std::string &funcName) override;
+        bool Scan(const std::string &libPathName) override;
         const std::vector<std::string> &Exports() const override;
         const std::string &Name() const override { return pathName; };
 
@@ -39,14 +39,13 @@ namespace trun {
         bool IsValidTestFunc(std::string funcName);
 
         std::string pathName;
-        HMODULE handle;
+        HMODULE handle = {};
+        ILogger *pLogger = nullptr;
 
-        int idxLib;
         // Set this global variable - for now, so we can resolve relative offsets
         std::vector<std::string> exports;
         std::map<std::string, int> symbols;
 
-        ILogger *pLogger;
     };
 
 

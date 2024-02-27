@@ -17,10 +17,10 @@ namespace trun {
         ~DynLibLinux();
 
     public: // IDynLibrary
-        bool Scan(std::string pathName) override;
+        bool Scan(const std::string &libPathName) override;
         void *Handle() override;
         const std::vector<std::string> &Exports() const override;
-        PTESTFUNC FindExportedSymbol(std::string funcName) override;
+        PTESTFUNC FindExportedSymbol(const std::string &symbolName) override;
         const std::string &Name() const override { return pathName; };
 
     private:
@@ -29,14 +29,11 @@ namespace trun {
         bool IsValidTestFunc(std::string funcName);
 
         std::string pathName;
-        void *handle;
-        int idxLib;
-        // Set this global variable - for now, so we can resolve relative offsets
-        //uint8_t *ptrModuleStart;
+        void *handle = nullptr;
+        ILogger *pLogger = nullptr;
+
         std::vector<std::string> exports;
         std::map<std::string, int> symbols;
-
-        ILogger *pLogger;
     };
 }
 

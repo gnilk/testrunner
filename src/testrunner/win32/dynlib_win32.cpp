@@ -53,7 +53,6 @@ static void PrintWin32Error(ILogger *pLogger, char *title) {
 }
 
 DynLibWin::DynLibWin() {
-    this->handle = NULL;
     this->pLogger = Logger::GetLogger("DynLibWin");
 }
 DynLibWin::~DynLibWin() {
@@ -72,10 +71,8 @@ void *DynLibWin::Handle() {
 //
 // FindExportedSymbol, returns a handle (function pointer) to the exported symbol
 //
-PTESTFUNC DynLibWin::FindExportedSymbol(std::string funcName) {
+PTESTFUNC DynLibWin::FindExportedSymbol(const std::string &funcName) {
   
-   // TODO: Strip leading '_' from funcName...
-
     std::string exportName = funcName;
     if (exportName[0] == '_') {
         exportName = &exportName[1];
@@ -102,8 +99,8 @@ const std::vector<std::string> &DynLibWin::Exports() const {
 //
 // Scan, scans a dynamic library for exported test functions
 //
-bool DynLibWin::Scan(std::string pathName) {
-    this->pathName = pathName;
+bool DynLibWin::Scan(const std::string &libPathName) {
+    pathName = libPathName;
 
     char cwd[MAX_PATH+1];
     GetCurrentDirectory(MAX_PATH, cwd);
@@ -228,7 +225,8 @@ bool DynLibWin::Open() {
 }
 
 bool DynLibWin::Close() {
-    if (handle != NULL) {
+    // FIXME: Verify - I think we should use 'IsInvalidHandleValue' or something...
+    if (handle != nullptr) {
 		FreeLibrary(handle);
         return true;
     }

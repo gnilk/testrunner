@@ -46,8 +46,6 @@
 using namespace trun;
 
 DynLibLinux::DynLibLinux() {
-    this->handle = NULL;
-    this->idxLib = -1;
     this->pLogger = Logger::GetLogger("Loader");
 }
 DynLibLinux::~DynLibLinux() {
@@ -66,19 +64,17 @@ void *DynLibLinux::Handle() {
 //
 // FindExportedSymbol, returns a handle (function pointer) to the exported symbol
 //
-PTESTFUNC DynLibLinux::FindExportedSymbol(std::string funcName) {
+PTESTFUNC DynLibLinux::FindExportedSymbol(const std::string &symbolName) {
   
-   // TODO: Strip leading '_' from funcName...
-
-    std::string exportName = funcName;
+    std::string exportName = symbolName;
     if (exportName[0] == '_') {
         exportName = &exportName[1];
     }
 
     void *ptrInvoke = dlsym(handle, exportName.c_str());
-    if (ptrInvoke == NULL) {
+    if (ptrInvoke == nullptr) {
         pLogger->Debug("FindExportedSymbol, unable to find symbol '%s'", exportName.c_str());
-        return NULL;
+        return nullptr;
     }
     return (PTESTFUNC)ptrInvoke;
 }
@@ -93,8 +89,8 @@ const std::vector<std::string> &DynLibLinux::Exports() const {
 //
 // Scan, scans a dynamic library for exported test functions
 //
-bool DynLibLinux::Scan(std::string pathName) {
-    this->pathName = pathName;
+bool DynLibLinux::Scan(const std::string &libPathName) {
+    pathName = libPathName;
 
     pLogger->Debug("Scan, entering");
     if (!Open()) {
@@ -181,9 +177,8 @@ bool DynLibLinux::Open() {
 }
 
 bool DynLibLinux::Close() {
-    if (handle != NULL) {
+    if (handle != nullptr) {
         dlclose(handle);
-        idxLib = -1;
         return true;
     }
     return false;
