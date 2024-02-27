@@ -11,6 +11,7 @@
 #include "testfunc.h"
 #include "strutil.h"
 #include <string>
+#include <memory>
 
 namespace trun {
 //
@@ -19,13 +20,11 @@ namespace trun {
 //
     class TestModule {
     public:
-        TestModule(std::string _name) :
-                name(_name),
-                bExecuted(false),
-                mainFunc(nullptr),
-                exitFunc(nullptr),
-                cbPreHook(nullptr),
-                cbPostHook(nullptr) {};
+        using Ref = std::shared_ptr<TestModule>;
+    public:
+        static TestModule::Ref Create(const std::string &moduleName);
+        TestModule(const std::string &moduleName);
+        virtual ~TestModule() = default;
 
         __inline bool Executed() const { return bExecuted; }
 
@@ -33,15 +32,18 @@ namespace trun {
 
         TestFunc *TestCaseFromName(const std::string &caseName) const;
         void SetDependencyForCase(const char *caseName, const char *dependencyList);
+
+        bool CheckTestDependencies(TestFunc *func);
         void ResolveDependencies();
+    private:
     public:
         std::string name;
-        bool bExecuted;
-        TestFunc *mainFunc;
-        TestFunc *exitFunc;
+        bool bExecuted = false;
+        TestFunc *mainFunc = nullptr;
+        TestFunc *exitFunc = nullptr;
 
-        TRUN_PRE_POST_HOOK_DELEGATE *cbPreHook;
-        TRUN_PRE_POST_HOOK_DELEGATE *cbPostHook;
+        TRUN_PRE_POST_HOOK_DELEGATE *cbPreHook = nullptr;
+        TRUN_PRE_POST_HOOK_DELEGATE *cbPostHook = nullptr;
 
         std::vector<TestFunc *> testFuncs;
     };

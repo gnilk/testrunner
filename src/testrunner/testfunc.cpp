@@ -49,7 +49,6 @@ using namespace trun;
 TestFunc::TestFunc() {
     isExecuted = false;
     pLogger = Logger::GetLogger("TestFunc");
-    testModule = nullptr;
 }
 
 TestFunc::TestFunc(std::string symbolName, std::string moduleName, std::string caseName) {
@@ -61,7 +60,6 @@ TestFunc::TestFunc(std::string symbolName, std::string moduleName, std::string c
     pLogger = Logger::GetLogger("TestFunc");
     testResult = nullptr;
     testReturnCode = -1;
-    testModule = nullptr;
 }
 
 bool TestFunc::IsGlobal() {
@@ -85,6 +83,7 @@ bool TestFunc::IsModuleExit() {
 //    __asm__ volatile("int $0x03");
 //}
 
+/*
 bool TestFunc::ShouldExecute() {
     if (this->isExecuted) {
         return false;
@@ -94,10 +93,12 @@ bool TestFunc::ShouldExecute() {
     }
 
     if (caseMatch(caseName, Config::Instance()->testcases)) {
-        return CheckDependenciesExecuted();
+        //return CheckDependenciesExecuted();
+        return true;
     }
     return false;
 }
+*/
 
 bool TestFunc::ShouldExecuteNoDeps() {
     if (this->isExecuted) {
@@ -110,11 +111,12 @@ bool TestFunc::ShouldExecuteNoDeps() {
     return caseMatch(caseName, Config::Instance()->testcases);
 }
 
-
+/*
 bool TestFunc::CheckDependenciesExecuted() {
     // Check dependencies
     for (auto depName : dependencies) {
-        auto depFun = testModule->TestCaseFromName(depName);
+        //auto depFun = testModule->TestCaseFromName(depName);
+        TestFunc *depFun = nullptr;
         if ((depFun == nullptr) || (depFun == this)) {
             printf("WARNING: Can't depend on yourself!!!!!\n");
             continue;
@@ -129,6 +131,7 @@ bool TestFunc::CheckDependenciesExecuted() {
     }
     return true;
 }
+ */
 
 
 void TestFunc::ExecuteSync() {

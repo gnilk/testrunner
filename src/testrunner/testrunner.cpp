@@ -50,9 +50,9 @@
 using namespace trun;
 
 
-static TestModule *hack_glbCurrentTestModule = NULL;
+static TestModule::Ref hack_glbCurrentTestModule = NULL;
 
-TestModule *TestRunner::HACK_GetCurrentTestModule() {
+TestModule::Ref TestRunner::HACK_GetCurrentTestModule() {
     return hack_glbCurrentTestModule;
 }
 
@@ -114,7 +114,7 @@ bool TestRunner::ExecuteMain() {
 
     for (auto f:globals) {
         if (f->IsGlobalMain()) {
-            TestResult::Ref result = ExecuteTest(f);
+            TestResult::Ref result = ExecuteTest(nullptr, f);
             HandleTestResult(result);
             if ((result->Result() == kTestResult_AllFail) || (result->Result() == kTestResult_TestFail)) {
                 if (Config::Instance()->stopOnAllFail) {
@@ -139,7 +139,7 @@ bool TestRunner::ExecuteMainExit() {
 
     for (auto f:globals) {
         if (f->IsGlobalExit()) {
-            TestResult::Ref result = ExecuteTest(f);
+            TestResult::Ref result = ExecuteTest(nullptr, f);
             HandleTestResult(result);
             if ((result->Result() == kTestResult_AllFail) || (result->Result() == kTestResult_TestFail)) {
                 if (Config::Instance()->stopOnAllFail) {
@@ -186,8 +186,8 @@ bool TestRunner::ExecuteModuleTests() {
     bool bRes = true;
     pLogger->Info("Executing library tests");
 
-    for (auto tmit:testModules) {
-        TestModule *testModule = tmit.second;
+
+    for (auto &[name, testModule] : testModules) {
 
         if (!testModule->ShouldExecute()) {
             // Skip, this is not part of the configured filtered..
@@ -212,7 +212,7 @@ bool TestRunner::ExecuteModuleTests() {
     return bRes;
 }
 
-bool TestRunner::ExecuteModuleTestFuncs(TestModule *testModule) {
+bool TestRunner::ExecuteModuleTestFuncs(TestModule::Ref testModule) {
     bool bRes = true;
 
     if (Config::Instance()->testModuleGlobals) {
@@ -227,14 +227,14 @@ bool TestRunner::ExecuteModuleTestFuncs(TestModule *testModule) {
 
 
     // Two passes, first pass will ensure dependencies have run, second pass the rest...
-    for(int pass = 0;pass<2;pass++) {
+    for(int pass = 0; pass<2; pass++) {
         pLogger->Info("Pass: %d", pass);
         for (auto testFunc: testModule->testFuncs) {
-            if (!testFunc->ShouldExecute()) {
+            if (!testFunc->ShouldExecuteNoDeps() && !testModule->CheckTestDependencies(testFunc)) {
                 continue;
             }
 
-            TestResult::Ref result = ExecuteTest(testFunc);
+            TestResult::Ref result = ExecuteTest(testModule, testFunc);
             HandleTestResult(result);
 
             if (result->Result() == kTestResult_ModuleFail) {
@@ -265,10 +265,10 @@ leave:
 }
 
 // Returns true if testing is to continue false otherwise..
-TestResult::Ref TestRunner::ExecuteModuleMain(TestModule *testModule) {
+TestResult::Ref TestRunner::ExecuteModuleMain(TestModule::Ref testModule) {
     if (testModule->mainFunc == nullptr) return nullptr;
 
-    TestResult::Ref result = ExecuteTest(testModule->mainFunc);
+    TestResult::Ref result = ExecuteTest(testModule, testModule->mainFunc);
     if (result == nullptr) {
         pLogger->Error("Test result for main is NULL!!!");
         return nullptr;
@@ -277,10 +277,10 @@ TestResult::Ref TestRunner::ExecuteModuleMain(TestModule *testModule) {
     return result;
 }
 
-void TestRunner::ExecuteModuleExit(TestModule *testModule) {
+void TestRunner::ExecuteModuleExit(TestModule::Ref testModule) {
     if (testModule->exitFunc == nullptr) return;
     // Try call exit function on leave...
-    TestResult::Ref result = ExecuteTest(testModule->exitFunc);
+    TestResult::Ref result = ExecuteTest(testModule, testModule->exitFunc);
     if (result == nullptr) {
         pLogger->Error("Test result for exit is NULL!!!");
         return;
@@ -297,23 +297,23 @@ void TestRunner::ExecuteModuleExit(TestModule *testModule) {
 //
 // Execute a test function and decorate it
 //
-TestResult::Ref TestRunner::ExecuteTest(TestFunc *f) {
-    printf("=== RUN  \t%s\n",f->symbolName.c_str());
+TestResult::Ref TestRunner::ExecuteTest(TestModule::Ref testModule, TestFunc *testCase) {
+    printf("=== RUN  \t%s\n",testCase->symbolName.c_str());
 
     // Invoke pre-test hook, if set - this is usually done during test_main for a specific library
-    if ((f->GetTestModule() != nullptr) && (f->GetTestModule()->cbPreHook != nullptr)) {
-        f->GetTestModule()->cbPreHook(TestResponseProxy::GetInstance()->Proxy());
+    if ((testModule != nullptr) && (testModule->cbPreHook != nullptr)) {
+        testModule->cbPreHook(TestResponseProxy::GetInstance()->Proxy());
     }
 
     // Execute the test...
-    TestResult::Ref result = f->Execute(library);
+    TestResult::Ref result = testCase->Execute(library);
 
     // Invoke post-test hook, if set - this is usually done during test_main for a specific library
-    if ((f->GetTestModule() != nullptr) && (f->GetTestModule()->cbPostHook != nullptr)) {
-        f->GetTestModule()->cbPostHook(TestResponseProxy::GetInstance()->Proxy());
+    if ((testModule != nullptr) && (testModule->cbPostHook != nullptr)) {
+        testModule->cbPostHook(TestResponseProxy::GetInstance()->Proxy());
     }
 
-    ResultSummary::Instance().AddResult(f);
+    ResultSummary::Instance().AddResult(testCase);
     return result;
 }
 
@@ -384,9 +384,9 @@ void TestRunner::PrepareTests() {
                 tModule->testFuncs.push_back(func);
             }
             // Link them togehter...
-            if (tModule != nullptr) {
-                func->SetTestModule(tModule);
-            }
+//            if (tModule != nullptr) {
+//                func->SetTestModule(tModule);
+//            }
         }
     }
 
@@ -394,13 +394,13 @@ void TestRunner::PrepareTests() {
 
 }
 
-TestModule *TestRunner::GetOrAddModule(std::string &moduleName) {
-    TestModule *tModule = nullptr;
+TestModule::Ref TestRunner::GetOrAddModule(std::string &moduleName) {
+    TestModule::Ref tModule = nullptr;
     // Have library with this name????
     auto it = testModules.find(moduleName);
     if (it == testModules.end()) {
-        tModule = new TestModule(moduleName);
-        testModules.insert(std::pair<std::string, TestModule *>(moduleName, tModule));
+        tModule = TestModule::Create(moduleName);
+        testModules.insert(std::pair<std::string, TestModule::Ref>(moduleName, tModule));
     } else {
         tModule = it->second;
     }
@@ -486,24 +486,24 @@ void TestRunner::DumpTestsToRun() {
             nTestCases++;
         }
     }
-    for(auto m : testModules) {
-        bool bExec = m.second->ShouldExecute();
-        printf("%c Module: %s\n",bExec?'*':'-',m.first.c_str());
-        if (m.second->mainFunc != nullptr) {
-            auto t = m.second->mainFunc;
-            bool bExecTest = t->ShouldExecute() && m.second->ShouldExecute();
+    for(auto &[moduleName, module] : testModules) {
+        bool bExec = module->ShouldExecute();
+        printf("%c Module: %s\n",bExec?'*':'-',moduleName.c_str());
+        if (module->mainFunc != nullptr) {
+            auto t = module->mainFunc;
+            bool bExecTest = t->ShouldExecuteNoDeps() && module->ShouldExecute();
             printf("  %cm %s (%s)\n", bExecTest?'*':' ',t->caseName.c_str(), t->symbolName.c_str());
             nTestCases++;
         }
-        if (m.second->exitFunc != nullptr) {
-            auto t = m.second->exitFunc;
-            bool bExecTest = t->ShouldExecute() && m.second->ShouldExecute();
+        if (module->exitFunc != nullptr) {
+            auto t = module->exitFunc;
+            bool bExecTest = t->ShouldExecuteNoDeps() && module->ShouldExecute();
             printf("  %ce %s (%s)\n",bExecTest?'*':' ', t->caseName.c_str(), t->symbolName.c_str());
             nTestCases++;
         }
-        for(auto t : m.second->testFuncs) {
-            bool bExecTest = t->ShouldExecute() && m.second->ShouldExecute();
-            printf("  %c  %s::%s (%s)\n", bExecTest?'*':' ',m.first.c_str(), t->caseName.c_str(), t->symbolName.c_str());
+        for(auto t : module->testFuncs) {
+            bool bExecTest = t->ShouldExecuteNoDeps() && module->ShouldExecute();
+            printf("  %c  %s::%s (%s)\n", bExecTest?'*':' ',moduleName.c_str(), t->caseName.c_str(), t->symbolName.c_str());
             nTestCases++;
         }
         nModules++;

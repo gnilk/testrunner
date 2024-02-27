@@ -23,26 +23,26 @@ namespace trun {
         void PrepareTests();
         void ExecuteTests();
         void DumpTestsToRun();
-        static TestModule *HACK_GetCurrentTestModule();
+        static TestModule::Ref HACK_GetCurrentTestModule();
 
     private:
         bool ExecuteMain();
         bool ExecuteMainExit();
         bool ExecuteGlobalTests();
         bool ExecuteModuleTests();
-        bool ExecuteModuleTestFuncs(TestModule *testModule);
-        TestResult::Ref ExecuteModuleMain(TestModule *testModule);
-        void ExecuteModuleExit(TestModule *testModule);
-        TestResult::Ref ExecuteTest(TestFunc *f);
+        bool ExecuteModuleTestFuncs(TestModule::Ref testModule);
+        TestResult::Ref ExecuteModuleMain(TestModule::Ref testModule);
+        void ExecuteModuleExit(TestModule::Ref testModule);
+        TestResult::Ref ExecuteTest(TestModule::Ref testModule, TestFunc *testCase);
         void HandleTestResult(TestResult::Ref result);
         TestFunc *CreateTestFunc(std::string sym);
 
-        TestModule *GetOrAddModule(std::string &module);
+        TestModule::Ref GetOrAddModule(std::string &module);
 
     private:
         IDynLibrary *library = nullptr;
         ILogger *pLogger = nullptr;
-        std::map<std::string, TestModule *> testModules;
+        std::map<std::string, TestModule::Ref> testModules;
         std::vector<TestFunc *> globals;
     };
 }
