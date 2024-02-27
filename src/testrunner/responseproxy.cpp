@@ -13,7 +13,7 @@
  
  Modified: $Date: $ by $Author: $
  ---------------------------------------------------------------------------
- TODO: [ -:Not done, +:In progress, !:Completed]
+ TO-DO: [ -:Not done, +:In progress, !:Completed]
  <pre>
 
  </pre>
@@ -65,9 +65,28 @@ static std::map<pthread_t, TestResponseProxy *> trpLookup;
 #endif
 
 //
-// TODO: Need to update the logger to allow specific loggers to always pass through messages
+// GetInstance - returns a test proxy, if one does not exists for the thread one will be allocated
+//
+TestResponseProxy &TestResponseProxy::Instance() {
+    // NOTE: Figure out how this should work
+    //       Where is threading occuring and who owns this
+    //       Currently this function is called from the 'testfunc.cpp' where also threading
+    //       is happening. But that's not quite right. Instead a library should have this in order
+    //       to allow parallell testing of modules but not within modules!
+    //
+    //       [gnilk, 2024-02-27] - Each TestFunc could have an instance of the TestResponseProxy as it is designed today
+    //                             That would allow all (except dependencies) to be executed in parallell..
+    //                             However - that would probably blow up memusage on embedded quite a bit..
+    //
+
+    static TestResponseProxy glbResponseProxy;
+    return glbResponseProxy;
+}
+
+
 //
 TestResponseProxy::TestResponseProxy() {
+    // FIXME: Refactor this once we know how the TestResponseProxy will fit in the whole testing library
     this->trp = (ITesting *)malloc(sizeof(ITesting));
     this->trp->Debug = int_trp_debug;
     this->trp->Info = int_trp_info;
@@ -109,7 +128,7 @@ void TestResponseProxy::End() {
     tElapsed = timer.Sample();
     symbolName.clear();    
     moduleName.clear();
-    pLogger = NULL;
+    pLogger = nullptr;
 }
 
 int TestResponseProxy::Errors() {
@@ -123,8 +142,6 @@ int TestResponseProxy::Asserts() {
 kTestResult TestResponseProxy::Result() {
     return testResult;
 }
-
-
 
 // ITesting mirror
 void TestResponseProxy::Debug(int line, const char *file, std::string message) {
@@ -209,52 +226,26 @@ void TestResponseProxy::AssertError(const char *exp, const char *file, const int
 
 
 void TestResponseProxy::SetPreCaseCallback(TRUN_PRE_POST_HOOK_DELEGATE cbPreCase) {
-    ///printf("!!!!!!! SETTING PRECASE CALLBACK FOR MODULE !!!!!!!!!!\n");
-
     auto testModule = TestRunner::HACK_GetCurrentTestModule();
-    if (testModule != NULL) {
+    if (testModule != nullptr) {
         testModule->cbPreHook = cbPreCase;
     }
-
 }
-void TestResponseProxy::SetPostCaseCallback(TRUN_PRE_POST_HOOK_DELEGATE cbPostCase) {
-    ///printf("!!!!!!! SETTING POSTCASE CALLBACK FOR MODULE !!!!!!!!!!\n");
 
+void TestResponseProxy::SetPostCaseCallback(TRUN_PRE_POST_HOOK_DELEGATE cbPostCase) {
     auto testModule = TestRunner::HACK_GetCurrentTestModule();
-    if (testModule != NULL) {
+    if (testModule != nullptr) {
         testModule->cbPostHook = cbPostCase;
     }
 }
 
 void TestResponseProxy::CaseDepends(const char *caseName, const char *dependencyList) {
-    /// printf("!!!!!!! SETTING DPENDENCY LIST for '%s' !!!!!!!!!!\n", caseName);
     auto testModule = TestRunner::HACK_GetCurrentTestModule();
     if (testModule != nullptr) {
         testModule->SetDependencyForCase(caseName, dependencyList);
     }
-
 }
 
-
-
-//
-// GetInstance - returns a test proxy, if one does not exists for the thread one will be allocated
-//
-TestResponseProxy &TestResponseProxy::Instance() {
-    // NOTE: Figure out how this should work
-    //       Where is threading occuring and who owns this
-    //       Currently this function is called from the 'testfunc.cpp' where also threading
-    //       is happening. But that's not quite right. Instead a library should have this in order
-    //       to allow parallell testing of modules but not within modules!
-    //       Currently all testing is purely sequentially executed so this does not matter!
-
-
-//    if (glbResponseProxy == NULL) {
-//        glbResponseProxy = new TestResponseProxy();
-//    }
-    static TestResponseProxy glbResponseProxy;
-    return glbResponseProxy;
-}
 
 //
 // wrappers for pure C call's (no this) - only one call per thread allowed.
@@ -327,12 +318,12 @@ static void int_trp_assert_error(const char *exp, const char *file, int line) {
     TestResponseProxy::Instance().AssertError(exp, file, line);
 }
 
-
 #undef CREATE_REPORT_STRING
 
 static void int_trp_hook_precase(TRUN_PRE_POST_HOOK_DELEGATE cbPreCase) {
     TestResponseProxy::Instance().SetPreCaseCallback(cbPreCase);
 }
+
 static void int_trp_hook_postcase(TRUN_PRE_POST_HOOK_DELEGATE cbPostCase) {
     TestResponseProxy::Instance().SetPostCaseCallback(cbPostCase);
 }
