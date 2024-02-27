@@ -3,7 +3,12 @@
 //
 
 #include "dynlib_embedded.h"
+#include <memory>
 using namespace trun;
+
+DynLibEmbedded::Ref DynLibEmbedded::Create() {
+    return std::make_shared<DynLibEmbedded>();
+}
 
 bool DynLibEmbedded::AddTestFunc(std::string name, PTESTFUNC func) {
     testfuncs[name] = func;
@@ -15,10 +20,10 @@ void *DynLibEmbedded::Handle() {
     return nullptr;
 }
 
-PTESTFUNC DynLibEmbedded::FindExportedSymbol(std::string funcName) {
+PTESTFUNC DynLibEmbedded::FindExportedSymbol(const std::string &funcName) {
     return testfuncs[funcName];
 }
 
-bool DynLibEmbedded::Scan(std::string pathName) {
+bool DynLibEmbedded::Scan(const std::string &pathName) {
     return true;
 }

@@ -8,7 +8,7 @@
 #include "resultsummary.h"
 
 namespace trun {
-    static DynLibEmbedded dynlib;
+    static DynLibEmbedded::Ref dynlib = nullptr;
     static bool isInitialized = false;
 
     static void ConfigureLogger();
@@ -20,6 +20,7 @@ namespace trun {
         // Trigger the lazy initialization CTOR..
         Config::Instance();
         ConfigureLogger();
+        dynlib = DynLibEmbedded::Create();
         isInitialized = true;
     }
 
@@ -27,7 +28,7 @@ namespace trun {
         if (!isInitialized) {
             Initialize();
         }
-        dynlib.AddTestFunc(symbolName, (PTESTFUNC)func);
+        dynlib->AddTestFunc(symbolName, (PTESTFUNC)func);
     }
 
     void RunTests(const char *moduleFilter, const char *caseFilter) {
@@ -39,7 +40,7 @@ namespace trun {
         ParseModuleFilters(moduleFilter);
         ParseTestCaseFilters(caseFilter);
 
-        TestRunner testRunner(&dynlib);
+        TestRunner testRunner(dynlib);
         testRunner.PrepareTests();
         testRunner.ExecuteTests();
 
