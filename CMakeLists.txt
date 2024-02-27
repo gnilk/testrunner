@@ -168,6 +168,7 @@ elseif (UNIX)
     install(TARGETS trun RUNTIME DESTINATION bin)
     install(TARGETS trunlib LIBRARY)
     install(FILES "src/testrunner/testinterface.h" "src/testrunner/trunembedded.h" TYPE INCLUDE)
+    install(FILES "docs/trun.manpage" TYPE MAN RENAME "man1/trun.1")
 
     message(STATUS "Linux target - setting up CPACK")
 
