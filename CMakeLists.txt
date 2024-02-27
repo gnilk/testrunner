@@ -165,10 +165,16 @@ elseif (UNIX)
 
     include(GNUInstallDirs)
 
+    # generate .gz version of our manfile - this must be done specifically as the 'install' command won't do it for you
+    file(ARCHIVE_CREATE OUTPUT trun.1.gz PATHS "../docs/trun.manpage" FORMAT raw COMPRESSION GZip)
+
     install(TARGETS trun RUNTIME DESTINATION bin)
     install(TARGETS trunlib LIBRARY)
     install(FILES "src/testrunner/testinterface.h" "src/testrunner/trunembedded.h" TYPE INCLUDE)
-    install(FILES "docs/trun.manpage" TYPE MAN RENAME "man1/trun.1")
+    # let's install this - as type 'MAN' (/usr/share/man) and rename it to the correct director (/usr/share/man/man1/trun.1.gz)
+    # not sure if this is the same across all distros - but without it - it will be placed in the 'man' root..
+    # documentation about this is more than a little sparse - funny - as in principle - every bloody thing should come with a man-page...
+    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/trun.1.gz TYPE MAN RENAME "man1/trun.1.gz")
 
     message(STATUS "Linux target - setting up CPACK")
 
