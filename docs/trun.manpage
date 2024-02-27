@@ -1,0 +1,92 @@
+.\" Manpage for trun.
+.\" Contact trun@gnilk.com.in to correct errors or typos.
+.TH man 8 "27 Feb 2024" "1.5.2" "trun man page"
+.SH NAME
+trun \- C/C++ Unit Test Runner
+.SH SYNOPSIS
+trun [-vldSgGsrcCx] [-R <report>] [-O <report out>] [-m <module list>] [-t <case list>] [list of shared libraries]
+.SH DESCRIPTION
+trun is a C/C++ unit test runner. It will process a number of shared libraries and execute any test found. You can
+specify which tests to run and which shared library to focus on. By default trun will search recursively for any shared
+library starting in the working directory, for each shared library found trun will try to find exported symbols matching
+the testable function pattern.
+
+A testable function must follow this pattern: 'test_<module>_<case>'.
+Thus is it possible to group test cases into modules.
+
+.SH OPTIONS
+.PP
+\f[B]-v\f[R] Increase verbose level (specify multiple times to further increase)
+.PP
+\f[B]-l\f[R] List all available test
+.PP
+\f[B]-d\f[R] Dump current configuration before starting
+.PP
+\f[B]-S\f[R] Include success pass in summary (default: off)
+.PP
+\f[B]-D\f[R] (Linux only) - disable RTLD_DEEPBIND when loading libraries
+.PP
+\f[B]-g\f[R] Skip module globals (default: off)
+.PP
+\f[B]-G\f[R] Skip global main (default: off)
+.PP
+\f[B]-s\f[R] Silent, surpress messages from test cases (default: off)
+.PP
+\f[B]-r\f[R] Discard return from test case (default: off)
+.PP
+\f[B]-c\f[R] Continue on library failure (default: off)
+.PP
+\f[B]-C\f[R] Continue on total failure (default: off)
+.PP
+\f[B]-x\f[R] Don't execute tests, like a dry-run (default: off)
+.PP
+\f[B]-R <report>\f[R] Use <report> reporting library (default: console)
+.PP
+\f[B]-O <file>\f[R] Report final result to this file, use '-' for stdout (default: -)
+.PP
+\f[B]-m <name\&...>\f[R] List of modules to test (default: '-' (all))
+.PP
+\f[B]-t <name\&...>\f[R] List of test cases to test (default: '-' (all))
+
+List of shared libraries can be a directory, a list of shared libraries to be tested. Default is current directory (.).
+Module and Case lists can use wild-cards, like: trun -m encode -t json*
+
+.SH TESTABLE FUNCTIONS
+Each testable function must follow the exact pattern and be public exported as a C function.
+.PP
+.IP
+\f[B]int test_module_case(ITesting *t)\f[R]
+
+.PP
+trun will scan a shared library looking for functions matching the above pattern. It will then group cases together and
+execute them.
+.PP
+\f[B]Note:\f[R] Module names can not contain underscore ('_'). Case names can contain underscore ('_').
+
+.SH RESERVED NAMES
+There are are a few reserved names which should \f[B]NOT\f[R] be used as test function names, they are:
+.IP \[bu] 2
+\f[B]test_main\f[R] is reserved as a global main function. Will be called first if present! Use this to set up any
+global (environment or other) requirements you might have.
+.PP
+.IP \[bu] 2
+\f[B]test_exit\f[R] is reserved as a global exit function. Will be called last if present! Use this to tear down any
+global (environment or other) previously initialized during \f[B]test_main\f[R].
+.PP
+.IP \[bu] 2
+\f[B]test_module\f[R] module function but without case. Reserved as the module-main. If found it will be called
+first before any other function in the module.
+.PP
+.IP \[bu] 2
+\f[B]test_module_exit\f[R] Reserved as the module-exit. If found it will be called last after the execution of any test
+cases in the module.
+
+
+
+
+.SH SEE ALSO
+trunlib(3)
+.SH BUGS
+No known bugs.
+.SH AUTHOR
+Fredrik Kling (trun@gnilk.com)
