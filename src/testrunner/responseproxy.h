@@ -14,7 +14,7 @@ namespace trun {
 
     class TestResponseProxy {
     public:
-        static TestResponseProxy *GetInstance();
+        static TestResponseProxy &Instance();
 
         ITesting *Proxy() { return trp; }
 

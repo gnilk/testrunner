@@ -142,15 +142,15 @@ void TestFunc::ExecuteSync() {
     // 1) Setup test response proxy
     // This is currently a global instance - not good!
 
-    trp = TestResponseProxy::GetInstance();
     // Begin test
-    trp->Begin(symbolName, moduleName);
+    TestResponseProxy::Instance().Begin(symbolName, moduleName);
     // Actual call to test function (in shared lib)
-    testReturnCode = pFunc((void *)trp->Proxy());
+    testReturnCode = pFunc((void *)TestResponseProxy::Instance().Proxy());
 }
 
 #ifdef WIN32
 DWORD WINAPI testfunc_thread_starter(LPVOID lpParam) {
+    // NOTE: Should not be 'TestFunc::Ref' - called with 'this' as the 'void *' param from within 'TestFunc'
     TestFunc* func = reinterpret_cast<TestFunc *>(lpParam);
     func->ExecuteSync();
     return NULL;
@@ -167,6 +167,7 @@ void TestFunc::ExecuteAsync() {
 // Pthread wrapper..
 #ifdef TRUN_HAVE_THREADS
 static void *testfunc_thread_starter(void *arg) {
+    // NOTE: Should not be 'TestFunc::Ref' - called with 'this' as the 'void *' param from within 'TestFunc'
     TestFunc *func = reinterpret_cast<TestFunc*>(arg);
     func->ExecuteSync();
     // Return NULL here as this is a C callback..
@@ -232,12 +233,12 @@ TestResult::Ref TestFunc::Execute(IDynLibrary::Ref module) {
         ExecuteSync();
 #endif
 
-        trp->End();
-        testResult->SetAssertError(trp->GetAssertError());
-        testResult->SetResult(trp->Result());
-        testResult->SetNumberOfErrors(trp->Errors());
-        testResult->SetNumberOfAsserts(trp->Asserts());
-        testResult->SetTimeElapsedSec(trp->ElapsedTimeInSec());
+        TestResponseProxy::Instance().End();
+        testResult->SetAssertError(TestResponseProxy::Instance().GetAssertError());
+        testResult->SetResult(TestResponseProxy::Instance().Result());
+        testResult->SetNumberOfErrors(TestResponseProxy::Instance().Errors());
+        testResult->SetNumberOfAsserts(TestResponseProxy::Instance().Asserts());
+        testResult->SetTimeElapsedSec(TestResponseProxy::Instance().ElapsedTimeInSec());
         HandleTestReturnCode();
     } else {
         pLogger->Error("Execute, unable to find exported symbol '%s' for case: %s\n", symbolName.c_str(), caseName.c_str());

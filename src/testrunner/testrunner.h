@@ -50,8 +50,8 @@ namespace trun {
         TestModule::Ref GetOrAddModule(std::string &module);
 
     private:
-        IDynLibrary::Ref library = nullptr;
         ILogger *pLogger = nullptr;
+        IDynLibrary::Ref library = nullptr;
         std::map<std::string, TestModule::Ref> testModules;
         std::vector<TestFunc::Ref> globals;
     };

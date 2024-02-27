@@ -89,7 +89,7 @@ namespace trun {
 
         IDynLibrary::Ref library = nullptr;
 
-        TestResponseProxy *trp = nullptr;
+        //TestResponseProxy *trp = nullptr;
         std::vector<std::string> dependencies;
 
         PTESTFUNC pFunc = nullptr;

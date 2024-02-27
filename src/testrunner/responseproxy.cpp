@@ -237,11 +237,10 @@ void TestResponseProxy::CaseDepends(const char *caseName, const char *dependency
 
 
 
-static TestResponseProxy *glbResponseProxy = NULL;
 //
 // GetInstance - returns a test proxy, if one does not exists for the thread one will be allocated
 //
-TestResponseProxy *TestResponseProxy::GetInstance() {
+TestResponseProxy &TestResponseProxy::Instance() {
     // NOTE: Figure out how this should work
     //       Where is threading occuring and who owns this
     //       Currently this function is called from the 'testfunc.cpp' where also threading
@@ -250,9 +249,10 @@ TestResponseProxy *TestResponseProxy::GetInstance() {
     //       Currently all testing is purely sequentially executed so this does not matter!
 
 
-    if (glbResponseProxy == NULL) {
-        glbResponseProxy = new TestResponseProxy();
-    }
+//    if (glbResponseProxy == NULL) {
+//        glbResponseProxy = new TestResponseProxy();
+//    }
+    static TestResponseProxy glbResponseProxy;
     return glbResponseProxy;
 }
 
@@ -298,56 +298,46 @@ static bool IsMsgSizeOk(uint32_t szbuf) {
 
 static void int_trp_debug(int line, const char *file, const char *format, ...) {
     CREATE_REPORT_STRING()
-    TestResponseProxy *trp = TestResponseProxy::GetInstance();
-    trp->Debug(line, file, std::string(newstr));
+    TestResponseProxy::Instance().Debug(line, file, std::string(newstr));
 }
 static void int_trp_info(int line, const char *file, const char *format, ...) {
     CREATE_REPORT_STRING()
-    TestResponseProxy *trp = TestResponseProxy::GetInstance();
-    trp->Info(line, file, std::string(newstr));
+    TestResponseProxy::Instance().Info(line, file, std::string(newstr));
 }
 static void int_trp_warning(int line, const char *file, const char *format, ...) {
     CREATE_REPORT_STRING()
-    TestResponseProxy *trp = TestResponseProxy::GetInstance();
-    trp->Warning(line, file, std::string(newstr));
+    TestResponseProxy::Instance().Warning(line, file, std::string(newstr));
 }
 static void int_trp_error(int line, const char *file, const char *format, ...) {
     CREATE_REPORT_STRING()
-    TestResponseProxy *trp = TestResponseProxy::GetInstance();
-    trp->Error(line, file, std::string(newstr));
+    TestResponseProxy::Instance().Error(line, file, std::string(newstr));
 }
 
 static void int_trp_fatal(int line, const char *file, const char *format, ...) {
     CREATE_REPORT_STRING()
-    TestResponseProxy *trp = TestResponseProxy::GetInstance();
-    trp->Fatal(line, file, std::string(newstr));
+    TestResponseProxy::Instance().Fatal(line, file, std::string(newstr));
 }
 
 static void int_trp_abort(int line, const char *file, const char *format, ...) {
     CREATE_REPORT_STRING()
-    TestResponseProxy *trp = TestResponseProxy::GetInstance();
-    trp->Abort(line,file, std::string(newstr));
+    TestResponseProxy::Instance().Abort(line,file, std::string(newstr));
 }
 
 static void int_trp_assert_error(const char *exp, const char *file, int line) {
-    TestResponseProxy *trp = TestResponseProxy::GetInstance();
-    trp->AssertError(exp, file, line);
+    TestResponseProxy::Instance().AssertError(exp, file, line);
 }
 
 
 #undef CREATE_REPORT_STRING
 
 static void int_trp_hook_precase(TRUN_PRE_POST_HOOK_DELEGATE cbPreCase) {
-    TestResponseProxy *trp = TestResponseProxy::GetInstance();
-    trp->SetPreCaseCallback(cbPreCase);
+    TestResponseProxy::Instance().SetPreCaseCallback(cbPreCase);
 }
 static void int_trp_hook_postcase(TRUN_PRE_POST_HOOK_DELEGATE cbPostCase) {
-    TestResponseProxy *trp = TestResponseProxy::GetInstance();
-    trp->SetPostCaseCallback(cbPostCase);
+    TestResponseProxy::Instance().SetPostCaseCallback(cbPostCase);
 }
 
 static void int_trp_casedepend(const char *caseName, const char *dependencyList) {
-    TestResponseProxy *trp = TestResponseProxy::GetInstance();
-    trp->CaseDepends(caseName, dependencyList);
+    TestResponseProxy::Instance().CaseDepends(caseName, dependencyList);
 }
 

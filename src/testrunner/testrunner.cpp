@@ -343,7 +343,7 @@ TestResult::Ref TestRunner::ExecuteTest(const TestModule::Ref &testModule, const
 
     // Invoke pre-test hook, if set - this is usually done during test_main for a specific library
     if ((testModule != nullptr) && (testModule->cbPreHook != nullptr)) {
-        testModule->cbPreHook(TestResponseProxy::GetInstance()->Proxy());
+        testModule->cbPreHook(TestResponseProxy::Instance().Proxy());
     }
 
     // Execute the test...
@@ -351,7 +351,7 @@ TestResult::Ref TestRunner::ExecuteTest(const TestModule::Ref &testModule, const
 
     // Invoke post-test hook, if set - this is usually done during test_main for a specific library
     if ((testModule != nullptr) && (testModule->cbPostHook != nullptr)) {
-        testModule->cbPostHook(TestResponseProxy::GetInstance()->Proxy());
+        testModule->cbPostHook(TestResponseProxy::Instance().Proxy());
     }
 
     ResultSummary::Instance().AddResult(testCase);
