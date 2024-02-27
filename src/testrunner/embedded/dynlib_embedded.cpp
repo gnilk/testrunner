@@ -5,9 +5,9 @@
 #include "dynlib_embedded.h"
 using namespace trun;
 
-bool DynLibEmbedded::AddTestFunc(std::string name, PTESTFUNC func) {
-    testfuncs[name] = func;
-    exports.push_back(name);
+bool DynLibEmbedded::AddTestFunc(const std::string &funcName, PTESTFUNC func) {
+    testfuncs[funcName] = func;
+    exports.push_back(funcName);
     return true;
 }
 
@@ -15,10 +15,10 @@ void *DynLibEmbedded::Handle() {
     return nullptr;
 }
 
-PTESTFUNC DynLibEmbedded::FindExportedSymbol(std::string funcName) {
-    return testfuncs[funcName];
+PTESTFUNC DynLibEmbedded::FindExportedSymbol(const std::string &symbolName) {
+    return testfuncs[symbolName];
 }
 
-bool DynLibEmbedded::Scan(std::string pathName) {
+bool DynLibEmbedded::Scan(const std::string &pathName) {
     return true;
 }

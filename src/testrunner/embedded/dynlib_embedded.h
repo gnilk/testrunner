@@ -20,11 +20,11 @@ namespace trun {
         DynLibEmbedded() = default;
         virtual ~DynLibEmbedded() = default;
     public:
-        bool AddTestFunc(std::string name, PTESTFUNC func);
+        bool AddTestFunc(const std::string &name, PTESTFUNC func);
     public: // IDynLibrary
         void *Handle() override;
-        PTESTFUNC FindExportedSymbol(std::string funcName) override;
-        bool Scan(std::string pathName) override;
+        PTESTFUNC FindExportedSymbol(const std::string &symbolName) override;
+        bool Scan(const std::string &pathName) override;
         const std::vector<std::string> &Exports() const override { return exports; }
         const std::string &Name() const override { return name; };
     private:
