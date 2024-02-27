@@ -289,6 +289,6 @@ bool TestFunc::Executed() {
 
 
 void TestFunc::SetDependencyList(const char *dependencyList) {
-    pLogger->Debug("Setting dependency for '%s' (%s) to: %s\n", caseName.c_str(), symbolName.c_str(), dependencyList);
+    pLogger->Debug("Setting dependency for '%s' (%s) to: %s", caseName.c_str(), symbolName.c_str(), dependencyList);
     trun::split(dependencies, dependencyList, ',');
 }

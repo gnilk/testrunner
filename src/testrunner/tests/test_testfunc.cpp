@@ -152,8 +152,8 @@ DLL_EXPORT int test_tfunc_casematch_simple(ITesting *t) {
     Config::Instance()->testcases = {"-","caseA","!caseB"};
     TestFunc funcA("test_mock_func", "mock", "caseA");
     TestFunc funcB("test_mock_func", "mock", "caseB");
-    TR_ASSERT(t, caseMatch(funcA.caseName, Config::Instance()->testcases));
-    TR_ASSERT(t, caseMatch(funcB.caseName, Config::Instance()->testcases));
+    TR_ASSERT(t, caseMatch(funcA.CaseName(), Config::Instance()->testcases));
+    TR_ASSERT(t, caseMatch(funcB.CaseName(), Config::Instance()->testcases));
     //TR_ASSERT(t, func.ShouldExecute());
 
     Config::Instance()->testcases = testCasesOrig;

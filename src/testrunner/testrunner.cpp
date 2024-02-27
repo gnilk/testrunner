@@ -225,43 +225,83 @@ bool TestRunner::ExecuteModuleTestFuncs(TestModule::Ref testModule) {
     // Resolve dependencies, this is after 'main' has run and they are now configured...
     testModule->ResolveDependencies();
 
-
-    // Two passes, first pass will ensure dependencies have run, second pass the rest...
-    for(int pass = 0; pass<2; pass++) {
-        pLogger->Info("Pass: %d", pass);
-        for (auto testFunc: testModule->testFuncs) {
-            if (!testFunc->ShouldExecuteNoDeps() && !testModule->CheckTestDependencies(testFunc)) {
-                continue;
+    // Execute dependencies
+    for(auto depFunc : testModule->Dependencies()) {
+        auto runResult = ExecuteTestWithDependencies(testModule, depFunc);
+        if (runResult != kRunResultAction::kContinue) {
+            if (runResult == kRunResultAction::kAbortAll) {
+                bRes = false;
             }
-
-            TestResult::Ref result = ExecuteTest(testModule, testFunc);
-            HandleTestResult(result);
-
-            if (result->Result() == kTestResult_ModuleFail) {
-                if (Config::Instance()->skipOnModuleFail) {
-                    pLogger->Info("Module test failure, skipping remaining test cases in library");
-                    goto leave;
-                } else {
-                    pLogger->Info("Module test failure, continue anyway (configuration)");
-                }
-            } else if (result->Result() == kTestResult_AllFail) {
-                if (Config::Instance()->stopOnAllFail) {
-                    pLogger->Fatal("Total test failure, aborting");
-                    bRes = false;
-                    goto leave;   // Use goto to get status
-                } else {
-                    pLogger->Info("Total test failure, continue anyway (configuration)");
-                }
-            }
+            goto leave;
         }
     }
-leave:
 
+    // Execute test functions
+    for (auto testFunc: testModule->testFuncs) {
+        auto runResult = ExecuteTestWithDependencies(testModule, testFunc);
+        if (runResult != kRunResultAction::kContinue) {
+            if (runResult == kRunResultAction::kAbortAll) {
+                bRes = false;
+            }
+            goto leave;
+        }
+    }
+
+leave:
     if (Config::Instance()->testModuleGlobals) {
         ExecuteModuleExit(testModule);
     }
 
     return bRes;
+}
+
+// Recursive call...
+// FIXME: This can't handle circular dependencies
+TestRunner::kRunResultAction TestRunner::ExecuteTestWithDependencies(const TestModule::Ref &testModule, TestFunc *testCase) {
+    std::vector<TestFunc *> deps;
+
+    if (testCase->Executed()) {
+        return kRunResultAction::kContinue;
+    }
+
+    pLogger->Debug("ExecuteTestWithDependencies: %s", testCase->SymbolName().c_str());
+
+    if (testModule->ResolveDependenciesForTest(deps, testCase)) {
+        for(auto depTestCase : deps) {
+            // Is this dependency already executed?
+            if (depTestCase->Executed()) continue;
+
+            // Call ourselves recursively...
+            auto runResultAction = ExecuteTestWithDependencies(testModule, depTestCase);
+            if (runResultAction != kRunResultAction::kContinue) {
+                return runResultAction;
+            }
+        }
+    }
+
+    auto testResult = ExecuteTest(testModule, testCase);
+    HandleTestResult(testResult);
+    return CheckResultIfContinue(testResult);
+}
+
+TestRunner::kRunResultAction TestRunner::CheckResultIfContinue(TestResult::Ref result) {
+    if (result->Result() == kTestResult_ModuleFail) {
+        if (Config::Instance()->skipOnModuleFail) {
+            pLogger->Info("Module test failure, skipping remaining test cases in library");
+            return kRunResultAction::kAbortModule;
+        } else {
+            pLogger->Info("Module test failure, continue anyway (configuration)");
+        }
+    } else if (result->Result() == kTestResult_AllFail) {
+        if (Config::Instance()->stopOnAllFail) {
+            pLogger->Fatal("Total test failure, aborting");
+            return kRunResultAction::kAbortAll;
+        } else {
+            pLogger->Info("Total test failure, continue anyway (configuration)");
+        }
+    }
+    return kRunResultAction::kContinue;
+
 }
 
 // Returns true if testing is to continue false otherwise..
@@ -294,11 +334,12 @@ void TestRunner::ExecuteModuleExit(TestModule::Ref testModule) {
 
 
 
+
 //
 // Execute a test function and decorate it
 //
 TestResult::Ref TestRunner::ExecuteTest(TestModule::Ref testModule, TestFunc *testCase) {
-    printf("=== RUN  \t%s\n",testCase->symbolName.c_str());
+    printf("=== RUN  \t%s\n",testCase->SymbolName().c_str());
 
     // Invoke pre-test hook, if set - this is usually done during test_main for a specific library
     if ((testModule != nullptr) && (testModule->cbPreHook != nullptr)) {
@@ -353,12 +394,12 @@ void TestRunner::PrepareTests() {
 
         func->SetLibrary(library);
 
-        std::string moduleName = func->moduleName;
-        pLogger->Info("  Module: %s, case: %s, Symbol: %s", func->moduleName.c_str(), func->caseName.c_str(), x.c_str());
+        std::string moduleName = func->ModuleName();
+        pLogger->Info("  Module: %s, case: %s, Symbol: %s", func->ModuleName().c_str(), func->CaseName().c_str(), x.c_str());
 
         // Ok, this is the signature of the main function for a 'library' (group of functions)
         if (moduleName == "-") {
-            moduleName = func->caseName;
+            moduleName = func->CaseName();
         }
 
         // Identify the symbol/pattern and assign it properly
@@ -482,7 +523,7 @@ void TestRunner::DumpTestsToRun() {
     if (!globals.empty()) {
         printf("%c Globals:\n", Config::Instance()->testGlobalMain?'*':'-');
         for (auto t: globals) {
-            printf("    ::%s (%s)\n", t->caseName.c_str(), t->symbolName.c_str());
+            printf("    ::%s (%s)\n", t->CaseName().c_str(), t->SymbolName().c_str());
             nTestCases++;
         }
     }
@@ -492,18 +533,18 @@ void TestRunner::DumpTestsToRun() {
         if (module->mainFunc != nullptr) {
             auto t = module->mainFunc;
             bool bExecTest = t->ShouldExecuteNoDeps() && module->ShouldExecute();
-            printf("  %cm %s (%s)\n", bExecTest?'*':' ',t->caseName.c_str(), t->symbolName.c_str());
+            printf("  %cm %s (%s)\n", bExecTest?'*':' ',t->CaseName().c_str(), t->SymbolName().c_str());
             nTestCases++;
         }
         if (module->exitFunc != nullptr) {
             auto t = module->exitFunc;
             bool bExecTest = t->ShouldExecuteNoDeps() && module->ShouldExecute();
-            printf("  %ce %s (%s)\n",bExecTest?'*':' ', t->caseName.c_str(), t->symbolName.c_str());
+            printf("  %ce %s (%s)\n",bExecTest?'*':' ', t->CaseName().c_str(), t->SymbolName().c_str());
             nTestCases++;
         }
         for(auto t : module->testFuncs) {
             bool bExecTest = t->ShouldExecuteNoDeps() && module->ShouldExecute();
-            printf("  %c  %s::%s (%s)\n", bExecTest?'*':' ',moduleName.c_str(), t->caseName.c_str(), t->symbolName.c_str());
+            printf("  %c  %s::%s (%s)\n", bExecTest?'*':' ',moduleName.c_str(), t->CaseName().c_str(), t->SymbolName().c_str());
             nTestCases++;
         }
         nModules++;

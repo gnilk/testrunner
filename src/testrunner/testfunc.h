@@ -14,7 +14,6 @@
 namespace trun {
 
     class TestFunc;
-    class TestModule;
 
 // The core structure defining a testable function which belongs to a test-library
     class TestFunc {
@@ -69,6 +68,8 @@ namespace trun {
         // Note: Must be public as we are executing through Win32 Threading layer...
         void ExecuteSync();
     private:
+        void HandleTestReturnCode();
+
 #ifdef WIN32
             // Windows has no conditional compile - so always declare
             void ExecuteAsync();
@@ -77,12 +78,10 @@ namespace trun {
             void ExecuteAsync();
 #endif
 #endif
-    public:
+    private:
         std::string symbolName;
         std::string moduleName;
         std::string caseName;
-    private:
-        void HandleTestReturnCode();
 
         kTestScope testScope = kTestScope::kUnknown;
         bool isExecuted = false;
@@ -90,10 +89,7 @@ namespace trun {
 
         IDynLibrary *library = nullptr;
 
-        // This is strictly only needed to resolve dependencies
-        //TestModule::Ref testModule = nullptr;
         TestResponseProxy *trp = nullptr;
-
         std::vector<std::string> dependencies;
 
         PTESTFUNC pFunc = nullptr;

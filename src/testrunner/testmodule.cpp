@@ -1,6 +1,9 @@
 //
 // Created by gnilk on 21.11.23.
 //
+#include <string>
+#include <memory>
+#include <algorithm>
 
 #include "platform.h"
 
@@ -13,7 +16,7 @@
 #include "testhooks.h"
 #include "testmodule.h"
 #include "strutil.h"
-#include <string>
+
 
 using namespace trun;
 
@@ -53,40 +56,35 @@ void TestModule::ResolveDependencies() {
     auto pLogger = Logger::GetLogger("TestModule");
 
     for (auto testFunc: testFuncs) {
-        // Check if we should execute if it wasn't for dependencies
-        if (testFunc->ShouldExecuteNoDeps() && !CheckTestDependencies(testFunc)) {
-            for (auto &dep: testFunc->Dependencies()) {
+        if (testFunc->ShouldExecuteNoDeps()) {
+            for(auto &dep : testFunc->Dependencies()) {
                 auto depFunc = TestCaseFromName(dep);
-                if (!depFunc->ShouldExecuteNoDeps()) {
-                    pLogger->Info("Case '%s' has dependency '%s' added to execution list",
+                // Add if not already present...
+                if (!HaveDependency(depFunc)) {
+                    pLogger->Info("Case '%s' has dependency '%s', added to dependency list",
                                   testFunc->CaseName().c_str(), dep.c_str());
-                    Config::Instance()->testcases.push_back(dep);       // Add this explicitly to execution list...
+                    dependencies.push_back(depFunc);
                 }
             }
         }
     }
 }
 
-bool TestModule::CheckTestDependencies(TestFunc *func) {
-    auto pLogger = Logger::GetLogger("TestModule");
-
-    // Check dependencies
-    for (auto depName : func->Dependencies()) {
-        auto depFun = TestCaseFromName(depName);
-        if ((depFun == nullptr) || (depFun == func)) {
-            printf("WARNING: Can't depend on yourself!!!!!\n");
-            continue;
-        }
-
-        if (!depFun->Executed()) {
-            if (!depFun->ShouldExecuteNoDeps()) {
-                pLogger->Warning("Case '%s' has dependency '%s' that won't be executed!!!", func->CaseName().c_str(), depFun->caseName.c_str());
-            }
-            return false;
+size_t TestModule::ResolveDependenciesForTest(std::vector<TestFunc *> &outDeps, TestFunc *testFunc) const {
+    for(auto &dep : testFunc->Dependencies()) {
+        auto depFunc = TestCaseFromName(dep);
+        // Add if not already present...
+        if (std::find(outDeps.begin(), outDeps.end(), depFunc) == outDeps.end()) {
+            outDeps.push_back(depFunc);
         }
     }
-    return true;
+    return outDeps.size();
+}
 
+
+
+bool TestModule::HaveDependency(TestFunc *func) {
+    return (std::find(dependencies.begin(), dependencies.end(), func) != dependencies.end());
 }
 
 
