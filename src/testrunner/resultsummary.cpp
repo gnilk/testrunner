@@ -71,7 +71,7 @@ void ResultSummary::ListReportingModules() {
     }
 }
 
-void ResultSummary::AddResult(TestFunc *tfunc) {
+void ResultSummary::AddResult(const TestFunc *tfunc) {
     auto result = tfunc->Result();
     testFunctions.push_back(tfunc);
     results.push_back(result);

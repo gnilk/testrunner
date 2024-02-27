@@ -31,10 +31,10 @@ namespace trun {
         bool ExecuteGlobalTests();
         bool ExecuteModuleTests();
         bool ExecuteModuleTestFuncs(TestModule *testModule);
-        TestResult *ExecuteModuleMain(TestModule *testModule);
+        TestResult::Ref ExecuteModuleMain(TestModule *testModule);
         void ExecuteModuleExit(TestModule *testModule);
-        TestResult *ExecuteTest(TestFunc *f);
-        void HandleTestResult(TestResult *result);
+        TestResult::Ref ExecuteTest(TestFunc *f);
+        void HandleTestResult(TestResult::Ref result);
         TestFunc *CreateTestFunc(std::string sym);
 
         TestModule *GetOrAddModule(std::string &module);

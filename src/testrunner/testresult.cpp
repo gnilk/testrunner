@@ -26,7 +26,11 @@
 
 using namespace trun;
 
-TestResult::TestResult(std::string symbolName) {
+TestResult::Ref TestResult::Create(const std::string &symbolName) {
+    return std::make_shared<TestResult>(symbolName);
+}
+
+TestResult::TestResult(const std::string &symbolName) {
     testResult = kTestResult_NotExecuted;
     this->symbolName = symbolName;
     this->numError = this->numAssert = 0;

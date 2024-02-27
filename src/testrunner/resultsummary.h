@@ -12,10 +12,10 @@ namespace trun {
         static ResultSummary &Instance();
         void PrintSummary();
 
-        void AddResult(TestFunc *tfunc);
+        void AddResult(const TestFunc *tfunc);
         void ListReportingModules();
 
-        const std::vector<const TestResult *> &Results() const {
+        const std::vector<TestResult::Ref> &Results() const {
             return results;
         }
         const std::vector<const TestFunc *> &TestFunctions() const {
@@ -26,7 +26,7 @@ namespace trun {
         int testsFailed = 0;
         double durationSec = 0.0;
     private:
-        std::vector<const TestResult *> results;
+        std::vector<TestResult::Ref> results;
         std::vector<const TestFunc *> testFunctions;
         ResultSummary() = default;
     };

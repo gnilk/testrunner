@@ -56,7 +56,7 @@ TestFunc::TestFunc(std::string symbolName, std::string moduleName, std::string c
     this->symbolName = symbolName;
     this->moduleName = moduleName;
     this->caseName = caseName;
-    testScope = kUnknown;
+    testScope = kTestScope::kUnknown;
     isExecuted = false;
     pLogger = Logger::GetLogger("TestFunc");
     testResult = nullptr;
@@ -89,7 +89,7 @@ bool TestFunc::ShouldExecute() {
     if (this->isExecuted) {
         return false;
     }
-    if ((testScope == kModuleMain) || (testScope == kModuleExit)) {
+    if ((testScope == kTestScope::kModuleMain) || (testScope == kTestScope::kModuleExit)) {
         return Config::Instance()->testModuleGlobals;
     }
 
@@ -103,7 +103,7 @@ bool TestFunc::ShouldExecuteNoDeps() {
     if (this->isExecuted) {
         return false;
     }
-    if ((testScope == kModuleMain) || (testScope == kModuleExit)) {
+    if ((testScope == kTestScope::kModuleMain) || (testScope == kTestScope::kModuleExit)) {
         return Config::Instance()->testModuleGlobals;
     }
 
@@ -162,6 +162,7 @@ void TestFunc::ExecuteAsync() {
 static void *testfunc_thread_starter(void *arg) {
     TestFunc *func = reinterpret_cast<TestFunc*>(arg);
     func->ExecuteSync();
+    // Return NULL here as this is a C callback..
     return NULL;
 }
 
@@ -194,7 +195,7 @@ void TestFunc::ExecuteAsync() {
 #endif
 #endif
 
-TestResult *TestFunc::Execute(IDynLibrary *module) {
+TestResult::Ref TestFunc::Execute(IDynLibrary *module) {
     pLogger->Debug("Executing test: %s", caseName.c_str());
     pLogger->Debug("  Module: %s", moduleName.c_str());
     pLogger->Debug("  Case..: %s", caseName.c_str());
@@ -209,13 +210,13 @@ TestResult *TestFunc::Execute(IDynLibrary *module) {
         pLogger->Warning("Test '%s' already executed - double execution is either bug or not advised!!", symbolName.c_str());
     }
     pFunc = (PTESTFUNC)module->FindExportedSymbol(symbolName);
-    if (pFunc != NULL) {
+    if (pFunc != nullptr) {
         //
         // Actual execution of test function and handling of result
         //
         // Execute the test in it's own thread.
         // This allows the test to be aborted when the response proxy is called
-        testResult = new TestResult(symbolName);
+        testResult = TestResult::Create(symbolName);
 
 #if defined(TRUN_HAVE_THREADS)
         ExecuteAsync();

@@ -19,13 +19,13 @@ namespace trun {
 // The core structure defining a testable function which belongs to a test-library
     class TestFunc {
     public:
-        typedef enum {
+        enum class kTestScope {
             kUnknown,
             kGlobal,
             kModuleMain,
             kModuleExit,
             kModuleCase,
-        } kTestScope;
+        };
     public:
         TestFunc();
         TestFunc(std::string symbolName, std::string moduleName, std::string caseName);
@@ -34,7 +34,7 @@ namespace trun {
         bool IsModuleMain();
         bool IsGlobalMain();
         bool IsGlobalExit();
-        TestResult *Execute(IDynLibrary *module);
+        TestResult::Ref Execute(IDynLibrary *module);
         void SetExecuted();
         bool Executed();
         bool ShouldExecute();
@@ -52,9 +52,9 @@ namespace trun {
         void SetTestScope(kTestScope scope) {
             testScope = scope;
         }
-        const TestResult *Result() const { return testResult; }
+        const TestResult::Ref Result() const { return testResult; }
         // I use this in the unit test in order to create a mock-up result...
-        void UTEST_SetMockResultPtr(TestResult *pMockResult) { testResult = pMockResult; }
+        void UTEST_SetMockResultPtr(TestResult::Ref pMockResult) { testResult = pMockResult; }
         kTestScope TestScope() { return testScope; }
 
     public:
@@ -74,10 +74,11 @@ namespace trun {
         std::string moduleName;
         std::string caseName;
     private:
-        kTestScope testScope;
-        bool isExecuted;
-        ILogger *pLogger;
         void HandleTestReturnCode();
+
+        kTestScope testScope = kTestScope::kUnknown;
+        bool isExecuted = false;
+        ILogger *pLogger = nullptr;
 
         IDynLibrary *library = nullptr;
         TestModule *testModule = nullptr;
@@ -85,9 +86,9 @@ namespace trun {
 
         std::vector<std::string> dependencies;
 
-        PTESTFUNC pFunc;
+        PTESTFUNC pFunc = nullptr;
         int testReturnCode = -1;
-        TestResult *testResult = nullptr;
+        TestResult::Ref testResult = nullptr;
 
     };
 }

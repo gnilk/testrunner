@@ -114,7 +114,7 @@ bool TestRunner::ExecuteMain() {
 
     for (auto f:globals) {
         if (f->IsGlobalMain()) {
-            TestResult *result = ExecuteTest(f);
+            TestResult::Ref result = ExecuteTest(f);
             HandleTestResult(result);
             if ((result->Result() == kTestResult_AllFail) || (result->Result() == kTestResult_TestFail)) {
                 if (Config::Instance()->stopOnAllFail) {
@@ -139,7 +139,7 @@ bool TestRunner::ExecuteMainExit() {
 
     for (auto f:globals) {
         if (f->IsGlobalExit()) {
-            TestResult *result = ExecuteTest(f);
+            TestResult::Ref result = ExecuteTest(f);
             HandleTestResult(result);
             if ((result->Result() == kTestResult_AllFail) || (result->Result() == kTestResult_TestFail)) {
                 if (Config::Instance()->stopOnAllFail) {
@@ -234,7 +234,7 @@ bool TestRunner::ExecuteModuleTestFuncs(TestModule *testModule) {
                 continue;
             }
 
-            TestResult *result = ExecuteTest(testFunc);
+            TestResult::Ref result = ExecuteTest(testFunc);
             HandleTestResult(result);
 
             if (result->Result() == kTestResult_ModuleFail) {
@@ -265,10 +265,10 @@ leave:
 }
 
 // Returns true if testing is to continue false otherwise..
-TestResult *TestRunner::ExecuteModuleMain(TestModule *testModule) {
+TestResult::Ref TestRunner::ExecuteModuleMain(TestModule *testModule) {
     if (testModule->mainFunc == nullptr) return nullptr;
 
-    TestResult *result = ExecuteTest(testModule->mainFunc);
+    TestResult::Ref result = ExecuteTest(testModule->mainFunc);
     if (result == nullptr) {
         pLogger->Error("Test result for main is NULL!!!");
         return nullptr;
@@ -280,7 +280,7 @@ TestResult *TestRunner::ExecuteModuleMain(TestModule *testModule) {
 void TestRunner::ExecuteModuleExit(TestModule *testModule) {
     if (testModule->exitFunc == nullptr) return;
     // Try call exit function on leave...
-    TestResult *result = ExecuteTest(testModule->exitFunc);
+    TestResult::Ref result = ExecuteTest(testModule->exitFunc);
     if (result == nullptr) {
         pLogger->Error("Test result for exit is NULL!!!");
         return;
@@ -297,7 +297,7 @@ void TestRunner::ExecuteModuleExit(TestModule *testModule) {
 //
 // Execute a test function and decorate it
 //
-TestResult *TestRunner::ExecuteTest(TestFunc *f) {
+TestResult::Ref TestRunner::ExecuteTest(TestFunc *f) {
     printf("=== RUN  \t%s\n",f->symbolName.c_str());
 
     // Invoke pre-test hook, if set - this is usually done during test_main for a specific library
@@ -306,7 +306,7 @@ TestResult *TestRunner::ExecuteTest(TestFunc *f) {
     }
 
     // Execute the test...
-    TestResult *result = f->Execute(library);
+    TestResult::Ref result = f->Execute(library);
 
     // Invoke post-test hook, if set - this is usually done during test_main for a specific library
     if ((f->GetTestModule() != nullptr) && (f->GetTestModule()->cbPostHook != nullptr)) {
@@ -320,7 +320,7 @@ TestResult *TestRunner::ExecuteTest(TestFunc *f) {
 //
 // Handle the test result and print decoration
 //
-void TestRunner::HandleTestResult(TestResult *result) {
+void TestRunner::HandleTestResult(TestResult::Ref result) {
     double tElapsedSec = result->ElapsedTimeSec();
     if (result->Result() != kTestResult_Pass) {
         if (result->Result() == kTestResult_InvalidReturnCode) {
@@ -364,23 +364,23 @@ void TestRunner::PrepareTests() {
         // Identify the symbol/pattern and assign it properly
         // The 'TestScope' is a simplification for later
         if (func->IsGlobalMain()) {
-            func->SetTestScope(TestFunc::kGlobal);
+            func->SetTestScope(TestFunc::kTestScope::kGlobal);
             globals.push_back(func);
         } else if (func->IsGlobalExit()) {
-            func->SetTestScope(TestFunc::kGlobal);
+            func->SetTestScope(TestFunc::kTestScope::kGlobal);
             globals.push_back(func);
         } else {
             // These are library functions - and handled differently and with lower priority
             auto tModule = GetOrAddModule(moduleName);
             if (func->IsGlobal()) {
-                func->SetTestScope(TestFunc::kModuleMain);
+                func->SetTestScope(TestFunc::kTestScope::kModuleMain);
                 tModule->mainFunc = func;
             } else if (func->IsModuleExit()) {
-                func->SetTestScope(TestFunc::kModuleExit);
+                func->SetTestScope(TestFunc::kTestScope::kModuleExit);
                 tModule->exitFunc = func;
             } else {
                 tModule = GetOrAddModule(moduleName);
-                func->SetTestScope(TestFunc::kModuleCase);
+                func->SetTestScope(TestFunc::kTestScope::kModuleCase);
                 tModule->testFuncs.push_back(func);
             }
             // Link them togehter...
@@ -418,7 +418,7 @@ TestModule *TestRunner::GetOrAddModule(std::string &moduleName) {
 // 'case'   - this is the test case
 //
 TestFunc *TestRunner::CreateTestFunc(std::string symbol) {
-    TestFunc *func = NULL;
+    TestFunc *func = nullptr;
 
     std::vector<std::string> funcparts;
     trun::split(funcparts, symbol.c_str(), '_');

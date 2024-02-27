@@ -25,6 +25,7 @@
 
 #include "platform.h"
 #include <string>
+#include <memory>
 #include "asserterror.h"
 
 namespace trun {
@@ -40,7 +41,11 @@ namespace trun {
 
     class TestResult {
     public:
-        TestResult(std::string symbolName);
+        using Ref = std::shared_ptr<TestResult>;
+    public:
+        static TestResult::Ref Create(const std::string &symbolName);
+        TestResult(const std::string &symbolName);
+
         // Property access, getters
         kTestResult Result() const { return testResult; }
         int Errors() const { return numError; }
@@ -59,10 +64,10 @@ namespace trun {
     private:
         class AssertError assertError;
 
-        kTestResult testResult;
-        double tElapsedSec;
-        int numError;
-        int numAssert;
+        kTestResult testResult = kTestResult_NotExecuted;
+        double tElapsedSec = 0;
+        int numError = 0;
+        int numAssert = 0;
         std::string symbolName;
     };
 }

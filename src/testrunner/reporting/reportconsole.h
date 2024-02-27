@@ -15,8 +15,8 @@ namespace trun {
         void PrintReport() override;
     protected:
         void PrintSummary();
-        void PrintFailures(const std::vector<const TestResult *> &results);
-        void PrintPasses(const std::vector<const TestResult *> &results);
+        void PrintFailures(const std::vector<TestResult::Ref> &results);
+        void PrintPasses(const std::vector<TestResult::Ref> &results);
     };
 }
 #endif //TESTRUNNER_REPORTCONSOLE_H

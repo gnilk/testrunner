@@ -17,14 +17,14 @@ DLL_EXPORT int test_jsonreport(ITesting *t) {
 }
 DLL_EXPORT int test_jsonreport_escape(ITesting *t) {
     trun::TestFunc tfunc;
-    trun::TestResult result("dummy");
-    result.SetResult(trun::kTestResult_TestFail);
+    auto result = trun::TestResult::Create("dummy");
+    result->SetResult(trun::kTestResult_TestFail);
     trun::AssertError assertError;
     auto assertErrMsg = std::string("fopen(\"filename.txt\",\"r\");");
     assertError.Set(trun::AssertError::kAssert_Error, 0, "dummy.cpp", assertErrMsg);
-    result.SetAssertError(assertError);
+    result->SetAssertError(assertError);
 
-    tfunc.UTEST_SetMockResultPtr(&result);
+    tfunc.UTEST_SetMockResultPtr(result);
 
     // Add this to the global result summary instance
     trun::ResultSummary::Instance().AddResult(&tfunc);
