@@ -30,7 +30,7 @@ TestModule::TestModule(const std::string &moduleName) :
 
 
 bool TestModule::ShouldExecute() const {
-    return caseMatch(name, Config::Instance()->modules);
+    return caseMatch(name, Config::Instance().modules);
 }
 
 TestFunc::Ref TestModule::TestCaseFromName(const std::string &caseName) const {

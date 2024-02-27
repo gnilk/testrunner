@@ -27,7 +27,7 @@ void ResultsReportJSON::End() {
 void ResultsReportJSON::PrintReport() {
     PrintSummary();
     PrintFailures(ResultSummary::Instance().Results());
-    if (Config::Instance()->printPassSummary) {
+    if (Config::Instance().printPassSummary) {
         PrintPasses(ResultSummary::Instance().Results());
     }
 }

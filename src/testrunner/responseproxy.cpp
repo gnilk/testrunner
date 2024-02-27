@@ -90,7 +90,7 @@ void TestResponseProxy::Begin(std::string symbolName, std::string moduleName) {
     pLogger = Logger::GetLogger(moduleName.c_str());
 
     // Apply verbose filtering to log output from test cases or not??
-    if (!Config::Instance()->testLogFilter) {
+    if (!Config::Instance().testLogFilter) {
         pLogger->Enable(Logger::kFlags_PassThrough);
     } else {
         pLogger->Enable(Logger::kFlags_BlockAll);
@@ -288,7 +288,7 @@ TestResponseProxy *TestResponseProxy::GetInstance() {
 #endif
 
 static bool IsMsgSizeOk(uint32_t szbuf) {
-    if (szbuf > Config::Instance()->responseMsgByteLimit) {
+    if (szbuf > Config::Instance().responseMsgByteLimit) {
         auto pLogger = Logger::GetLogger("TestResponseProxy");
         pLogger->Error("Message buffer exceeds limit (%d bytes), truncating..");
         return false;

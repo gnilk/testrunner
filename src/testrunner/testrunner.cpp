@@ -106,7 +106,7 @@ void TestRunner::ExecuteTests() {
 bool TestRunner::ExecuteMain() {
     // 1) call test_main which is used to initalized anything shared between tests
     bool bRes = true;
-    if (!Config::Instance()->testGlobalMain) {
+    if (!Config::Instance().testGlobalMain) {
         return bRes;
     }
 
@@ -117,7 +117,7 @@ bool TestRunner::ExecuteMain() {
             TestResult::Ref result = ExecuteTest(nullptr, f);
             HandleTestResult(result);
             if ((result->Result() == kTestResult_AllFail) || (result->Result() == kTestResult_TestFail)) {
-                if (Config::Instance()->stopOnAllFail) {
+                if (Config::Instance().stopOnAllFail) {
                     pLogger->Info("Total test failure, aborting");
                     bRes = false;
                 }
@@ -131,7 +131,7 @@ bool TestRunner::ExecuteMain() {
 bool TestRunner::ExecuteMainExit() {
     // 1) call test_main which is used to initalized anything shared between tests
     bool bRes = true;
-    if (!Config::Instance()->testGlobalMain) {
+    if (!Config::Instance().testGlobalMain) {
         return bRes;
     }
 
@@ -142,7 +142,7 @@ bool TestRunner::ExecuteMainExit() {
             TestResult::Ref result = ExecuteTest(nullptr, f);
             HandleTestResult(result);
             if ((result->Result() == kTestResult_AllFail) || (result->Result() == kTestResult_TestFail)) {
-                if (Config::Instance()->stopOnAllFail) {
+                if (Config::Instance().stopOnAllFail) {
                     pLogger->Info("Total test failure, aborting");
                     bRes = false;
                 }
@@ -161,7 +161,7 @@ bool TestRunner::ExecuteGlobalTests() {
     // 2) all other global scope tests
     // Filtering in global tests is a bit different as the test func has no library.
     bool bRes = true;
-    if (!Config::Instance()->testModuleGlobals) {
+    if (!Config::Instance().testModuleGlobals) {
         return bRes;
     }
     pLogger->Info("Executing global tests");
@@ -215,7 +215,7 @@ bool TestRunner::ExecuteModuleTests() {
 bool TestRunner::ExecuteModuleTestFuncs(TestModule::Ref testModule) {
     bool bRes = true;
 
-    if (Config::Instance()->testModuleGlobals) {
+    if (Config::Instance().testModuleGlobals) {
         auto mainResult = ExecuteModuleMain(testModule);
         if ((mainResult != nullptr) && (mainResult->Result() != kTestResult_Pass)) {
             return false;
@@ -248,7 +248,7 @@ bool TestRunner::ExecuteModuleTestFuncs(TestModule::Ref testModule) {
     }
 
 leave:
-    if (Config::Instance()->testModuleGlobals) {
+    if (Config::Instance().testModuleGlobals) {
         ExecuteModuleExit(testModule);
     }
 
@@ -286,14 +286,14 @@ TestRunner::kRunResultAction TestRunner::ExecuteTestWithDependencies(const TestM
 
 TestRunner::kRunResultAction TestRunner::CheckResultIfContinue(const TestResult::Ref &result) const {
     if (result->Result() == kTestResult_ModuleFail) {
-        if (Config::Instance()->skipOnModuleFail) {
+        if (Config::Instance().skipOnModuleFail) {
             pLogger->Info("Module test failure, skipping remaining test cases in library");
             return kRunResultAction::kAbortModule;
         } else {
             pLogger->Info("Module test failure, continue anyway (configuration)");
         }
     } else if (result->Result() == kTestResult_AllFail) {
-        if (Config::Instance()->stopOnAllFail) {
+        if (Config::Instance().stopOnAllFail) {
             pLogger->Fatal("Total test failure, aborting");
             return kRunResultAction::kAbortAll;
         } else {
@@ -521,7 +521,7 @@ void TestRunner::DumpTestsToRun() {
     int nTestCases = 0;
 
     if (!globals.empty()) {
-        printf("%c Globals:\n", Config::Instance()->testGlobalMain?'*':'-');
+        printf("%c Globals:\n", Config::Instance().testGlobalMain?'*':'-');
         for (auto t: globals) {
             printf("    ::%s (%s)\n", t->CaseName().c_str(), t->SymbolName().c_str());
             nTestCases++;

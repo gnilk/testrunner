@@ -12,7 +12,7 @@ namespace trun {
 
     class Config {
     public:
-        static Config *Instance();
+        static Config &Instance();
         void Dump();
     public:
         int verbose;

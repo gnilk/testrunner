@@ -23,7 +23,7 @@ void ResultsReportConsole::End() {
 void ResultsReportConsole::PrintReport() {
     PrintSummary();
     PrintFailures(ResultSummary::Instance().Results());
-    if (Config::Instance()->printPassSummary) {
+    if (Config::Instance().printPassSummary) {
         PrintPasses(ResultSummary::Instance().Results());
     }
 }

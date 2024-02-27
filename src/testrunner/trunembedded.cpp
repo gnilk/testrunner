@@ -52,9 +52,9 @@ namespace trun {
     static void ConfigureLogger() {
         // Setup up logger according to verbose flags
         Logger::SetAllSinkDebugLevel(Logger::kMCError);
-        if (Config::Instance()->verbose > 0) {
+        if (Config::Instance().verbose > 0) {
             Logger::SetAllSinkDebugLevel(Logger::kMCInfo);
-            if (Config::Instance()->verbose > 1) {
+            if (Config::Instance().verbose > 1) {
                 Logger::SetAllSinkDebugLevel(Logger::kMCDebug);
             }
         }
@@ -69,13 +69,13 @@ namespace trun {
         //     pLogger->Debug("  %s\n", m.c_str());
         // }
 
-        Config::Instance()->modules = modules;
+        Config::Instance().modules = modules;
     }
 
     static void ParseTestCaseFilters(const char *filterstring) {
         std::vector<std::string> testcases;
         trun::split(testcases, filterstring, ',');
-        Config::Instance()->testcases = testcases;
+        Config::Instance().testcases = testcases;
     }
 
 }

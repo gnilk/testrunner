@@ -86,77 +86,77 @@ DLL_EXPORT int test_tfunc_exec(ITesting *t) {
 
 DLL_EXPORT int test_tfunc_casefilter_simple(ITesting *t) {
     ModuleMock mockModule;
-    auto testCasesOrig = Config::Instance()->testcases;
+    auto testCasesOrig = Config::Instance().testcases;
 
-    Config::Instance()->testcases = {"func*"};
+    Config::Instance().testcases = {"func*"};
     TestFunc func("test_mock_func", "mock", "funcflurp");
     TR_ASSERT(t, func.ShouldExecute());
 
-    Config::Instance()->testcases = testCasesOrig;
+    Config::Instance().testcases = testCasesOrig;
     return kTR_Pass;
 }
 
 DLL_EXPORT int test_tfunc_casefilter_splitmid(ITesting *t) {
     ModuleMock mockModule;
-    auto testCasesOrig = Config::Instance()->testcases;
+    auto testCasesOrig = Config::Instance().testcases;
 
-    Config::Instance()->testcases = {"fn_*_case"};
+    Config::Instance().testcases = {"fn_*_case"};
     TestFunc func("test_mock_func", "mock", "fn_test_case");
     TR_ASSERT(t, func.ShouldExecute());
 
-    Config::Instance()->testcases = testCasesOrig;
+    Config::Instance().testcases = testCasesOrig;
     return kTR_Pass;
 }
 
 DLL_EXPORT int test_tfunc_casefilter_trailing(ITesting *t) {
     ModuleMock mockModule;
-    auto testCasesOrig = Config::Instance()->testcases;
+    auto testCasesOrig = Config::Instance().testcases;
 
-    Config::Instance()->testcases = {"*flurp"};
+    Config::Instance().testcases = {"*flurp"};
     TestFunc func("test_mock_func", "mock", "funcflurp");
     TR_ASSERT(t, func.ShouldExecute());
 
-    Config::Instance()->testcases = testCasesOrig;
+    Config::Instance().testcases = testCasesOrig;
     return kTR_Pass;
 }
 
 DLL_EXPORT int test_tfunc_modfilter_simple(ITesting *t) {
     ModuleMock mockModule;
-    auto modulesOrig = Config::Instance()->modules;
+    auto modulesOrig = Config::Instance().modules;
 
-    Config::Instance()->modules = {"base*"};
+    Config::Instance().modules = {"base*"};
     TestFunc func("test_mock_func", "basemod", "func");
     TR_ASSERT(t, func.ShouldExecute());
 
-    Config::Instance()->modules = modulesOrig;
+    Config::Instance().modules = modulesOrig;
     return kTR_Pass;
 }
 
 DLL_EXPORT int test_tfunc_modfilter_trailing(ITesting *t) {
     ModuleMock mockModule;
-    auto modulesOrig = Config::Instance()->modules;
+    auto modulesOrig = Config::Instance().modules;
 
-    Config::Instance()->modules = {"*mod"};
+    Config::Instance().modules = {"*mod"};
     TestFunc func("test_mock_func", "basemod", "func");
     TR_ASSERT(t, func.ShouldExecute());
 
-    Config::Instance()->modules = modulesOrig;
+    Config::Instance().modules = modulesOrig;
     return kTR_Pass;
 }
 
 
 DLL_EXPORT int test_tfunc_casematch_simple(ITesting *t) {
     ModuleMock mockModule;
-    auto testCasesOrig = Config::Instance()->testcases;
+    auto testCasesOrig = Config::Instance().testcases;
 
-    Config::Instance()->testcases = {"-","caseA","!caseB"};
+    Config::Instance().testcases = {"-","caseA","!caseB"};
     TestFunc funcA("test_mock_func", "mock", "caseA");
     TestFunc funcB("test_mock_func", "mock", "caseB");
-    TR_ASSERT(t, caseMatch(funcA.CaseName(), Config::Instance()->testcases));
-    TR_ASSERT(t, caseMatch(funcB.CaseName(), Config::Instance()->testcases));
+    TR_ASSERT(t, caseMatch(funcA.CaseName(), Config::Instance().testcases));
+    TR_ASSERT(t, caseMatch(funcB.CaseName(), Config::Instance().testcases));
     //TR_ASSERT(t, func.ShouldExecute());
 
-    Config::Instance()->testcases = testCasesOrig;
+    Config::Instance().testcases = testCasesOrig;
     return kTR_Pass;
 
 }

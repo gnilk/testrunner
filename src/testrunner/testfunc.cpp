@@ -70,17 +70,17 @@ bool TestFunc::IsGlobal() {
     return (moduleName == "-");
 }
 bool TestFunc::IsGlobalMain() {
-    return (IsGlobal() && (caseName == Config::Instance()->mainFuncName));
+    return (IsGlobal() && (caseName == Config::Instance().mainFuncName));
 }
 bool TestFunc::IsGlobalExit() {
-    return (IsGlobal() && (caseName == Config::Instance()->exitFuncName));
+    return (IsGlobal() && (caseName == Config::Instance().exitFuncName));
 }
 bool TestFunc::IsModuleMain() { {
-    return (IsGlobal() && (caseName == Config::Instance()->mainFuncName));
+    return (IsGlobal() && (caseName == Config::Instance().mainFuncName));
 }}
 
 bool TestFunc::IsModuleExit() {
-    return (!IsGlobal() && (caseName == Config::Instance()->exitFuncName));
+    return (!IsGlobal() && (caseName == Config::Instance().exitFuncName));
 }
 //__inline__ static void trap_instruction(void)
 //{
@@ -93,10 +93,10 @@ bool TestFunc::ShouldExecute() {
         return false;
     }
     if ((testScope == kTestScope::kModuleMain) || (testScope == kTestScope::kModuleExit)) {
-        return Config::Instance()->testModuleGlobals;
+        return Config::Instance().testModuleGlobals;
     }
 
-    if (caseMatch(caseName, Config::Instance()->testcases)) {
+    if (caseMatch(caseName, Config::Instance().testcases)) {
         //return CheckDependenciesExecuted();
         return true;
     }
@@ -109,10 +109,10 @@ bool TestFunc::ShouldExecuteNoDeps() {
         return false;
     }
     if ((testScope == kTestScope::kModuleMain) || (testScope == kTestScope::kModuleExit)) {
-        return Config::Instance()->testModuleGlobals;
+        return Config::Instance().testModuleGlobals;
     }
 
-    return caseMatch(caseName, Config::Instance()->testcases);
+    return caseMatch(caseName, Config::Instance().testcases);
 }
 
 /*
@@ -248,7 +248,7 @@ TestResult::Ref TestFunc::Execute(IDynLibrary *module) {
 }
 void TestFunc::HandleTestReturnCode() {
     // Discard return code???
-    if (Config::Instance()->discardTestReturnCode) {
+    if (Config::Instance().discardTestReturnCode) {
         pLogger->Debug("Discarding return code\n");
         return;
     }

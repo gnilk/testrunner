@@ -129,7 +129,7 @@ bool DynLibLinux::Open() {
     //       in favor of hosting exe..  That is - if a symbol is defined twice (exe and lib) RTLD_DEEPBIND will
     //       prioritize the symbol belonging to the lib...
     //
-    if (Config::Instance()->linuxUseDeepBinding) {
+    if (Config::Instance().linuxUseDeepBinding) {
 #ifdef __linux
         openFlags |= RTLD_DEEPBIND;
 #endif

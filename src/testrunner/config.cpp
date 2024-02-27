@@ -28,14 +28,10 @@
 
 using namespace trun;
 
-static Config *gblConfig = NULL;
 
-
-Config *Config::Instance() {
-    if (gblConfig == NULL) {
-        gblConfig = new Config();
-    }
-    return gblConfig;
+Config &Config::Instance() {
+    static Config glbConfig;
+    return glbConfig;
 }
 
 Config::Config() {

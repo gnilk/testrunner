@@ -41,13 +41,13 @@ static std::map<std::string_view, ReportFactory > reportFactories = {
 void ResultSummary::PrintSummary() {
 
     // strutil mutates the incoming string - let's not do that in this instance...
-    auto reportingModule = std::string(Config::Instance()->reportingModule);
+    auto reportingModule = std::string(Config::Instance().reportingModule);
     trun::to_lower(reportingModule);
 
     if (reportFactories.find(reportingModule) == reportFactories.end()) {
         // not found, or special name..
         if (reportingModule != "list") {
-            printf("ERR: No such reporting library '%s'\n", Config::Instance()->reportingModule.c_str());
+            printf("ERR: No such reporting library '%s'\n", Config::Instance().reportingModule.c_str());
         }
         ListReportingModules();
         return;
