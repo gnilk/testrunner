@@ -70,15 +70,19 @@ void TestModule::ResolveDependencies() {
     }
 }
 
-size_t TestModule::ResolveDependenciesForTest(std::vector<TestFunc::Ref> &outDeps, const TestFunc::Ref &testFunc) const {
+// inOutDeps - is a list with dependencies, first call should populate it empty and if recursively following dependencies it is also checked so we don't add them twice..
+// Return value is the newly added cases...
+size_t TestModule::ResolveDependenciesForTest(std::vector<TestFunc::Ref> &inOutDeps, const TestFunc::Ref &testFunc) const {
+    size_t added = 0;
     for(auto &dep : testFunc->Dependencies()) {
         auto depFunc = TestCaseFromName(dep);
         // Add if not already present...
-        if (std::find(outDeps.begin(), outDeps.end(), depFunc) == outDeps.end()) {
-            outDeps.push_back(depFunc);
+        if (std::find(inOutDeps.begin(), inOutDeps.end(), depFunc) == inOutDeps.end()) {
+            inOutDeps.push_back(depFunc);
+            added++;
         }
     }
-    return outDeps.size();
+    return added;
 }
 
 

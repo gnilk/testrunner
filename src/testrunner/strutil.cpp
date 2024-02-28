@@ -98,7 +98,6 @@ namespace trun {
     }
 
     bool caseMatch(const std::string &caseName, const std::vector<std::string> &caseList) {
-        // FIXME: THIS REALLY NEEDS TO BE REWORKED PROPERLY!
         int executeFlag = 0;
         for (auto tc: caseList) {
             if (tc == "-") {

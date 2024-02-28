@@ -37,7 +37,6 @@ namespace trun {
         bool ExecuteGlobalTests();
         bool ExecuteModuleTests();
         bool ExecuteModuleTestFuncs(TestModule::Ref testModule);
-        kRunResultAction ExecuteTestWithDependencies(const TestModule::Ref &testModule, TestFunc::Ref testCase);
         TestResult::Ref ExecuteModuleMain(const TestModule::Ref &testModule);
         void ExecuteModuleExit(TestModule::Ref testModule);
         TestResult::Ref ExecuteTest(const TestModule::Ref &testModule, const TestFunc::Ref &testCase);
@@ -46,8 +45,9 @@ namespace trun {
 
 
         kRunResultAction CheckResultIfContinue(const TestResult::Ref &result) const;
-
         TestModule::Ref GetOrAddModule(std::string &module);
+    private:
+        kRunResultAction ExecuteTestWithDependencies(const TestModule::Ref &testModule, TestFunc::Ref testCase, std::vector<TestFunc::Ref> &deps);
 
     private:
         ILogger *pLogger = nullptr;

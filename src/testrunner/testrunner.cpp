@@ -225,9 +225,11 @@ bool TestRunner::ExecuteModuleTestFuncs(TestModule::Ref testModule) {
     // Resolve dependencies, this is after 'main' has run and they are now configured...
     testModule->ResolveDependencies();
 
+
     // Execute dependencies
     for(auto depFunc : testModule->Dependencies()) {
-        auto runResult = ExecuteTestWithDependencies(testModule, depFunc);
+        std::vector<TestFunc::Ref> deps = {};
+        auto runResult = ExecuteTestWithDependencies(testModule, depFunc, deps);
         if (runResult != kRunResultAction::kContinue) {
             if (runResult == kRunResultAction::kAbortAll) {
                 bRes = false;
@@ -238,7 +240,9 @@ bool TestRunner::ExecuteModuleTestFuncs(TestModule::Ref testModule) {
 
     // Execute test functions
     for (auto testFunc: testModule->testFuncs) {
-        auto runResult = ExecuteTestWithDependencies(testModule, testFunc);
+        std::vector<TestFunc::Ref> deps = {};
+
+        auto runResult = ExecuteTestWithDependencies(testModule, testFunc, deps);
         if (runResult != kRunResultAction::kContinue) {
             if (runResult == kRunResultAction::kAbortAll) {
                 bRes = false;
@@ -256,9 +260,7 @@ leave:
 }
 
 // Recursive call...
-// FIXME: This can't handle circular dependencies
-TestRunner::kRunResultAction TestRunner::ExecuteTestWithDependencies(const TestModule::Ref &testModule, TestFunc::Ref testCase) {
-    std::vector<TestFunc::Ref> deps;
+TestRunner::kRunResultAction TestRunner::ExecuteTestWithDependencies(const TestModule::Ref &testModule, TestFunc::Ref testCase, std::vector<TestFunc::Ref> &deps) {
 
     if (testCase->Executed()) {
         return kRunResultAction::kContinue;
@@ -272,11 +274,16 @@ TestRunner::kRunResultAction TestRunner::ExecuteTestWithDependencies(const TestM
             if (depTestCase->Executed()) continue;
 
             // Call ourselves recursively...
-            auto runResultAction = ExecuteTestWithDependencies(testModule, depTestCase);
+            auto runResultAction = ExecuteTestWithDependencies(testModule, depTestCase, deps);
             if (runResultAction != kRunResultAction::kContinue) {
                 return runResultAction;
             }
         }
+    }
+
+    // Was this test already executed somewhere due to dependency resolution - skip any further execution...
+    if (testCase->Executed()) {
+        return CheckResultIfContinue(testCase->Result());
     }
 
     auto testResult = ExecuteTest(testModule, testCase);
