@@ -60,6 +60,10 @@ void TestModule::ResolveDependencies() {
             for(auto &dep : testFunc->Dependencies()) {
                 auto depFunc = TestCaseFromName(dep);
                 // Add if not already present...
+                if (depFunc == nullptr) {
+                    pLogger->Error("Non-existing dependency '%s' for test '%s'", dep.c_str(), testFunc->SymbolName().c_str());
+                    continue;
+                }
                 if (!HaveDependency(depFunc)) {
                     pLogger->Info("Case '%s' has dependency '%s', added to dependency list",
                                   testFunc->CaseName().c_str(), dep.c_str());
@@ -76,6 +80,10 @@ size_t TestModule::ResolveDependenciesForTest(std::vector<TestFunc::Ref> &inOutD
     size_t added = 0;
     for(auto &dep : testFunc->Dependencies()) {
         auto depFunc = TestCaseFromName(dep);
+        // This failure should already be printed
+        if (depFunc == nullptr) {
+            continue;
+        }
         // Add if not already present...
         if (std::find(inOutDeps.begin(), inOutDeps.end(), depFunc) == inOutDeps.end()) {
             inOutDeps.push_back(depFunc);
