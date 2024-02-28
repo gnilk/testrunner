@@ -41,7 +41,10 @@ namespace trun {
         TestResult::Ref Execute(IDynLibrary::Ref module);
         void SetExecuted();
         bool Executed();
-        bool ShouldExecute();
+        // This was the old function - which also verified dependencies
+        __inline bool ShouldExecute() {
+            return ShouldExecuteNoDeps();
+        }
         bool ShouldExecuteNoDeps();
 
         void SetLibrary(IDynLibrary::Ref dynLibrary) { library = dynLibrary; }
