@@ -240,8 +240,11 @@ bool TestRunner::ExecuteModuleTestFuncs(TestModule::Ref testModule) {
 
     // Execute test functions
     for (auto testFunc: testModule->testFuncs) {
-        std::vector<TestFunc::Ref> deps = {};
+        if (!testFunc->ShouldExecuteNoDeps()) {
+            continue;
+        }
 
+        std::vector<TestFunc::Ref> deps = {};
         auto runResult = ExecuteTestWithDependencies(testModule, testFunc, deps);
         if (runResult != kRunResultAction::kContinue) {
             if (runResult == kRunResultAction::kAbortAll) {
