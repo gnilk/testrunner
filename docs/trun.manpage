@@ -1,6 +1,6 @@
 .\" Manpage for trun.
 .\" Contact trun@gnilk.com.in to correct errors or typos.
-.TH man 8 "27 Feb 2024" "1.5.2" "trun man page"
+.TH man 8 "27 Feb 2024" "1.6.1" "trun man page"
 .SH NAME
 trun \- C/C++ Unit Test Runner
 .SH SYNOPSIS
