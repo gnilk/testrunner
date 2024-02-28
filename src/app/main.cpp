@@ -251,7 +251,7 @@ static IDynLibrary::Ref GetLibraryLoader() {
 #elif __linux
     return DynLibLinux::Create();
 #else
-    return new DynLibLinux::Create();
+    return DynLibLinux::Create();
 #endif
     return {};
 }
