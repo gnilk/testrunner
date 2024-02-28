@@ -4,9 +4,7 @@
 C/C++ Unit Test 'Framework'.
 
 Heavy GOLANG inspired unit test framework for C/C++.
-Currently works on macOS(arm/x86)/Linux/Windows (x86/x64)
-
-<b>NEW:</b> Also works on certain embedded platforms (tested on ESP32)
+Currently works on macOS(arm/x86)/Linux/Windows (x86/x64)/embedded(ESP32/NRF52)
 
 # Building
 You need CMake and GCC/Clang or Visual Studio (Windows). Tested with Visual Studio 17 and 19. The Windows version can be built in a 32 or 64 bit mode. Do note that the 32 bit don't support 64 bit DLL's and vice verse. 
@@ -14,8 +12,8 @@ You need CMake and GCC/Clang or Visual Studio (Windows). Tested with Visual Stud
 1) Clone repository 'git clone https://github.com/gnilk/testrunner.git'
 2) Create build directory (mkdir build)
 3) Enter build directory (cd build)
-4) Run cmake 'cmake ..'
-5) Run 'make' or 'msbuild ALL_BUILD.vcxproj'
+4) Run cmake `cmake ..`
+5) Run `make` or `msbuild ALL_BUILD.vcxproj`
 
 ## Dependencies
 On Linux and macOS you need 'nm' installed - and the development headers - this come from binutils. On Linux just do:
@@ -24,19 +22,21 @@ sudo apt install binutils binutils-dev
 ```
 
 ## Apple macOS
-Just run 'make; sudo make install'. The binary (trun) will be installed in /usr/local/bin and the testinterface.h in /usr/local/include.
+Just run `make; sudo make install`. The binary (trun) will be installed in /usr/local/bin and the testinterface.h in /usr/local/include.
 <b>Note:</b> The macOs version depends on 'nm' (from binutils) when scanning a library for test functions.
 
 ## Linux
-Just run 'make; sudo make install'. The binary (trun) will be installed in /usr/local/bin and the testinterface.h in /usr/local/include
-<b>Note:</b> The linux version depends on 'nm' (from binutils) when scanning a library for test functions. 
+Just run `make -j; sudo make install`. The binary (trun) will be installed in /usr/local/bin and the testinterface.h in /usr/local/include
+<b>Note:</b> The linux version depends on 'nm' (from binutils) when scanning a library for test functions.
+
+You can also run `make -j package` to generate a `.deb` package. Which you can install with `sudo apt install ./testrunner-<version>-Linux.deb`.
 
 ## Windows
 Launch a 'Developer Command Prompt' from your Visual Studio installation.
-To build release version: 'msbuild ALL_BUILD.vcxproj -p:Configuration=Release'.
+To build release version: `msbuild ALL_BUILD.vcxproj -p:Configuration=Release`.
 The default will build 64bit with Visual Studio 2019 and 32bit with Visual Studio 2017.
 
-As Windows don't have a default place to store 3rd party include files you need to copy the 'testinterface.h' file somewhere common on your environment. You want to include this file in your unit tests (note: It's optional).
+As Windows don't have a default place to store 3rd party include files you need to copy the `testinterface.h` file somewhere common on your environment. You want to include this file in your unit tests (note: It's optional).
 
 ## Embedded
 <b>Only tested with PlatformIO as build system</b>
@@ -302,8 +302,8 @@ See *exshared* library for an example.
 
 _NOTE_: TestRunner default input is the current directory. It will search recursively for any testable functions.
 
-<pre>
-TestRunner v1.1-Dev - macOS - C/C++ Unit Test Runner
+```
+TestRunner v1.6.0 - Linux - C/C++ Unit Test Runner
 Usage: trun [options] input
 Options: 
   -v  Verbose, increase for more!
@@ -319,12 +319,13 @@ Options:
   -C  Continue on total failure (default: off)
   -x  Don't execute tests (default: off)
   -R  <name> Use reporting library (default: console)
+  -O  <file> Report final result to this file, use '-' for stdout (default: -)
   -m <list> List of modules to test (default: '-' (all))
   -t <list> List of test cases to test (default: '-' (all))
 
 Input should be a directory or list of dylib's to be tested, default is current directory ('.')
 Module and test case list can use wild cards, like: -m encode -t json*
-</pre>
+```
 
 ### Examples
 Be silent (`-s`) and continue even if a library fails `(-c)` or a global case fails (`-C`), test only cases in library `shared`.
@@ -332,7 +333,7 @@ Be silent (`-s`) and continue even if a library fails `(-c)` or a global case fa
 `bin/trun -scC -m shared .`
 
 Output:
-<pre>
+```
 build$ bin/trun -scC -m shared
 
 === RUN  	_test_main
@@ -362,7 +363,7 @@ Failed:
   [Tma]: _test_shared_b_assert, /src/testrunner/src/exshared/exshared.cpp:39, 1 == 2
   [tMa]: _test_shared_b_fatal, /src/testrunner/src/exshared/exshared.cpp:32, this is a fatal error (stop all further cases for library)
   [tmA]: _test_shared_c_abort, /src/testrunner/src/exshared/exshared.cpp:44, this is an abort error (stop any further testing)
-</pre>
+```
 
 Be very verbose (`-vv`), dump configuration (`-d`), skip global execution (`-g`) won't skip main.
 `bin/trun -vvdg -m mod .`
@@ -422,7 +423,7 @@ To specify another reporting library simply do: `trun -R json`. In order to make
 you can combine it with the silent (`-s`) switch, which will now suppress all output.
 
 ## JSON Format Example
-The JSON format is currently (at best) experimental
+The JSON format is currently considered experimental (no known bugs but also not extensively used).
 
 Example after running: `bin/trun -sSR json lib/libtrun_utests.dylib` (on macOS).<br> 
 JSON Format (some results omitted):
@@ -465,6 +466,7 @@ JSON Format (some results omitted):
 ## v1.6.0
 - Code clean up and refactoring
 - Dependency handling rewritten (also fixing circular dependencies)
+- FIX: Crash on non-existing dependency (nullptr)
 ## v1.5.1
 - BUG: JSON reporting was not escaping strings properly leading to JSON was wrongly produced
 ## v1.5
