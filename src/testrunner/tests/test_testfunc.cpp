@@ -153,16 +153,18 @@ DLL_EXPORT int test_tfunc_casematch_simple(ITesting *t) {
     TestFunc funcA("test_mock_func", "mock", "caseA");
     TestFunc funcB("test_mock_func", "mock", "caseB");
     TR_ASSERT(t, caseMatch(funcA.CaseName(), Config::Instance().testcases));
-    TR_ASSERT(t, caseMatch(funcB.CaseName(), Config::Instance().testcases));
+    TR_ASSERT(t, !caseMatch(funcB.CaseName(), Config::Instance().testcases));
     //TR_ASSERT(t, func.ShouldExecute());
 
     Config::Instance().testcases = testCasesOrig;
     return kTR_Pass;
 
 }
+
 DLL_EXPORT int test_tfunc_empty(ITesting *t) {
     return kTR_Pass;
 }
+
 DLL_EXPORT int test_tfunc_illegalreturn(ITesting *t) {
     return -1;
 }
