@@ -16,6 +16,12 @@ project(testrunner)
 set(CMAKE_SOURCE_DIR ./src)
 set(LIBRARY_OUTPUT_PATH ./lib)
 
+SET(TRUN_VERSION_MAJOR 1)
+SET(TRUN_VERSION_MINOR 6)
+SET(TRUN_VERSION_PATCH 0)
+
+SET(TRUN_VERSION_STR "${TRUN_VERSION_MAJOR}.${TRUN_VERSION_MINOR}.${TRUN_VERSION_PATCH}")
+
 
 set(CMAKE_BUILD_TYPE Debug)
 
@@ -97,6 +103,7 @@ message(STATUS source: ${CMAKE_SOURCE_DIR})
 add_executable(trun src/app/main.cpp ${srcfiles} ${execsrcfiles} ${rprtsrcfiles})
 target_compile_definitions(trun PUBLIC TRUN_HAVE_EXT_REPORTING)
 target_compile_definitions(trun PUBLIC TRUN_HAVE_THREADS)
+target_compile_definitions(trun PUBLIC TRUN_VERSION="${TRUN_VERSION_STR}")
 target_include_directories(trun PRIVATE ${CMAKE_SOURCE_DIR})
 target_include_directories(trun PRIVATE ${CMAKE_SOURCE_DIR}/testrunner)
 set_property(TARGET trun PROPERTY CXX_STANDARD 17)
@@ -181,9 +188,9 @@ elseif (UNIX)
 
     SET(CPACK_GENERATOR "DEB")
 
-    SET(CPACK_PACKAGE_VERSION_MAJOR 1)
-    SET(CPACK_PACKAGE_VERSION_MINOR 5)
-    SET(CPACK_PACKAGE_VERSION_PATCH 0)
+    SET(CPACK_PACKAGE_VERSION_MAJOR ${TRUN_VERSION_MAJOR})
+    SET(CPACK_PACKAGE_VERSION_MINOR ${TRUN_VERSION_MINOR})
+    SET(CPACK_PACKAGE_VERSION_PATCH ${TRUN_VERSION_PATCH})
 
     SET(CPACK_DEBIAN_PACKAGE_MAINTAINER "gnilk") #required
     SET(CPACK_PACKAGE_VENDOR "gnilk")
