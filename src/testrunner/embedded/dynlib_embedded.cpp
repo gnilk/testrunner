@@ -3,11 +3,16 @@
 //
 
 #include "dynlib_embedded.h"
+#include <memory>
 using namespace trun;
 
-bool DynLibEmbedded::AddTestFunc(const std::string &funcName, PTESTFUNC func) {
-    testfuncs[funcName] = func;
-    exports.push_back(funcName);
+DynLibEmbedded::Ref DynLibEmbedded::Create() {
+    return std::make_shared<DynLibEmbedded>();
+}
+
+bool DynLibEmbedded::AddTestFunc(std::string name, PTESTFUNC func) {
+    testfuncs[name] = func;
+    exports.push_back(name);
     return true;
 }
 

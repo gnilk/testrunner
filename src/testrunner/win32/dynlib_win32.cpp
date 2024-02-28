@@ -52,9 +52,14 @@ static void PrintWin32Error(ILogger *pLogger, char *title) {
     pLogger->Error("%s: %d, %s", title, err, msg);
 }
 
+IDynLibrary::Ref DynLibWin::Create() {
+    return std::make_shared<DynLibWin>();
+}
+
 DynLibWin::DynLibWin() {
     this->pLogger = Logger::GetLogger("DynLibWin");
 }
+
 DynLibWin::~DynLibWin() {
     pLogger->Debug("DTOR, closing library");
     Close();
@@ -65,7 +70,7 @@ DynLibWin::~DynLibWin() {
 // NULL if not opened or failed to open
 //
 void *DynLibWin::Handle() {
-    return handle;
+    return hLibrary;
 }
 
 //
@@ -78,7 +83,7 @@ PTESTFUNC DynLibWin::FindExportedSymbol(const std::string &funcName) {
         exportName = &exportName[1];
     }
 
-    void *ptrInvoke = (void *)GetProcAddress(handle, exportName.c_str());
+    void *ptrInvoke = (void *)GetProcAddress(hLibrary, exportName.c_str());
 
     //pLogger->Debug("Export Name: %s", exportName.c_str());
 
@@ -211,8 +216,8 @@ bool DynLibWin::Open() {
     FreeLibrary(lib);
 
 
-	handle = LoadLibrary(pathName.c_str());
-    if (handle == NULL) {
+    hLibrary = LoadLibrary(pathName.c_str());
+    if (hLibrary == NULL) {
         char buffer[256];
         GetCurrentDirectory(256, buffer);
         PrintWin32Error(pLogger, (char *)"Final LoadLibrary failed");
@@ -225,9 +230,9 @@ bool DynLibWin::Open() {
 }
 
 bool DynLibWin::Close() {
-    // FIXME: Verify - I think we should use 'IsInvalidHandleValue' or something...
-    if (handle != nullptr) {
-		FreeLibrary(handle);
+    // Win32 API LoadLibrary documentation states that this is NULL in case of failures!
+    if (hLibrary != NULL) {
+		FreeLibrary(hLibrary);
         return true;
     }
     return false;

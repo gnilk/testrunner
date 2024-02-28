@@ -4,12 +4,15 @@
 #include <Windows.h>
 #endif
 
-#include "logger.h"
-#include "testinterface.h"
+#include <memory>
+
 #include <stdint.h>
 #include <vector>
 #include <string>
 #include <map>
+
+#include "logger.h"
+#include "testinterface.h"
 
 
 extern "C"
@@ -29,6 +32,8 @@ typedef int (CALLCONV *PTESTFUNC)(void *param);
 namespace trun {
 
     class IDynLibrary {
+    public:
+        using Ref = std::shared_ptr<IDynLibrary>;
     public:
         virtual bool Scan(const std::string &pathName) = 0;
         virtual void *Handle() = 0;

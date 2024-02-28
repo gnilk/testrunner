@@ -18,10 +18,10 @@ namespace trun {
         void PrintReport() override;
     protected:
         void PrintSummary();
-        void PrintFailures(const std::vector<const TestResult *> &results);
-        void PrintPasses(const std::vector<const TestResult *> &results);
+        void PrintFailures(const std::vector<TestResult::Ref> &results);
+        void PrintPasses(const std::vector<TestResult::Ref> &results);
     protected:
-        void PrintTestResult(const TestResult *result);
+        void PrintTestResult(const TestResult::Ref result);
         std::string EscapeString(const std::string &str);
     protected:
         bool bHadFailures = false;

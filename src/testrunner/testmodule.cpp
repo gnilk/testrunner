@@ -1,6 +1,9 @@
 //
 // Created by gnilk on 21.11.23.
 //
+#include <string>
+#include <memory>
+#include <algorithm>
 
 #include "platform.h"
 
@@ -13,17 +16,26 @@
 #include "testhooks.h"
 #include "testmodule.h"
 #include "strutil.h"
-#include <string>
+
 
 using namespace trun;
 
-bool TestModule::ShouldExecute() const {
-    return caseMatch(name, Config::Instance()->modules);
+TestModule::Ref TestModule::Create(const std::string &moduleName) {
+    return std::make_shared<TestModule>(moduleName);
 }
 
-TestFunc *TestModule::TestCaseFromName(const std::string &caseName) const {
+TestModule::TestModule(const std::string &moduleName) :
+        name(moduleName) {
+}
+
+
+bool TestModule::ShouldExecute() const {
+    return caseMatch(name, Config::Instance().modules);
+}
+
+TestFunc::Ref TestModule::TestCaseFromName(const std::string &caseName) const {
     for (auto func: testFuncs) {
-        if (func->caseName == caseName) {
+        if (func->CaseName() == caseName) {
             return func;
         }
     }
@@ -34,7 +46,7 @@ TestFunc *TestModule::TestCaseFromName(const std::string &caseName) const {
 void TestModule::SetDependencyForCase(const char *caseName, const char *dependencyList) {
     std::string strName(caseName);
     for (auto func: testFuncs) {
-        if (func->caseName == caseName) {
+        if (func->CaseName() == caseName) {
             func->SetDependencyList(dependencyList);
         }
     }
@@ -44,20 +56,39 @@ void TestModule::ResolveDependencies() {
     auto pLogger = Logger::GetLogger("TestModule");
 
     for (auto testFunc: testFuncs) {
-        // Check if we should execute if it wasn't for dependencies
-        if (testFunc->ShouldExecuteNoDeps() && !testFunc->ShouldExecute()) {
-            for (auto &dep: testFunc->Dependencies()) {
+        if (testFunc->ShouldExecuteNoDeps()) {
+            for(auto &dep : testFunc->Dependencies()) {
                 auto depFunc = TestCaseFromName(dep);
-                if (!depFunc->ShouldExecute()) {
-                    pLogger->Info("Case '%s' has dependency '%s' added to execution list",
-                                  testFunc->caseName.c_str(), dep.c_str());
-                    Config::Instance()->testcases.push_back(dep);       // Add this explicitly to execution list...
+                // Add if not already present...
+                if (!HaveDependency(depFunc)) {
+                    pLogger->Info("Case '%s' has dependency '%s', added to dependency list",
+                                  testFunc->CaseName().c_str(), dep.c_str());
+                    dependencies.push_back(depFunc);
                 }
             }
         }
     }
 }
 
+// inOutDeps - is a list with dependencies, first call should populate it empty and if recursively following dependencies it is also checked so we don't add them twice..
+// Return value is the newly added cases...
+size_t TestModule::ResolveDependenciesForTest(std::vector<TestFunc::Ref> &inOutDeps, const TestFunc::Ref &testFunc) const {
+    size_t added = 0;
+    for(auto &dep : testFunc->Dependencies()) {
+        auto depFunc = TestCaseFromName(dep);
+        // Add if not already present...
+        if (std::find(inOutDeps.begin(), inOutDeps.end(), depFunc) == inOutDeps.end()) {
+            inOutDeps.push_back(depFunc);
+            added++;
+        }
+    }
+    return added;
+}
 
+
+
+bool TestModule::HaveDependency(const TestFunc::Ref &func) const {
+    return (std::find(dependencies.begin(), dependencies.end(), func) != dependencies.end());
+}
 
 

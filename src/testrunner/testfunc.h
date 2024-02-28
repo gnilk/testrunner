@@ -1,4 +1,8 @@
 #pragma once
+
+#include <string>
+#include <memory>
+
 #include "platform.h"
 
 #include "dynlib.h"
@@ -9,24 +13,24 @@
 #include "testinterface.h"
 #include "testhooks.h"
 #include "strutil.h"
-#include <string>
 
 namespace trun {
 
-    class TestFunc;
-    class TestModule;
-
-// The core structure defining a testable function which belongs to a test-library
+    // The core structure defining a testable function which belongs to a test-module
     class TestFunc {
     public:
-        typedef enum {
+        using Ref = shared_ptr<TestFunc>;
+
+        enum class kTestScope {
             kUnknown,
             kGlobal,
             kModuleMain,
             kModuleExit,
             kModuleCase,
-        } kTestScope;
+        };
     public:
+        static TestFunc::Ref Create(std::string symbolName, std::string moduleName, std::string caseName);
+
         TestFunc();
         TestFunc(std::string symbolName, std::string moduleName, std::string caseName);
         bool IsGlobal();
@@ -34,17 +38,14 @@ namespace trun {
         bool IsModuleMain();
         bool IsGlobalMain();
         bool IsGlobalExit();
-        TestResult *Execute(IDynLibrary *module);
+        TestResult::Ref Execute(IDynLibrary::Ref module);
         void SetExecuted();
         bool Executed();
         bool ShouldExecute();
         bool ShouldExecuteNoDeps();
-        bool CheckDependenciesExecuted();
 
-        void SetTestModule(TestModule *_testModule) { testModule = _testModule; }
-        void SetLibrary(IDynLibrary *dynLibrary) { library = dynLibrary; }
-        TestModule *GetTestModule() { return testModule; }
-        const IDynLibrary *Library() const { return library; }
+        void SetLibrary(IDynLibrary::Ref dynLibrary) { library = dynLibrary; }
+        const IDynLibrary::Ref Library() const { return library; }
 
         void SetDependencyList(const char *dependencyList);
         const std::vector<std::string> &Dependencies() const { return dependencies; }
@@ -52,15 +53,23 @@ namespace trun {
         void SetTestScope(kTestScope scope) {
             testScope = scope;
         }
-        const TestResult *Result() const { return testResult; }
-        // I use this in the unit test in order to create a mock-up result...
-        void UTEST_SetMockResultPtr(TestResult *pMockResult) { testResult = pMockResult; }
+
+        const std::string &SymbolName() const { return symbolName; }
+        const std::string &ModuleName() const { return moduleName; }
+        const std::string &CaseName() const { return caseName; }
+        const TestResult::Ref Result() const { return testResult; }
         kTestScope TestScope() { return testScope; }
+
+
+        // I use this in the unit test in order to create a mock-up result...
+        void UTEST_SetMockResultPtr(TestResult::Ref pMockResult) { testResult = pMockResult; }
 
     public:
         // Note: Must be public as we are executing through Win32 Threading layer...
         void ExecuteSync();
     private:
+        void HandleTestReturnCode();
+
 #ifdef WIN32
             // Windows has no conditional compile - so always declare
             void ExecuteAsync();
@@ -69,25 +78,23 @@ namespace trun {
             void ExecuteAsync();
 #endif
 #endif
-    public:
+    private:
         std::string symbolName;
         std::string moduleName;
         std::string caseName;
-    private:
-        kTestScope testScope;
-        bool isExecuted;
-        ILogger *pLogger;
-        void HandleTestReturnCode();
 
-        IDynLibrary *library = nullptr;
-        TestModule *testModule = nullptr;
-        TestResponseProxy *trp = nullptr;
+        kTestScope testScope = kTestScope::kUnknown;
+        bool isExecuted = false;
+        ILogger *pLogger = nullptr;
 
+        IDynLibrary::Ref library = nullptr;
+
+        //TestResponseProxy *trp = nullptr;
         std::vector<std::string> dependencies;
 
-        PTESTFUNC pFunc;
+        PTESTFUNC pFunc = nullptr;
         int testReturnCode = -1;
-        TestResult *testResult = nullptr;
+        TestResult::Ref testResult = nullptr;
 
     };
 }

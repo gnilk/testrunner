@@ -17,13 +17,16 @@
 namespace trun {
     class DynLibEmbedded : public IDynLibrary {
     public:
+        using Ref = std::shared_ptr<DynLibEmbedded>;
+    public:
+        static DynLibEmbedded::Ref Create();
         DynLibEmbedded() = default;
         virtual ~DynLibEmbedded() = default;
     public:
-        bool AddTestFunc(const std::string &name, PTESTFUNC func);
+        bool AddTestFunc(std::string name, PTESTFUNC func);
     public: // IDynLibrary
         void *Handle() override;
-        PTESTFUNC FindExportedSymbol(const std::string &symbolName) override;
+        PTESTFUNC FindExportedSymbol(const std::string &funcName) override;
         bool Scan(const std::string &pathName) override;
         const std::vector<std::string> &Exports() const override { return exports; }
         const std::string &Name() const override { return name; };

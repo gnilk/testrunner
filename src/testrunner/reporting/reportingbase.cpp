@@ -10,12 +10,12 @@
 using namespace trun;
 
 void ResultsReportPinterBase::Begin() {
-    if (Config::Instance()->reportFile == "-") {
+    if (Config::Instance().reportFile == "-") {
         fout = stdout;
     } else {
-        fout = fopen(Config::Instance()->reportFile.c_str(), "w+");
+        fout = fopen(Config::Instance().reportFile.c_str(), "w+");
         if (fout == nullptr) {
-            fprintf(stderr, "Err: unable to create report file '%s'\n", Config::Instance()->reportFile.c_str());
+            fprintf(stderr, "Err: unable to create report file '%s'\n", Config::Instance().reportFile.c_str());
             fout = stdout;
         }
     }

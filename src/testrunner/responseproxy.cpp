@@ -13,7 +13,7 @@
  
  Modified: $Date: $ by $Author: $
  ---------------------------------------------------------------------------
- TODO: [ -:Not done, +:In progress, !:Completed]
+ TO-DO: [ -:Not done, +:In progress, !:Completed]
  <pre>
 
  </pre>
@@ -65,9 +65,28 @@ static std::map<pthread_t, TestResponseProxy *> trpLookup;
 #endif
 
 //
-// TODO: Need to update the logger to allow specific loggers to always pass through messages
+// GetInstance - returns a test proxy, if one does not exists for the thread one will be allocated
+//
+TestResponseProxy &TestResponseProxy::Instance() {
+    // NOTE: Figure out how this should work
+    //       Where is threading occuring and who owns this
+    //       Currently this function is called from the 'testfunc.cpp' where also threading
+    //       is happening. But that's not quite right. Instead a library should have this in order
+    //       to allow parallell testing of modules but not within modules!
+    //
+    //       [gnilk, 2024-02-27] - Each TestFunc could have an instance of the TestResponseProxy as it is designed today
+    //                             That would allow all (except dependencies) to be executed in parallell..
+    //                             However - that would probably blow up memusage on embedded quite a bit..
+    //
+
+    static TestResponseProxy glbResponseProxy;
+    return glbResponseProxy;
+}
+
+
 //
 TestResponseProxy::TestResponseProxy() {
+    // FIXME: Refactor this once we know how the TestResponseProxy will fit in the whole testing library
     this->trp = (ITesting *)malloc(sizeof(ITesting));
     this->trp->Debug = int_trp_debug;
     this->trp->Info = int_trp_info;
@@ -90,7 +109,7 @@ void TestResponseProxy::Begin(std::string symbolName, std::string moduleName) {
     pLogger = Logger::GetLogger(moduleName.c_str());
 
     // Apply verbose filtering to log output from test cases or not??
-    if (!Config::Instance()->testLogFilter) {
+    if (!Config::Instance().testLogFilter) {
         pLogger->Enable(Logger::kFlags_PassThrough);
     } else {
         pLogger->Enable(Logger::kFlags_BlockAll);
@@ -109,7 +128,7 @@ void TestResponseProxy::End() {
     tElapsed = timer.Sample();
     symbolName.clear();    
     moduleName.clear();
-    pLogger = NULL;
+    pLogger = nullptr;
 }
 
 int TestResponseProxy::Errors() {
@@ -123,8 +142,6 @@ int TestResponseProxy::Asserts() {
 kTestResult TestResponseProxy::Result() {
     return testResult;
 }
-
-
 
 // ITesting mirror
 void TestResponseProxy::Debug(int line, const char *file, std::string message) {
@@ -209,52 +226,26 @@ void TestResponseProxy::AssertError(const char *exp, const char *file, const int
 
 
 void TestResponseProxy::SetPreCaseCallback(TRUN_PRE_POST_HOOK_DELEGATE cbPreCase) {
-    ///printf("!!!!!!! SETTING PRECASE CALLBACK FOR MODULE !!!!!!!!!!\n");
-
-    TestModule *testModule = TestRunner::HACK_GetCurrentTestModule();
-    if (testModule != NULL) {
+    auto testModule = TestRunner::HACK_GetCurrentTestModule();
+    if (testModule != nullptr) {
         testModule->cbPreHook = cbPreCase;
     }
-
 }
-void TestResponseProxy::SetPostCaseCallback(TRUN_PRE_POST_HOOK_DELEGATE cbPostCase) {
-    ///printf("!!!!!!! SETTING POSTCASE CALLBACK FOR MODULE !!!!!!!!!!\n");
 
-    TestModule *testModule = TestRunner::HACK_GetCurrentTestModule();
-    if (testModule != NULL) {
+void TestResponseProxy::SetPostCaseCallback(TRUN_PRE_POST_HOOK_DELEGATE cbPostCase) {
+    auto testModule = TestRunner::HACK_GetCurrentTestModule();
+    if (testModule != nullptr) {
         testModule->cbPostHook = cbPostCase;
     }
 }
 
 void TestResponseProxy::CaseDepends(const char *caseName, const char *dependencyList) {
-    /// printf("!!!!!!! SETTING DPENDENCY LIST for '%s' !!!!!!!!!!\n", caseName);
-    TestModule *testModule = TestRunner::HACK_GetCurrentTestModule();
+    auto testModule = TestRunner::HACK_GetCurrentTestModule();
     if (testModule != nullptr) {
         testModule->SetDependencyForCase(caseName, dependencyList);
     }
-
 }
 
-
-
-static TestResponseProxy *glbResponseProxy = NULL;
-//
-// GetInstance - returns a test proxy, if one does not exists for the thread one will be allocated
-//
-TestResponseProxy *TestResponseProxy::GetInstance() {
-    // NOTE: Figure out how this should work
-    //       Where is threading occuring and who owns this
-    //       Currently this function is called from the 'testfunc.cpp' where also threading
-    //       is happening. But that's not quite right. Instead a library should have this in order
-    //       to allow parallell testing of modules but not within modules!
-    //       Currently all testing is purely sequentially executed so this does not matter!
-
-
-    if (glbResponseProxy == NULL) {
-        glbResponseProxy = new TestResponseProxy();
-    }
-    return glbResponseProxy;
-}
 
 //
 // wrappers for pure C call's (no this) - only one call per thread allowed.
@@ -288,7 +279,7 @@ TestResponseProxy *TestResponseProxy::GetInstance() {
 #endif
 
 static bool IsMsgSizeOk(uint32_t szbuf) {
-    if (szbuf > Config::Instance()->responseMsgByteLimit) {
+    if (szbuf > Config::Instance().responseMsgByteLimit) {
         auto pLogger = Logger::GetLogger("TestResponseProxy");
         pLogger->Error("Message buffer exceeds limit (%d bytes), truncating..");
         return false;
@@ -298,56 +289,46 @@ static bool IsMsgSizeOk(uint32_t szbuf) {
 
 static void int_trp_debug(int line, const char *file, const char *format, ...) {
     CREATE_REPORT_STRING()
-    TestResponseProxy *trp = TestResponseProxy::GetInstance();
-    trp->Debug(line, file, std::string(newstr));
+    TestResponseProxy::Instance().Debug(line, file, std::string(newstr));
 }
 static void int_trp_info(int line, const char *file, const char *format, ...) {
     CREATE_REPORT_STRING()
-    TestResponseProxy *trp = TestResponseProxy::GetInstance();
-    trp->Info(line, file, std::string(newstr));
+    TestResponseProxy::Instance().Info(line, file, std::string(newstr));
 }
 static void int_trp_warning(int line, const char *file, const char *format, ...) {
     CREATE_REPORT_STRING()
-    TestResponseProxy *trp = TestResponseProxy::GetInstance();
-    trp->Warning(line, file, std::string(newstr));
+    TestResponseProxy::Instance().Warning(line, file, std::string(newstr));
 }
 static void int_trp_error(int line, const char *file, const char *format, ...) {
     CREATE_REPORT_STRING()
-    TestResponseProxy *trp = TestResponseProxy::GetInstance();
-    trp->Error(line, file, std::string(newstr));
+    TestResponseProxy::Instance().Error(line, file, std::string(newstr));
 }
 
 static void int_trp_fatal(int line, const char *file, const char *format, ...) {
     CREATE_REPORT_STRING()
-    TestResponseProxy *trp = TestResponseProxy::GetInstance();
-    trp->Fatal(line, file, std::string(newstr));
+    TestResponseProxy::Instance().Fatal(line, file, std::string(newstr));
 }
 
 static void int_trp_abort(int line, const char *file, const char *format, ...) {
     CREATE_REPORT_STRING()
-    TestResponseProxy *trp = TestResponseProxy::GetInstance();
-    trp->Abort(line,file, std::string(newstr));
+    TestResponseProxy::Instance().Abort(line,file, std::string(newstr));
 }
 
 static void int_trp_assert_error(const char *exp, const char *file, int line) {
-    TestResponseProxy *trp = TestResponseProxy::GetInstance();
-    trp->AssertError(exp, file, line);
+    TestResponseProxy::Instance().AssertError(exp, file, line);
 }
-
 
 #undef CREATE_REPORT_STRING
 
 static void int_trp_hook_precase(TRUN_PRE_POST_HOOK_DELEGATE cbPreCase) {
-    TestResponseProxy *trp = TestResponseProxy::GetInstance();
-    trp->SetPreCaseCallback(cbPreCase);
+    TestResponseProxy::Instance().SetPreCaseCallback(cbPreCase);
 }
+
 static void int_trp_hook_postcase(TRUN_PRE_POST_HOOK_DELEGATE cbPostCase) {
-    TestResponseProxy *trp = TestResponseProxy::GetInstance();
-    trp->SetPostCaseCallback(cbPostCase);
+    TestResponseProxy::Instance().SetPostCaseCallback(cbPostCase);
 }
 
 static void int_trp_casedepend(const char *caseName, const char *dependencyList) {
-    TestResponseProxy *trp = TestResponseProxy::GetInstance();
-    trp->CaseDepends(caseName, dependencyList);
+    TestResponseProxy::Instance().CaseDepends(caseName, dependencyList);
 }
 

@@ -16,6 +16,6 @@ namespace trun {
         // returns time since reset as seconds...
         double Sample();
     private:
-        std::chrono::steady_clock::time_point time_start;
+        std::chrono::steady_clock::time_point time_start = {};
     };
 }

@@ -462,6 +462,9 @@ JSON Format (some results omitted):
 <b>Note:</b> Passes are only reported IF you include it in the summary (`-S`).
 
 # Version history
+## v1.6.0
+- Code clean up and refactoring
+- Dependency handling rewritten (also fixing circular dependencies)
 ## v1.5.1
 - BUG: JSON reporting was not escaping strings properly leading to JSON was wrongly produced
 ## v1.5

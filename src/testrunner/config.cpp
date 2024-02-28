@@ -28,14 +28,10 @@
 
 using namespace trun;
 
-static Config *gblConfig = NULL;
 
-
-Config *Config::Instance() {
-    if (gblConfig == NULL) {
-        gblConfig = new Config();
-    }
-    return gblConfig;
+Config &Config::Instance() {
+    static Config glbConfig;
+    return glbConfig;
 }
 
 Config::Config() {
@@ -44,7 +40,11 @@ Config::Config() {
     inputs.push_back(".");    // Search current directory
     modules.push_back("-");
     testcases.push_back("-");
-    version = "1.5.1";
+#ifdef TRUN_VERSION
+    version = TRUN_VERSION;
+#else
+    version = "<unknown>";
+#endif
     description = "C/C++ Unit Test Runner";
     mainFuncName = "main";
     exitFuncName = "exit";

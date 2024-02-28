@@ -17,7 +17,7 @@ namespace trun {
     protected:
 
     private:
-        void PrintFuncResult(const TestFunc *function);
+        void PrintFuncResult(const TestFunc::Ref &function);
 
         void DumpNewStruct();
     };

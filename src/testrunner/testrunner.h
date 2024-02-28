@@ -19,30 +19,40 @@ namespace trun {
 //
     class TestRunner {
     public:
-        explicit TestRunner(IDynLibrary *library);
+        explicit TestRunner(IDynLibrary::Ref library);
         void PrepareTests();
         void ExecuteTests();
         void DumpTestsToRun();
-        static TestModule *HACK_GetCurrentTestModule();
+        static TestModule::Ref HACK_GetCurrentTestModule();
 
     private:
+        enum class kRunResultAction {
+            kContinue,
+            kAbortModule,
+            kAbortAll,
+        };
+
         bool ExecuteMain();
         bool ExecuteMainExit();
         bool ExecuteGlobalTests();
         bool ExecuteModuleTests();
-        bool ExecuteModuleTestFuncs(TestModule *testModule);
-        TestResult *ExecuteModuleMain(TestModule *testModule);
-        void ExecuteModuleExit(TestModule *testModule);
-        TestResult *ExecuteTest(TestFunc *f);
-        void HandleTestResult(TestResult *result);
-        TestFunc *CreateTestFunc(std::string sym);
+        bool ExecuteModuleTestFuncs(TestModule::Ref testModule);
+        TestResult::Ref ExecuteModuleMain(const TestModule::Ref &testModule);
+        void ExecuteModuleExit(TestModule::Ref testModule);
+        TestResult::Ref ExecuteTest(const TestModule::Ref &testModule, const TestFunc::Ref &testCase);
+        void HandleTestResult(TestResult::Ref result);
+        TestFunc::Ref CreateTestFunc(std::string sym);
 
-        TestModule *GetOrAddModule(std::string &module);
+
+        kRunResultAction CheckResultIfContinue(const TestResult::Ref &result) const;
+        TestModule::Ref GetOrAddModule(std::string &module);
+    private:
+        kRunResultAction ExecuteTestWithDependencies(const TestModule::Ref &testModule, TestFunc::Ref testCase, std::vector<TestFunc::Ref> &deps);
 
     private:
-        IDynLibrary *library = nullptr;
         ILogger *pLogger = nullptr;
-        std::map<std::string, TestModule *> testModules;
-        std::vector<TestFunc *> globals;
+        IDynLibrary::Ref library = nullptr;
+        std::map<std::string, TestModule::Ref> testModules;
+        std::vector<TestFunc::Ref> globals;
     };
 }

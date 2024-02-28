@@ -8,7 +8,7 @@
 #include "resultsummary.h"
 
 namespace trun {
-    static DynLibEmbedded dynlib;
+    static DynLibEmbedded::Ref dynlib = nullptr;
     static bool isInitialized = false;
 
     static void ConfigureLogger();
@@ -20,6 +20,7 @@ namespace trun {
         // Trigger the lazy initialization CTOR..
         Config::Instance();
         ConfigureLogger();
+        dynlib = DynLibEmbedded::Create();
         isInitialized = true;
     }
 
@@ -27,7 +28,7 @@ namespace trun {
         if (!isInitialized) {
             Initialize();
         }
-        dynlib.AddTestFunc(symbolName, (PTESTFUNC)func);
+        dynlib->AddTestFunc(symbolName, (PTESTFUNC)func);
     }
 
     void RunTests(const char *moduleFilter, const char *caseFilter) {
@@ -39,7 +40,7 @@ namespace trun {
         ParseModuleFilters(moduleFilter);
         ParseTestCaseFilters(caseFilter);
 
-        TestRunner testRunner(&dynlib);
+        TestRunner testRunner(dynlib);
         testRunner.PrepareTests();
         testRunner.ExecuteTests();
 
@@ -52,9 +53,9 @@ namespace trun {
     static void ConfigureLogger() {
         // Setup up logger according to verbose flags
         Logger::SetAllSinkDebugLevel(Logger::kMCError);
-        if (Config::Instance()->verbose > 0) {
+        if (Config::Instance().verbose > 0) {
             Logger::SetAllSinkDebugLevel(Logger::kMCInfo);
-            if (Config::Instance()->verbose > 1) {
+            if (Config::Instance().verbose > 1) {
                 Logger::SetAllSinkDebugLevel(Logger::kMCDebug);
             }
         }
@@ -69,13 +70,13 @@ namespace trun {
         //     pLogger->Debug("  %s\n", m.c_str());
         // }
 
-        Config::Instance()->modules = modules;
+        Config::Instance().modules = modules;
     }
 
     static void ParseTestCaseFilters(const char *filterstring) {
         std::vector<std::string> testcases;
         trun::split(testcases, filterstring, ',');
-        Config::Instance()->testcases = testcases;
+        Config::Instance().testcases = testcases;
     }
 
 }

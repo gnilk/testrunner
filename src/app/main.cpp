@@ -82,9 +82,9 @@ static void Help() {
     const char *platform = strPlatform.c_str();
 
     printf("TestRunner v%s - %s - %s\n", 
-        Config::Instance()->version.c_str(),
+        Config::Instance().version.c_str(),
         platform,
-        Config::Instance()->description.c_str());
+        Config::Instance().description.c_str());
 
     printf("Usage: trun [options] input\n");
     printf("Options: \n");
@@ -117,20 +117,20 @@ static void ParseModuleFilters(char *filterstring) {
     //     pLogger->Debug("  %s\n", m.c_str());
     // }
 
-    Config::Instance()->modules = modules;
+    Config::Instance().modules = modules;
 }
 static void ParseTestCaseFilters(char *filterstring) {
     std::vector<std::string> testcases;
     trun::split(testcases, filterstring, ',');
-    Config::Instance()->testcases = testcases;
+    Config::Instance().testcases = testcases;
 }
 
 static void ConfigureLogger() {
     // Setup up logger according to verbose flags
     Logger::SetAllSinkDebugLevel(Logger::kMCError);
-    if (Config::Instance()->verbose > 0) {
+    if (Config::Instance().verbose > 0) {
         Logger::SetAllSinkDebugLevel(Logger::kMCInfo);
-        if (Config::Instance()->verbose > 1) {
+        if (Config::Instance().verbose > 1) {
             Logger::SetAllSinkDebugLevel(Logger::kMCDebug);
         }
     }
@@ -150,38 +150,38 @@ static bool ParseArguments(int argc, char **argv) {
             while((argv[i][j]!='\0')) {
                 switch(argv[i][j]) {
                     case 'r' :
-                        Config::Instance()->discardTestReturnCode = true;
+                        Config::Instance().discardTestReturnCode = true;
                         break;
                     case 'l' :
-                        Config::Instance()->listTests = true;
+                        Config::Instance().listTests = true;
                         break;
                     case 'x' :
-                        Config::Instance()->executeTests = false;
+                        Config::Instance().executeTests = false;
                         break;
                     case 'S' :
-                        Config::Instance()->printPassSummary = true;
+                        Config::Instance().printPassSummary = true;
                         break;
                     case 'c' :
-                        Config::Instance()->skipOnModuleFail = false;
+                        Config::Instance().skipOnModuleFail = false;
                         break;
                     case 'C' :
-                        Config::Instance()->stopOnAllFail = false;
+                        Config::Instance().stopOnAllFail = false;
                         break;
                     case 'd' :
                         dumpConfig = true;
                         break;
                     case 'D' :
-                        Config::Instance()->linuxUseDeepBinding = false;
+                        Config::Instance().linuxUseDeepBinding = false;
                         break;
                     case 's' :
-                        Config::Instance()->testLogFilter = true;
-                        Config::Instance()->suppressProgressMsg = true;
+                        Config::Instance().testLogFilter = true;
+                        Config::Instance().suppressProgressMsg = true;
                         break;
                     case 'g' :
-                        Config::Instance()->testModuleGlobals = false;
+                        Config::Instance().testModuleGlobals = false;
                         break;
                     case 'G' :
-                        Config::Instance()->testGlobalMain = false;
+                        Config::Instance().testGlobalMain = false;
                         break;
                     case 't' :
                         ParseTestCaseFilters(argv[++i]);
@@ -191,14 +191,14 @@ static bool ParseArguments(int argc, char **argv) {
                         ParseModuleFilters(argv[++i]);                        
                         goto next_argument;
                     case 'v' :
-                        Config::Instance()->verbose++;
+                        Config::Instance().verbose++;
                         break;
                     case 'R' :
-                        Config::Instance()->reportingModule = std::string(argv[++i]);
+                        Config::Instance().reportingModule = std::string(argv[++i]);
                         goto next_argument;
                         break;
                     case 'O' :
-                        Config::Instance()->reportFile = std::string(argv[++i]);
+                        Config::Instance().reportFile = std::string(argv[++i]);
                         goto next_argument;
                         break;
                     case '?' :
@@ -217,10 +217,10 @@ static bool ParseArguments(int argc, char **argv) {
             }
         } else {
             if (firstInput) {
-                Config::Instance()->inputs.clear();
+                Config::Instance().inputs.clear();
                 firstInput = false;
             }
-            Config::Instance()->inputs.push_back(argv[i]);
+            Config::Instance().inputs.push_back(argv[i]);
         }
 // a bit ugly but does the trick in this case        
 next_argument:;
@@ -228,14 +228,14 @@ next_argument:;
     ConfigureLogger();
 
     bool bContinue = true;
-    if (dumpConfig || (Config::Instance()->verbose > 1)) {
-        Config::Instance()->Dump();
+    if (dumpConfig || (Config::Instance().verbose > 1)) {
+        Config::Instance().Dump();
         if (dumpConfig) {
             bContinue = false;
         }
     }
     // Special case here - if we specify list as the reporting library we just dump them and leave
-    if (Config::Instance()->reportingModule == "list") {
+    if (Config::Instance().reportingModule == "list") {
         ResultSummary::Instance().ListReportingModules();
         bContinue = false;
     }
@@ -245,22 +245,22 @@ next_argument:;
 
 
 
-static IDynLibrary *GetLibraryLoader() {
+static IDynLibrary::Ref GetLibraryLoader() {
 #ifdef WIN32
-    return new DynLibWin();
+    return DynLibWin::Create();
 #elif __linux
-    return new DynLibLinux();
+    return DynLibLinux::Create();
 #else
-    return new DynLibLinux();
+    return new DynLibLinux::Create();
 #endif
-    return nullptr;
+    return {};
 }
 
 static void RunTestsForAllLibraries();
-static void RunTestsForLibrary(IDynLibrary &library);
+static void RunTestsForLibrary(IDynLibrary::Ref library);
 
 // Populated by ScanLibraries
-static std::vector<IDynLibrary *> librariesToTest;
+static std::vector<IDynLibrary::Ref> librariesToTest;
 
 
 static void ScanLibraries(std::vector<std::string> &inputs) {
@@ -271,7 +271,11 @@ static void ScanLibraries(std::vector<std::string> &inputs) {
             std::vector<std::string> subs = dirscan.Scan(x, true);
             ScanLibraries(subs);
         } else {
-            IDynLibrary *scanner = GetLibraryLoader();
+            IDynLibrary::Ref scanner = GetLibraryLoader();
+            if (scanner == nullptr) {
+                pLogger->Error("No library loader/scanner - unsupported platform?");
+                exit(1);
+            }
 
             auto res = scanner->Scan(x);
             if (res) {
@@ -290,35 +294,35 @@ static void ScanLibraries(std::vector<std::string> &inputs) {
 static void RunTestsForAllLibraries() {
     pLogger->Info("Running tests for all modules");
     for(auto lib : librariesToTest) {
-        RunTestsForLibrary(*lib);
+        RunTestsForLibrary(lib);
     }
 }
 
-static void RunTestsForLibrary(IDynLibrary &library) {
-    TestRunner testRunner(&library);
+static void RunTestsForLibrary(IDynLibrary::Ref library) {
+    TestRunner testRunner(library);
     testRunner.PrepareTests();
 
-    if (Config::Instance()->executeTests) {
-        pLogger->Debug("Running tests for: %s", library.Name().c_str());
+    if (Config::Instance().executeTests) {
+        pLogger->Debug("Running tests for: %s", library->Name().c_str());
         testRunner.ExecuteTests();
     }
 }
-static void DumpTestsForLibrary(IDynLibrary &library) {
-    TestRunner testRunner(&library);
+static void DumpTestsForLibrary(IDynLibrary::Ref library) {
+    TestRunner testRunner(library);
     testRunner.PrepareTests();
-        printf("=== Library: %s\n", library.Name().c_str());
+        printf("=== Library: %s\n", library->Name().c_str());
     testRunner.DumpTestsToRun();
 }
 
 static void DumpTestsForAllLibraries() {
     for(auto m : librariesToTest) {
-        DumpTestsForLibrary(*m);
+        DumpTestsForLibrary(m);
     }
 }
 
 int main(int argc, char **argv) {
     // Cache the logger - also creates the Config singleton with default values
-    pLogger = Config::Instance()->pLogger;
+    pLogger = Config::Instance().pLogger;
     if (!ParseArguments(argc, argv)) {
         return 0;
     }
@@ -333,7 +337,7 @@ int main(int argc, char **argv) {
 
     // Suppressing messages? - kill stdout but save it for later...
     int saveStdout = -1;
-    if (Config::Instance()->suppressProgressMsg) {
+    if (Config::Instance().suppressProgressMsg) {
         saveStdout = dup(STDOUT_FILENO);
         // Note: We don't really care about the result here, at least not for now
 #ifdef WIN32
@@ -350,9 +354,9 @@ int main(int argc, char **argv) {
     Timer timer;
     
     timer.Reset();
-    ScanLibraries(Config::Instance()->inputs);
+    ScanLibraries(Config::Instance().inputs);
 
-    if (Config::Instance()->listTests) {
+    if (Config::Instance().listTests) {
         DumpTestsForAllLibraries();
     }
 
@@ -361,7 +365,7 @@ int main(int argc, char **argv) {
     printf("<-- End Global\n");
 
     // Restore stdout - in order for reporting to work...
-    if (Config::Instance()->suppressProgressMsg) {
+    if (Config::Instance().suppressProgressMsg) {
         // On macOS/Linux we need to flush what-ever is in the cache before we restore/duplicate the stdout
         // otherwise we might have the console data written once a proper file-desc is attached to stdout
         fflush(stdout);
@@ -373,7 +377,7 @@ int main(int argc, char **argv) {
 
     // Reporting
     ResultSummary::Instance().durationSec = timer.Sample();
-    if (Config::Instance()->executeTests) {
+    if (Config::Instance().executeTests) {
         // This should probably go away - as we want full reporting in headless mode...
         if (ResultSummary::Instance().testsExecuted > 0) {
             ResultSummary::Instance().PrintSummary();

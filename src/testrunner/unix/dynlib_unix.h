@@ -13,6 +13,9 @@
 namespace trun {
     class DynLibLinux : public IDynLibrary {
     public:
+
+        static IDynLibrary::Ref Create();
+
         DynLibLinux();
         ~DynLibLinux();
 

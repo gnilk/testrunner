@@ -16,6 +16,12 @@ project(testrunner)
 set(CMAKE_SOURCE_DIR ./src)
 set(LIBRARY_OUTPUT_PATH ./lib)
 
+SET(TRUN_VERSION_MAJOR 1)
+SET(TRUN_VERSION_MINOR 6)
+SET(TRUN_VERSION_PATCH 0)
+
+SET(TRUN_VERSION_STR "${TRUN_VERSION_MAJOR}.${TRUN_VERSION_MINOR}.${TRUN_VERSION_PATCH}")
+
 
 set(CMAKE_BUILD_TYPE Debug)
 
@@ -58,6 +64,7 @@ list(APPEND embedsrc src/testrunner/trunembedded.cpp src/testrunner/trunembedded
 
 
 # add unit tests
+list(APPEND testsrc src/testrunner/tests/test_cdepends.cpp)
 list(APPEND testsrc src/testrunner/tests/test_depends.cpp)
 list(APPEND testsrc src/testrunner/tests/test_jsonreport.cpp)
 list(APPEND testsrc src/testrunner/tests/test_main.cpp)
@@ -96,6 +103,7 @@ message(STATUS source: ${CMAKE_SOURCE_DIR})
 add_executable(trun src/app/main.cpp ${srcfiles} ${execsrcfiles} ${rprtsrcfiles})
 target_compile_definitions(trun PUBLIC TRUN_HAVE_EXT_REPORTING)
 target_compile_definitions(trun PUBLIC TRUN_HAVE_THREADS)
+target_compile_definitions(trun PUBLIC TRUN_VERSION="${TRUN_VERSION_STR}")
 target_include_directories(trun PRIVATE ${CMAKE_SOURCE_DIR})
 target_include_directories(trun PRIVATE ${CMAKE_SOURCE_DIR}/testrunner)
 set_property(TARGET trun PROPERTY CXX_STANDARD 17)
@@ -165,17 +173,24 @@ elseif (UNIX)
 
     include(GNUInstallDirs)
 
+    # generate .gz version of our manfile - this must be done specifically as the 'install' command won't do it for you
+    file(ARCHIVE_CREATE OUTPUT trun.1.gz PATHS "../docs/trun.manpage" FORMAT raw COMPRESSION GZip)
+
     install(TARGETS trun RUNTIME DESTINATION bin)
     install(TARGETS trunlib LIBRARY)
     install(FILES "src/testrunner/testinterface.h" "src/testrunner/trunembedded.h" TYPE INCLUDE)
+    # let's install this - as type 'MAN' (/usr/share/man) and rename it to the correct director (/usr/share/man/man1/trun.1.gz)
+    # not sure if this is the same across all distros - but without it - it will be placed in the 'man' root..
+    # documentation about this is more than a little sparse - funny - as in principle - every bloody thing should come with a man-page...
+    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/trun.1.gz TYPE MAN RENAME "man1/trun.1.gz")
 
     message(STATUS "Linux target - setting up CPACK")
 
     SET(CPACK_GENERATOR "DEB")
 
-    SET(CPACK_PACKAGE_VERSION_MAJOR 1)
-    SET(CPACK_PACKAGE_VERSION_MINOR 5)
-    SET(CPACK_PACKAGE_VERSION_PATCH 0)
+    SET(CPACK_PACKAGE_VERSION_MAJOR ${TRUN_VERSION_MAJOR})
+    SET(CPACK_PACKAGE_VERSION_MINOR ${TRUN_VERSION_MINOR})
+    SET(CPACK_PACKAGE_VERSION_PATCH ${TRUN_VERSION_PATCH})
 
     SET(CPACK_DEBIAN_PACKAGE_MAINTAINER "gnilk") #required
     SET(CPACK_PACKAGE_VENDOR "gnilk")

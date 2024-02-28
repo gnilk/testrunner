@@ -45,76 +45,82 @@
 
 using namespace trun;
 
+TestFunc::Ref TestFunc::Create(std::string symbolName, std::string moduleName, std::string caseName) {
+    return std::make_shared<TestFunc>(symbolName, moduleName, caseName);
+}
 
+// Default CTOR only used for unit testing
 TestFunc::TestFunc() {
     isExecuted = false;
     pLogger = Logger::GetLogger("TestFunc");
-    testModule = nullptr;
 }
 
 TestFunc::TestFunc(std::string symbolName, std::string moduleName, std::string caseName) {
     this->symbolName = symbolName;
     this->moduleName = moduleName;
     this->caseName = caseName;
-    testScope = kUnknown;
+    testScope = kTestScope::kUnknown;
     isExecuted = false;
     pLogger = Logger::GetLogger("TestFunc");
     testResult = nullptr;
     testReturnCode = -1;
-    testModule = nullptr;
 }
 
 bool TestFunc::IsGlobal() {
     return (moduleName == "-");
 }
 bool TestFunc::IsGlobalMain() {
-    return (IsGlobal() && (caseName == Config::Instance()->mainFuncName));
+    return (IsGlobal() && (caseName == Config::Instance().mainFuncName));
 }
 bool TestFunc::IsGlobalExit() {
-    return (IsGlobal() && (caseName == Config::Instance()->exitFuncName));
+    return (IsGlobal() && (caseName == Config::Instance().exitFuncName));
 }
 bool TestFunc::IsModuleMain() { {
-    return (IsGlobal() && (caseName == Config::Instance()->mainFuncName));
+    return (IsGlobal() && (caseName == Config::Instance().mainFuncName));
 }}
 
 bool TestFunc::IsModuleExit() {
-    return (!IsGlobal() && (caseName == Config::Instance()->exitFuncName));
+    return (!IsGlobal() && (caseName == Config::Instance().exitFuncName));
 }
 //__inline__ static void trap_instruction(void)
 //{
 //    __asm__ volatile("int $0x03");
 //}
 
+/*
 bool TestFunc::ShouldExecute() {
     if (this->isExecuted) {
         return false;
     }
-    if ((testScope == kModuleMain) || (testScope == kModuleExit)) {
-        return Config::Instance()->testModuleGlobals;
+    if ((testScope == kTestScope::kModuleMain) || (testScope == kTestScope::kModuleExit)) {
+        return Config::Instance().testModuleGlobals;
     }
 
-    if (caseMatch(caseName, Config::Instance()->testcases)) {
-        return CheckDependenciesExecuted();
+    if (caseMatch(caseName, Config::Instance().testcases)) {
+        //return CheckDependenciesExecuted();
+        return true;
     }
     return false;
 }
+*/
 
 bool TestFunc::ShouldExecuteNoDeps() {
     if (this->isExecuted) {
         return false;
     }
-    if ((testScope == kModuleMain) || (testScope == kModuleExit)) {
-        return Config::Instance()->testModuleGlobals;
+    if ((testScope == kTestScope::kModuleMain) || (testScope == kTestScope::kModuleExit)) {
+        return Config::Instance().testModuleGlobals;
     }
 
-    return caseMatch(caseName, Config::Instance()->testcases);
+    return caseMatch(caseName, Config::Instance().testcases);
 }
 
-
+/*
 bool TestFunc::CheckDependenciesExecuted() {
     // Check dependencies
     for (auto depName : dependencies) {
-        auto depFun = testModule->TestCaseFromName(depName);
+        //auto depFun = testModule->TestCaseFromName(depName);
+        TestFunc *depFun = nullptr;
         if ((depFun == nullptr) || (depFun == this)) {
             printf("WARNING: Can't depend on yourself!!!!!\n");
             continue;
@@ -129,22 +135,23 @@ bool TestFunc::CheckDependenciesExecuted() {
     }
     return true;
 }
+ */
 
 
 void TestFunc::ExecuteSync() {
     // 1) Setup test response proxy
     // This is currently a global instance - not good!
 
-    trp = TestResponseProxy::GetInstance();
     // Begin test
-    trp->Begin(symbolName, moduleName);
+    TestResponseProxy::Instance().Begin(symbolName, moduleName);
     // Actual call to test function (in shared lib)
-    testReturnCode = pFunc((void *)trp->Proxy());
+    testReturnCode = pFunc((void *)TestResponseProxy::Instance().Proxy());
 }
 
 #ifdef WIN32
 DWORD WINAPI testfunc_thread_starter(LPVOID lpParam) {
-    TestFunc* func = reinterpret_cast<TestFunc*>(lpParam);
+    // NOTE: Should not be 'TestFunc::Ref' - called with 'this' as the 'void *' param from within 'TestFunc'
+    TestFunc* func = reinterpret_cast<TestFunc *>(lpParam);
     func->ExecuteSync();
     return NULL;
 }
@@ -160,8 +167,10 @@ void TestFunc::ExecuteAsync() {
 // Pthread wrapper..
 #ifdef TRUN_HAVE_THREADS
 static void *testfunc_thread_starter(void *arg) {
+    // NOTE: Should not be 'TestFunc::Ref' - called with 'this' as the 'void *' param from within 'TestFunc'
     TestFunc *func = reinterpret_cast<TestFunc*>(arg);
     func->ExecuteSync();
+    // Return NULL here as this is a C callback..
     return NULL;
 }
 
@@ -194,7 +203,7 @@ void TestFunc::ExecuteAsync() {
 #endif
 #endif
 
-TestResult *TestFunc::Execute(IDynLibrary *module) {
+TestResult::Ref TestFunc::Execute(IDynLibrary::Ref module) {
     pLogger->Debug("Executing test: %s", caseName.c_str());
     pLogger->Debug("  Module: %s", moduleName.c_str());
     pLogger->Debug("  Case..: %s", caseName.c_str());
@@ -209,13 +218,13 @@ TestResult *TestFunc::Execute(IDynLibrary *module) {
         pLogger->Warning("Test '%s' already executed - double execution is either bug or not advised!!", symbolName.c_str());
     }
     pFunc = (PTESTFUNC)module->FindExportedSymbol(symbolName);
-    if (pFunc != NULL) {
+    if (pFunc != nullptr) {
         //
         // Actual execution of test function and handling of result
         //
         // Execute the test in it's own thread.
         // This allows the test to be aborted when the response proxy is called
-        testResult = new TestResult(symbolName);
+        testResult = TestResult::Create(symbolName);
 
 #if defined(TRUN_HAVE_THREADS)
         ExecuteAsync();
@@ -224,12 +233,12 @@ TestResult *TestFunc::Execute(IDynLibrary *module) {
         ExecuteSync();
 #endif
 
-        trp->End();
-        testResult->SetAssertError(trp->GetAssertError());
-        testResult->SetResult(trp->Result());
-        testResult->SetNumberOfErrors(trp->Errors());
-        testResult->SetNumberOfAsserts(trp->Asserts());
-        testResult->SetTimeElapsedSec(trp->ElapsedTimeInSec());
+        TestResponseProxy::Instance().End();
+        testResult->SetAssertError(TestResponseProxy::Instance().GetAssertError());
+        testResult->SetResult(TestResponseProxy::Instance().Result());
+        testResult->SetNumberOfErrors(TestResponseProxy::Instance().Errors());
+        testResult->SetNumberOfAsserts(TestResponseProxy::Instance().Asserts());
+        testResult->SetTimeElapsedSec(TestResponseProxy::Instance().ElapsedTimeInSec());
         HandleTestReturnCode();
     } else {
         pLogger->Error("Execute, unable to find exported symbol '%s' for case: %s\n", symbolName.c_str(), caseName.c_str());
@@ -240,7 +249,7 @@ TestResult *TestFunc::Execute(IDynLibrary *module) {
 }
 void TestFunc::HandleTestReturnCode() {
     // Discard return code???
-    if (Config::Instance()->discardTestReturnCode) {
+    if (Config::Instance().discardTestReturnCode) {
         pLogger->Debug("Discarding return code\n");
         return;
     }
@@ -285,6 +294,6 @@ bool TestFunc::Executed() {
 
 
 void TestFunc::SetDependencyList(const char *dependencyList) {
-    pLogger->Debug("Setting dependency for '%s' (%s) to: %s\n", caseName.c_str(), symbolName.c_str(), dependencyList);
+    pLogger->Debug("Setting dependency for '%s' (%s) to: %s", caseName.c_str(), symbolName.c_str(), dependencyList);
     trun::split(dependencies, dependencyList, ',');
 }

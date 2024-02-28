@@ -27,7 +27,7 @@ void ResultsReportJSON::End() {
 void ResultsReportJSON::PrintReport() {
     PrintSummary();
     PrintFailures(ResultSummary::Instance().Results());
-    if (Config::Instance()->printPassSummary) {
+    if (Config::Instance().printPassSummary) {
         PrintPasses(ResultSummary::Instance().Results());
     }
 }
@@ -43,7 +43,7 @@ void ResultsReportJSON::PrintSummary() {
     Write("}");
     bHadSummary = true;
 }
-void ResultsReportJSON::PrintFailures(const std::vector<const TestResult *> &results) {
+void ResultsReportJSON::PrintFailures(const std::vector<TestResult::Ref > &results) {
     if (bHadSuccess || bHadSummary) {
         fprintf(fout,",\n");
     }
@@ -67,7 +67,7 @@ void ResultsReportJSON::PrintFailures(const std::vector<const TestResult *> &res
     bHadFailures = true;
 }
 
-void ResultsReportJSON::PrintPasses(const std::vector<const TestResult *> &results) {
+void ResultsReportJSON::PrintPasses(const std::vector<TestResult::Ref> &results) {
     if (bHadFailures || bHadSummary) {
         WriteNoIndent(",\n");
         //fprintf(fout,",\n");
@@ -99,7 +99,7 @@ void ResultsReportJSON::PrintPasses(const std::vector<const TestResult *> &resul
     bHadSuccess = true;
 }
 
-void ResultsReportJSON::PrintTestResult(const TestResult *result) {
+void ResultsReportJSON::PrintTestResult(const TestResult::Ref result) {
     // Only print this the first time if we have any...
     static std::map<kTestResult, std::string> resultToName={
             {kTestResult_Pass, "Pass"},
