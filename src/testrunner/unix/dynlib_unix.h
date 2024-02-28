@@ -17,7 +17,7 @@ namespace trun {
         static IDynLibrary::Ref Create();
 
         DynLibLinux();
-        ~DynLibLinux();
+        virtual ~DynLibLinux();
 
     public: // IDynLibrary
         bool Scan(const std::string &libPathName) override;
