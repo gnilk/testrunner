@@ -81,11 +81,6 @@ first before any other function in the module.
 \f[B]test_module_exit\f[R] Reserved as the module-exit. If found it will be called last after the execution of any test
 cases in the module.
 
-
-
-
-.SH SEE ALSO
-trunlib(3)
 .SH BUGS
 No known bugs.
 .SH AUTHOR
