@@ -173,8 +173,9 @@ elseif (UNIX)
 
     include(GNUInstallDirs)
 
+    #message(STATUS ${PROJECT_SOURCE_DIR})
     # generate .gz version of our manfile - this must be done specifically as the 'install' command won't do it for you
-    file(ARCHIVE_CREATE OUTPUT trun.1.gz PATHS "../docs/trun.manpage" FORMAT raw COMPRESSION GZip)
+    file(ARCHIVE_CREATE OUTPUT trun.1.gz PATHS "${PROJECT_SOURCE_DIR}/docs/trun.manpage" FORMAT raw COMPRESSION GZip)
 
     install(TARGETS trun RUNTIME DESTINATION bin)
     install(TARGETS trunlib LIBRARY)
