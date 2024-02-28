@@ -40,7 +40,7 @@ namespace trun {
         bool IsValidTestFunc(std::string funcName);
 
         std::string pathName;
-        HMODULE handle = {};
+        HMODULE hLibrary = NULL;
         ILogger *pLogger = nullptr;
 
         // Set this global variable - for now, so we can resolve relative offsets
