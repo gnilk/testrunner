@@ -463,6 +463,9 @@ JSON Format (some results omitted):
 <b>Note:</b> Passes are only reported IF you include it in the summary (`-S`).
 
 # Version history
+## v1.6.3
+- Dangling reference could lead to seg-fault when finished
+- Compile issues on macos
 ## v1.6.0
 - Code clean up and refactoring
 - Dependency handling rewritten (also fixing circular dependencies)
