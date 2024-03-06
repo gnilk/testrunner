@@ -35,6 +35,7 @@ namespace trun {
     public:
         using Ref = std::shared_ptr<IDynLibrary>;
     public:
+        virtual ~IDynLibrary() = default;
         virtual bool Scan(const std::string &pathName) = 0;
         virtual void *Handle() = 0;
         virtual PTESTFUNC FindExportedSymbol(const std::string &funcName) = 0;
