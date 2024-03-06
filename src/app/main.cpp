@@ -134,7 +134,6 @@ static void ConfigureLogger() {
             Logger::SetAllSinkDebugLevel(Logger::kMCDebug);
         }
     }
-
 }
 
 // Returns false if we should leave the program directly, true if we are to continue
@@ -242,9 +241,6 @@ next_argument:;
     return bContinue;
 }
 
-
-
-
 static IDynLibrary::Ref GetLibraryLoader() {
 #ifdef WIN32
     return DynLibWin::Create();
@@ -259,6 +255,7 @@ static IDynLibrary::Ref GetLibraryLoader() {
 static void RunTestsForAllLibraries();
 static void RunTestsForLibrary(IDynLibrary::Ref library);
 
+// Consider refactoring this away from here - global variables and reference counting stuff doesn't play nice.
 // Populated by ScanLibraries
 static std::vector<IDynLibrary::Ref> librariesToTest;
 
@@ -332,9 +329,6 @@ int main(int argc, char **argv) {
 #elif WIN32
 	pLogger->Info("Windows x86 (32 bit) build");
 #endif
-
-
-
     // Suppressing messages? - kill stdout but save it for later...
     int saveStdout = -1;
     if (Config::Instance().suppressProgressMsg) {
@@ -349,7 +343,6 @@ int main(int argc, char **argv) {
         }
 #endif
     }
-
 
     Timer timer;
     
@@ -371,6 +364,7 @@ int main(int argc, char **argv) {
         fflush(stdout);
         if (dup2(saveStdout, STDOUT_FILENO) < 0) {
             fprintf(stderr, "Unable to restore stdout: %d\n", errno);
+            librariesToTest.clear();
             return 0;
         }
     }
@@ -392,6 +386,8 @@ int main(int argc, char **argv) {
         }
     }
 
-
+    // Need to clear this in order to invoke DTOR on scanner as an instance is kept from 'scanlibraries'
+    // Would not have been required if the App would have been contained in a class...  anyway...
+    librariesToTest.clear();
     return 0;
 }
