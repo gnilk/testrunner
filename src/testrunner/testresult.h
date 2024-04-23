@@ -55,6 +55,8 @@ namespace trun {
 
         const class AssertError &AssertError() const { return assertError; };
 
+        void SetTestResultFromReturnCode(int testReturnCode);
+
         // Setters
         void SetResult(kTestResult result) { this->testResult = result; }
         void SetTimeElapsedSec(double t) { tElapsedSec = t; }

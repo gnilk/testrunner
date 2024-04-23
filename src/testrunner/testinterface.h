@@ -54,8 +54,8 @@ struct ITesting {
     // Asserts
     void (*AssertError)(const char *exp, const char *file, const int line);
     // Hooks
-    void (*SetPreCaseCallback)(void(*)(ITesting *));
-    void (*SetPostCaseCallback)(void(*)(ITesting *));
+    void (*SetPreCaseCallback)(int(*)(ITesting *));         // v2 - must return int - same as test function 'kTR_xxx'
+    void (*SetPostCaseCallback)(int(*)(ITesting *));        // v2 - must return int - same as test function 'kTR_xxx'
     // Dependency handling
     void (*CaseDepends)(const char *caseName, const char *dependencyList);
 };

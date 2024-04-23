@@ -352,15 +352,32 @@ TestResult::Ref TestRunner::ExecuteTest(const TestModule::Ref &testModule, const
     printf("=== RUN  \t%s\n",testCase->SymbolName().c_str());
 
     // Invoke pre-test hook, if set - this is usually done during test_main for a specific library
-    if ((testModule != nullptr) && (testModule->cbPreHook != nullptr)) {
-        testModule->cbPreHook(TestResponseProxy::Instance().Proxy());
+    // v2 - Don't invoke pre/post for main/exit functions
+    if ((testModule != nullptr) && (testModule->cbPreHook != nullptr) && (testCase->TestScope() != TestFunc::kTestScope::kModuleMain) && (testCase->TestScope() != TestFunc::kTestScope::kModuleExit)) {
+        // FIXME: If this fails - we need to signal it specifically, requires some refactoring of test-result handling
+
+        // This is just a test
+        auto returnCode = testModule->cbPreHook(TestResponseProxy::Instance().Proxy());
+        if (returnCode != kTR_Pass) {
+            printf("!!==!!==!! Warning, failed during pre-case execution for '%s'\n", testCase->SymbolName().c_str());
+
+            TestResult::Ref result = TestResult::Create("pre_case::"+testCase->SymbolName());
+            result->SetTestResultFromReturnCode(returnCode);
+            testCase->SetExecuted();
+            testCase->SetResultFromPrePostExec(result);
+            ResultSummary::Instance().AddResult(testCase);
+
+            return result;
+        }
     }
 
     // Execute the test...
     TestResult::Ref result = testCase->Execute(library);
 
     // Invoke post-test hook, if set - this is usually done during test_main for a specific library
-    if ((testModule != nullptr) && (testModule->cbPostHook != nullptr)) {
+    // v2 - Don't invoke pre/post for main/exit functions
+    if ((testModule != nullptr) && (testModule->cbPostHook != nullptr) && (testCase->TestScope() != TestFunc::kTestScope::kModuleMain) && (testCase->TestScope() != TestFunc::kTestScope::kModuleExit)) {
+        // FIXME: if this fails - we need to singal it specifically, requires some refactoring of test-result handling
         testModule->cbPostHook(TestResponseProxy::Instance().Proxy());
     }
 

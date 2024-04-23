@@ -47,6 +47,8 @@ namespace trun {
         }
         bool ShouldExecuteNoDeps();
 
+        void SetResultFromPrePostExec(TestResult::Ref newResult);
+
         void SetLibrary(IDynLibrary::Ref dynLibrary) { library = dynLibrary; }
         const IDynLibrary::Ref Library() const { return library; }
 
@@ -70,9 +72,6 @@ namespace trun {
     public:
         // Note: Must be public as we are executing through Win32 Threading layer...
         void ExecuteSync();
-    private:
-        void HandleTestReturnCode();
-
 #ifdef WIN32
             // Windows has no conditional compile - so always declare
             void ExecuteAsync();

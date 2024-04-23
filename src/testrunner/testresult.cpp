@@ -21,8 +21,10 @@
  
  ---------------------------------------------------------------------------*/
 
+#include "testinterface.h"
 #include "testresult.h"
 #include <string>
+#include "config.h"
 
 using namespace trun;
 
@@ -39,3 +41,43 @@ TestResult::TestResult(const std::string &symbolName) {
 void TestResult::SetAssertError(class AssertError &other) {
     assertError = other;
 }
+void TestResult::SetTestResultFromReturnCode(int testReturnCode) {
+    // Discard return code???
+    auto pLogger = Logger::GetLogger("TestResult");
+
+    if (Config::Instance().discardTestReturnCode) {
+        pLogger->Debug("Discarding return code\n");
+        return;
+    }
+    // Let's overwrite test result from the test
+    switch(testReturnCode) {
+        case kTR_Pass :
+            if ((Errors() == 0) && (Asserts() == 0)) {
+                SetResult(kTestResult_Pass);
+            } else {
+                // This could be depending on 'strict' checking flag (fail in strict mode)
+                SetResult(kTestResult_TestFail);
+            }
+            break;
+        case kTR_Fail :
+            SetResult(kTestResult_TestFail);
+            break;
+        case kTR_FailModule :
+            SetResult(kTestResult_ModuleFail);
+            break;
+        case kTR_FailAll :
+            SetResult(kTestResult_AllFail);
+            break;
+        default:
+            if ((Errors() > 0) || (Asserts() > 0)) {
+                // in this case we have called 'thread_exit' and we don't have a return code..
+                SetResult(kTestResult_TestFail);
+            } else {
+                // This could be depending on 'strict' checking flag (fail in strict mode)
+                SetResult(kTestResult_InvalidReturnCode);
+            }
+
+    }
+
+}
+

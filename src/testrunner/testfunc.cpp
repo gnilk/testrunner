@@ -66,6 +66,11 @@ TestFunc::TestFunc(std::string symbolName, std::string moduleName, std::string c
     testReturnCode = -1;
 }
 
+void TestFunc::SetResultFromPrePostExec(TestResult::Ref newResult) {
+    testResult = newResult;
+}
+
+
 bool TestFunc::IsGlobal() {
     return (moduleName == "-");
 }
@@ -76,6 +81,7 @@ bool TestFunc::IsGlobalExit() {
     return (IsGlobal() && (caseName == Config::Instance().exitFuncName));
 }
 bool TestFunc::IsModuleMain() { {
+    // FIXME: This is wrong.
     return (IsGlobal() && (caseName == Config::Instance().mainFuncName));
 }}
 
@@ -239,49 +245,14 @@ TestResult::Ref TestFunc::Execute(IDynLibrary::Ref module) {
         testResult->SetNumberOfErrors(TestResponseProxy::Instance().Errors());
         testResult->SetNumberOfAsserts(TestResponseProxy::Instance().Asserts());
         testResult->SetTimeElapsedSec(TestResponseProxy::Instance().ElapsedTimeInSec());
-        HandleTestReturnCode();
+        // Should be done last..
+        testResult->SetTestResultFromReturnCode(testReturnCode);
     } else {
         pLogger->Error("Execute, unable to find exported symbol '%s' for case: %s\n", symbolName.c_str(), caseName.c_str());
     }
     SetExecuted();
 
     return testResult;
-}
-void TestFunc::HandleTestReturnCode() {
-    // Discard return code???
-    if (Config::Instance().discardTestReturnCode) {
-        pLogger->Debug("Discarding return code\n");
-        return;
-    }
-    // Let's overwrite test result from the test
-    switch(testReturnCode) {
-        case kTR_Pass :
-            if ((testResult->Errors() == 0) && (testResult->Asserts() == 0)) {
-                testResult->SetResult(kTestResult_Pass);
-            } else {
-                // This could be depending on 'strict' checking flag (fail in strict mode)
-                testResult->SetResult(kTestResult_TestFail);
-            }
-            break;
-        case kTR_Fail :
-            testResult->SetResult(kTestResult_TestFail);
-            break;
-        case kTR_FailModule :
-            testResult->SetResult(kTestResult_ModuleFail);
-            break;
-        case kTR_FailAll :
-            testResult->SetResult(kTestResult_AllFail);
-            break;
-        default:
-            if ((testResult->Errors() > 0) || (testResult->Asserts() > 0)) {
-                // in this case we have called 'thread_exit' and we don't have a return code..
-                testResult->SetResult(kTestResult_TestFail);
-            } else {
-                // This could be depending on 'strict' checking flag (fail in strict mode)
-                testResult->SetResult(kTestResult_InvalidReturnCode);
-            }
-
-    }
 }
 
 void TestFunc::SetExecuted() {

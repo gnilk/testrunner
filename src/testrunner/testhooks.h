@@ -9,7 +9,7 @@
 #include <vector>
 
 namespace trun {
-    typedef void(TRUN_PRE_POST_HOOK_DELEGATE)(ITesting *);
+    typedef int(TRUN_PRE_POST_HOOK_DELEGATE)(ITesting *);
 }
 
 #endif //TESTRUNNER_TESTHOOKS_H

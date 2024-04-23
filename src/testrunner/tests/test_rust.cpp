@@ -12,6 +12,7 @@ extern "C" {
     DLL_EXPORT int test_rust(ITesting *t);
     DLL_EXPORT int test_rust_exit(ITesting *t);
 
+    DLL_EXPORT int test_rust_assert(ITesting *t);
     DLL_EXPORT int test_rust_fatal(ITesting *t);
     DLL_EXPORT int test_rust_dummy(ITesting *t);
     DLL_EXPORT int test_rust_fail(ITesting *t);
@@ -25,11 +26,13 @@ static void HexDumpWrite(std::function<void(const char *str)> printer, const uin
 static void HexDumpToConsole(const void *pData, const size_t szData);
 
 extern "C" {
-    static void rust_pre_case(ITesting *t) {
+    static int rust_pre_case(ITesting *t) {
         printf("\n** rust-pre-case**\n\n");
+        return kTR_Pass;
     }
-    static void rust_post_case(ITesting *t) {
+    static int rust_post_case(ITesting *t) {
         printf("\n**rust-post-case**\n\n");
+        return kTR_Pass;
     }
 }
 
@@ -60,6 +63,10 @@ DLL_EXPORT int test_rust_dummy(ITesting *t) {
 
     t->AssertError("msg", __FILE__, __LINE__);
     return 4711;
+}
+DLL_EXPORT int test_rust_assert(ITesting *t) {
+    TR_ASSERT(t, false);
+    return kTR_Pass;
 }
 
 DLL_EXPORT int test_rust_fail(ITesting *t) {
