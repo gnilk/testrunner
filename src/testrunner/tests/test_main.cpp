@@ -1,11 +1,15 @@
-//
+    //
 // Created by Fredrik Kling on 18.08.22.
 //
 #include "../testinterface.h"
 #include "../logger.h"
 #include "../config.h"
+#include <functional>
+#include <string.h>
 extern "C" {
     DLL_EXPORT int test_main(ITesting *t);
+    DLL_EXPORT int test_exit(ITesting *t);
+
 }
 
 using namespace trun;
@@ -21,3 +25,10 @@ DLL_EXPORT int test_main(ITesting *t) {
 
     return kTR_Pass;
 }
+DLL_EXPORT int test_exit(ITesting *t) {
+    return kTR_Pass;
+}
+
+
+
+
