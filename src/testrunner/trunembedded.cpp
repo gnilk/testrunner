@@ -7,6 +7,8 @@
 #include "embedded/dynlib_embedded.h"
 #include "resultsummary.h"
 
+using namespace gnilk;
+
 namespace trun {
     static DynLibEmbedded::Ref dynlib = nullptr;
     static bool isInitialized = false;

@@ -6,9 +6,9 @@
 #define TESTRUNNER_DYNLIB_EMBEDDED_H
 
 
-#include "../logger.h"
-#include "../testinterface.h"
-#include "../dynlib.h"
+#include "logger.h"
+#include "testinterface.h"
+#include "dynlib.h"
 
 #include <string>
 #include <map>
