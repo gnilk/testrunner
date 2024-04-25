@@ -32,10 +32,10 @@ TestResult::Ref TestResult::Create(const std::string &symbolName) {
     return std::make_shared<TestResult>(symbolName);
 }
 
-TestResult::TestResult(const std::string &symbolName) {
+TestResult::TestResult(const std::string &use_symbolName) {
     testResult = kTestResult_NotExecuted;
-    this->symbolName = symbolName;
-    this->numError = this->numAssert = 0;
+    symbolName = use_symbolName;
+    numError = numAssert = 0;
 }
 
 void TestResult::SetAssertError(class AssertError &other) {

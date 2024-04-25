@@ -21,7 +21,7 @@ namespace trun {
 
         ITesting *Proxy() { return trp; }
 
-        void Begin(std::string symbolName, std::string moduleName);
+        void Begin(const std::string &symbolName, const std::string &moduleName);
         void End();
 
 

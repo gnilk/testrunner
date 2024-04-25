@@ -29,10 +29,10 @@ namespace trun {
             kModuleCase,
         };
     public:
-        static TestFunc::Ref Create(std::string symbolName, std::string moduleName, std::string caseName);
+        static TestFunc::Ref Create(const std::string &use_symbolName, const std::string &use_moduleName, const std::string &use_caseName);
 
         TestFunc();
-        TestFunc(std::string symbolName, std::string moduleName, std::string caseName);
+        TestFunc(const std::string &use_symbolName, const std::string &use_moduleName, const std::string &use_caseName);
         bool IsGlobal();
         bool IsModuleExit();
         bool IsModuleMain();

@@ -38,7 +38,7 @@ DLL_EXPORT int test_main(ITesting *t) {
     size_t nItems = tr_config->List(10, &configItems[0]);
     TR_ASSERT(t, nItems == 5);
 
-    for(int i=0;i<nItems;i++) {
+    for(int i=0;i<(int)nItems;i++) {
         printf("%d:%s = ", i, configItems[i].name);
         switch(configItems[i].value_type) {
             case kTRCfgType_Str :

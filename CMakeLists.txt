@@ -160,7 +160,7 @@ target_include_directories(trun_utests PUBLIC ${FMT_HOME}/include)
 target_include_directories(trun_utests PUBLIC ${CMAKE_SOURCE_DIR}/src/testrunner)
 target_include_directories(trun_utests PUBLIC ${CMAKE_SOURCE_DIR}/ext/gnklog/src)
 
-set_property(TARGET trun_utests PROPERTY CXX_STANDARD 17)
+set_property(TARGET trun_utests PROPERTY CXX_STANDARD 20)
 
 #
 # Create the library for embedding trun functionality in your executeable
@@ -172,7 +172,7 @@ add_library(trunlib STATIC ${srcfiles} ${embedsrc})
 target_include_directories(trunlib PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_include_directories(trunlib PRIVATE ${CMAKE_SOURCE_DIR}/src/testrunner)
 target_include_directories(trunlib PRIVATE ${CMAKE_SOURCE_DIR}/src/testrunner/embedded)
-set_property(TARGET trunlib PROPERTY CXX_STANDARD 17)
+set_property(TARGET trunlib PROPERTY CXX_STANDARD 20)
 
 #
 # Build the embedded example
@@ -182,6 +182,7 @@ target_compile_definitions(trunembedded PUBLIC TRUN_SINGLE_THREAD)
 target_include_directories(trunembedded PUBLIC ${CMAKE_SOURCE_DIR}/src)
 target_include_directories(trunembedded PUBLIC ${CMAKE_SOURCE_DIR}/src/testrunner)
 target_include_directories(trunembedded PUBLIC ${CMAKE_SOURCE_DIR}/src/testrunner/embedded)
+set_property(TARGET trunembedded PROPERTY CXX_STANDARD 20)
 
 
 include(GNUInstallDirs)

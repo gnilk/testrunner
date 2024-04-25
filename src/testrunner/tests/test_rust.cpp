@@ -55,9 +55,9 @@ DLL_EXPORT int test_rust_fatal(ITesting *t) {
 DLL_EXPORT int test_rust_dummy(ITesting *t) {
     printf("test_rust_dummy - Hello from C\n");
     printf("ITesting size=%zu\n",sizeof(ITesting));
-    printf("t = %p\n", t);
-    printf("t->Debug = %p\n", t->Debug);
-    printf("AssertError: =  %p\n", t->AssertError);
+    printf("t = %p\n", (void *)t);
+    printf("t->Debug = %p\n", (void *)t->Debug);
+    printf("AssertError: =  %p\n", (void *)t->AssertError);
     HexDumpToConsole(t, sizeof(ITesting));
     return kTR_Pass;
 }

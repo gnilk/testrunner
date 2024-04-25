@@ -65,9 +65,9 @@ public:
 
 using namespace trun;
 
-Process::Process(std::string command) {
-	this->command = command;
-	this->callback = NULL;
+Process::Process(std::string use_command) {
+	command = use_command;
+	callback = nullptr;
 }
 
 Process::~Process() {

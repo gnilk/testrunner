@@ -45,8 +45,8 @@
 
 using namespace trun;
 
-TestFunc::Ref TestFunc::Create(std::string symbolName, std::string moduleName, std::string caseName) {
-    return std::make_shared<TestFunc>(symbolName, moduleName, caseName);
+TestFunc::Ref TestFunc::Create(const std::string &use_symbolName, const std::string &use_moduleName, const std::string &use_caseName) {
+    return std::make_shared<TestFunc>(use_symbolName, use_moduleName, use_caseName);
 }
 
 // Default CTOR only used for unit testing
@@ -55,10 +55,10 @@ TestFunc::TestFunc() {
     pLogger = gnilk::Logger::GetLogger("TestFunc");
 }
 
-TestFunc::TestFunc(std::string symbolName, std::string moduleName, std::string caseName) {
-    this->symbolName = symbolName;
-    this->moduleName = moduleName;
-    this->caseName = caseName;
+TestFunc::TestFunc(const std::string &use_symbolName, const std::string &use_moduleName, const std::string &use_caseName) {
+    symbolName = use_symbolName;
+    moduleName = use_moduleName;
+    caseName = use_caseName;
     testScope = kTestScope::kUnknown;
     isExecuted = false;
     pLogger = gnilk::Logger::GetLogger("TestFunc");

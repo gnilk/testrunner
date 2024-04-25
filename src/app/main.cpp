@@ -209,6 +209,10 @@ static bool ParseArguments(int argc, char **argv) {
                             if (longArgument == "no-threads") {
                                 Config::Instance().enableThreadTestExecution = false;
                                 goto next_argument;
+                            } else if (longArgument == "parallel") {
+                                Config::Instance().enableParallelTestExecution = true;
+                                printf("WARNING - enabling parallel execution - ONLY for development!!!\n");
+                                goto next_argument;
                             }
                             printf("Unknown long argument: %s\n", longArgument.c_str());
                             Help();
