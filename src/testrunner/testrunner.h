@@ -47,6 +47,7 @@ namespace trun {
         kRunResultAction CheckResultIfContinue(const TestResult::Ref &result) const;
         TestModule::Ref GetOrAddModule(std::string &module);
     private:
+        bool ExecuteModuleTestFuncsThreaded(TestModule::Ref testModule);
         kRunResultAction ExecuteTestWithDependencies(const TestModule::Ref &testModule, TestFunc::Ref testCase, std::vector<TestFunc::Ref> &deps);
 
     private:

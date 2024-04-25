@@ -205,7 +205,12 @@ bool TestRunner::ExecuteModuleTests() {
         // The library-main should execute here..
 
         hack_glbCurrentTestModule = testModule;
-        ExecuteModuleTestFuncs(testModule);
+        if (Config::Instance().enableParallelTestExecution) {
+            // Run tests in parallel
+            ExecuteModuleTestFuncsThreaded(testModule);
+        } else {
+            ExecuteModuleTestFuncs(testModule);
+        }
         testModule->bExecuted = true;
         hack_glbCurrentTestModule = NULL;
     } // modules
@@ -277,6 +282,70 @@ bool TestRunner::ExecuteModuleTestFuncs(TestModule::Ref testModule) {
 //    }
 
 leave:
+    if (Config::Instance().testModuleGlobals) {
+        ExecuteModuleExit(testModule);
+    }
+
+    return bRes;
+}
+
+// EXPERIMENTAL!!!
+bool TestRunner::ExecuteModuleTestFuncsThreaded(TestModule::Ref testModule) {
+    bool bRes = true;
+
+    if (Config::Instance().testModuleGlobals) {
+        auto mainResult = ExecuteModuleMain(testModule);
+        if ((mainResult != nullptr) && (mainResult->Result() != kTestResult_Pass)) {
+            return false;
+        }
+    }
+
+    // Resolve dependencies, this is after 'main' has run and they are now configured...
+    testModule->ResolveDependencies();
+
+    // Used later..
+    std::vector<std::thread> threads;
+
+    // Execute dependencies
+    for(auto depFunc : testModule->Dependencies()) {
+        std::vector<TestFunc::Ref> deps = {};
+        auto runResult = ExecuteTestWithDependencies(testModule, depFunc, deps);
+        if (runResult != kRunResultAction::kContinue) {
+            if (runResult == kRunResultAction::kAbortAll) {
+                bRes = false;
+            }
+            goto leave;
+        }
+    }
+
+
+    // Execute test functions
+    for (auto testFunc: testModule->testFuncs) {
+        if (!testFunc->ShouldExecuteNoDeps()) {
+            continue;
+        }
+
+        auto h_thread = std::thread([this, &testModule, &testFunc]{
+            std::vector<TestFunc::Ref> deps = {};
+            auto runResult = ExecuteTestWithDependencies(testModule, testFunc, deps);
+            if (runResult != kRunResultAction::kContinue) {
+                if (runResult == kRunResultAction::kAbortAll) {
+                    //bRes = false;
+                }
+                // PROBLEM???
+                //goto leave;
+            }
+
+        });
+        threads.push_back(std::move(h_thread));
+    }
+    pLogger->Debug("Waiting for %zu threads to terminate...", threads.size());
+
+    for (auto &t : threads) {
+        t.join();
+    }
+
+    leave:
     if (Config::Instance().testModuleGlobals) {
         ExecuteModuleExit(testModule);
     }
