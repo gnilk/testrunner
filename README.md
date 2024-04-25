@@ -3,6 +3,8 @@
 
 C/C++ Unit Test 'Framework'.
 
+NOTE: This is the V2 branch - currently experimental - it builds of 1.6.3.
+
 Heavy GOLANG inspired unit test framework for C/C++.
 Currently works on macOS(arm/x86)/Linux/Windows (x86/x64)/embedded(ESP32/NRF52)
 
@@ -159,7 +161,7 @@ Use it like:
 ```    
 
 ### Case dependencies
-Sometimes it is quite convienient to control order of test execution or ability to allow tests to depend on other tests.
+Sometimes it is quite convenient to control order of test execution or ability to allow tests to depend on other tests.
 For instance reading data from a database depends on both the connection to DB having been established and the data written.
 Same for encoding/decoding. The decoder normally depends on having some encoding data written.
 
@@ -209,16 +211,19 @@ For instance assume you have a memory allocation tracking library and you want t
     }
     
     // This will be called before any test case in this library
-    static void MyPreCase(ITesting *t) {
+    // New from V2.0.0 - you must return a kTR_xyz code from here!
+    static int MyPreCase(ITesting *t) {
         // Reset statistics for every case before it's run
         MemoryTracker_Reset();
+        return kTR_Pass;
     }
     
     // This will be called after any test cast in this library
-    static void MyPostCase(ITesting *t) {
+    // New from V2.0.0 - you must return a kTR_xyz code from here!
+    static int MyPostCase(ITesting *t) {
         // Dump results
         MemoryTracker_Dump();
-        // TODO: Verify results...        
+        return kTR_Pass;        
     }
 ```    
 
@@ -463,6 +468,10 @@ JSON Format (some results omitted):
 <b>Note:</b> Passes are only reported IF you include it in the summary (`-S`).
 
 # Version history
+## v2.0-dev
+- Pre/Post now returns test-result (kTR_xyz), this will cause any previous unit-tests to break compile..
+- Extensions are now supported through function `QueryInterface` in Itesting
+- Threads are now always compiled (except for in embedded) but can be disabled (`--no-threads`)
 ## v1.6.3
 - Dangling reference could lead to seg-fault when finished
 - Compile issues on macos

@@ -102,8 +102,10 @@ static void Help() {
     printf("  -x  Don't execute tests (default: off)\n");
     printf("  -R  <name> Use reporting library (default: console)\n");
     printf("  -O  <file> Report final result to this file, use '-' for stdout (default: -)\n");
-    printf("  -m <list> List of modules to test (default: '-' (all))\n");
-    printf("  -t <list> List of test cases to test (default: '-' (all))\n");
+    printf("  -m  <list> List of modules to test (default: '-' (all))\n");
+    printf("  -t  <list> List of test cases to test (default: '-' (all))\n");
+    printf("  --no-threads\n");
+    printf("      Disable threaded execution of tests\n");
     printf("\n");
     printf("Input should be a directory or list of dylib's to be tested, default is current directory ('.')\n");
     printf("Module and test case list can use wild cards, like: -m encode -t json*\n");
