@@ -43,7 +43,7 @@ void TestResult::SetAssertError(class AssertError &other) {
 }
 void TestResult::SetTestResultFromReturnCode(int testReturnCode) {
     // Discard return code???
-    auto pLogger = Logger::GetLogger("TestResult");
+    auto pLogger = gnilk::Logger::GetLogger("TestResult");
 
     if (Config::Instance().discardTestReturnCode) {
         pLogger->Debug("Discarding return code\n");

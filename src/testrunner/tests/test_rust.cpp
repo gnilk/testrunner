@@ -4,8 +4,8 @@
 // they don't test anything internally - they are compiled in and added to the rust project as a binary so..
 //
 #define GNILK_TRUN_CLIENT_IMPL
-#include "../testinterface.h"
-#include "../logger.h"
+#include "testinterface.h"
+#include "logger.h"
 #include <functional>
 #include <string.h>
 
@@ -20,8 +20,6 @@ extern "C" {
     DLL_EXPORT int test_rust_noarg();
     DLL_EXPORT int test_rust_intarg(int value);
 }
-
-using namespace trun;
 
 static void HexDumpWrite(std::function<void(const char *str)> printer, const uint8_t *pData, const size_t szData);
 static void HexDumpToConsole(const void *pData, const size_t szData);

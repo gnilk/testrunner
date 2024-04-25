@@ -1,8 +1,8 @@
 #pragma once
 
-#include "../logger.h"
-#include "../testinterface.h"
-#include "../dynlib.h"
+#include "logger.h"
+#include "testinterface.h"
+#include "dynlib.h"
 
 
 #include <stdint.h>
@@ -33,7 +33,7 @@ namespace trun {
 
         std::string pathName;
         void *handle = nullptr;
-        ILogger *pLogger = nullptr;
+        gnilk::ILogger *pLogger = nullptr;
 
         std::vector<std::string> exports;
         std::map<std::string, int> symbols;

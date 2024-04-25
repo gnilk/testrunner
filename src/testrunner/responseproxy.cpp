@@ -100,17 +100,20 @@ void TestResponseProxy::Begin(std::string symbolName, std::string moduleName) {
     errorCount = 0;
     assertCount = 0;
     testResult = kTestResult_Pass;
-    pLogger = Logger::GetLogger("TestResponseProxy");
+    pLogger = gnilk::Logger::GetLogger("TestResponseProxy");
 
     trp = TestResponseProxy::GetTRTestInterface();
 
     // Apply verbose filtering to log output from test cases or not??
+    // This was part of the old logging library but not the new one..
+#if 0
+    // Not supported on gnklog - not sure if this was a feature or if I hacked it in for this project...
     if (!Config::Instance().testLogFilter) {
         pLogger->Enable(Logger::kFlags_PassThrough);
     } else {
         pLogger->Enable(Logger::kFlags_BlockAll);
     } 
-    
+#endif
 
     timer.Reset();
     assertError.Reset();
@@ -200,7 +203,7 @@ void TestResponseProxy::Fatal(int line, const char *file, std::string message) {
 }
 
 void TestResponseProxy::Abort(int line, const char *file, std::string message) {
-    pLogger->Fatal("%s:%d: %s", file, line, message.c_str());
+    pLogger->Critical("%s:%d: %s", file, line, message.c_str());
     this->errorCount++;
     if (testResult < kTestResult_AllFail) {
         testResult = kTestResult_AllFail;
@@ -305,7 +308,7 @@ void TestResponseProxy::QueryInterface(uint32_t interface_id, void **outPtr) {
 
 static bool IsMsgSizeOk(uint32_t szbuf) {
     if (szbuf > Config::Instance().responseMsgByteLimit) {
-        auto pLogger = Logger::GetLogger("TestResponseProxy");
+        auto pLogger = gnilk::Logger::GetLogger("TestResponseProxy");
         pLogger->Error("Message buffer exceeds limit (%d bytes), truncating..");
         return false;
     }

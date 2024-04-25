@@ -13,7 +13,7 @@ endif()
 
 project(testrunner)
 
-set(CMAKE_SOURCE_DIR ./src)
+#set(CMAKE_SOURCE_DIR ./src)
 set(LIBRARY_OUTPUT_PATH ./lib)
 
 SET(TRUN_VERSION_MAJOR 2)
@@ -25,7 +25,46 @@ SET(TRUN_VERSION_STR "${TRUN_VERSION_MAJOR}.${TRUN_VERSION_MINOR}.${TRUN_VERSION
 
 set(CMAKE_BUILD_TYPE Debug)
 
-include_directories("${PROJECT_SOURCE_DIR}")
+# include_directories("${PROJECT_SOURCE_DIR}")
+
+if (NOT EXISTS ${CMAKE_SOURCE_DIR}/ext)
+    message(STATUS "ext directory (for dependencies) missing, creating...")
+    execute_process(COMMAND mkdir ${CMAKE_SOURCE_DIR}/ext)
+endif()
+
+if (NOT EXISTS ${CMAKE_SOURCE_DIR}/ext/gnklog)
+    message(WARNING "Installing GnkLog library")
+    execute_process(COMMAND git clone https://github.com/gnilk/gnklog ${CMAKE_SOURCE_DIR}/ext/gnklog)
+endif ()
+
+if (NOT EXISTS ${CMAKE_SOURCE_DIR}/ext/fmt)
+    message(WARNING "Installing fmt library")
+    execute_process(COMMAND git clone --depth 1 --branch 10.1.1 https://github.com/fmtlib/fmt ${CMAKE_SOURCE_DIR}/ext/fmt)
+endif()
+
+set(FMT_HOME ${CMAKE_SOURCE_DIR}/ext/fmt)
+set(GNKLOG_HOME ${CMAKE_SOURCE_DIR}/ext/gnklog)
+
+#
+# include gnklog
+#
+set(LOG_HAVE_FMT ON)
+set(LOG_FMT_DIR ${CMAKE_SOURCE_DIR}/ext/fmt)
+
+add_subdirectory(${CMAKE_SOURCE_DIR}/ext/gnklog ${CMAKE_BINARY_DIR}/gnklog)
+target_compile_options(gnklog PUBLIC -fPIC -Wno-unused-parameter)
+
+set_target_properties(gnklog_utest PROPERTIES EXCLUDE_FROM_ALL true)
+list(APPEND extlibs gnklog)
+
+#
+# include fmt library
+#
+add_subdirectory(${CMAKE_SOURCE_DIR}/ext/fmt ${CMAKE_BINARY_DIR}/fmt EXCLUDE_FROM_ALL)
+set_property(TARGET fmt PROPERTY POSITION_INDEPENDENT_CODE ON)
+target_compile_definitions(fmt PUBLIC FMT_EXCEPTIONS=0)
+list(APPEND extlibs fmt)
+
 
 #
 # Example test libraries
@@ -41,7 +80,6 @@ add_library(exstatic STATIC ${staticlib})
 list(APPEND srcfiles src/testrunner/asserterror.cpp)
 list(APPEND srcfiles src/testrunner/config.cpp)
 list(APPEND srcfiles src/testrunner/glob.cpp src/testrunner/glob.h)
-list(APPEND srcfiles src/testrunner/logger.cpp)
 list(APPEND srcfiles src/testrunner/responseproxy.cpp)
 list(APPEND srcfiles src/testrunner/resultsummary.cpp)
 list(APPEND srcfiles src/testrunner/strutil.cpp)
@@ -60,6 +98,7 @@ list(APPEND rprtsrcfiles src/testrunner/reporting/reportjson.h src/testrunner/re
 
 # embedded
 list(APPEND embedsrc src/testrunner/embedded/dynlib_embedded.cpp src/testrunner/embedded/dynlib_embedded.h)
+list(APPEND embedsrc src/testrunner/embedded/logger.cpp)
 list(APPEND embedsrc src/testrunner/trunembedded.cpp src/testrunner/trunembedded.h)
 
 
@@ -106,8 +145,9 @@ target_compile_definitions(trun PUBLIC TRUN_HAVE_EXT_REPORTING)
 target_compile_definitions(trun PUBLIC TRUN_HAVE_THREADS)
 #target_compile_definitions(trun PUBLIC TRUN_SINGLE_THREAD)
 target_compile_definitions(trun PUBLIC TRUN_VERSION="${TRUN_VERSION_STR}")
-target_include_directories(trun PRIVATE ${CMAKE_SOURCE_DIR})
-target_include_directories(trun PRIVATE ${CMAKE_SOURCE_DIR}/testrunner)
+target_include_directories(trun PUBLIC ${FMT_HOME}/include)
+target_include_directories(trun PUBLIC ${CMAKE_SOURCE_DIR}/src/testrunner)
+target_include_directories(trun PUBLIC ${CMAKE_SOURCE_DIR}/ext/gnklog/src)
 set_property(TARGET trun PROPERTY CXX_STANDARD 20)
 
 # Create unit-test library
@@ -116,8 +156,10 @@ target_compile_options(trun_utests PUBLIC -Wno-multichar)
 target_compile_definitions(trun_utests PUBLIC TRUN_HAVE_EXT_REPORTING)
 target_compile_definitions(trun_utests PUBLIC TRUN_HAVE_THREADS)
 #target_compile_definitions(trun_utests PUBLIC TRUN_SINGLE_THREAD)
-target_include_directories(trun_utests PRIVATE ${CMAKE_SOURCE_DIR})
-target_include_directories(trun_utests PRIVATE ${CMAKE_SOURCE_DIR}/testrunner)
+target_include_directories(trun_utests PUBLIC ${FMT_HOME}/include)
+target_include_directories(trun_utests PUBLIC ${CMAKE_SOURCE_DIR}/src/testrunner)
+target_include_directories(trun_utests PUBLIC ${CMAKE_SOURCE_DIR}/ext/gnklog/src)
+
 set_property(TARGET trun_utests PROPERTY CXX_STANDARD 17)
 
 #
@@ -127,8 +169,7 @@ set_property(TARGET trun_utests PROPERTY CXX_STANDARD 17)
 # - threading of tests
 #
 add_library(trunlib STATIC ${srcfiles} ${embedsrc})
-target_include_directories(trunlib PRIVATE ${CMAKE_SOURCE_DIR})
-target_include_directories(trunlib PRIVATE ${CMAKE_SOURCE_DIR}/testrunner)
+target_include_directories(trunlib PRIVATE ${CMAKE_SOURCE_DIR}/src/testrunner)
 set_property(TARGET trunlib PROPERTY CXX_STANDARD 17)
 
 #
@@ -136,8 +177,7 @@ set_property(TARGET trunlib PROPERTY CXX_STANDARD 17)
 #
 add_executable(trunembedded src/exembedded/main_embedded.cpp)
 target_compile_definitions(trunembedded PUBLIC TRUN_SINGLE_THREAD)
-target_include_directories(trunembedded PUBLIC ${CMAKE_SOURCE_DIR})
-target_include_directories(trunembedded PRIVATE ${CMAKE_SOURCE_DIR}/testrunner)
+target_include_directories(trunembedded PUBLIC ${CMAKE_SOURCE_DIR}/src/testrunner)
 
 
 
@@ -213,9 +253,11 @@ elseif (UNIX)
 
 endif()
 
-target_link_libraries(trun ${platformlibs})
-target_link_libraries(trun_utests ${platformlibs})
+target_link_libraries(trun ${platformlibs} ${extlibs})
+target_link_libraries(trun_utests ${platformlibs} ${extlibs})
 target_link_libraries(trunlib)
+
+# Can't use this for embedded..
 target_link_libraries(trunembedded trunlib ${platformlibs})
 
 #

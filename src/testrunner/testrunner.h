@@ -50,7 +50,7 @@ namespace trun {
         kRunResultAction ExecuteTestWithDependencies(const TestModule::Ref &testModule, TestFunc::Ref testCase, std::vector<TestFunc::Ref> &deps);
 
     private:
-        ILogger *pLogger = nullptr;
+        gnilk::ILogger *pLogger = nullptr;
         IDynLibrary::Ref library = nullptr;
         std::map<std::string, TestModule::Ref> testModules;
         std::vector<TestFunc::Ref> globals;

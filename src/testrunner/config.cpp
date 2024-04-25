@@ -67,13 +67,16 @@ Config::Config() {
     //
     // Setup logger
     //
-    int logLevel = Logger::kMCDebug;
-	Logger::Initialize();
-	if (logLevel != Logger::kMCNone) {
-		Logger::AddSink(Logger::CreateSink("LogConsoleSink"), "console", 0, NULL);
-	}
-	Logger::SetAllSinkDebugLevel(logLevel);
-    pLogger = Logger::GetLogger("main");
+    auto logLevel = gnilk::LogLevel::kDebug;
+	gnilk::Logger::Initialize();
+	//if (logLevel != gnilk::LogLevel::kNone) {
+        // Note: Console already added
+        //auto consoleSink = gnilk::LogConsoleSink::Create();
+        //gnilk::Logger::AddSink(consoleSink, "Console");
+		//gnilk::Logger::AddSink(gnilk::Logger::CreateSink("LogConsoleSink"), "console", 0, NULL);
+	//}
+	gnilk::Logger::SetAllSinkDebugLevel(logLevel);
+    pLogger = gnilk::Logger::GetLogger("main");
 }
 
 void Config::Dump() {

@@ -37,9 +37,9 @@
 #include <unistd.h>
 #endif
 
-#include "src/testrunner/logger.h"
-#include "src/testrunner/testrunner.h"
-#include "src/testrunner/dynlib.h"
+#include "logger.h"
+#include "testrunner.h"
+#include "dynlib.h"
 
 
 
@@ -63,7 +63,7 @@
 
 
 using namespace trun;
-ILogger *pLogger = NULL;
+gnilk::ILogger *pLogger = nullptr;
 
 static bool isLibraryFound = false;
 
@@ -129,11 +129,11 @@ static void ParseTestCaseFilters(char *filterstring) {
 
 static void ConfigureLogger() {
     // Setup up logger according to verbose flags
-    Logger::SetAllSinkDebugLevel(Logger::kMCError);
+    gnilk::Logger::SetAllSinkDebugLevel(gnilk::LogLevel::kError);
     if (Config::Instance().verbose > 0) {
-        Logger::SetAllSinkDebugLevel(Logger::kMCInfo);
+        gnilk::Logger::SetAllSinkDebugLevel(gnilk::LogLevel::kInfo);
         if (Config::Instance().verbose > 1) {
-            Logger::SetAllSinkDebugLevel(Logger::kMCDebug);
+            gnilk::Logger::SetAllSinkDebugLevel(gnilk::LogLevel::kDebug);
         }
     }
 }

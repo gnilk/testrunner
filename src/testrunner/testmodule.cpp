@@ -53,7 +53,7 @@ void TestModule::SetDependencyForCase(const char *caseName, const char *dependen
 }
 
 void TestModule::ResolveDependencies() {
-    auto pLogger = Logger::GetLogger("TestModule");
+    auto pLogger = gnilk::Logger::GetLogger("TestModule");
 
     for (auto testFunc: testFuncs) {
         if (testFunc->ShouldExecuteNoDeps()) {

@@ -69,7 +69,7 @@ namespace trun {
         std::string symbolName; // current symbol under test
         std::string moduleName; // current library under test
 
-        ILogger *pLogger = nullptr;
+        gnilk::ILogger *pLogger = nullptr;
         ITesting *trp = nullptr;
 
     };

@@ -41,7 +41,7 @@ namespace trun {
         }
     private:
         bool recurse;
-        ILogger *pLogger;
+        gnilk::ILogger *pLogger;
         std::vector<std::string> extensions;    // library extensions
         std::vector<std::string> filenames;
     };

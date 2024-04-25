@@ -52,7 +52,7 @@ TestFunc::Ref TestFunc::Create(std::string symbolName, std::string moduleName, s
 // Default CTOR only used for unit testing
 TestFunc::TestFunc() {
     isExecuted = false;
-    pLogger = Logger::GetLogger("TestFunc");
+    pLogger = gnilk::Logger::GetLogger("TestFunc");
 }
 
 TestFunc::TestFunc(std::string symbolName, std::string moduleName, std::string caseName) {
@@ -61,7 +61,7 @@ TestFunc::TestFunc(std::string symbolName, std::string moduleName, std::string c
     this->caseName = caseName;
     testScope = kTestScope::kUnknown;
     isExecuted = false;
-    pLogger = Logger::GetLogger("TestFunc");
+    pLogger = gnilk::Logger::GetLogger("TestFunc");
     testResult = nullptr;
     testReturnCode = -1;
 }
@@ -214,7 +214,7 @@ TestResult::Ref TestFunc::Execute(IDynLibrary::Ref module) {
     pLogger->Debug("  Module: %s", moduleName.c_str());
     pLogger->Debug("  Case..: %s", caseName.c_str());
     pLogger->Debug("  Export: %s", symbolName.c_str());
-    pLogger->Debug("  Func..: %p", this);
+    pLogger->Debug("  Func..: %p", (void *)this);
 
 
     //kTestResult testResult = kTestResult_NotExecuted;

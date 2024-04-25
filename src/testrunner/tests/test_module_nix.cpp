@@ -21,7 +21,7 @@ DLL_EXPORT int test_module(ITesting *t) {
     // Since we are testing the internals we will be linking against
     // the runner configuration instance and affect the global logger etc..
     Config::Instance();
-    Logger::SetAllSinkDebugLevel(Logger::kMCError);
+    gnilk::Logger::SetAllSinkDebugLevel(gnilk::LogLevel::kError);
 
     return kTR_Pass;
 }

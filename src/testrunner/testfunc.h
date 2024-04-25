@@ -19,7 +19,7 @@ namespace trun {
     // The core structure defining a testable function which belongs to a test-module
     class TestFunc {
     public:
-        using Ref = shared_ptr<TestFunc>;
+        using Ref = std::shared_ptr<TestFunc>;
 
         enum class kTestScope {
             kUnknown,
@@ -87,7 +87,7 @@ namespace trun {
 
         kTestScope testScope = kTestScope::kUnknown;
         bool isExecuted = false;
-        ILogger *pLogger = nullptr;
+        gnilk::ILogger *pLogger = nullptr;
 
         IDynLibrary::Ref library = nullptr;
 

@@ -25,10 +25,10 @@
  
  ---------------------------------------------------------------------------*/
 
-#include "../dynlib.h"
-#include "../strutil.h"
-#include "../logger.h"
-#include "../config.h"
+#include "dynlib.h"
+#include "strutil.h"
+#include "logger.h"
+#include "config.h"
 
 #include "process.h"
 #include "dynlib_unix.h"
@@ -50,7 +50,7 @@ IDynLibrary::Ref DynLibLinux::Create() {
 }
 
 DynLibLinux::DynLibLinux() {
-    this->pLogger = Logger::GetLogger("Loader");
+    this->pLogger = gnilk::Logger::GetLogger("Loader");
 }
 DynLibLinux::~DynLibLinux() {
     pLogger->Debug("DTOR, closing library");

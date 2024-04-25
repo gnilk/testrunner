@@ -29,6 +29,7 @@
 
 #include <stdint.h>
 #include <string>
+#include <thread>
 
 #include "dynlib.h"
 #include "strutil.h"
@@ -59,9 +60,9 @@ TestModule::Ref TestRunner::HACK_GetCurrentTestModule() {
 
 //////--- Ok, let's go...
 
-TestRunner::TestRunner(IDynLibrary::Ref library) {
-    this->library = library;
-    this->pLogger = Logger::GetLogger("TestRunner");
+TestRunner::TestRunner(IDynLibrary::Ref useLibrary) {
+    library = useLibrary;
+    pLogger = gnilk::Logger::GetLogger("TestRunner");
 }
 
 
@@ -225,6 +226,8 @@ bool TestRunner::ExecuteModuleTestFuncs(TestModule::Ref testModule) {
     // Resolve dependencies, this is after 'main' has run and they are now configured...
     testModule->ResolveDependencies();
 
+    // Used later..
+    std::vector<std::thread> threads;
 
     // Execute dependencies
     for(auto depFunc : testModule->Dependencies()) {
@@ -243,7 +246,21 @@ bool TestRunner::ExecuteModuleTestFuncs(TestModule::Ref testModule) {
         if (!testFunc->ShouldExecuteNoDeps()) {
             continue;
         }
+/*
+        auto h_thread = std::thread([this, &testModule, &testFunc]{
+            std::vector<TestFunc::Ref> deps = {};
+            auto runResult = ExecuteTestWithDependencies(testModule, testFunc, deps);
+            if (runResult != kRunResultAction::kContinue) {
+                if (runResult == kRunResultAction::kAbortAll) {
+                    //bRes = false;
+                }
+                // PROBLEM???
+                //goto leave;
+            }
 
+        });
+        threads.push_back(std::move(h_thread));
+*/
         std::vector<TestFunc::Ref> deps = {};
         auto runResult = ExecuteTestWithDependencies(testModule, testFunc, deps);
         if (runResult != kRunResultAction::kContinue) {
@@ -253,6 +270,11 @@ bool TestRunner::ExecuteModuleTestFuncs(TestModule::Ref testModule) {
             goto leave;
         }
     }
+    pLogger->Debug("Waiting for threads to terminate...");
+
+//    for (auto &t : threads) {
+//        t.join();
+//    }
 
 leave:
     if (Config::Instance().testModuleGlobals) {
@@ -263,7 +285,7 @@ leave:
 }
 
 // Recursive call...
-TestRunner::kRunResultAction TestRunner::ExecuteTestWithDependencies(const TestModule::Ref &testModule, TestFunc::Ref testCase, std::vector<TestFunc::Ref> &deps) {
+TestRunner::kRunResultAction TestRunner::ExecuteTestWithDependencies(const TestModule::Ref &testModule, TestFunc::Ref testCase,  std::vector<TestFunc::Ref> &deps) {
 
     if (testCase->Executed()) {
         return kRunResultAction::kContinue;
@@ -304,7 +326,7 @@ TestRunner::kRunResultAction TestRunner::CheckResultIfContinue(const TestResult:
         }
     } else if (result->Result() == kTestResult_AllFail) {
         if (Config::Instance().stopOnAllFail) {
-            pLogger->Fatal("Total test failure, aborting");
+            pLogger->Critical("Total test failure, aborting");
             return kRunResultAction::kAbortAll;
         } else {
             pLogger->Info("Total test failure, continue anyway (configuration)");

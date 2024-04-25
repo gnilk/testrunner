@@ -39,7 +39,7 @@ public:
         return (PTESTFUNC) test_mock_func;
     }
     const std::vector<std::string> &Exports() const override {
-        static std::vector<string> dummy={"test_mock_func"};
+        static std::vector<std::string> dummy={"test_mock_func"};
         return dummy;
     }
     bool Scan(const std::string &pathName) override {

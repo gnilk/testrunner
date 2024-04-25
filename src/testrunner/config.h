@@ -42,7 +42,7 @@ namespace trun {
         bool discardTestReturnCode;
         bool linuxUseDeepBinding;       // Causes dlopen to use RTLD_DEEPBIND
         bool enableThreadTestExecution; // Run tests in separate threads - default is 'true'
-        ILogger *pLogger;
+        gnilk::ILogger *pLogger;
     private:
         Config();
     };

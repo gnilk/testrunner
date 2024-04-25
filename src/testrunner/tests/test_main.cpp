@@ -2,7 +2,7 @@
 // Created by Fredrik Kling on 18.08.22.
 //
 #include "../testinterface.h"
-#include "../logger.h"
+#include "logger.h"
 #include "../config.h"
 #include <functional>
 #include <string.h>
@@ -24,7 +24,7 @@ DLL_EXPORT int test_main(ITesting *t) {
     // otherwise it will be reinitialized later by functions under test
     Config::Instance();
     // Now set the log-level, we just want errors (this is for the library and not for the testrunner)
-    Logger::SetAllSinkDebugLevel(Logger::kMCError);
+    gnilk::Logger::SetAllSinkDebugLevel(gnilk::LogLevel::kError);
 
     TRUN_IConfig *tr_config = nullptr;
     t->QueryInterface(1234, (void **)&tr_config);
