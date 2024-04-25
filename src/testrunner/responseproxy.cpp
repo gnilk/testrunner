@@ -74,18 +74,13 @@ static std::map<pthread_t, TestResponseProxy *> trpLookup;
 // GetInstance - returns a test proxy, if one does not exists for the thread one will be allocated
 //
 TestResponseProxy &TestResponseProxy::Instance() {
-    // NOTE: Figure out how this should work
-    //       Where is threading occuring and who owns this
-    //       Currently this function is called from the 'testfunc.cpp' where also threading
-    //       is happening. But that's not quite right. Instead a library should have this in order
-    //       to allow parallell testing of modules but not within modules!
-    //
-    //       [gnilk, 2024-02-27] - Each TestFunc could have an instance of the TestResponseProxy as it is designed today
-    //                             That would allow all (except dependencies) to be executed in parallell..
-    //                             However - that would probably blow up memusage on embedded quite a bit..
-    //
 
+    // Putting this as thread-local..
+#ifdef TRUN_HAVE_THREADS
+    static thread_local TestResponseProxy glbResponseProxy;
+#else
     static TestResponseProxy glbResponseProxy;
+#endif
     return glbResponseProxy;
 }
 
