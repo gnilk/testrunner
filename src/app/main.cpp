@@ -200,6 +200,19 @@ static bool ParseArguments(int argc, char **argv) {
                         Config::Instance().reportFile = std::string(argv[++i]);
                         goto next_argument;
                         break;
+                    case '-' :
+                        // Long argument
+                        {
+                            std::string longArgument = std::string(&argv[i][++j]);
+                            if (longArgument == "no-threads") {
+                                Config::Instance().enableThreadTestExecution = false;
+                                goto next_argument;
+                            }
+                            printf("Unknown long argument: %s\n", longArgument.c_str());
+                            Help();
+                            exit(1);
+                        }
+                        break;
                     case '?' :
                     case 'h' :
                     case 'H' :

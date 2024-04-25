@@ -233,9 +233,14 @@ TestResult::Ref TestFunc::Execute(IDynLibrary::Ref module) {
         testResult = TestResult::Create(symbolName);
 
 #if defined(TRUN_HAVE_THREADS)
-        ExecuteAsync();
-        pLogger->Debug("Execute, thread done...\n");
+        if (Config::Instance().enableThreadTestExecution) {
+            ExecuteAsync();
+            pLogger->Debug("Execute, thread done...\n");
+        } else {
+            ExecuteSync();
+        }
 #else
+        // If we don't have threads (i.e. embedded) - we simply just execute this...
         ExecuteSync();
 #endif
 

@@ -63,7 +63,7 @@ Config::Config() {
     discardTestReturnCode = false;
     linuxUseDeepBinding = true;
     responseMsgByteLimit = 1024 * 8;
-    
+    enableThreadTestExecution = true;
     //
     // Setup logger
     //
@@ -94,6 +94,7 @@ void Config::Dump() {
     printf("  Discard test return code: %s\n", discardTestReturnCode?"yes":"no");
     printf("  Reporting module: %s\n", reportingModule.c_str());
     printf("  Reporting indent size: %d\n", reportIndent);
+    printf("  Threaded Test Execution: %s\n", enableThreadTestExecution?"yes":"no");
     printf("  Modules:\n");
     for(auto x:modules) {
         printf("    %s\n", x.c_str());
