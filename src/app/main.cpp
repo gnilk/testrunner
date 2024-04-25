@@ -388,6 +388,9 @@ int main(int argc, char **argv) {
         }
     }
 
+    // Try to flush the logger...
+    gnilk::Logger::Consume();
+
     // Reporting
     ResultSummary::Instance().durationSec = timer.Sample();
     if (Config::Instance().executeTests) {
