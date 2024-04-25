@@ -22,9 +22,6 @@
 
 using namespace trun;
 
-// Only one instance...
-static ResultSummary *glb_Instance = nullptr;
-
 using ReportFactory = std::function<ResultsReportPinterBase *()>;
 
 // Add new reporting modules here
@@ -39,7 +36,6 @@ static std::map<std::string_view, ReportFactory > reportFactories = {
 };
 
 void ResultSummary::PrintSummary() {
-
     // strutil mutates the incoming string - let's not do that in this instance...
     auto reportingModule = std::string(Config::Instance().reportingModule);
     trun::to_lower(reportingModule);
@@ -73,21 +69,22 @@ void ResultSummary::ListReportingModules() {
 
 void ResultSummary::AddResult(const TestFunc::Ref tfunc) {
     auto result = tfunc->Result();
+
+#ifdef TRUN_HAVE_THREADS
+    std::lock_guard<std::mutex> guard(lock);
+#endif
+
     testFunctions.push_back(tfunc);
     results.push_back(result);
 
-    //results.push_back(tfunc->);
-
-    ResultSummary::Instance().testsExecuted++;
+    testsExecuted++;
     if (result->Result() != kTestResult_Pass) {
-        ResultSummary::Instance().testsFailed++;
+        testsFailed++;
     }
 
 }
 
 ResultSummary &ResultSummary::Instance() {
-    if (glb_Instance == nullptr) {
-        glb_Instance = new ResultSummary;
-    }
-    return *glb_Instance;
+    static ResultSummary glbInstance;
+    return glbInstance;
 }
