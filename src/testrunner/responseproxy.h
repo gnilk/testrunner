@@ -14,12 +14,17 @@ namespace trun {
 
     class TestResponseProxy {
     public:
+        static const int ITesting_MIN_VER = 1;
+        static const int ITesting_MAX_VER = 2;
+    public:
         static TestResponseProxy &Instance();
 
         ITesting *Proxy() { return trp; }
 
         void Begin(std::string symbolName, std::string moduleName);
         void End();
+
+
         double ElapsedTimeInSec();
         int Errors();
         int Asserts();
@@ -43,8 +48,14 @@ namespace trun {
 
         void CaseDepends(const char *caseName, const char *dependencyList);
 
+        void QueryInterface(uint32_t interface_id, void **outPtr);
     private:
         TestResponseProxy();
+
+        static ITesting *GetTRTestInterface();
+        static TRUN_IConfig *GetTRConfigInterface();
+
+        void TerminateThreadIfNeeded();
     private:
         Timer timer;
         double tElapsed;
@@ -57,9 +68,9 @@ namespace trun {
 
         std::string symbolName; // current symbol under test
         std::string moduleName; // current library under test
-        ILogger *pLogger;
 
+        ILogger *pLogger = nullptr;
+        ITesting *trp = nullptr;
 
-        ITesting *trp;
     };
 }

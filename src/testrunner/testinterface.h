@@ -1,5 +1,8 @@
-#ifndef __GNILK_TEST_INTERFACE_H__
-#define __GNILK_TEST_INTERFACE_H__
+#ifndef GNILK_TRUN_INTERFACE_H
+#define GNILK_TRUN_INTERFACE_H
+
+#include <stdint.h>
+#include <stdlib.h>
 
 #ifdef WIN32
     #ifndef WIN32_LEAN_AND_MEAN
@@ -17,11 +20,17 @@ extern "C" {
 #endif
 
 
+// Note: I want this to be different on little/big endian machines - it is detected!
+#define TR_RUN_V2_MAGIC (uint32_t)('GNK2')
+
 // Return codes from test functions
 #define kTR_Pass 0x00
 #define kTR_Fail 0x10
 #define kTR_FailModule 0x20
 #define kTR_FailAll 0x30
+
+typedef struct ITesting ITesting;
+typedef struct ITestingV2 ITestingV2;
 
 //
 // If you embed the trun library you need to specify if you run single threaded or not!
@@ -29,19 +38,24 @@ extern "C" {
 //
 // By default, the trunembbeded library is built with without threading support...
 //
-#ifdef TRUN_SINGLE_THREAD
-#define TR_ASSERT(t, _exp_) \
-    if (!(_exp_)) { ((ITesting *)t)->AssertError(#_exp_,__FILE__, __LINE__); return kTR_Fail; }
 
-#else
+
+// These flags define how the trunner is working
+// is found in ITestingV2.runner_cfg
+#define TRUN_V2_FLAG_THREADING_ENABLED 1
+
+
+// Assert macro, checks version and casts to right (hopefully) interface...
+// Note: comparing magic here is quite ok - we can't have a difference!
 #define TR_ASSERT(t, _exp_) \
-    ((void) ((_exp_) ? ((void)0) : ((ITesting *)t)->AssertError(#_exp_,__FILE__, __LINE__)))
-#endif
+    if (!(_exp_)) {                                                    \
+        ((ITesting *)t)->AssertError(#_exp_,__FILE__, __LINE__);   \
+        return kTR_Fail; \
+    }
 
 //
 // Callback interface for test reporting
 //
-typedef struct ITesting ITesting;
 struct ITesting {
     // Just info output - doesn't affect test execution
     void (*Debug)(int line, const char *file, const char *format, ...); 
@@ -53,15 +67,45 @@ struct ITesting {
     void (*Abort)(int line, const char *file, const char *format, ...); // Current test, stop execution
     // Asserts
     void (*AssertError)(const char *exp, const char *file, const int line);
-    // Hooks
+    // Hooks - this change leads to compile errors for old unit-tests - is that ok?
     void (*SetPreCaseCallback)(int(*)(ITesting *));         // v2 - must return int - same as test function 'kTR_xxx'
     void (*SetPostCaseCallback)(int(*)(ITesting *));        // v2 - must return int - same as test function 'kTR_xxx'
+
     // Dependency handling
     void (*CaseDepends)(const char *caseName, const char *dependencyList);
+
+    // This is perhaps a better way, we can extend as we see fit..
+    // I think the biggest question is WHAT we need...
+    void (*QueryInterface)(uint32_t interface_id, void **outPtr);                 // V2 - Optional, query an interface from the runner...
+};
+
+enum kTRConfigType {
+    kTRCfgType_Bool,
+    kTRCfgType_Num,
+    kTRCfgType_Str,
+};
+
+#define TR_CFG_ITEM_NAME_LEN 32
+
+// Not sure this is so great for Rust - will have to verify...
+struct TRUN_ConfigItem {
+    char name[TR_CFG_ITEM_NAME_LEN];
+    kTRConfigType value_type;
+    union {
+        bool b;
+        int32_t num;
+        const char *str;    // Readonly..
+    } value;
+};
+
+typedef struct TRUN_IConfig TRUN_IConfig;
+struct TRUN_IConfig {
+    size_t (*List)(size_t maxItems, TRUN_ConfigItem *outArray);
+    void (*Get)(const char *key, TRUN_ConfigItem *outValue);
 };
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif // __GNILK_TEST_INTERFACE_H__
+#endif //GNILK_TRUN_INTERFACE_H

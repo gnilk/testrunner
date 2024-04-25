@@ -3,6 +3,7 @@
 // These tests are specifically for verifying the Rust port of the test-runner
 // they don't test anything internally - they are compiled in and added to the rust project as a binary so..
 //
+#define GNILK_TRUN_CLIENT_IMPL
 #include "../testinterface.h"
 #include "../logger.h"
 #include <functional>
@@ -60,12 +61,12 @@ DLL_EXPORT int test_rust_dummy(ITesting *t) {
     printf("t->Debug = %p\n", t->Debug);
     printf("AssertError: =  %p\n", t->AssertError);
     HexDumpToConsole(t, sizeof(ITesting));
-
-    t->AssertError("msg", __FILE__, __LINE__);
-    return 4711;
+    return kTR_Pass;
 }
 DLL_EXPORT int test_rust_assert(ITesting *t) {
+    printf("  test_rust_assert, this should be seen (nothing else)");
     TR_ASSERT(t, false);
+    printf("  test_rust_assert, this should not be seen\n");
     return kTR_Pass;
 }
 

@@ -31,6 +31,7 @@
 #include <stdarg.h>
 #endif
 
+#include <string.h>
 #include "testinterface.h"
 #include "responseproxy.h"
 #include "logger.h"
@@ -56,6 +57,11 @@ static void int_trp_assert_error(const char *exp, const char *file, int line);
 static void int_trp_hook_precase(TRUN_PRE_POST_HOOK_DELEGATE cbPreCase);
 static void int_trp_hook_postcase(TRUN_PRE_POST_HOOK_DELEGATE cbPostCase);
 static void int_trp_casedepend(const char *caseName, const char *dependencyList);
+static void int_trp_query_interface(uint32_t interface_id, void **ouPtr);
+
+// Config interface
+static size_t int_tcfg_list(size_t maxItems, TRUN_ConfigItem *outArray);
+static void int_tcfg_get(const char *key, TRUN_ConfigItem *outValue);
 
 // Holds a calling proxy per thread
 #ifdef WIN32
@@ -86,18 +92,6 @@ TestResponseProxy &TestResponseProxy::Instance() {
 
 //
 TestResponseProxy::TestResponseProxy() {
-    // FIXME: Refactor this once we know how the TestResponseProxy will fit in the whole testing library
-    this->trp = (ITesting *)malloc(sizeof(ITesting));
-    this->trp->Debug = int_trp_debug;
-    this->trp->Info = int_trp_info;
-    this->trp->Warning = int_trp_warning;
-    this->trp->Error = int_trp_error;
-    this->trp->Fatal = int_trp_fatal;
-    this->trp->Abort = int_trp_abort;
-    this->trp->AssertError = int_trp_assert_error;
-    this->trp->SetPreCaseCallback = int_trp_hook_precase;
-    this->trp->SetPostCaseCallback = int_trp_hook_postcase;
-    this->trp->CaseDepends = int_trp_casedepend;
 }
 
 void TestResponseProxy::Begin(std::string symbolName, std::string moduleName) {
@@ -106,7 +100,9 @@ void TestResponseProxy::Begin(std::string symbolName, std::string moduleName) {
     errorCount = 0;
     assertCount = 0;
     testResult = kTestResult_Pass;
-    pLogger = Logger::GetLogger(moduleName.c_str());
+    pLogger = Logger::GetLogger("TestResponseProxy");
+
+    trp = TestResponseProxy::GetTRTestInterface();
 
     // Apply verbose filtering to log output from test cases or not??
     if (!Config::Instance().testLogFilter) {
@@ -118,6 +114,33 @@ void TestResponseProxy::Begin(std::string symbolName, std::string moduleName) {
 
     timer.Reset();
     assertError.Reset();
+}
+
+// Consider moving this out of here
+ITesting *TestResponseProxy::GetTRTestInterface() {
+    static ITesting trp_bridge = {
+            .Debug = int_trp_debug,
+            .Info = int_trp_info,
+            .Warning = int_trp_warning,
+            .Error = int_trp_error,
+            .Fatal = int_trp_fatal,
+            .Abort = int_trp_abort,
+            .AssertError = int_trp_assert_error,
+            .SetPreCaseCallback = int_trp_hook_precase,
+            .SetPostCaseCallback = int_trp_hook_postcase,
+            .CaseDepends = int_trp_casedepend,
+            .QueryInterface = int_trp_query_interface,
+    };
+    return &trp_bridge;
+}
+
+// Move to other file
+TRUN_IConfig *TestResponseProxy::GetTRConfigInterface() {
+    static TRUN_IConfig trp_config_bridge = {
+            .List = int_tcfg_list,
+            .Get = int_tcfg_get,
+    };
+    return &trp_config_bridge;
 }
 
 double TestResponseProxy::ElapsedTimeInSec() {
@@ -163,13 +186,7 @@ void TestResponseProxy::Error(int line, const char *file, std::string message) {
     if (testResult < kTestResult_TestFail) {
         testResult = kTestResult_TestFail;
     }
-#ifdef TRUN_HAVE_THREADS
-    #ifdef WIN32
-        TerminateThread(GetCurrentThread(),0);
-    #else
-        pthread_exit(NULL);
-    #endif
-#endif
+    TerminateThreadIfNeeded();
 }
 
 void TestResponseProxy::Fatal(int line, const char *file, std::string message) {
@@ -179,14 +196,7 @@ void TestResponseProxy::Fatal(int line, const char *file, std::string message) {
         testResult = kTestResult_ModuleFail;
     }
     assertError.Set(AssertError::kAssert_Fatal, line, file, message);
-
-#ifdef TRUN_HAVE_THREADS
-    #ifdef WIN32
-        TerminateThread(GetCurrentThread(), 0);
-    #else
-        pthread_exit(NULL);
-    #endif
-#endif
+    TerminateThreadIfNeeded();
 }
 
 void TestResponseProxy::Abort(int line, const char *file, std::string message) {
@@ -196,15 +206,7 @@ void TestResponseProxy::Abort(int line, const char *file, std::string message) {
         testResult = kTestResult_AllFail;
     }
     assertError.Set(AssertError::kAssert_Abort, line, file, message);
-#ifdef TRUN_HAVE_THREADS
-    #ifdef WIN32
-        if (!TerminateThread(GetCurrentThread(), 0)) {
-            pLogger->Error("Terminating thread...\n");
-        }
-    #else
-        pthread_exit(NULL);
-    #endif
-#endif
+    TerminateThreadIfNeeded();
 }
 
 //void (*AssertError)(const char *exp, const char *file, const int line);
@@ -215,13 +217,19 @@ void TestResponseProxy::AssertError(const char *exp, const char *file, const int
         testResult = kTestResult_TestFail;
     }
     assertError.Set(AssertError::kAssert_Error, line, file, exp);
+    TerminateThreadIfNeeded();
+}
+void TestResponseProxy::TerminateThreadIfNeeded() {
 #ifdef TRUN_HAVE_THREADS
-    #ifdef WIN32
-        TerminateThread(GetCurrentThread(), 0);
-    #else
-        pthread_exit(NULL);
-    #endif
+    if (Config::Instance().enableThreadTestExecution) {
+        #ifdef WIN32
+            TerminateThread(GetCurrentThread(), 0);
+        #else
+            pthread_exit(NULL);
+        #endif
+    }
 #endif
+
 }
 
 
@@ -246,6 +254,23 @@ void TestResponseProxy::CaseDepends(const char *caseName, const char *dependency
     }
 }
 
+void TestResponseProxy::QueryInterface(uint32_t interface_id, void **outPtr) {
+    if (outPtr == nullptr) {
+        pLogger->Error("QueryInterface, outPtr is null");
+    }
+
+    switch(interface_id) {
+        case 1234 :
+            pLogger->Debug("QueryInterface, interface_id = %d, returning TRUN_IConfig", interface_id);
+            *outPtr = (void *)GetTRConfigInterface();
+            break;
+        default :
+            *outPtr = nullptr;
+            pLogger->Debug("QueryInterface, invalid interface id (%d)", interface_id);
+            break;
+    }
+
+}
 
 //
 // wrappers for pure C call's (no this) - only one call per thread allowed.
@@ -332,3 +357,78 @@ static void int_trp_casedepend(const char *caseName, const char *dependencyList)
     TestResponseProxy::Instance().CaseDepends(caseName, dependencyList);
 }
 
+
+static void int_trp_query_interface(uint32_t interface_id, void **outPtr) {
+    return TestResponseProxy::Instance().QueryInterface(interface_id, outPtr);
+}
+
+
+// Taken from another project...
+#define TRUN_ARRAY_LENGTH(x) ((sizeof(x)/sizeof(0[x])) / ((size_t)(!(sizeof(x) % sizeof(0[x])))))
+
+static TRUN_ConfigItem *get_config_items(size_t *nItems) {
+    // This should wrap into the Config::instance instead...
+    static TRUN_ConfigItem glb_Config[] {
+            {
+                    .name = "item1",
+                    .value_type = kTRCfgType_Num,
+                    .value {
+                            .num = 1,
+                    }
+            },
+            {
+                    .name = "item2",
+                    .value_type = kTRCfgType_Bool,
+                    .value {
+                            .b = false,
+                    }
+            },
+            {
+                    .name = "discardTestReturnCode",
+                    .value_type = kTRCfgType_Bool,
+                    .value {
+                            .b = Config::Instance().discardTestReturnCode,
+                    }
+            },
+            {
+                    .name = "enableThreadTestExecution",
+                    .value_type = kTRCfgType_Bool,
+                    .value {
+                            .b = Config::Instance().enableThreadTestExecution,
+                    }
+            },
+            {
+                    .name = "item5",
+                    .value_type = kTRCfgType_Num,
+                    .value {
+                            .num = 4711,
+                    }
+            },
+    };
+    if (nItems != NULL) {
+        *nItems = TRUN_ARRAY_LENGTH(glb_Config);
+    }
+    return glb_Config;
+}
+
+////
+static size_t int_tcfg_list(size_t maxItems, TRUN_ConfigItem *outArray) {
+    // Return number of items available
+
+    size_t nGlbItems = 0;
+    auto glb_config = get_config_items(&nGlbItems);
+
+    if (outArray == nullptr) {
+        return nGlbItems;
+    }
+
+    size_t nToCopy = (maxItems<nGlbItems)?maxItems:nGlbItems;
+    for(size_t i=0;i<nToCopy;i++) {
+        outArray[i] = glb_config[i];
+    }
+    return nToCopy;
+}
+
+static void int_tcfg_get(const char *key, TRUN_ConfigItem *outValue) {
+
+}
