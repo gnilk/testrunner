@@ -169,7 +169,9 @@ set_property(TARGET trun_utests PROPERTY CXX_STANDARD 17)
 # - threading of tests
 #
 add_library(trunlib STATIC ${srcfiles} ${embedsrc})
+target_include_directories(trunlib PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_include_directories(trunlib PRIVATE ${CMAKE_SOURCE_DIR}/src/testrunner)
+target_include_directories(trunlib PRIVATE ${CMAKE_SOURCE_DIR}/src/testrunner/embedded)
 set_property(TARGET trunlib PROPERTY CXX_STANDARD 17)
 
 #
@@ -177,9 +179,9 @@ set_property(TARGET trunlib PROPERTY CXX_STANDARD 17)
 #
 add_executable(trunembedded src/exembedded/main_embedded.cpp)
 target_compile_definitions(trunembedded PUBLIC TRUN_SINGLE_THREAD)
+target_include_directories(trunembedded PUBLIC ${CMAKE_SOURCE_DIR}/src)
 target_include_directories(trunembedded PUBLIC ${CMAKE_SOURCE_DIR}/src/testrunner)
-
-
+target_include_directories(trunembedded PUBLIC ${CMAKE_SOURCE_DIR}/src/testrunner/embedded)
 
 
 include(GNUInstallDirs)
