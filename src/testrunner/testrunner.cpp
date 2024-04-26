@@ -113,24 +113,24 @@ bool TestRunner::ExecuteMain() {
     if (!Config::Instance().testGlobalMain) {
         return bRes;
     }
+    if (globalMain == nullptr) {
+        return bRes;
+    }
 
-    pLogger->Info("Executing Main");
+    pLogger->Info("Executing Global Main");
 
-    // Store main/exit separately when we scan..
-    for (auto f:globals) {
-        if (f->IsGlobalMain()) {
-            auto dummy = TestModule::Create("_dummy-main_");
-            hack_glbCurrentTestModule = dummy;
-            TestResult::Ref result = f->Execute(library);
-            ResultSummary::Instance().AddResult(f);
-            if ((result->Result() == kTestResult_AllFail) || (result->Result() == kTestResult_TestFail)) {
-                if (Config::Instance().stopOnAllFail) {
-                    pLogger->Info("Total test failure, aborting");
-                    bRes = false;
-                }
-            }
+    // FIXME: Verify we need to create a dummy module after refactoring
+    auto dummy = TestModule::Create("_dummy-main_");
+    hack_glbCurrentTestModule = dummy;
+    TestResult::Ref result = globalMain->Execute(library);
+    ResultSummary::Instance().AddResult(globalMain);
+    if ((result->Result() == kTestResult_AllFail) || (result->Result() == kTestResult_TestFail)) {
+        if (Config::Instance().stopOnAllFail) {
+            pLogger->Info("Total test failure, aborting");
+            bRes = false;
         }
     }
+
     pLogger->Info("Done: test main\n\n");
     return bRes;
 }
@@ -141,26 +141,26 @@ bool TestRunner::ExecuteMainExit() {
     if (!Config::Instance().testGlobalMain) {
         return bRes;
     }
+    if (globalExit == nullptr) {
+        return bRes;
+    }
 
-    pLogger->Info("Executing MainExit");
+    pLogger->Info("Executing Global Exit");
 
-    for (auto f:globals) {
-        if (f->IsGlobalExit()) {
-            auto dummy = TestModule::Create("_dummy-main_");
-            hack_glbCurrentTestModule = dummy;
+    // FIXME: Verify we need to create a dummy module after refactoring
+    auto dummy = TestModule::Create("_dummy-main_");
+    hack_glbCurrentTestModule = dummy;
 
-            TestResult::Ref result = f->Execute(library);
+    TestResult::Ref result = globalExit->Execute(library);
+    ResultSummary::Instance().AddResult(globalExit);
 
-            ResultSummary::Instance().AddResult(f);
-
-            if ((result->Result() == kTestResult_AllFail) || (result->Result() == kTestResult_TestFail)) {
-                if (Config::Instance().stopOnAllFail) {
-                    pLogger->Info("Total test failure, aborting");
-                    bRes = false;
-                }
-            }
+    if ((result->Result() == kTestResult_AllFail) || (result->Result() == kTestResult_TestFail)) {
+        if (Config::Instance().stopOnAllFail) {
+            pLogger->Info("Total test failure, aborting");
+            bRes = false;
         }
     }
+
     pLogger->Info("Done: test main exit\n\n");
     return bRes;
 
@@ -526,10 +526,10 @@ void TestRunner::PrepareTests() {
         // The 'TestScope' is a simplification for later
         if (func->IsGlobalMain()) {
             func->SetTestScope(TestFunc::kTestScope::kGlobal);
-            globals.push_back(func);
+            globalMain = func;
         } else if (func->IsGlobalExit()) {
             func->SetTestScope(TestFunc::kTestScope::kGlobal);
-            globals.push_back(func);
+            globalExit = func;
         } else {
             // These are library functions - and handled differently and with lower priority
             auto tModule = GetOrAddModule(moduleName);
@@ -640,11 +640,13 @@ void TestRunner::DumpTestsToRun() {
     int nModules = 0;
     int nTestCases = 0;
 
-    if (!globals.empty()) {
+    if ((globalMain != nullptr) || (globalExit != nullptr)){
         printf("%c Globals:\n", Config::Instance().testGlobalMain?'*':'-');
-        for (auto t: globals) {
-            printf("    ::%s (%s)\n", t->CaseName().c_str(), t->SymbolName().c_str());
-            nTestCases++;
+        if (globalMain != nullptr) {
+            printf("    ::%s (%s)\n", globalMain->CaseName().c_str(), globalMain->SymbolName().c_str());
+        }
+        if (globalExit != nullptr) {
+            printf("    ::%s (%s)\n", globalExit->CaseName().c_str(), globalExit->SymbolName().c_str());
         }
     }
     for(auto &[moduleName, module] : testModules) {

@@ -61,6 +61,8 @@ namespace trun {
         gnilk::ILogger *pLogger = nullptr;
         IDynLibrary::Ref library = nullptr;
         std::map<std::string, TestModule::Ref> testModules;
-        std::vector<TestFunc::Ref> globals;
+        //std::vector<TestFunc::Ref> globals;
+        TestFunc::Ref globalMain = nullptr;
+        TestFunc::Ref globalExit = nullptr;
     };
 }
