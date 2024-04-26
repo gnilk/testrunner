@@ -41,10 +41,10 @@ namespace trun {
         bool ExecuteMainExit();
         bool ExecuteGlobalTests();
         bool ExecuteModuleTests();
-        bool ExecuteModuleTestFuncs(TestModule::Ref testModule);
-        TestResult::Ref ExecuteModuleMain(const TestModule::Ref &testModule);
-        void ExecuteModuleExit(TestModule::Ref testModule);
-        TestResult::Ref ExecuteTest(const TestModule::Ref &testModule, const TestFunc::Ref &testCase);
+//        bool ExecuteModuleTestFuncs(TestModule::Ref testModule);
+//        TestResult::Ref ExecuteModuleMain(const TestModule::Ref &testModule);
+//        void ExecuteModuleExit(TestModule::Ref testModule);
+//        TestResult::Ref ExecuteTest(const TestModule::Ref &testModule, const TestFunc::Ref &testCase);
         void HandleTestResult(TestResult::Ref result);
         TestFunc::Ref CreateTestFunc(std::string sym);
 

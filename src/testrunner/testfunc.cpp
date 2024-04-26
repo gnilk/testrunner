@@ -41,6 +41,7 @@
 #include "testmodule.h"
 #include "responseproxy.h"
 #include "strutil.h"
+#include "resultsummary.h"
 #include <string>
 
 using namespace trun;
@@ -51,7 +52,6 @@ TestFunc::Ref TestFunc::Create(const std::string &use_symbolName, const std::str
 
 // Default CTOR only used for unit testing
 TestFunc::TestFunc() {
-    isExecuted = false;
     pLogger = gnilk::Logger::GetLogger("TestFunc");
 }
 
@@ -60,7 +60,6 @@ TestFunc::TestFunc(const std::string &use_symbolName, const std::string &use_mod
     moduleName = use_moduleName;
     caseName = use_caseName;
     testScope = kTestScope::kUnknown;
-    isExecuted = false;
     pLogger = gnilk::Logger::GetLogger("TestFunc");
     testResult = nullptr;
     testReturnCode = -1;
@@ -111,7 +110,8 @@ bool TestFunc::ShouldExecute() {
 */
 
 bool TestFunc::ShouldExecuteNoDeps() {
-    if (this->isExecuted) {
+    // Unless Idle - the rest doesn't matter...
+    if (State() != kState::Idle) {
         return false;
     }
     if ((testScope == kTestScope::kModuleMain) || (testScope == kTestScope::kModuleExit)) {
@@ -120,29 +120,6 @@ bool TestFunc::ShouldExecuteNoDeps() {
 
     return caseMatch(caseName, Config::Instance().testcases);
 }
-
-/*
-bool TestFunc::CheckDependenciesExecuted() {
-    // Check dependencies
-    for (auto depName : dependencies) {
-        //auto depFun = testModule->TestCaseFromName(depName);
-        TestFunc *depFun = nullptr;
-        if ((depFun == nullptr) || (depFun == this)) {
-            printf("WARNING: Can't depend on yourself!!!!!\n");
-            continue;
-        }
-
-        if (!depFun->isExecuted) {
-            if (!depFun->ShouldExecute()) {
-                pLogger->Warning("Case '%s' has dependency '%s' that won't be executed!!!", caseName.c_str(), depFun->caseName.c_str());
-            }
-            return false;
-        }
-    }
-    return true;
-}
- */
-
 
 void TestFunc::ExecuteSync() {
 
@@ -232,79 +209,118 @@ void TestFunc::ExecuteAsync() {
 #endif
 #endif
 
-void TestFunc::SetExecuted() {
-    isExecuted = true;
-}
 
 TestResult::Ref TestFunc::Execute(IDynLibrary::Ref dynlib) {
+    // Unless idle, we should not execute
+    if (State() != kState::Idle) {
+        return nullptr;
+    }
+
     pLogger->Debug("Executing test: %s", caseName.c_str());
     pLogger->Debug("  Module: %s", moduleName.c_str());
     pLogger->Debug("  Case..: %s", caseName.c_str());
     pLogger->Debug("  Export: %s", symbolName.c_str());
     pLogger->Debug("  Func..: %p", (void *)this);
-
-
-    //kTestResult testResult = kTestResult_NotExecuted;
-
-    // Executed?, issue warning, but proceed..
-    if (Executed()) {
-        pLogger->Warning("Test '%s' already executed - double execution is either bug or not advised!!", symbolName.c_str());
-    }
     pFunc = (PTESTFUNC)dynlib->FindExportedSymbol(symbolName);
-    if (pFunc != nullptr) {
-        //
-        // Actual execution of test function and handling of result
-        //
-        // Execute the test in it's own thread.
-        // This allows the test to be aborted when the response proxy is called
-        testResult = TestResult::Create(symbolName);
+    if (pFunc == nullptr) {
+        ChangeState(kState::Finished);
+        return nullptr;
+    }
 
-        auto currentModule = TestRunner::HACK_GetCurrentTestModule();
-        if (currentModule == nullptr) {
-            pLogger->Error("No module, can't execute!");
-            return nullptr;
-        }
 
-        auto &proxy = currentModule->GetTestResponseProxy();
-        proxy.Begin(symbolName, moduleName);
+    ChangeState(kState::Executing);
+    ExecuteDependencies(dynlib);
 
+    //
+    // Actual execution of test function and handling of result
+    //
+    // Execute the test in it's own thread.
+    // This allows the test to be aborted when the response proxy is called
+    testResult = TestResult::Create(symbolName);
+    auto currentModule = TestRunner::HACK_GetCurrentTestModule();
+    if (currentModule == nullptr) {
+        pLogger->Error("No module, can't execute!");
+        ChangeState(kState::Finished);
+        return nullptr;
+    }
+
+    auto &proxy = currentModule->GetTestResponseProxy();
+    proxy.Begin(symbolName, moduleName);
+
+    printf("=== RUN  \t%s\n",symbolName.c_str());
 #if defined(TRUN_HAVE_THREADS)
-        if (Config::Instance().enableThreadTestExecution == true) {
-            ExecuteAsync();
-            pLogger->Debug("Execute, thread done...\n");
-        } else {
-            ExecuteSync();
-        }
-#else
-        // If we don't have threads (i.e. embedded) - we simply just execute this...
+    if (Config::Instance().enableThreadTestExecution == true) {
+        ExecuteAsync();
+        pLogger->Debug("Execute, thread done...\n");
+    } else {
         ExecuteSync();
+    }
+#else
+    // If we don't have threads (i.e. embedded) - we simply just execute this...
+    ExecuteSync();
 #endif
 
-        // THIS IS PROBLEMATIC - I must 'start' where I end...
-        proxy.End();
+    // THIS IS PROBLEMATIC - I must 'start' where I end...
+    proxy.End();
 
-        testResult->SetAssertError(proxy.GetAssertError());
-        testResult->SetResult(proxy.Result());
-        testResult->SetNumberOfErrors(proxy.Errors());
-        testResult->SetNumberOfAsserts(proxy.Asserts());
-        testResult->SetTimeElapsedSec(proxy.ElapsedTimeInSec());
+    testResult->SetAssertError(proxy.GetAssertError());
+    testResult->SetResult(proxy.Result());
+    testResult->SetNumberOfErrors(proxy.Errors());
+    testResult->SetNumberOfAsserts(proxy.Asserts());
+    testResult->SetTimeElapsedSec(proxy.ElapsedTimeInSec());
 
-        // Should be done last..
-        testResult->SetTestResultFromReturnCode(testReturnCode);
-    } else {
-        pLogger->Error("Execute, unable to find exported symbol '%s' for case: %s\n", symbolName.c_str(), caseName.c_str());
-    }
-    SetExecuted();
+    // Should be done last..
+    testResult->SetTestResultFromReturnCode(testReturnCode);
+    PrintTestResult();
 
+    // FIXME:
+    //ResultSummary::Instance().AddResult();
+
+    ChangeState(kState::Finished);
     return testResult;
 }
 
-bool TestFunc::Executed() {
-    return isExecuted;
+void TestFunc::PrintTestResult() {
+    double tElapsedSec = testResult->ElapsedTimeSec();
+    if (testResult->Result() != kTestResult_Pass) {
+        if (testResult->Result() == kTestResult_InvalidReturnCode) {
+
+            printf("=== INVALID RETURN CODE (%d) for %s", testResult->Result(), testResult->SymbolName().c_str());
+        } else {
+            //std::string failState = testResult->FailState() == TestResult::kFailState::PreHook?"pre-hook"
+            if (testResult->FailState() == TestResult::kFailState::Main) {
+                printf("=== FAIL:\t%s, %.3f sec, %d, %d, %d\n", testResult->SymbolName().c_str(), tElapsedSec,
+                       testResult->Result(), testResult->Errors(), testResult->Asserts());
+            } else {
+                printf("=== FAIL:\t%s (%s), %.3f sec, %d, %d, %d\n",
+                       testResult->SymbolName().c_str(),
+                       testResult->FailStateName().c_str(),
+                       tElapsedSec,
+                       testResult->Result(), testResult->Errors(), testResult->Asserts());
+            }
+        }
+    } else {
+        if ((testResult->Errors() != 0) || (testResult->Asserts() != 0)) {
+            printf("=== FAIL:\t%s, %.3f sec, %d, %d, %d\n",testResult->SymbolName().c_str(), tElapsedSec, testResult->Result(), testResult->Errors(), testResult->Asserts());
+        } else {
+            printf("=== PASS:\t%s, %.3f sec, %d\n",testResult->SymbolName().c_str(),tElapsedSec, testResult->Result());
+        }
+    }
+    printf("\n");
 }
 
 
-void TestFunc::SetDependencyList(const char *dependencyList) {
-    pLogger->Debug("Setting dependency for '%s' (%s) to: %s", caseName.c_str(), symbolName.c_str(), dependencyList);
-    trun::split(dependencies, dependencyList, ',');
+void TestFunc::ExecuteDependencies(IDynLibrary::Ref dynlib) {
+    for (auto &func : dependencies) {
+        if (!func->IsIdle()) {
+            continue;
+        }
+        Execute(dynlib);
+    }
 }
+
+void TestFunc::AddDependency(TestFunc::Ref depCase) {
+    pLogger->Debug("Add '%s' as dependency for '%s' (%s)", depCase->symbolName.c_str(), caseName.c_str(), symbolName.c_str());
+    dependencies.push_back(depCase);
+}
+

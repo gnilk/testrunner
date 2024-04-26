@@ -96,11 +96,7 @@ void TestRunner::ExecuteTests() {
 
     // 1) Execute main
     if (ExecuteMain()) {
-        // 2) Execute global
-        if (ExecuteGlobalTests()) {
-            // 3) Execute modules
-            ExecuteModuleTests();
-        }
+        ExecuteModuleTests();
         ExecuteMainExit();
     }
 
@@ -120,12 +116,13 @@ bool TestRunner::ExecuteMain() {
 
     pLogger->Info("Executing Main");
 
+    // Store main/exit separately when we scan..
     for (auto f:globals) {
         if (f->IsGlobalMain()) {
             auto dummy = TestModule::Create("_dummy-main_");
             hack_glbCurrentTestModule = dummy;
-            TestResult::Ref result = ExecuteTest(dummy, f);
-            HandleTestResult(result);
+            TestResult::Ref result = f->Execute(library);
+            ResultSummary::Instance().AddResult(f);
             if ((result->Result() == kTestResult_AllFail) || (result->Result() == kTestResult_TestFail)) {
                 if (Config::Instance().stopOnAllFail) {
                     pLogger->Info("Total test failure, aborting");
@@ -152,8 +149,10 @@ bool TestRunner::ExecuteMainExit() {
             auto dummy = TestModule::Create("_dummy-main_");
             hack_glbCurrentTestModule = dummy;
 
-            TestResult::Ref result = ExecuteTest(dummy, f);
-            HandleTestResult(result);
+            TestResult::Ref result = f->Execute(library);
+
+            ResultSummary::Instance().AddResult(f);
+
             if ((result->Result() == kTestResult_AllFail) || (result->Result() == kTestResult_TestFail)) {
                 if (Config::Instance().stopOnAllFail) {
                     pLogger->Info("Total test failure, aborting");
@@ -167,27 +166,6 @@ bool TestRunner::ExecuteMainExit() {
 
 }
 
-//
-// Execute any global test but main, returns false on test-fail (ModuleFail/AllFail)
-//
-bool TestRunner::ExecuteGlobalTests() {
-    // 2) all other global scope tests
-    // Filtering in global tests is a bit different as the test func has no library.
-    bool bRes = true;
-    if (!Config::Instance().testModuleGlobals) {
-        return bRes;
-    }
-    pLogger->Info("Executing global tests");
-
-    for (auto f:globals) {
-        if (f->Executed()) {
-            continue;
-        }
-    }
-
-    pLogger->Info("Done: global tests\n\n");
-    return bRes;
-}
 
 //
 // Execute library test
@@ -229,7 +207,8 @@ bool TestRunner::ExecuteModuleTests() {
                 std::cout << "*** thread="<< std::this_thread::get_id();
                 printf(", glbCurrentTestModule=%p, supplied=%p\n", ptrRaw,(void *)testModule.get());
                 // end wacko
-                ExecuteModuleTestFuncs(testModule);
+
+                testModule->ExecuteTests(library);
                 testModule->bExecuted = true;
             });
             threads.push_back(std::move(thread));
@@ -239,7 +218,7 @@ bool TestRunner::ExecuteModuleTests() {
 
         } else {
             hack_glbCurrentTestModule = testModule;
-            ExecuteModuleTestFuncs(testModule);
+            testModule->ExecuteTests(library);
             testModule->bExecuted = true;
             hack_glbCurrentTestModule = nullptr;
 
@@ -260,86 +239,85 @@ bool TestRunner::ExecuteModuleTests() {
     return bRes;
 }
 
-bool TestRunner::ExecuteModuleTestFuncs(TestModule::Ref testModule) {
-    bool bRes = true;
-
-    if (Config::Instance().testModuleGlobals) {
-        auto mainResult = ExecuteModuleMain(testModule);
-        if ((mainResult != nullptr) && (mainResult->Result() != kTestResult_Pass)) {
-            return false;
-        }
-    }
-
-    // Resolve dependencies, this is after 'main' has run and they are now configured...
-    testModule->ResolveDependencies();
-
-    // Execute dependencies
-    for(auto depFunc : testModule->Dependencies()) {
-        std::vector<TestFunc::Ref> deps = {};
-        auto runResult = ExecuteTestWithDependencies(testModule, depFunc, deps);
-        if (runResult != kRunResultAction::kContinue) {
-            if (runResult == kRunResultAction::kAbortAll) {
-                bRes = false;
-            }
-            goto leave;
-        }
-    }
-
-    // Execute test functions
-    for (auto testFunc: testModule->testFuncs) {
-        if (!testFunc->ShouldExecuteNoDeps()) {
-            continue;
-        }
-        std::vector<TestFunc::Ref> deps = {};
-        auto runResult = ExecuteTestWithDependencies(testModule, testFunc, deps);
-        if (runResult != kRunResultAction::kContinue) {
-            if (runResult == kRunResultAction::kAbortAll) {
-                bRes = false;
-            }
-            goto leave;
-        }
-    }
-leave:
-    if (Config::Instance().testModuleGlobals) {
-        ExecuteModuleExit(testModule);
-    }
-
-    return bRes;
-}
-
-
-// Recursive call...
-TestRunner::kRunResultAction TestRunner::ExecuteTestWithDependencies(const TestModule::Ref &testModule, TestFunc::Ref testCase,  std::vector<TestFunc::Ref> &deps) {
-
-    if (testCase->Executed()) {
-        return kRunResultAction::kContinue;
-    }
-
-    pLogger->Debug("ExecuteTestWithDependencies: %s", testCase->SymbolName().c_str());
-
-    if (testModule->ResolveDependenciesForTest(deps, testCase)) {
-        for(const auto &depTestCase : deps) {
-            // Is this dependency already executed?
-            if (depTestCase->Executed()) continue;
-
-            // Call ourselves recursively...
-            auto runResultAction = ExecuteTestWithDependencies(testModule, depTestCase, deps);
-            if (runResultAction != kRunResultAction::kContinue) {
-                return runResultAction;
-            }
-        }
-    }
-
-    // Was this test already executed somewhere due to dependency resolution - skip any further execution...
-    if (testCase->Executed()) {
-        return CheckResultIfContinue(testCase->Result());
-    }
-
-    auto testResult = ExecuteTest(testModule, testCase);
-
-    HandleTestResult(testResult);
-    return CheckResultIfContinue(testResult);
-}
+//bool TestRunner::ExecuteModuleTestFuncs(TestModule::Ref testModule) {
+//    bool bRes = true;
+//
+//    if (Config::Instance().testModuleGlobals) {
+//        auto mainResult = ExecuteModuleMain(testModule);
+//        if ((mainResult != nullptr) && (mainResult->Result() != kTestResult_Pass)) {
+//            return false;
+//        }
+//    }
+//
+//    // Resolve dependencies, this is after 'main' has run and they are now configured...
+//    testModule->ResolveDependencies();
+//
+//    // Execute dependencies
+//    for(auto depFunc : testModule->Dependencies()) {
+//        std::vector<TestFunc::Ref> deps = {};
+//        auto runResult = ExecuteTestWithDependencies(testModule, depFunc, deps);
+//        if (runResult != kRunResultAction::kContinue) {
+//            if (runResult == kRunResultAction::kAbortAll) {
+//                bRes = false;
+//            }
+//            goto leave;
+//        }
+//    }
+//
+//    // Execute test functions
+//    for (auto testFunc: testModule->testFuncs) {
+//        if (!testFunc->ShouldExecuteNoDeps()) {
+//            continue;
+//        }
+//        std::vector<TestFunc::Ref> deps = {};
+//        auto runResult = ExecuteTestWithDependencies(testModule, testFunc, deps);
+//        if (runResult != kRunResultAction::kContinue) {
+//            if (runResult == kRunResultAction::kAbortAll) {
+//                bRes = false;
+//            }
+//            goto leave;
+//        }
+//    }
+//leave:
+//    if (Config::Instance().testModuleGlobals) {
+//        ExecuteModuleExit(testModule);
+//    }
+//
+//    return bRes;
+//}
+//
+//
+//// Recursive call...
+//TestRunner::kRunResultAction TestRunner::ExecuteTestWithDependencies(const TestModule::Ref &testModule, TestFunc::Ref testCase,  std::vector<TestFunc::Ref> &deps) {
+//
+//    if (!testCase->Executed()) {
+//        return kRunResultAction::kContinue;
+//    }
+//
+//    pLogger->Debug("ExecuteTestWithDependencies: %s", testCase->SymbolName().c_str());
+//
+//    if (testModule->ResolveDependenciesForTest(deps, testCase)) {
+//        for(const auto &depTestCase : deps) {
+//            // Is this dependency already executed?
+//            if (depTestCase->Executed()) continue;
+//
+//            // Call ourselves recursively...
+//            auto runResultAction = ExecuteTestWithDependencies(testModule, depTestCase, deps);
+//            if (runResultAction != kRunResultAction::kContinue) {
+//                return runResultAction;
+//            }
+//        }
+//    }
+//
+//    // Was this test already executed somewhere due to dependency resolution - skip any further execution...
+//    if (testCase->Executed()) {
+//        return CheckResultIfContinue(testCase->Result());
+//    }
+//
+//    auto testResult = ExecuteTest(testModule, testCase);
+//
+//    return CheckResultIfContinue(testResult);
+//}
 
 TestRunner::kRunResultAction TestRunner::CheckResultIfContinue(const TestResult::Ref &result) const {
     if (result->Result() == kTestResult_ModuleFail) {
@@ -362,70 +340,67 @@ TestRunner::kRunResultAction TestRunner::CheckResultIfContinue(const TestResult:
 }
 
 // Returns true if testing is to continue false otherwise..
-TestResult::Ref TestRunner::ExecuteModuleMain(const TestModule::Ref &testModule) {
-    if (testModule->mainFunc == nullptr) return nullptr;
-
-    TestResult::Ref result = ExecuteTest(testModule, testModule->mainFunc);
-    if (result == nullptr) {
-        pLogger->Error("Test result for main is NULL!!!");
-        return nullptr;
-    }
-    HandleTestResult(result);
-    return result;
-}
-
-void TestRunner::ExecuteModuleExit(TestModule::Ref testModule) {
-    if (testModule->exitFunc == nullptr) return;
-    // Try call exit function on leave...
-    TestResult::Ref result = ExecuteTest(testModule, testModule->exitFunc);
-    if (result == nullptr) {
-        pLogger->Error("Test result for exit is NULL!!!");
-        return;
-    }
-
-    HandleTestResult(result);
-    if (result->Result() != kTestResult_Pass) {
-        pLogger->Error("Module exit failed");
-    }
-}
+//TestResult::Ref TestRunner::ExecuteModuleMain(const TestModule::Ref &testModule) {
+//    if (testModule->mainFunc == nullptr) return nullptr;
+//
+//    TestResult::Ref result = ExecuteTest(testModule, testModule->mainFunc);
+//    if (result == nullptr) {
+//        pLogger->Error("Test result for main is NULL!!!");
+//        return nullptr;
+//    }
+//    return result;
+//}
+//
+//void TestRunner::ExecuteModuleExit(TestModule::Ref testModule) {
+//    if (testModule->exitFunc == nullptr) return;
+//    // Try call exit function on leave...
+//    TestResult::Ref result = ExecuteTest(testModule, testModule->exitFunc);
+//    if (result == nullptr) {
+//        pLogger->Error("Test result for exit is NULL!!!");
+//        return;
+//    }
+//
+//    if (result->Result() != kTestResult_Pass) {
+//        pLogger->Error("Module exit failed");
+//    }
+//}
 
 
 
 
 //
-// Execute a test function and decorate it
+// Execute a test function, with pre/post hooking
 //
-TestResult::Ref TestRunner::ExecuteTest(const TestModule::Ref &testModule, const TestFunc::Ref &testCase) {
-    printf("=== RUN  \t%s\n",testCase->SymbolName().c_str());
-
-
-    // Invoke pre-test hook, if set - this is usually done during test_main for a specific library
-    // v2 - Don't invoke pre/post for main/exit functions
-    if ((testModule != nullptr) && (testModule->cbPreHook != nullptr) && (testCase->TestScope() != TestFunc::kTestScope::kModuleMain) && (testCase->TestScope() != TestFunc::kTestScope::kModuleExit)) {
-        // FIXME: If this fails - we need to signal it specifically, requires some refactoring of test-result handling
-        TestResult::Ref preResult = ExecuteModulePrePostHook(testModule, testCase, kRunPrePostHook::kRunPreHook);
-        if (preResult != nullptr) {
-            return preResult;
-        }
-    }
-    // Execute the test...
-    TestResult::Ref result = testCase->Execute(library);
-
-    // Invoke post-test hook, if set - this is usually done during test_main for a specific library
-    // v2 - Don't invoke pre/post for main/exit functions
-    if ((testModule != nullptr) && (testModule->cbPostHook != nullptr) && (testCase->TestScope() != TestFunc::kTestScope::kModuleMain) && (testCase->TestScope() != TestFunc::kTestScope::kModuleExit)) {
-        // FIXME: if this fails - we need to singal it specifically, requires some refactoring of test-result handling
-        //testModule->cbPostHook(TestResponseProxy::Instance().Proxy());
-        //testModule->cbPostHook(TestRunner::HACK_GetCurrentTestModule()->GetTestResponseProxy().Proxy());
-        TestResult::Ref postResult = ExecuteModulePrePostHook(testModule, testCase, kRunPrePostHook::kRunPostHook);
-        if (postResult != nullptr) {
-            return postResult;
-        }
-    }
-
-    ResultSummary::Instance().AddResult(testCase);
-    return result;
-}
+//TestResult::Ref TestRunner::ExecuteTest(const TestModule::Ref &testModule, const TestFunc::Ref &testCase) {
+//    printf("=== RUN  \t%s\n",testCase->SymbolName().c_str());
+//    // Invoke pre-test hook, if set - this is usually done during test_main for a specific library
+//    // v2 - Don't invoke pre/post for main/exit functions
+//    if ((testModule != nullptr) && (testModule->cbPreHook != nullptr) && (testCase->TestScope() != TestFunc::kTestScope::kModuleMain) && (testCase->TestScope() != TestFunc::kTestScope::kModuleExit)) {
+//        TestResult::Ref preResult = ExecuteModulePrePostHook(testModule, testCase, kRunPrePostHook::kRunPreHook);
+//        if (preResult != nullptr) {
+//            return preResult;
+//        }
+//    }
+//
+//    // Execute the test...
+//    TestResult::Ref result = testCase->Execute(library);
+//
+//    // Invoke post-test hook, if set - this is usually done during test_main for a specific library
+//    // v2 - Don't invoke pre/post for main/exit functions
+//    if ((testModule != nullptr) && (testModule->cbPostHook != nullptr) && (testCase->TestScope() != TestFunc::kTestScope::kModuleMain) && (testCase->TestScope() != TestFunc::kTestScope::kModuleExit)) {
+//        // FIXME: if this fails - we need to singal it specifically, requires some refactoring of test-result handling
+//        //testModule->cbPostHook(TestResponseProxy::Instance().Proxy());
+//        //testModule->cbPostHook(TestRunner::HACK_GetCurrentTestModule()->GetTestResponseProxy().Proxy());
+//        TestResult::Ref postResult = ExecuteModulePrePostHook(testModule, testCase, kRunPrePostHook::kRunPostHook);
+//        if (postResult != nullptr) {
+//            return postResult;
+//        }
+//    }
+//
+//    HandleTestResult(result);
+//    ResultSummary::Instance().AddResult(testCase);
+//    return result;
+//}
 
 // This is quite convoluted - I need a better module
 // Consider creating a base like; 'TestCaseBase' and then 2/3 specializations; 'TestCase', 'TestCasePrePostHooks'
@@ -433,6 +408,7 @@ TestResult::Ref TestRunner::ExecuteTest(const TestModule::Ref &testModule, const
 //
 // Worth to notices - Pre/Post are special in that they aren't loaded through the dylib but rather constructed..
 //
+/*
 TestResult::Ref TestRunner::ExecuteModulePrePostHook(const TestModule::Ref &testModule, const TestFunc::Ref &testCase, kRunPrePostHook runHook) {
     // Some pre-verification checks, this makes it easier to set breakpoints...
     if (testModule == nullptr) return nullptr;
@@ -484,45 +460,44 @@ TestResult::Ref TestRunner::ExecuteModulePrePostHook(const TestModule::Ref &test
     result->SetNumberOfAsserts(proxy.Asserts());
     result->SetNumberOfErrors(proxy.Errors());
 
-    testCase->SetExecuted();
     testCase->SetResultFromPrePostExec(result);
     ResultSummary::Instance().AddResult(testCase);
 
     return result;
-
 }
+ */
 
 //
 // Handle the test result and print decoration
 //
-void TestRunner::HandleTestResult(TestResult::Ref result) {
-    double tElapsedSec = result->ElapsedTimeSec();
-    if (result->Result() != kTestResult_Pass) {
-        if (result->Result() == kTestResult_InvalidReturnCode) {
-
-            printf("=== INVALID RETURN CODE (%d) for %s", result->Result(), result->SymbolName().c_str());
-        } else {
-            //std::string failState = result->FailState() == TestResult::kFailState::PreHook?"pre-hook"
-            if (result->FailState() == TestResult::kFailState::Main) {
-                printf("=== FAIL:\t%s, %.3f sec, %d, %d, %d\n", result->SymbolName().c_str(), tElapsedSec,
-                       result->Result(), result->Errors(), result->Asserts());
-            } else {
-                printf("=== FAIL:\t%s (%s), %.3f sec, %d, %d, %d\n",
-                       result->SymbolName().c_str(),
-                       result->FailStateName().c_str(),
-                       tElapsedSec,
-                       result->Result(), result->Errors(), result->Asserts());
-            }
-        }
-    } else {
-        if ((result->Errors() != 0) || (result->Asserts() != 0)) {
-            printf("=== FAIL:\t%s, %.3f sec, %d, %d, %d\n",result->SymbolName().c_str(), tElapsedSec, result->Result(), result->Errors(), result->Asserts());
-        } else {
-            printf("=== PASS:\t%s, %.3f sec, %d\n",result->SymbolName().c_str(),tElapsedSec, result->Result());
-        }
-    }
-    printf("\n");
-}
+//void TestRunner::HandleTestResult(TestResult::Ref result) {
+//    double tElapsedSec = result->ElapsedTimeSec();
+//    if (result->Result() != kTestResult_Pass) {
+//        if (result->Result() == kTestResult_InvalidReturnCode) {
+//
+//            printf("=== INVALID RETURN CODE (%d) for %s", result->Result(), result->SymbolName().c_str());
+//        } else {
+//            //std::string failState = result->FailState() == TestResult::kFailState::PreHook?"pre-hook"
+//            if (result->FailState() == TestResult::kFailState::Main) {
+//                printf("=== FAIL:\t%s, %.3f sec, %d, %d, %d\n", result->SymbolName().c_str(), tElapsedSec,
+//                       result->Result(), result->Errors(), result->Asserts());
+//            } else {
+//                printf("=== FAIL:\t%s (%s), %.3f sec, %d, %d, %d\n",
+//                       result->SymbolName().c_str(),
+//                       result->FailStateName().c_str(),
+//                       tElapsedSec,
+//                       result->Result(), result->Errors(), result->Asserts());
+//            }
+//        }
+//    } else {
+//        if ((result->Errors() != 0) || (result->Asserts() != 0)) {
+//            printf("=== FAIL:\t%s, %.3f sec, %d, %d, %d\n",result->SymbolName().c_str(), tElapsedSec, result->Result(), result->Errors(), result->Asserts());
+//        } else {
+//            printf("=== PASS:\t%s, %.3f sec, %d\n",result->SymbolName().c_str(),tElapsedSec, result->Result());
+//        }
+//    }
+//    printf("\n");
+//}
 
 //
 // PrepareTests, creates test functions and sorts the tests into global and/or library based tests

@@ -12,6 +12,7 @@
 #include "strutil.h"
 #include <string>
 #include <memory>
+#include <unordered_map>
 
 namespace trun {
 //
@@ -31,19 +32,18 @@ namespace trun {
         bool ShouldExecute() const;
 
         TestFunc::Ref TestCaseFromName(const std::string &caseName) const;
-        void SetDependencyForCase(const char *caseName, const char *dependencyList);
         TestResponseProxy &GetTestResponseProxy() {
             return testResponseProxy;
         }
 
-        const std::vector<TestFunc::Ref> Dependencies() const {
-            return dependencies;
-        }
-        bool HaveDependency(const TestFunc::Ref &func) const;
+        void ExecuteTests(IDynLibrary::Ref dynlib);
+        void ExecuteMain(IDynLibrary::Ref dynlib);
+        void ExecuteExit(IDynLibrary::Ref dynlib);
 
-        void ResolveDependencies();
-        size_t ResolveDependenciesForTest(std::vector<TestFunc::Ref> &outDeps, const TestFunc::Ref &testFunc) const;
+        void AddDependencyForCase(const std::string &caseName, const std::string &dependencyList);
+
     private:
+        std::unordered_map<std::string, std::vector<std::string>> caseDependencyList;
     public:
         std::string name;
         bool bExecuted = false;

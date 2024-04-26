@@ -248,7 +248,7 @@ void TestResponseProxy::SetPostCaseCallback(TRUN_PRE_POST_HOOK_DELEGATE cbPostCa
 void TestResponseProxy::CaseDepends(const char *caseName, const char *dependencyList) {
     auto testModule = TestRunner::HACK_GetCurrentTestModule();
     if (testModule != nullptr) {
-        testModule->SetDependencyForCase(caseName, dependencyList);
+        testModule->AddDependencyForCase(caseName, dependencyList);
     }
 }
 

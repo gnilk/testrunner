@@ -16,6 +16,7 @@
 #include "testhooks.h"
 #include "testmodule.h"
 #include "strutil.h"
+#include "resultsummary.h"
 
 
 using namespace trun;
@@ -33,6 +34,64 @@ bool TestModule::ShouldExecute() const {
     return caseMatch(name, Config::Instance().modules);
 }
 
+void TestModule::ExecuteTests(IDynLibrary::Ref dynlib) {
+    ExecuteMain(dynlib);
+    for (auto &func : testFuncs) {
+        // FIXME: Execute post/pre hooks!!!
+
+        // Should just return true/false
+        auto result = func->Execute(dynlib);
+        if (result != nullptr) {
+            ResultSummary::Instance().AddResult(func);
+        }
+    }
+    ExecuteExit(dynlib);
+}
+
+void TestModule::ExecuteMain(IDynLibrary::Ref dynlib) {
+    if (mainFunc == nullptr) return;
+    if (!Config::Instance().testModuleGlobals) return;
+
+    auto testResult = mainFunc->Execute(dynlib);
+    if (testResult != nullptr) {
+        ResultSummary::Instance().AddResult(mainFunc);
+    }
+
+
+    return;
+}
+void TestModule::ExecuteExit(IDynLibrary::Ref dynlib) {
+    if (exitFunc == nullptr) return;
+    if (!Config::Instance().testModuleGlobals) return;
+
+    auto testResult = exitFunc->Execute(dynlib);
+
+    if (testResult != nullptr) {
+        ResultSummary::Instance().AddResult(mainFunc);
+    }
+
+    return;
+}
+
+void TestModule::AddDependencyForCase(const std::string &caseName, const std::string &dependencyList) {
+    std::vector<std::string> deplist;
+    trun::split(deplist, dependencyList.c_str(), ',');
+
+    auto tc = TestCaseFromName(caseName);
+    if (tc == nullptr) {
+        // FIXME: Log error
+        return;
+    }
+    for(auto &dep : deplist) {
+        auto tc_dep = TestCaseFromName(dep);
+        if (tc == nullptr) {
+            // FIXME: log error
+            continue;
+        }
+        tc->AddDependency(tc_dep);
+    }
+}
+
 TestFunc::Ref TestModule::TestCaseFromName(const std::string &caseName) const {
     for (auto func: testFuncs) {
         if (func->CaseName() == caseName) {
@@ -40,63 +99,6 @@ TestFunc::Ref TestModule::TestCaseFromName(const std::string &caseName) const {
         }
     }
     return nullptr;
-}
-
-
-void TestModule::SetDependencyForCase(const char *caseName, const char *dependencyList) {
-    std::string strName(caseName);
-    for (auto func: testFuncs) {
-        if (func->CaseName() == caseName) {
-            func->SetDependencyList(dependencyList);
-        }
-    }
-}
-
-void TestModule::ResolveDependencies() {
-    auto pLogger = gnilk::Logger::GetLogger("TestModule");
-
-    for (auto testFunc: testFuncs) {
-        if (testFunc->ShouldExecuteNoDeps()) {
-            for(auto &dep : testFunc->Dependencies()) {
-                auto depFunc = TestCaseFromName(dep);
-                // Add if not already present...
-                if (depFunc == nullptr) {
-                    pLogger->Error("Non-existing dependency '%s' for test '%s'", dep.c_str(), testFunc->SymbolName().c_str());
-                    continue;
-                }
-                if (!HaveDependency(depFunc)) {
-                    pLogger->Info("Case '%s' has dependency '%s', added to dependency list",
-                                  testFunc->CaseName().c_str(), dep.c_str());
-                    dependencies.push_back(depFunc);
-                }
-            }
-        }
-    }
-}
-
-// inOutDeps - is a list with dependencies, first call should populate it empty and if recursively following dependencies it is also checked so we don't add them twice..
-// Return value is the newly added cases...
-size_t TestModule::ResolveDependenciesForTest(std::vector<TestFunc::Ref> &inOutDeps, const TestFunc::Ref &testFunc) const {
-    size_t added = 0;
-    for(auto &dep : testFunc->Dependencies()) {
-        auto depFunc = TestCaseFromName(dep);
-        // This failure should already be printed
-        if (depFunc == nullptr) {
-            continue;
-        }
-        // Add if not already present...
-        if (std::find(inOutDeps.begin(), inOutDeps.end(), depFunc) == inOutDeps.end()) {
-            inOutDeps.push_back(depFunc);
-            added++;
-        }
-    }
-    return added;
-}
-
-
-
-bool TestModule::HaveDependency(const TestFunc::Ref &func) const {
-    return (std::find(dependencies.begin(), dependencies.end(), func) != dependencies.end());
 }
 
 

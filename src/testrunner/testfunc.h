@@ -20,7 +20,11 @@ namespace trun {
     class TestFunc {
     public:
         using Ref = std::shared_ptr<TestFunc>;
-
+        enum class kState {
+            Idle,
+            Executing,
+            Finished,
+        };
         enum class kTestScope {
             kUnknown,
             kGlobal,
@@ -39,8 +43,7 @@ namespace trun {
         bool IsGlobalMain();
         bool IsGlobalExit();
         TestResult::Ref Execute(IDynLibrary::Ref module);
-        void SetExecuted();
-        bool Executed();
+
         // This was the old function - which also verified dependencies
         __inline bool ShouldExecute() {
             return ShouldExecuteNoDeps();
@@ -52,8 +55,8 @@ namespace trun {
         void SetLibrary(IDynLibrary::Ref dynLibrary) { library = dynLibrary; }
         const IDynLibrary::Ref Library() const { return library; }
 
-        void SetDependencyList(const char *dependencyList);
-        const std::vector<std::string> &Dependencies() const { return dependencies; }
+        void AddDependency(TestFunc::Ref depCase);
+        const std::vector<TestFunc::Ref> &Dependencies() const { return dependencies; }
 
         void SetTestScope(kTestScope scope) {
             testScope = scope;
@@ -65,6 +68,8 @@ namespace trun {
         const TestResult::Ref Result() const { return testResult; }
         kTestScope TestScope() { return testScope; }
 
+        bool IsIdle() { return (state == kState::Idle); }
+        kState State() { return state; }
 
         // I use this in the unit test in order to create a mock-up result...
         void UTEST_SetMockResultPtr(TestResult::Ref pMockResult) { testResult = pMockResult; }
@@ -80,19 +85,27 @@ namespace trun {
             void ExecuteAsync();
 #endif
 #endif
+
+    private:
+        void PrintTestResult();
+        void ExecuteDependencies(IDynLibrary::Ref dynlib);
+        void ChangeState(kState newState) {
+            state = newState;
+        }
     private:
         std::string symbolName;
         std::string moduleName;
         std::string caseName;
 
+        kState state = kState::Idle;
+
         kTestScope testScope = kTestScope::kUnknown;
-        bool isExecuted = false;
         gnilk::ILogger *pLogger = nullptr;
 
         IDynLibrary::Ref library = nullptr;
 
         //TestResponseProxy *trp = nullptr;
-        std::vector<std::string> dependencies;
+        std::vector<TestFunc::Ref> dependencies;
 
         PTESTFUNC pFunc = nullptr;
         int testReturnCode = -1;
