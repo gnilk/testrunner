@@ -145,13 +145,24 @@ bool TestFunc::CheckDependenciesExecuted() {
 
 
 void TestFunc::ExecuteSync() {
-    // 1) Setup test response proxy
-    // This is currently a global instance - not good!
 
-    // Begin test
-    TestResponseProxy::Instance().Begin(symbolName, moduleName);
+    // Begin test, note: THIS MUST BE DONE HERE - in case of threading!
+    auto currentModule = TestRunner::HACK_GetCurrentTestModule();
+    if (currentModule == nullptr) {
+        pLogger->Error("No module, can't execute!");
+        return;
+    }
+    auto &proxy = currentModule->GetTestResponseProxy();
+    // If we have enabled threaded test-execution but not parallel, the thread_local's will be local to the test-case functionality
+    // I should not allow that combo...
+    if (Config::Instance().enableThreadTestExecution && !Config::Instance().enableParallelTestExecution) {
+        proxy.Begin(symbolName, moduleName);
+    }
+    testReturnCode = pFunc((void *) proxy.GetExtInterface());
+
     // Actual call to test function (in shared lib)
-    testReturnCode = pFunc((void *)TestResponseProxy::Instance().Proxy());
+    //TestResponseProxy::Instance().Begin(symbolName, moduleName);
+    //testReturnCode = pFunc((void *)TestResponseProxy::Instance().Proxy());
 }
 
 #ifdef WIN32
@@ -170,12 +181,19 @@ void TestFunc::ExecuteAsync() {
 }
 
 #else
+
+struct ThreadArg {
+    TestFunc *testFunc;
+    TestModule::Ref testModule;
+};
+
 // Pthread wrapper..
 #ifdef TRUN_HAVE_THREADS
 static void *testfunc_thread_starter(void *arg) {
-    // NOTE: Should not be 'TestFunc::Ref' - called with 'this' as the 'void *' param from within 'TestFunc'
-    TestFunc *func = reinterpret_cast<TestFunc*>(arg);
-    func->ExecuteSync();
+    auto threadArg = reinterpret_cast<ThreadArg *>(arg);
+
+    TestRunner::HACK_SetCurrentTestModule(threadArg->testModule);
+    threadArg->testFunc->ExecuteSync();
     // Return NULL here as this is a C callback..
     return NULL;
 }
@@ -198,7 +216,12 @@ void TestFunc::ExecuteAsync() {
             }
         }
 
-        if ((err = pthread_create(&hThread,&attr,testfunc_thread_starter, this))) {
+        auto threadArg = ThreadArg {
+            .testFunc = this,
+            .testModule = TestRunner::HACK_GetCurrentTestModule(),
+        };
+
+        if ((err = pthread_create(&hThread,&attr,testfunc_thread_starter, &threadArg))) {
             pLogger->Error("pthread_create, failed with code: %d\n", err);
             exit(1);
         }
@@ -209,7 +232,11 @@ void TestFunc::ExecuteAsync() {
 #endif
 #endif
 
-TestResult::Ref TestFunc::Execute(IDynLibrary::Ref module) {
+void TestFunc::SetExecuted() {
+    isExecuted = true;
+}
+
+TestResult::Ref TestFunc::Execute(IDynLibrary::Ref dynlib) {
     pLogger->Debug("Executing test: %s", caseName.c_str());
     pLogger->Debug("  Module: %s", moduleName.c_str());
     pLogger->Debug("  Case..: %s", caseName.c_str());
@@ -223,7 +250,7 @@ TestResult::Ref TestFunc::Execute(IDynLibrary::Ref module) {
     if (Executed()) {
         pLogger->Warning("Test '%s' already executed - double execution is either bug or not advised!!", symbolName.c_str());
     }
-    pFunc = (PTESTFUNC)module->FindExportedSymbol(symbolName);
+    pFunc = (PTESTFUNC)dynlib->FindExportedSymbol(symbolName);
     if (pFunc != nullptr) {
         //
         // Actual execution of test function and handling of result
@@ -232,8 +259,17 @@ TestResult::Ref TestFunc::Execute(IDynLibrary::Ref module) {
         // This allows the test to be aborted when the response proxy is called
         testResult = TestResult::Create(symbolName);
 
+        auto currentModule = TestRunner::HACK_GetCurrentTestModule();
+        if (currentModule == nullptr) {
+            pLogger->Error("No module, can't execute!");
+            return nullptr;
+        }
+
+        auto &proxy = currentModule->GetTestResponseProxy();
+        proxy.Begin(symbolName, moduleName);
+
 #if defined(TRUN_HAVE_THREADS)
-        if (Config::Instance().enableThreadTestExecution) {
+        if (Config::Instance().enableThreadTestExecution == true) {
             ExecuteAsync();
             pLogger->Debug("Execute, thread done...\n");
         } else {
@@ -244,12 +280,15 @@ TestResult::Ref TestFunc::Execute(IDynLibrary::Ref module) {
         ExecuteSync();
 #endif
 
-        TestResponseProxy::Instance().End();
-        testResult->SetAssertError(TestResponseProxy::Instance().GetAssertError());
-        testResult->SetResult(TestResponseProxy::Instance().Result());
-        testResult->SetNumberOfErrors(TestResponseProxy::Instance().Errors());
-        testResult->SetNumberOfAsserts(TestResponseProxy::Instance().Asserts());
-        testResult->SetTimeElapsedSec(TestResponseProxy::Instance().ElapsedTimeInSec());
+        // THIS IS PROBLEMATIC - I must 'start' where I end...
+        proxy.End();
+
+        testResult->SetAssertError(proxy.GetAssertError());
+        testResult->SetResult(proxy.Result());
+        testResult->SetNumberOfErrors(proxy.Errors());
+        testResult->SetNumberOfAsserts(proxy.Asserts());
+        testResult->SetTimeElapsedSec(proxy.ElapsedTimeInSec());
+
         // Should be done last..
         testResult->SetTestResultFromReturnCode(testReturnCode);
     } else {
@@ -258,10 +297,6 @@ TestResult::Ref TestFunc::Execute(IDynLibrary::Ref module) {
     SetExecuted();
 
     return testResult;
-}
-
-void TestFunc::SetExecuted() {
-    isExecuted = true;
 }
 
 bool TestFunc::Executed() {

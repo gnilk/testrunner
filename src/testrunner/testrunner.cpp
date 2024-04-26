@@ -60,6 +60,9 @@ static TestModule::Ref hack_glbCurrentTestModule = nullptr;
 TestModule::Ref TestRunner::HACK_GetCurrentTestModule() {
     return hack_glbCurrentTestModule;
 }
+void TestRunner::HACK_SetCurrentTestModule(TestModule::Ref currentTestModule) {
+    hack_glbCurrentTestModule = currentTestModule;
+}
 
 
 //////--- Ok, let's go...
@@ -119,7 +122,9 @@ bool TestRunner::ExecuteMain() {
 
     for (auto f:globals) {
         if (f->IsGlobalMain()) {
-            TestResult::Ref result = ExecuteTest(nullptr, f);
+            auto dummy = TestModule::Create("_dummy-main_");
+            hack_glbCurrentTestModule = dummy;
+            TestResult::Ref result = ExecuteTest(dummy, f);
             HandleTestResult(result);
             if ((result->Result() == kTestResult_AllFail) || (result->Result() == kTestResult_TestFail)) {
                 if (Config::Instance().stopOnAllFail) {
@@ -144,7 +149,10 @@ bool TestRunner::ExecuteMainExit() {
 
     for (auto f:globals) {
         if (f->IsGlobalExit()) {
-            TestResult::Ref result = ExecuteTest(nullptr, f);
+            auto dummy = TestModule::Create("_dummy-main_");
+            hack_glbCurrentTestModule = dummy;
+
+            TestResult::Ref result = ExecuteTest(dummy, f);
             HandleTestResult(result);
             if ((result->Result() == kTestResult_AllFail) || (result->Result() == kTestResult_TestFail)) {
                 if (Config::Instance().stopOnAllFail) {
@@ -328,6 +336,7 @@ TestRunner::kRunResultAction TestRunner::ExecuteTestWithDependencies(const TestM
     }
 
     auto testResult = ExecuteTest(testModule, testCase);
+
     HandleTestResult(testResult);
     return CheckResultIfContinue(testResult);
 }
@@ -389,26 +398,16 @@ void TestRunner::ExecuteModuleExit(TestModule::Ref testModule) {
 TestResult::Ref TestRunner::ExecuteTest(const TestModule::Ref &testModule, const TestFunc::Ref &testCase) {
     printf("=== RUN  \t%s\n",testCase->SymbolName().c_str());
 
+
     // Invoke pre-test hook, if set - this is usually done during test_main for a specific library
     // v2 - Don't invoke pre/post for main/exit functions
     if ((testModule != nullptr) && (testModule->cbPreHook != nullptr) && (testCase->TestScope() != TestFunc::kTestScope::kModuleMain) && (testCase->TestScope() != TestFunc::kTestScope::kModuleExit)) {
         // FIXME: If this fails - we need to signal it specifically, requires some refactoring of test-result handling
-
-        // This is just a test
-        auto returnCode = testModule->cbPreHook(TestResponseProxy::Instance().Proxy());
-        if (returnCode != kTR_Pass) {
-            printf("!!==!!==!! Warning, failed during pre-case execution for '%s'\n", testCase->SymbolName().c_str());
-
-            TestResult::Ref result = TestResult::Create("pre_case::"+testCase->SymbolName());
-            result->SetTestResultFromReturnCode(returnCode);
-            testCase->SetExecuted();
-            testCase->SetResultFromPrePostExec(result);
-            ResultSummary::Instance().AddResult(testCase);
-
-            return result;
+        TestResult::Ref preResult = ExecuteModulePrePostHook(testModule, testCase, kRunPrePostHook::kRunPreHook);
+        if (preResult != nullptr) {
+            return preResult;
         }
     }
-
     // Execute the test...
     TestResult::Ref result = testCase->Execute(library);
 
@@ -416,11 +415,81 @@ TestResult::Ref TestRunner::ExecuteTest(const TestModule::Ref &testModule, const
     // v2 - Don't invoke pre/post for main/exit functions
     if ((testModule != nullptr) && (testModule->cbPostHook != nullptr) && (testCase->TestScope() != TestFunc::kTestScope::kModuleMain) && (testCase->TestScope() != TestFunc::kTestScope::kModuleExit)) {
         // FIXME: if this fails - we need to singal it specifically, requires some refactoring of test-result handling
-        testModule->cbPostHook(TestResponseProxy::Instance().Proxy());
+        //testModule->cbPostHook(TestResponseProxy::Instance().Proxy());
+        //testModule->cbPostHook(TestRunner::HACK_GetCurrentTestModule()->GetTestResponseProxy().Proxy());
+        TestResult::Ref postResult = ExecuteModulePrePostHook(testModule, testCase, kRunPrePostHook::kRunPostHook);
+        if (postResult != nullptr) {
+            return postResult;
+        }
     }
 
     ResultSummary::Instance().AddResult(testCase);
     return result;
+}
+
+// This is quite convoluted - I need a better module
+// Consider creating a base like; 'TestCaseBase' and then 2/3 specializations; 'TestCase', 'TestCasePrePostHooks'
+// put basic threaded execution in the base and everything related to specialization in respective class..
+//
+// Worth to notices - Pre/Post are special in that they aren't loaded through the dylib but rather constructed..
+//
+TestResult::Ref TestRunner::ExecuteModulePrePostHook(const TestModule::Ref &testModule, const TestFunc::Ref &testCase, kRunPrePostHook runHook) {
+    // Some pre-verification checks, this makes it easier to set breakpoints...
+    if (testModule == nullptr) return nullptr;
+    if (testModule->cbPreHook == nullptr) return nullptr;
+    if (testCase == nullptr) return nullptr;
+    if (testCase->TestScope() == TestFunc::kTestScope::kModuleMain) return nullptr;
+    if (testCase->TestScope() == TestFunc::kTestScope::kModuleExit) return nullptr;
+
+    //
+    // in case we run with threads, this will in effect kill the module-thread...
+    // we have two options, either we wrap the pre/post in a TestFunc or we disable threading here
+    //
+
+    // Disable threading for now (can't have that in pre/post-hook execution as they don't execute in a proper test-case context
+    bool bWasThreads = Config::Instance().enableThreadTestExecution;
+    Config::Instance().enableThreadTestExecution = false;
+
+    // This makes tenary op easier to read..
+    bool bRunPreHook = (runHook == kRunPrePostHook::kRunPreHook);
+
+    auto &proxy = testModule->GetTestResponseProxy();
+
+    proxy.Begin(testCase->SymbolName(), testModule->name);
+    int returnCode = -1;
+    if (bRunPreHook) {
+        returnCode = testModule->cbPreHook(proxy.GetExtInterface());
+    } else {
+        returnCode = testModule->cbPostHook(proxy.GetExtInterface());
+    }
+    proxy.End();
+
+    // Re-enable again if needed
+    Config::Instance().enableThreadTestExecution = bWasThreads;
+
+    // proxy.end();
+    if (returnCode == kTR_Pass) {
+        return nullptr;
+    }
+
+
+    pLogger->Warning("Warning, failed during %s-case execution for '%s'",
+                     bRunPreHook?"pre":"post",
+                     testCase->SymbolName().c_str());
+
+    TestResult::Ref result = TestResult::Create(testCase->SymbolName());
+    result->SetFailState(bRunPreHook ? TestResult::kFailState::PreHook : TestResult::kFailState::PostHook);
+    result->SetTestResultFromReturnCode(returnCode);
+    result->SetAssertError(proxy.GetAssertError());
+    result->SetNumberOfAsserts(proxy.Asserts());
+    result->SetNumberOfErrors(proxy.Errors());
+
+    testCase->SetExecuted();
+    testCase->SetResultFromPrePostExec(result);
+    ResultSummary::Instance().AddResult(testCase);
+
+    return result;
+
 }
 
 //
@@ -430,9 +499,20 @@ void TestRunner::HandleTestResult(TestResult::Ref result) {
     double tElapsedSec = result->ElapsedTimeSec();
     if (result->Result() != kTestResult_Pass) {
         if (result->Result() == kTestResult_InvalidReturnCode) {
+
             printf("=== INVALID RETURN CODE (%d) for %s", result->Result(), result->SymbolName().c_str());
         } else {
-            printf("=== FAIL:\t%s, %.3f sec, %d, %d, %d\n",result->SymbolName().c_str(), tElapsedSec, result->Result(), result->Errors(), result->Asserts());
+            //std::string failState = result->FailState() == TestResult::kFailState::PreHook?"pre-hook"
+            if (result->FailState() == TestResult::kFailState::Main) {
+                printf("=== FAIL:\t%s, %.3f sec, %d, %d, %d\n", result->SymbolName().c_str(), tElapsedSec,
+                       result->Result(), result->Errors(), result->Asserts());
+            } else {
+                printf("=== FAIL:\t%s (%s), %.3f sec, %d, %d, %d\n",
+                       result->SymbolName().c_str(),
+                       result->FailStateName().c_str(),
+                       tElapsedSec,
+                       result->Result(), result->Errors(), result->Asserts());
+            }
         }
     } else {
         if ((result->Errors() != 0) || (result->Asserts() != 0)) {

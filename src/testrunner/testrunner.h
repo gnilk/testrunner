@@ -24,12 +24,17 @@ namespace trun {
         void ExecuteTests();
         void DumpTestsToRun();
         static TestModule::Ref HACK_GetCurrentTestModule();
+        static void HACK_SetCurrentTestModule(TestModule::Ref currentTestModule);
 
     private:
         enum class kRunResultAction {
             kContinue,
             kAbortModule,
             kAbortAll,
+        };
+        enum class kRunPrePostHook {
+            kRunPreHook,
+            kRunPostHook,
         };
 
         bool ExecuteMain();
@@ -43,6 +48,9 @@ namespace trun {
         void HandleTestResult(TestResult::Ref result);
         TestFunc::Ref CreateTestFunc(std::string sym);
 
+        TestResult::Ref ExecuteModulePreHook(const TestModule::Ref &testModule, const TestFunc::Ref &testCase);
+        TestResult::Ref ExecuteModulePostHook(const TestModule::Ref &testModule, const TestFunc::Ref &testCase);
+        TestResult::Ref ExecuteModulePrePostHook(const TestModule::Ref &testModule, const TestFunc::Ref &testCase, kRunPrePostHook runHook);
 
         kRunResultAction CheckResultIfContinue(const TestResult::Ref &result) const;
         TestModule::Ref GetOrAddModule(std::string &module);

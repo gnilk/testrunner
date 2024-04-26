@@ -17,9 +17,9 @@ namespace trun {
         static const int ITesting_MIN_VER = 1;
         static const int ITesting_MAX_VER = 2;
     public:
-        static TestResponseProxy &Instance();
+        TestResponseProxy();
 
-        ITesting *Proxy() { return trp; }
+        ITesting *GetExtInterface() { return trp; }
 
         void Begin(const std::string &symbolName, const std::string &moduleName);
         void End();
@@ -50,10 +50,10 @@ namespace trun {
 
         void QueryInterface(uint32_t interface_id, void **outPtr);
     private:
-        TestResponseProxy();
+        static TestResponseProxy &Instance();
 
         static ITesting *GetTRTestInterface();
-        static TRUN_IConfig *GetTRConfigInterface();
+        static ITestingConfig *GetTRConfigInterface();
 
         void TerminateThreadIfNeeded();
     private:

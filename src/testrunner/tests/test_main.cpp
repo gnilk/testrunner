@@ -1,18 +1,27 @@
     //
 // Created by Fredrik Kling on 18.08.22.
 //
-#include "../testinterface.h"
+#include "testinterface.h"
 #include "logger.h"
-#include "../config.h"
+#include "config.h"
 #include <functional>
 #include <string.h>
 extern "C" {
     DLL_EXPORT int test_main(ITesting *t);
     DLL_EXPORT int test_exit(ITesting *t);
 
-    DLL_EXPORT int test_ifv2(ITestingV2 *t);
-    DLL_EXPORT int test_ifv2_assert(ITestingV2 *t);
-    DLL_EXPORT int test_ifv2_exit(ITestingV2 *t);
+    DLL_EXPORT int test_ifv2(ITesting *t);
+    DLL_EXPORT int test_ifv2_assert(ITesting *t);
+    DLL_EXPORT int test_ifv2_exit(ITesting *t);
+
+    DLL_EXPORT int test_prefail(ITesting *t);
+    DLL_EXPORT int test_prefail_dummy(ITesting *t);
+    DLL_EXPORT int test_prefail_exit(ITesting *t);
+
+    DLL_EXPORT int test_postfail(ITesting *t);
+    DLL_EXPORT int test_postfail_dummy(ITesting *t);
+    DLL_EXPORT int test_postfail_exit(ITesting *t);
+
 }
 
 using namespace trun;
@@ -26,8 +35,8 @@ DLL_EXPORT int test_main(ITesting *t) {
     // Now set the log-level, we just want errors (this is for the library and not for the testrunner)
     gnilk::Logger::SetAllSinkDebugLevel(gnilk::LogLevel::kError);
 
-    TRUN_IConfig *tr_config = nullptr;
-    t->QueryInterface(1234, (void **)&tr_config);
+    ITestingConfig *tr_config = nullptr;
+    t->QueryInterface(ITestingConfig_IFace_ID, (void **)&tr_config);
     TR_ASSERT(t, tr_config != nullptr);
 
     TRUN_ConfigItem configItems[10];
@@ -45,7 +54,7 @@ DLL_EXPORT int test_main(ITesting *t) {
                 printf("%s", configItems[i].value.str);
                 break;
             case kTRCfgType_Bool :
-                printf("%s", (configItems[i].value.b)?"true":"false");
+                printf("%s", (configItems[i].value.boolean)?"true":"false");
                 break;
             case kTRCfgType_Num :
                 printf("%d", configItems[i].value.num);
@@ -81,6 +90,49 @@ DLL_EXPORT int test_ifv2_assert(ITesting *t) {
     return kTR_Pass;
 }
 
+//
+// Test failing during pre-hook
+//
+static int prefail_pre(ITesting *t) {
+    TR_ASSERT(t, false);
+    return kTR_Pass;
+}
+static int prefail_post(ITesting *t) {
+    return kTR_Pass;
+}
 
+DLL_EXPORT int test_prefail(ITesting *t) {
+    t->SetPreCaseCallback(prefail_pre);
+    t->SetPostCaseCallback(prefail_post);
+    return kTR_Pass;
+}
+DLL_EXPORT int test_prefail_dummy(ITesting *t) {
+    return kTR_Pass;
+}
+DLL_EXPORT int test_prefail_exit(ITesting *t) {
+    return kTR_Pass;
+}
 
+//
+// Test failing during post-hook
+//
 
+static int postfail_pre(ITesting *t) {
+    return kTR_Pass;
+}
+static int postfail_post(ITesting *t) {
+    TR_ASSERT(t, false);
+    return kTR_Pass;
+}
+
+DLL_EXPORT int test_postfail(ITesting *t) {
+    t->SetPreCaseCallback(postfail_pre);
+    t->SetPostCaseCallback(postfail_post);
+    return kTR_Pass;
+}
+DLL_EXPORT int test_postfail_dummy(ITesting *t) {
+    return kTR_Pass;
+}
+DLL_EXPORT int test_postfail_exit(ITesting *t) {
+    return kTR_Pass;
+}

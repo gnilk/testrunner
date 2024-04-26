@@ -32,6 +32,9 @@ namespace trun {
 
         TestFunc::Ref TestCaseFromName(const std::string &caseName) const;
         void SetDependencyForCase(const char *caseName, const char *dependencyList);
+        TestResponseProxy &GetTestResponseProxy() {
+            return testResponseProxy;
+        }
 
         const std::vector<TestFunc::Ref> Dependencies() const {
             return dependencies;
@@ -46,6 +49,7 @@ namespace trun {
         bool bExecuted = false;
         TestFunc::Ref mainFunc = nullptr;
         TestFunc::Ref exitFunc = nullptr;
+        TestResponseProxy testResponseProxy;
 
         TRUN_PRE_POST_HOOK_DELEGATE *cbPreHook = nullptr;
         TRUN_PRE_POST_HOOK_DELEGATE *cbPostHook = nullptr;

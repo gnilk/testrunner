@@ -75,9 +75,9 @@ static std::map<pthread_t, TestResponseProxy *> trpLookup;
 //
 TestResponseProxy &TestResponseProxy::Instance() {
 
-    // Putting this as thread-local..
+    // Note: can't have this in thread-local, each tests will still run in it's own isolated thread..
 #ifdef TRUN_HAVE_THREADS
-    static thread_local TestResponseProxy glbResponseProxy;
+    static TestResponseProxy glbResponseProxy;
 #else
     static TestResponseProxy glbResponseProxy;
 #endif
@@ -133,8 +133,8 @@ ITesting *TestResponseProxy::GetTRTestInterface() {
 }
 
 // Move to other file
-TRUN_IConfig *TestResponseProxy::GetTRConfigInterface() {
-    static TRUN_IConfig trp_config_bridge = {
+ITestingConfig *TestResponseProxy::GetTRConfigInterface() {
+    static ITestingConfig trp_config_bridge = {
             .List = int_tcfg_list,
             .Get = int_tcfg_get,
     };
@@ -258,7 +258,7 @@ void TestResponseProxy::QueryInterface(uint32_t interface_id, void **outPtr) {
     }
 
     switch(interface_id) {
-        case 1234 :
+        case ITestingConfig_IFace_ID :
             pLogger->Debug("QueryInterface, interface_id = %d, returning TRUN_IConfig", interface_id);
             *outPtr = (void *)GetTRConfigInterface();
             break;
@@ -312,52 +312,63 @@ static bool IsMsgSizeOk(uint32_t szbuf) {
 
 static void int_trp_debug(int line, const char *file, const char *format, ...) {
     CREATE_REPORT_STRING()
-    TestResponseProxy::Instance().Debug(line, file, std::string(newstr));
+    TestRunner::HACK_GetCurrentTestModule()->GetTestResponseProxy().Debug(line, file, std::string(newstr));
+    //TestResponseProxy::Instance().Debug(line, file, std::string(newstr));
 }
 static void int_trp_info(int line, const char *file, const char *format, ...) {
     CREATE_REPORT_STRING()
-    TestResponseProxy::Instance().Info(line, file, std::string(newstr));
+    TestRunner::HACK_GetCurrentTestModule()->GetTestResponseProxy().Info(line, file, std::string(newstr));
+//    TestResponseProxy::Instance().Info(line, file, std::string(newstr));
 }
 static void int_trp_warning(int line, const char *file, const char *format, ...) {
     CREATE_REPORT_STRING()
-    TestResponseProxy::Instance().Warning(line, file, std::string(newstr));
+    TestRunner::HACK_GetCurrentTestModule()->GetTestResponseProxy().Warning(line, file, std::string(newstr));
+//    TestResponseProxy::Instance().Warning(line, file, std::string(newstr));
 }
 static void int_trp_error(int line, const char *file, const char *format, ...) {
     CREATE_REPORT_STRING()
-    TestResponseProxy::Instance().Error(line, file, std::string(newstr));
+    TestRunner::HACK_GetCurrentTestModule()->GetTestResponseProxy().Error(line, file, std::string(newstr));
+//    TestResponseProxy::Instance().Error(line, file, std::string(newstr));
 }
 
 static void int_trp_fatal(int line, const char *file, const char *format, ...) {
     CREATE_REPORT_STRING()
-    TestResponseProxy::Instance().Fatal(line, file, std::string(newstr));
+    TestRunner::HACK_GetCurrentTestModule()->GetTestResponseProxy().Fatal(line, file, std::string(newstr));
+//    TestResponseProxy::Instance().Fatal(line, file, std::string(newstr));
 }
 
 static void int_trp_abort(int line, const char *file, const char *format, ...) {
     CREATE_REPORT_STRING()
-    TestResponseProxy::Instance().Abort(line,file, std::string(newstr));
+    TestRunner::HACK_GetCurrentTestModule()->GetTestResponseProxy().Abort(line, file, std::string(newstr));
+    //TestResponseProxy::Instance().Abort(line,file, std::string(newstr));
 }
 
 static void int_trp_assert_error(const char *exp, const char *file, int line) {
-    TestResponseProxy::Instance().AssertError(exp, file, line);
+    TestRunner::HACK_GetCurrentTestModule()->GetTestResponseProxy().AssertError(exp, file, line);
+    //TestResponseProxy::Instance().AssertError(exp, file, line);
 }
 
 #undef CREATE_REPORT_STRING
 
 static void int_trp_hook_precase(TRUN_PRE_POST_HOOK_DELEGATE cbPreCase) {
-    TestResponseProxy::Instance().SetPreCaseCallback(cbPreCase);
+    TestRunner::HACK_GetCurrentTestModule()->GetTestResponseProxy().SetPreCaseCallback(cbPreCase);
+    //TestResponseProxy::Instance().SetPreCaseCallback(cbPreCase);
 }
 
 static void int_trp_hook_postcase(TRUN_PRE_POST_HOOK_DELEGATE cbPostCase) {
-    TestResponseProxy::Instance().SetPostCaseCallback(cbPostCase);
+    TestRunner::HACK_GetCurrentTestModule()->GetTestResponseProxy().SetPostCaseCallback(cbPostCase);
+    //TestResponseProxy::Instance().SetPostCaseCallback(cbPostCase);
 }
 
 static void int_trp_casedepend(const char *caseName, const char *dependencyList) {
-    TestResponseProxy::Instance().CaseDepends(caseName, dependencyList);
+    TestRunner::HACK_GetCurrentTestModule()->GetTestResponseProxy().CaseDepends(caseName, dependencyList);
+    //TestResponseProxy::Instance().CaseDepends(caseName, dependencyList);
 }
 
 
 static void int_trp_query_interface(uint32_t interface_id, void **outPtr) {
-    return TestResponseProxy::Instance().QueryInterface(interface_id, outPtr);
+    TestRunner::HACK_GetCurrentTestModule()->GetTestResponseProxy().QueryInterface(interface_id, outPtr);
+//    return TestResponseProxy::Instance().QueryInterface(interface_id, outPtr);
 }
 
 
@@ -368,6 +379,7 @@ static TRUN_ConfigItem *get_config_items(size_t *nItems) {
     // This should wrap into the Config::instance instead...
     static TRUN_ConfigItem glb_Config[] {
             {
+                    .isValid = true,
                     .name = "item1",
                     .value_type = kTRCfgType_Num,
                     .value {
@@ -375,27 +387,31 @@ static TRUN_ConfigItem *get_config_items(size_t *nItems) {
                     }
             },
             {
+                    .isValid = true,
                     .name = "item2",
                     .value_type = kTRCfgType_Bool,
                     .value {
-                            .b = false,
+                            .boolean = false,
                     }
             },
             {
+                    .isValid = true,
                     .name = "discardTestReturnCode",
                     .value_type = kTRCfgType_Bool,
                     .value {
-                            .b = Config::Instance().discardTestReturnCode,
+                            .boolean = Config::Instance().discardTestReturnCode,
                     }
             },
             {
+                    .isValid = true,
                     .name = "enableThreadTestExecution",
                     .value_type = kTRCfgType_Bool,
                     .value {
-                            .b = Config::Instance().enableThreadTestExecution,
+                            .boolean = Config::Instance().enableThreadTestExecution,
                     }
             },
             {
+                    .isValid = true,
                     .name = "item5",
                     .value_type = kTRCfgType_Num,
                     .value {
@@ -428,5 +444,18 @@ static size_t int_tcfg_list(size_t maxItems, TRUN_ConfigItem *outArray) {
 }
 
 static void int_tcfg_get(const char *key, TRUN_ConfigItem *outValue) {
-
+    if (key == nullptr) {
+        return;
+    }
+    if (outValue == nullptr) {
+        return;
+    }
+    // TODO: Implement properly...
+    if (key != std::string("enableThreadTestExecution")) {
+        return;
+    }
+    outValue->isValid = true;
+    strncpy(outValue->name,  "enableThreadTestExecution", TR_CFG_ITEM_NAME_LEN-1);
+    outValue->value_type = kTRCfgType_Bool;
+    outValue->value.boolean = Config::Instance().enableThreadTestExecution;
 }

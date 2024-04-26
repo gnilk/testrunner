@@ -42,6 +42,12 @@ namespace trun {
     class TestResult {
     public:
         using Ref = std::shared_ptr<TestResult>;
+        enum class kFailState {
+            None,
+            PreHook,
+            Main,
+            PostHook,
+        };
     public:
         static TestResult::Ref Create(const std::string &symbolName);
         TestResult(const std::string &symbolName);
@@ -52,20 +58,31 @@ namespace trun {
         int Asserts() const { return numAssert; }
         double ElapsedTimeSec() const { return tElapsedSec; }
         const std::string &SymbolName() const { return symbolName; }
+        kFailState FailState() { return failState; }
+        const std::string &FailStateName() {
+            if (failState == kFailState::PreHook) {
+                static const std::string strPreHook = "pre-hook";
+                return strPreHook;
+            }
+            // Just call if outside of main
+            static const std::string strPostHook = "post-hook";
+            return strPostHook;
+        }
 
         const class AssertError &AssertError() const { return assertError; };
 
         void SetTestResultFromReturnCode(int testReturnCode);
 
         // Setters
-        void SetResult(kTestResult result) { this->testResult = result; }
+        void SetFailState(kFailState newFailState) { failState = newFailState; }
+        void SetResult(kTestResult newResult) { testResult = newResult; }
         void SetTimeElapsedSec(double t) { tElapsedSec = t; }
         void SetNumberOfErrors(int count) { numError = count; }
         void SetNumberOfAsserts(int count) { numAssert = count; }
         void SetAssertError(class AssertError &other);
     private:
         class AssertError assertError;
-
+        kFailState failState = kFailState::None;
         kTestResult testResult = kTestResult_NotExecuted;
         double tElapsedSec = 0;
         int numError = 0;

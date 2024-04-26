@@ -2,6 +2,7 @@
 #include "../testfunc.h"
 #include "../dynlib.h"
 #include "../strutil.h"
+#include "../testrunner.h"
 #include <vector>
 #include <string>
 
@@ -29,10 +30,10 @@ static int test_mock_func(ITesting *t) {
 }
 
 // This mock's a library loader and with a single function the 'test_mock_func'..
-class ModuleMock : public IDynLibrary {
+class DynlibMock : public IDynLibrary {
 public:
-    ModuleMock() = default;
-    virtual ~ModuleMock() = default;
+    DynlibMock() = default;
+    virtual ~DynlibMock() = default;
 
     void *Handle() override { return nullptr; }
     PTESTFUNC FindExportedSymbol(const std::string &funcName) override {
@@ -63,7 +64,24 @@ DLL_EXPORT int test_tfunc_globals(ITesting *t) {
 }
 
 DLL_EXPORT int test_tfunc_exec(ITesting *t) {
-    ModuleMock::Ref mockModule = std::make_shared<ModuleMock>();
+
+    ITestingConfig *itrun_config = nullptr;
+    t->QueryInterface(ITestingConfig_IFace_ID, (void **)&itrun_config);
+    if (itrun_config == nullptr) {
+        return kTR_Fail;
+    }
+    TRUN_ConfigItem threadedTestExecution = {};
+    itrun_config->Get("enableThreadTestExecution", &threadedTestExecution);
+    if (!threadedTestExecution.isValid) {
+        return kTR_Fail;
+    }
+    if (threadedTestExecution.value.boolean) {
+        printf("FAIL - this test doesn't work in a threaded environment!!!\n");
+        return kTR_Fail;
+    }
+
+    // Note: This test won't work in threaded mode...
+    DynlibMock::Ref mockDynLib = std::make_shared<DynlibMock>();
     TestFunc func("test_mock_func", "mock", "func");
     TR_ASSERT(t, !func.IsGlobal());
     TR_ASSERT(t, !func.IsGlobalMain());
@@ -74,18 +92,25 @@ DLL_EXPORT int test_tfunc_exec(ITesting *t) {
     // This will actually test quite a bunch of things - more like an integration test as the TestFunc is fairly
     // high-level. We are testing: TestResponseProxy, AssertError, TestResult, etc...
     //
-    auto testResult = func.Execute(mockModule);
+
+    auto actualRunningModule = TestRunner::HACK_GetCurrentTestModule();
+    // Note: I don't think this will be 'null' on windows
+    auto mockModule = TestModule::Create("mock");
+    TestRunner::HACK_SetCurrentTestModule(mockModule);
+
+    auto testResult = func.Execute(mockDynLib);
     TR_ASSERT(t, testResult != nullptr);
 
     TR_ASSERT(t, testResult->Errors() == 0);
     TR_ASSERT(t, testResult->Result() == kTestResult_Pass);
 
+    TestRunner::HACK_SetCurrentTestModule(actualRunningModule);
 
     return kTR_Pass;
 }
 
 DLL_EXPORT int test_tfunc_casefilter_simple(ITesting *t) {
-    ModuleMock::Ref mockModule = std::make_shared<ModuleMock>();
+    DynlibMock::Ref mockModule = std::make_shared<DynlibMock>();
     auto testCasesOrig = Config::Instance().testcases;
 
     Config::Instance().testcases = {"func*"};
@@ -97,7 +122,7 @@ DLL_EXPORT int test_tfunc_casefilter_simple(ITesting *t) {
 }
 
 DLL_EXPORT int test_tfunc_casefilter_splitmid(ITesting *t) {
-    ModuleMock::Ref mockModule = std::make_shared<ModuleMock>();
+    DynlibMock::Ref mockModule = std::make_shared<DynlibMock>();
     auto testCasesOrig = Config::Instance().testcases;
 
     Config::Instance().testcases = {"fn_*_case"};
@@ -109,7 +134,7 @@ DLL_EXPORT int test_tfunc_casefilter_splitmid(ITesting *t) {
 }
 
 DLL_EXPORT int test_tfunc_casefilter_trailing(ITesting *t) {
-    ModuleMock::Ref mockModule = std::make_shared<ModuleMock>();
+    DynlibMock::Ref mockModule = std::make_shared<DynlibMock>();
     auto testCasesOrig = Config::Instance().testcases;
 
     Config::Instance().testcases = {"*flurp"};
@@ -121,7 +146,7 @@ DLL_EXPORT int test_tfunc_casefilter_trailing(ITesting *t) {
 }
 
 DLL_EXPORT int test_tfunc_modfilter_simple(ITesting *t) {
-    ModuleMock::Ref mockModule = std::make_shared<ModuleMock>();
+    DynlibMock::Ref mockModule = std::make_shared<DynlibMock>();
     auto modulesOrig = Config::Instance().modules;
 
     Config::Instance().modules = {"base*"};
@@ -133,7 +158,7 @@ DLL_EXPORT int test_tfunc_modfilter_simple(ITesting *t) {
 }
 
 DLL_EXPORT int test_tfunc_modfilter_trailing(ITesting *t) {
-    ModuleMock::Ref mockModule = std::make_shared<ModuleMock>();
+    DynlibMock::Ref mockModule = std::make_shared<DynlibMock>();
     auto modulesOrig = Config::Instance().modules;
 
     Config::Instance().modules = {"*mod"};
@@ -146,7 +171,7 @@ DLL_EXPORT int test_tfunc_modfilter_trailing(ITesting *t) {
 
 
 DLL_EXPORT int test_tfunc_casematch_simple(ITesting *t) {
-    ModuleMock::Ref mockModule = std::make_shared<ModuleMock>();
+    DynlibMock::Ref mockModule = std::make_shared<DynlibMock>();
     auto testCasesOrig = Config::Instance().testcases;
 
     Config::Instance().testcases = {"-","caseA","!caseB"};

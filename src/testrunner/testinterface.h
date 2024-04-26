@@ -30,7 +30,6 @@ extern "C" {
 #define kTR_FailAll 0x30
 
 typedef struct ITesting ITesting;
-typedef struct ITestingV2 ITestingV2;
 
 //
 // If you embed the trun library you need to specify if you run single threaded or not!
@@ -89,17 +88,20 @@ enum kTRConfigType {
 
 // Not sure this is so great for Rust - will have to verify...
 struct TRUN_ConfigItem {
+    bool isValid;
     char name[TR_CFG_ITEM_NAME_LEN];
     kTRConfigType value_type;
     union {
-        bool b;
+        int boolean = 0;
         int32_t num;
         const char *str;    // Readonly..
     } value;
 };
 
-typedef struct TRUN_IConfig TRUN_IConfig;
-struct TRUN_IConfig {
+#define ITestingConfig_IFace_ID (uint32_t)(0xc07f19)
+
+typedef struct ITestingConfig ITestingConfig;
+struct ITestingConfig {
     size_t (*List)(size_t maxItems, TRUN_ConfigItem *outArray);
     void (*Get)(const char *key, TRUN_ConfigItem *outValue);
 };
