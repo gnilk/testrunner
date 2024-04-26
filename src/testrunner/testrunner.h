@@ -39,20 +39,19 @@ namespace trun {
 
         bool ExecuteMain();
         bool ExecuteMainExit();
-        bool ExecuteGlobalTests();
         bool ExecuteModuleTests();
+//        bool ExecuteGlobalTests();
 //        bool ExecuteModuleTestFuncs(TestModule::Ref testModule);
 //        TestResult::Ref ExecuteModuleMain(const TestModule::Ref &testModule);
 //        void ExecuteModuleExit(TestModule::Ref testModule);
 //        TestResult::Ref ExecuteTest(const TestModule::Ref &testModule, const TestFunc::Ref &testCase);
-        void HandleTestResult(TestResult::Ref result);
+//        void HandleTestResult(TestResult::Ref result);
         TestFunc::Ref CreateTestFunc(std::string sym);
 
-        TestResult::Ref ExecuteModulePreHook(const TestModule::Ref &testModule, const TestFunc::Ref &testCase);
-        TestResult::Ref ExecuteModulePostHook(const TestModule::Ref &testModule, const TestFunc::Ref &testCase);
-        TestResult::Ref ExecuteModulePrePostHook(const TestModule::Ref &testModule, const TestFunc::Ref &testCase, kRunPrePostHook runHook);
-
-        kRunResultAction CheckResultIfContinue(const TestResult::Ref &result) const;
+//        TestResult::Ref ExecuteModulePreHook(const TestModule::Ref &testModule, const TestFunc::Ref &testCase);
+//        TestResult::Ref ExecuteModulePostHook(const TestModule::Ref &testModule, const TestFunc::Ref &testCase);
+//        TestResult::Ref ExecuteModulePrePostHook(const TestModule::Ref &testModule, const TestFunc::Ref &testCase, kRunPrePostHook runHook);
+//        kRunResultAction CheckResultIfContinue(const TestResult::Ref &result) const;
         TestModule::Ref GetOrAddModule(std::string &module);
     private:
         kRunResultAction ExecuteTestWithDependencies(const TestModule::Ref &testModule, TestFunc::Ref testCase, std::vector<TestFunc::Ref> &deps);

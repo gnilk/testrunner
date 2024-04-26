@@ -18,6 +18,7 @@
  
  
  \History
+ - 2024.04.25, FKling, Huge refactoring, support for parallel module testing
  - 2018.12.21, FKling, Support for test cases and skipping of test_main
  - 2018.10.18, FKling, Implementation
 
@@ -323,25 +324,25 @@ bool TestRunner::ExecuteModuleTests() {
 //    return CheckResultIfContinue(testResult);
 //}
 
-TestRunner::kRunResultAction TestRunner::CheckResultIfContinue(const TestResult::Ref &result) const {
-    if (result->Result() == kTestResult_ModuleFail) {
-        if (Config::Instance().skipOnModuleFail) {
-            pLogger->Info("Module test failure, skipping remaining test cases in library");
-            return kRunResultAction::kAbortModule;
-        } else {
-            pLogger->Info("Module test failure, continue anyway (configuration)");
-        }
-    } else if (result->Result() == kTestResult_AllFail) {
-        if (Config::Instance().stopOnAllFail) {
-            pLogger->Critical("Total test failure, aborting");
-            return kRunResultAction::kAbortAll;
-        } else {
-            pLogger->Info("Total test failure, continue anyway (configuration)");
-        }
-    }
-    return kRunResultAction::kContinue;
-
-}
+//TestRunner::kRunResultAction TestRunner::CheckResultIfContinue(const TestResult::Ref &result) const {
+//    if (result->Result() == kTestResult_ModuleFail) {
+//        if (Config::Instance().skipOnModuleFail) {
+//            pLogger->Info("Module test failure, skipping remaining test cases in library");
+//            return kRunResultAction::kAbortModule;
+//        } else {
+//            pLogger->Info("Module test failure, continue anyway (configuration)");
+//        }
+//    } else if (result->Result() == kTestResult_AllFail) {
+//        if (Config::Instance().stopOnAllFail) {
+//            pLogger->Critical("Total test failure, aborting");
+//            return kRunResultAction::kAbortAll;
+//        } else {
+//            pLogger->Info("Total test failure, continue anyway (configuration)");
+//        }
+//    }
+//    return kRunResultAction::kContinue;
+//
+//}
 
 // Returns true if testing is to continue false otherwise..
 //TestResult::Ref TestRunner::ExecuteModuleMain(const TestModule::Ref &testModule) {
