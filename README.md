@@ -79,15 +79,15 @@ void setup() {
 ## Basics
 The runner looks for exported functions within dynamic libraries. The exported function must match the following pattern:
 
-`test_<library>_<testcase>`
+`test_<module>_<testcase>`
 
 _NOTE:_ In order to use the testrunner on your project you must compile your project as a dynamic library. And for Windows you must explicitly mark functions for export.
 
 ### Rules:
 * Any test cased must be prefixed with 'test_' otherwise the runner will not pick them up
-* test_main, reserved for first function called in a test run (see test execution)
-* test_exit, reserved for last function called in a test run (see test execution)
-* test_abc (only one underscore), called library main, called first for a library
+* test_main, reserved for first function called in a shared library (see test execution)
+* test_exit, reserved for last function called in a shared library (see test execution)
+* test_abc (only one underscore), called module main, called first for a module
 * test_module_exit (special test case name), called last in a library run
 
 Do NOT use these reserved names (_main, _exit) for anything else.
@@ -95,12 +95,11 @@ Do NOT use these reserved names (_main, _exit) for anything else.
 ### Test Execution
 The runner executes tests in the following order:
 1. test_main, always executed
-2. global functions (i.e. test_toplevel, just one underscore in name), can be switched off (-g)
-3. library functions
+2. library functions
    - library main (test_module)
    - any other library function (test_module_XYZ)
    - library exit (test_module_exit) 
-4. test_exit, always executed last
+3test_exit, always executed last
 
 The order of library functions can be controlled via the `-m` switch. Default is to test all modules (`-m -`) but it is possible to change the order like: `-m shared,-` this will first test the library `shared` before proceeding with all other modules.
 
@@ -112,7 +111,7 @@ The structure of the pass/fail output is:
 
 *Example:*
 
-`=== PASS:	_test_toplevel, 0.000 sec, 0`
+`=== PASS:	_test_module, 0.000 sec, 0`
 
 `=== FAIL:	_test_shared_a_error, 0.000 sec, 1, 0, 1`
 
@@ -145,6 +144,8 @@ struct ITesting {
     void (*SetPostCaseCallback)(void(*)(ITesting *));
     // Dependency handling
     void (*CaseDepends)(const char *caseName, const char *dependencyList);
+    // V2. has 'QueryInterface' as an extension mechanism for future stuff..
+    void (*QueryInterface)(uint32_t interface_id, void **outPtr);    
 };
 ```
 
@@ -202,7 +203,7 @@ For instance assume you have a memory allocation tracking library and you want t
     }
 
     int test_module_exit(ITesting *t) {
-        // Reset case callbacks
+        // Reset case callbacks, optional
         t->SetPreCaseCallback(nullptr);
         t->SetPostCaseCallback(nullptr);
         // Disable tracking of memory allocations
@@ -247,13 +248,12 @@ extern "C" {
 		return kTR_Pass;
 	}
 
-    // this is a global/top-level function, they are called next after main
-	int test_toplevel(ITesting *t) {
-		t->Debug(__LINE__, __FILE__, "test_toplevel, got called");
-		return kTR_Pass;
-	}
-
-    // library (shared) casde 'sleep' are called afterwards
+    // module 'shared' main is called after 'test_main'
+	int test_shared(ITesting *t) {
+        return kTR_Pass;
+    }
+    
+    // module (shared) cases are called afterwards
 	int test_shared_sleep(ITesting *t) {
 		t->Debug(__LINE__, __FILE__, "sleeping for 100ms");
 		t->Info(__LINE__, __FILE__, "this is an info message");
@@ -283,9 +283,16 @@ extern "C" {
 		t->Abort(__LINE__, __FILE__,"this is an abort error (stop any further testing)");
 		return kTR_FailAll;
 	}
+    
+    // module 'shared' exit is called last after all other test functions in `shared`
+	int test_shared_exit(ITesting *t) {
+        return kTR_Pass;
+    }
 
-	int test_mod_main(ITesting *t) {
-		t->Debug(__LINE__, __FILE__, "test_mod_main, got called");
+    
+    // Another module, has main but no exit...
+	int test_mod(ITesting *t) {
+		t->Debug(__LINE__, __FILE__, "test_mod, got called");
 		return kTR_Pass;
 	}
 	int test_mod_create(ITesting *t) {
@@ -343,9 +350,6 @@ build$ bin/trun -scC -m shared
 
 === RUN  	_test_main
 === PASS:	_test_main, 0.000 sec, 0
-
-=== RUN  	_test_toplevel
-=== PASS:	_test_toplevel, 0.000 sec, 0
 
 === RUN  	_test_shared_a_error
 === FAIL:	_test_shared_a_error, 0.000 sec, 1
@@ -473,6 +477,7 @@ JSON Format (some results omitted):
 - Extensions are now supported through function `QueryInterface` in ITesting
 - Threads are now always compiled (except for in embedded) but can be disabled (`--no-threads`)
 - Modules are executed in parallel when (`--parallel`) is specified (note: output is NOT nice)
+- More stringent, no global test functions except `test_main` and `test_exit` (module main are still `test_<module>`)
 ## v1.6.3
 - Dangling reference could lead to seg-fault when finished
 - Compile issues on macos
