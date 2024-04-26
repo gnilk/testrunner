@@ -34,8 +34,12 @@ bool TestModule::ShouldExecute() const {
     return caseMatch(name, Config::Instance().modules);
 }
 
-void TestModule::ExecuteTests(IDynLibrary::Ref dynlib) {
-    ExecuteMain(dynlib);
+TestResult::Ref TestModule::ExecuteTests(IDynLibrary::Ref dynlib) {
+    auto mainResult = ExecuteMain(dynlib);
+    if ((mainResult != nullptr) && (mainResult->CheckIfContinue() != TestResult::kRunResultAction::kContinue)) {
+        return mainResult;
+    }
+
     for (auto &func : testFuncs) {
         // FIXME: Execute post/pre hooks!!!
 
@@ -43,26 +47,31 @@ void TestModule::ExecuteTests(IDynLibrary::Ref dynlib) {
         auto result = func->Execute(dynlib);
         if (result != nullptr) {
             ResultSummary::Instance().AddResult(func);
+            if (result->CheckIfContinue() != TestResult::kRunResultAction::kContinue) {
+                // FIXME: Should we do this?
+                ExecuteExit(dynlib);
+                return result;
+            }
         }
     }
-    ExecuteExit(dynlib);
+    auto exitResult = ExecuteExit(dynlib);
+    return exitResult;
 }
 
-void TestModule::ExecuteMain(IDynLibrary::Ref dynlib) {
-    if (mainFunc == nullptr) return;
-    if (!Config::Instance().testModuleGlobals) return;
+TestResult::Ref TestModule::ExecuteMain(IDynLibrary::Ref dynlib) {
+    if (mainFunc == nullptr) return nullptr;
+    if (!Config::Instance().testModuleGlobals) return nullptr;
 
     auto testResult = mainFunc->Execute(dynlib);
     if (testResult != nullptr) {
         ResultSummary::Instance().AddResult(mainFunc);
     }
 
-
-    return;
+    return testResult;
 }
-void TestModule::ExecuteExit(IDynLibrary::Ref dynlib) {
-    if (exitFunc == nullptr) return;
-    if (!Config::Instance().testModuleGlobals) return;
+TestResult::Ref TestModule::ExecuteExit(IDynLibrary::Ref dynlib) {
+    if (exitFunc == nullptr) return nullptr;
+    if (!Config::Instance().testModuleGlobals) return nullptr;
 
     auto testResult = exitFunc->Execute(dynlib);
 
@@ -70,7 +79,7 @@ void TestModule::ExecuteExit(IDynLibrary::Ref dynlib) {
         ResultSummary::Instance().AddResult(mainFunc);
     }
 
-    return;
+    return testResult;
 }
 
 void TestModule::AddDependencyForCase(const std::string &caseName, const std::string &dependencyList) {
@@ -84,7 +93,7 @@ void TestModule::AddDependencyForCase(const std::string &caseName, const std::st
     }
     for(auto &dep : deplist) {
         auto tc_dep = TestCaseFromName(dep);
-        if (tc == nullptr) {
+        if (tc_dep == nullptr) {
             // FIXME: log error
             continue;
         }

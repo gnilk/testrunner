@@ -36,9 +36,9 @@ namespace trun {
             return testResponseProxy;
         }
 
-        void ExecuteTests(IDynLibrary::Ref dynlib);
-        void ExecuteMain(IDynLibrary::Ref dynlib);
-        void ExecuteExit(IDynLibrary::Ref dynlib);
+        TestResult::Ref ExecuteTests(IDynLibrary::Ref dynlib);
+        TestResult::Ref ExecuteMain(IDynLibrary::Ref dynlib);
+        TestResult::Ref ExecuteExit(IDynLibrary::Ref dynlib);
 
         void AddDependencyForCase(const std::string &caseName, const std::string &dependencyList);
 

@@ -78,6 +78,27 @@ void TestResult::SetTestResultFromReturnCode(int testReturnCode) {
             }
 
     }
+}
+
+TestResult::kRunResultAction TestResult::CheckIfContinue() const {
+    auto pLogger = gnilk::Logger::GetLogger("TestResult");
+
+    if (testResult == kTestResult_ModuleFail) {
+        if (Config::Instance().skipOnModuleFail) {
+            pLogger->Info("Module test failure, skipping remaining test cases in library");
+            return kRunResultAction::kAbortModule;
+        } else {
+            pLogger->Info("Module test failure, continue anyway (configuration)");
+        }
+    } else if (testResult == kTestResult_AllFail) {
+        if (Config::Instance().stopOnAllFail) {
+            pLogger->Critical("Total test failure, aborting");
+            return kRunResultAction::kAbortAll;
+        } else {
+            pLogger->Info("Total test failure, continue anyway (configuration)");
+        }
+    }
+    return kRunResultAction::kContinue;
 
 }
 

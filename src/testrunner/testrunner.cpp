@@ -208,7 +208,8 @@ bool TestRunner::ExecuteModuleTests() {
                 printf(", glbCurrentTestModule=%p, supplied=%p\n", ptrRaw,(void *)testModule.get());
                 // end wacko
 
-                testModule->ExecuteTests(library);
+                auto result = testModule->ExecuteTests(library);
+                // FIXME: this will be tricky...
                 testModule->bExecuted = true;
             });
             threads.push_back(std::move(thread));
@@ -218,7 +219,10 @@ bool TestRunner::ExecuteModuleTests() {
 
         } else {
             hack_glbCurrentTestModule = testModule;
-            testModule->ExecuteTests(library);
+            auto result = testModule->ExecuteTests(library);
+            if ((result != nullptr) && (result->CheckIfContinue() == TestResult::kRunResultAction::kAbortAll)) {
+                break;
+            }
             testModule->bExecuted = true;
             hack_glbCurrentTestModule = nullptr;
 
@@ -226,14 +230,14 @@ bool TestRunner::ExecuteModuleTests() {
     } // for modules
 
     // Did we run them in parallel - wait for termination...
+#ifdef TRUN_HAVE_THREADS
     if (Config::Instance().enableParallelTestExecution) {
         pLogger->Debug("Waiting for %zu module threads", threads.size());
-#ifdef TRUN_HAVE_THREADS
         for(auto &t : threads) {
             t.join();
         }
-#endif
     }
+#endif
 
     pLogger->Info("Done: library tests\n\n");
     return bRes;

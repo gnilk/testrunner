@@ -48,9 +48,18 @@ namespace trun {
             Main,
             PostHook,
         };
+        enum class kRunResultAction {
+            kContinue,
+            kAbortModule,
+            kAbortAll,
+        };
+
     public:
         static TestResult::Ref Create(const std::string &symbolName);
         TestResult(const std::string &symbolName);
+
+        // Returns the next action for the runner depending on the result..
+        TestResult::kRunResultAction CheckIfContinue() const;
 
         // Property access, getters
         kTestResult Result() const { return testResult; }
