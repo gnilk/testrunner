@@ -42,14 +42,6 @@
 #include "testresult.h"
 #include "timer.h"
 
-//
-// TODO: REFACTOR THIS!!!!!!!!!!!
-// I want access to the current group of function under test from the test-response proxy in order to
-// allow pre/post hooks to be set on a per-library level...   problem is that the modules were implicitly defined
-// in previous version and I really don't have time to properly refactor the code so that modules (lousy name)
-// become a prime citizen...
-
-
 using namespace trun;
 
 #ifdef TRUN_HAVE_THREADS
@@ -57,6 +49,20 @@ static thread_local TestModule::Ref hack_glbCurrentTestModule = nullptr;
 #else
 static TestModule::Ref hack_glbCurrentTestModule = nullptr;
 #endif
+
+//
+// 2024-04-26, gnilk, refactoring to-do
+// - introduce states (from testfunc) to test-module, so we can track if they are executing or finished
+// - split the 'ExecuteModule' into 'ExecuteModuleAsync' and 'ExecuteModuleSync' <- same as test-func
+// - call pre/post cases (not sure that is done today)
+// - collect test results in a better fashion - we either should store the 'testfunc' or test-result should have all necessary information
+// - in case of parallel execution, defer output to keep run/pass information together (this might be a bad idea as we don't gather stdout information)
+// - suport 'AbortAll' and the likes during test-execution
+// - consider having callback's instead of how it currently works..  TestModuleExecuteAsync(OnFinished = {}) // you get the drift..
+// - make a tool that generates test-cases (can be single-file) but I want to specify
+//   -num_module = <exact_number>, -cases=<average> -c_dev=<+/- in percentage>
+//   - Either fill every case with a 'thread::sleep(x)' or if that is null just pass on kTR_Pass;
+//
 
 TestModule::Ref TestRunner::HACK_GetCurrentTestModule() {
     return hack_glbCurrentTestModule;
@@ -196,7 +202,6 @@ bool TestRunner::ExecuteModuleTests() {
 
         pLogger->Info("Executing tests for library: %s", testModule->name.c_str());
 
-        // The library-main should execute here..
         if (Config::Instance().enableParallelTestExecution) {
 #ifdef TRUN_HAVE_THREADS
             auto thread = std::thread([this, &testModule] {
