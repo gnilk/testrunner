@@ -52,9 +52,9 @@ static TestModule::Ref hack_glbCurrentTestModule = nullptr;
 
 //
 // 2024-04-26, gnilk, refactoring to-do
-// - introduce states (from testfunc) to test-module, so we can track if they are executing or finished
-// - split the 'ExecuteModule' into 'ExecuteModuleAsync' and 'ExecuteModuleSync' <- same as test-func
-// - call pre/post cases (not sure that is done today)
+// ! introduce states (from testfunc) to test-module, so we can track if they are executing or finished
+// ! split the 'ExecuteModule' into 'ExecuteModuleAsync' and 'ExecuteModuleSync' <- same as test-func
+// ! call pre/post cases (not sure that is done today)
 // - collect test results in a better fashion - we either should store the 'testfunc' or test-result should have all necessary information
 // - in case of parallel execution, defer output to keep run/pass information together (this might be a bad idea as we don't gather stdout information)
 // - suport 'AbortAll' and the likes during test-execution
