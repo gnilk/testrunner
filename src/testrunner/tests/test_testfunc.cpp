@@ -98,7 +98,7 @@ DLL_EXPORT int test_tfunc_exec(ITesting *t) {
     auto mockModule = TestModule::Create("mock");
     TestRunner::HACK_SetCurrentTestModule(mockModule);
 
-    auto testResult = func.Execute(mockDynLib);
+    auto testResult = func.Execute(mockDynLib, nullptr, nullptr);
     TR_ASSERT(t, testResult != nullptr);
 
     TR_ASSERT(t, testResult->Errors() == 0);

@@ -7,6 +7,7 @@
 
 #include <string>
 #include <vector>
+#include "dynlib.h"
 
 namespace trun {
     typedef int(TRUN_PRE_POST_HOOK_DELEGATE)(ITesting *);

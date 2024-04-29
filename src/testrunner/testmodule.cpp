@@ -34,17 +34,26 @@ bool TestModule::ShouldExecute() const {
     return caseMatch(name, Config::Instance().modules);
 }
 
-TestResult::Ref TestModule::ExecuteTests(IDynLibrary::Ref dynlib) {
+TestResult::Ref TestModule::Execute(IDynLibrary::Ref dynlib) {
+    // Should not happen - but you never know..
+    if (State() != kState::Idle) {
+        return nullptr;
+    }
+
+    ChangeState(kState::Executing);
+    auto result = DoExecute(dynlib);
+    ChangeState(kState::Finished);
+    return result;
+}
+// Internal - make state handling easier..
+TestResult::Ref TestModule::DoExecute(IDynLibrary::Ref dynlib) {
     auto mainResult = ExecuteMain(dynlib);
     if ((mainResult != nullptr) && (mainResult->CheckIfContinue() != TestResult::kRunResultAction::kContinue)) {
         return mainResult;
     }
 
     for (auto &func : testFuncs) {
-        // FIXME: Execute post/pre hooks!!!
-
-        // Should just return true/false
-        auto result = func->Execute(dynlib);
+        auto result = DoExecuteFunc(dynlib, func);
         if (result != nullptr) {
             ResultSummary::Instance().AddResult(func);
             if (result->CheckIfContinue() != TestResult::kRunResultAction::kContinue) {
@@ -53,16 +62,26 @@ TestResult::Ref TestModule::ExecuteTests(IDynLibrary::Ref dynlib) {
                 return result;
             }
         }
+
     }
     auto exitResult = ExecuteExit(dynlib);
     return exitResult;
 }
+TestResult::Ref TestModule::DoExecuteFunc(IDynLibrary::Ref dynlib, TestFunc::Ref func) {
+
+
+    // Should just return true/false
+    auto result = func->Execute(dynlib, cbPreHook, cbPostHook);
+
+    return result;
+}
+
 
 TestResult::Ref TestModule::ExecuteMain(IDynLibrary::Ref dynlib) {
     if (mainFunc == nullptr) return nullptr;
     if (!Config::Instance().testModuleGlobals) return nullptr;
 
-    auto testResult = mainFunc->Execute(dynlib);
+    auto testResult = mainFunc->Execute(dynlib, nullptr, nullptr);
     if (testResult != nullptr) {
         ResultSummary::Instance().AddResult(mainFunc);
     }
@@ -73,7 +92,7 @@ TestResult::Ref TestModule::ExecuteExit(IDynLibrary::Ref dynlib) {
     if (exitFunc == nullptr) return nullptr;
     if (!Config::Instance().testModuleGlobals) return nullptr;
 
-    auto testResult = exitFunc->Execute(dynlib);
+    auto testResult = exitFunc->Execute(dynlib, nullptr, nullptr);
 
     if (testResult != nullptr) {
         ResultSummary::Instance().AddResult(mainFunc);

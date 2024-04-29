@@ -87,27 +87,6 @@ bool TestFunc::IsModuleMain() { {
 bool TestFunc::IsModuleExit() {
     return (!IsGlobal() && (caseName == Config::Instance().exitFuncName));
 }
-//__inline__ static void trap_instruction(void)
-//{
-//    __asm__ volatile("int $0x03");
-//}
-
-/*
-bool TestFunc::ShouldExecute() {
-    if (this->isExecuted) {
-        return false;
-    }
-    if ((testScope == kTestScope::kModuleMain) || (testScope == kTestScope::kModuleExit)) {
-        return Config::Instance().testModuleGlobals;
-    }
-
-    if (caseMatch(caseName, Config::Instance().testcases)) {
-        //return CheckDependenciesExecuted();
-        return true;
-    }
-    return false;
-}
-*/
 
 bool TestFunc::ShouldExecuteNoDeps() {
     // Unless Idle - the rest doesn't matter...
@@ -121,26 +100,68 @@ bool TestFunc::ShouldExecuteNoDeps() {
     return caseMatch(caseName, Config::Instance().testcases);
 }
 
-void TestFunc::ExecuteSync() {
+struct ThreadArg {
+    TestFunc *testFunc;
+    TestModule::Ref testModule;
+    TRUN_PRE_POST_HOOK_DELEGATE *cbPreHook;
+    TRUN_PRE_POST_HOOK_DELEGATE *cbPostHook;
+};
 
-    // Begin test, note: THIS MUST BE DONE HERE - in case of threading!
+
+TestResult::Ref TestFunc::Execute(IDynLibrary::Ref dynlib, TRUN_PRE_POST_HOOK_DELEGATE cbPreHook, TRUN_PRE_POST_HOOK_DELEGATE cbPostHook) {
+    // Unless idle, we should not execute
+    if (State() != kState::Idle) {
+        return nullptr;
+    }
+
+    pLogger->Debug("Executing test: %s", caseName.c_str());
+    pLogger->Debug("  Module: %s", moduleName.c_str());
+    pLogger->Debug("  Case..: %s", caseName.c_str());
+    pLogger->Debug("  Export: %s", symbolName.c_str());
+    pLogger->Debug("  Func..: %p", (void *)this);
+    pFunc = (PTESTFUNC)dynlib->FindExportedSymbol(symbolName);
+    if (pFunc == nullptr) {
+        ChangeState(kState::Finished);
+        return nullptr;
+    }
+
+    // Without the test-module (as a thread_local instance - we won't execute)
     auto currentModule = TestRunner::HACK_GetCurrentTestModule();
     if (currentModule == nullptr) {
         pLogger->Error("No module, can't execute!");
-        return;
+        ChangeState(kState::Finished);
+        return nullptr;
     }
-    auto &proxy = currentModule->GetTestResponseProxy();
-    // If we have enabled threaded test-execution but not parallel, the thread_local's will be local to the test-case functionality
-    // I should not allow that combo...
-    if (Config::Instance().enableThreadTestExecution && !Config::Instance().enableParallelTestExecution) {
-        proxy.Begin(symbolName, moduleName);
-    }
-    testReturnCode = pFunc((void *) proxy.GetExtInterface());
 
-    // Actual call to test function (in shared lib)
-    //TestResponseProxy::Instance().Begin(symbolName, moduleName);
-    //testReturnCode = pFunc((void *)TestResponseProxy::Instance().Proxy());
+    ChangeState(kState::Executing);
+    ExecuteDependencies(dynlib, cbPreHook, cbPostHook);
+
+    printf("=== RUN  \t%s\n",symbolName.c_str());
+
+    auto &proxy = currentModule->GetTestResponseProxy();
+    proxy.Begin(symbolName, moduleName);
+
+
+#if defined(TRUN_HAVE_THREADS)
+    if (Config::Instance().enableThreadTestExecution == true) {
+        ExecuteAsync(cbPreHook, cbPostHook);
+        pLogger->Debug("Execute, thread done...\n");
+    } else {
+        ExecuteSync(cbPreHook, cbPostHook);
+    }
+#else
+    // If we don't have threads (i.e. embedded) - we simply just execute this...
+    ExecuteSync();
+#endif
+    proxy.End();
+    CreateTestResult(proxy);
+
+    PrintTestResult();
+    ChangeState(kState::Finished);
+    return testResult;
 }
+
+
 
 #ifdef WIN32
 DWORD WINAPI testfunc_thread_starter(LPVOID lpParam) {
@@ -159,10 +180,6 @@ void TestFunc::ExecuteAsync() {
 
 #else
 
-struct ThreadArg {
-    TestFunc *testFunc;
-    TestModule::Ref testModule;
-};
 
 // Pthread wrapper..
 #ifdef TRUN_HAVE_THREADS
@@ -170,99 +187,83 @@ static void *testfunc_thread_starter(void *arg) {
     auto threadArg = reinterpret_cast<ThreadArg *>(arg);
 
     TestRunner::HACK_SetCurrentTestModule(threadArg->testModule);
-    threadArg->testFunc->ExecuteSync();
+    threadArg->testFunc->ExecuteSync(threadArg->cbPreHook, threadArg->cbPostHook);
     // Return NULL here as this is a C callback..
     return NULL;
 }
 
-void TestFunc::ExecuteAsync() {
-        pthread_attr_t attr;
-        pthread_t hThread;
-        int err;
-        pthread_attr_init(&attr);
+void TestFunc::ExecuteAsync(TRUN_PRE_POST_HOOK_DELEGATE cbPreHook, TRUN_PRE_POST_HOOK_DELEGATE cbPostHook) {
+    pthread_attr_t attr;
+    pthread_t hThread;
+    int err;
+    pthread_attr_init(&attr);
 
-        {
-            int s;
-            size_t v;
-            s = pthread_attr_getstacksize(&attr, &v);
-            if (s) {
-                pLogger->Error("Failed to fetch stack size: %d\n", s);
-            } else {
-                pLogger->Debug("Thread Stack size = %d kbytes\n", v/1024);
+    {
+        int s;
+        size_t v;
+        s = pthread_attr_getstacksize(&attr, &v);
+        if (s) {
+            pLogger->Error("Failed to fetch stack size: %d\n", s);
+        } else {
+            pLogger->Debug("Thread Stack size = %d kbytes\n", v/1024);
 
-            }
         }
+    }
 
-        auto threadArg = ThreadArg {
+    auto threadArg = ThreadArg {
             .testFunc = this,
             .testModule = TestRunner::HACK_GetCurrentTestModule(),
-        };
+            .cbPreHook = cbPreHook,
+            .cbPostHook = cbPostHook,
+    };
 
-        if ((err = pthread_create(&hThread,&attr,testfunc_thread_starter, &threadArg))) {
-            pLogger->Error("pthread_create, failed with code: %d\n", err);
-            exit(1);
-        }
-        pLogger->Debug("Execute, waiting for thread");
-        void *ret;
-        pthread_join(hThread, &ret);
+    if ((err = pthread_create(&hThread,&attr,testfunc_thread_starter, &threadArg))) {
+        pLogger->Error("pthread_create, failed with code: %d\n", err);
+        exit(1);
+    }
+    pLogger->Debug("Execute, waiting for thread");
+    void *ret;
+    pthread_join(hThread, &ret);
 }
 #endif
 #endif
 
+void TestFunc::ExecuteSync(TRUN_PRE_POST_HOOK_DELEGATE cbPreHook, TRUN_PRE_POST_HOOK_DELEGATE cbPostHook) {
 
-TestResult::Ref TestFunc::Execute(IDynLibrary::Ref dynlib) {
-    // Unless idle, we should not execute
-    if (State() != kState::Idle) {
-        return nullptr;
-    }
-
-    pLogger->Debug("Executing test: %s", caseName.c_str());
-    pLogger->Debug("  Module: %s", moduleName.c_str());
-    pLogger->Debug("  Case..: %s", caseName.c_str());
-    pLogger->Debug("  Export: %s", symbolName.c_str());
-    pLogger->Debug("  Func..: %p", (void *)this);
-    pFunc = (PTESTFUNC)dynlib->FindExportedSymbol(symbolName);
-    if (pFunc == nullptr) {
-        ChangeState(kState::Finished);
-        return nullptr;
-    }
-
-
-    ChangeState(kState::Executing);
-    ExecuteDependencies(dynlib);
-
-    //
-    // Actual execution of test function and handling of result
-    //
-    // Execute the test in it's own thread.
-    // This allows the test to be aborted when the response proxy is called
-    testResult = TestResult::Create(symbolName);
+    // Begin test, note: THIS MUST BE DONE HERE - in case of threading!
     auto currentModule = TestRunner::HACK_GetCurrentTestModule();
     if (currentModule == nullptr) {
         pLogger->Error("No module, can't execute!");
-        ChangeState(kState::Finished);
-        return nullptr;
+        return;
     }
 
     auto &proxy = currentModule->GetTestResponseProxy();
-    proxy.Begin(symbolName, moduleName);
 
-    printf("=== RUN  \t%s\n",symbolName.c_str());
-#if defined(TRUN_HAVE_THREADS)
-    if (Config::Instance().enableThreadTestExecution == true) {
-        ExecuteAsync();
-        pLogger->Debug("Execute, thread done...\n");
-    } else {
-        ExecuteSync();
+    if (cbPreHook != nullptr) {
+        // Note: in case of threaded test execution, we this will terminate on error - we need to disable thread here OR we need to actually thread pre/post as well
+        int preHookReturnCode = cbPreHook(proxy.GetExtInterface());
+        if (preHookReturnCode != kTR_Pass) {
+            testReturnCode = preHookReturnCode;
+            return;
+        }
     }
-#else
-    // If we don't have threads (i.e. embedded) - we simply just execute this...
-    ExecuteSync();
-#endif
 
-    // THIS IS PROBLEMATIC - I must 'start' where I end...
-    proxy.End();
+    // Main
+    testReturnCode = pFunc((void *) proxy.GetExtInterface());
 
+    if (cbPostHook != nullptr) {
+        int postHookReturnCode = cbPostHook(proxy.GetExtInterface());
+        if (postHookReturnCode != kTR_Pass) {
+            // FIXME: We need a flag to deal with
+            testReturnCode = postHookReturnCode;
+        }
+    }
+}
+
+
+void TestFunc::CreateTestResult(TestResponseProxy &proxy) {
+
+    testResult = TestResult::Create(symbolName);
     testResult->SetAssertError(proxy.GetAssertError());
     testResult->SetResult(proxy.Result());
     testResult->SetNumberOfErrors(proxy.Errors());
@@ -271,13 +272,6 @@ TestResult::Ref TestFunc::Execute(IDynLibrary::Ref dynlib) {
 
     // Should be done last..
     testResult->SetTestResultFromReturnCode(testReturnCode);
-    PrintTestResult();
-
-    // FIXME:
-    //ResultSummary::Instance().AddResult();
-
-    ChangeState(kState::Finished);
-    return testResult;
 }
 
 void TestFunc::PrintTestResult() {
@@ -310,12 +304,12 @@ void TestFunc::PrintTestResult() {
 }
 
 
-void TestFunc::ExecuteDependencies(IDynLibrary::Ref dynlib) {
+void TestFunc::ExecuteDependencies(IDynLibrary::Ref dynlib, TRUN_PRE_POST_HOOK_DELEGATE cbPreHook, TRUN_PRE_POST_HOOK_DELEGATE cbPostHook) {
     for (auto &func : dependencies) {
         if (!func->IsIdle()) {
             continue;
         }
-        Execute(dynlib);
+        Execute(dynlib, cbPreHook, cbPostHook);
     }
 }
 

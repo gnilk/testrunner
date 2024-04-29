@@ -129,7 +129,7 @@ bool TestRunner::ExecuteMain() {
     // FIXME: Verify we need to create a dummy module after refactoring
     auto dummy = TestModule::Create("_dummy-main_");
     hack_glbCurrentTestModule = dummy;
-    TestResult::Ref result = globalMain->Execute(library);
+    TestResult::Ref result = globalMain->Execute(library, nullptr, nullptr);
     ResultSummary::Instance().AddResult(globalMain);
     if ((result->Result() == kTestResult_AllFail) || (result->Result() == kTestResult_TestFail)) {
         if (Config::Instance().stopOnAllFail) {
@@ -158,7 +158,7 @@ bool TestRunner::ExecuteMainExit() {
     auto dummy = TestModule::Create("_dummy-main_");
     hack_glbCurrentTestModule = dummy;
 
-    TestResult::Ref result = globalExit->Execute(library);
+    TestResult::Ref result = globalExit->Execute(library, nullptr, nullptr);
     ResultSummary::Instance().AddResult(globalExit);
 
     if ((result->Result() == kTestResult_AllFail) || (result->Result() == kTestResult_TestFail)) {
@@ -195,8 +195,8 @@ bool TestRunner::ExecuteModuleTests() {
             continue;
         }
         // Already executed?
-        if (testModule->Executed()) {
-            pLogger->Debug("Tests for '%s' already executed, skipping",testModule->name.c_str());
+        if (!testModule->IsIdle()) {
+            //pLogger->Debug("Tests for '%s' already executed, skipping",testModule->name.c_str());
             continue;
         }
 
@@ -207,29 +207,20 @@ bool TestRunner::ExecuteModuleTests() {
             auto thread = std::thread([this, &testModule] {
                 hack_glbCurrentTestModule = testModule;
                 void *ptrRaw = (void *)hack_glbCurrentTestModule.get();
-                // wacko
-                // Execute global or if we match the library name
-                printf("*** Starting: %s\n", testModule->name.c_str());
-                std::cout << "*** thread="<< std::this_thread::get_id();
-                printf(", glbCurrentTestModule=%p, supplied=%p\n", ptrRaw,(void *)testModule.get());
-                // end wacko
-
-                auto result = testModule->ExecuteTests(library);
-                // FIXME: this will be tricky...
-                testModule->bExecuted = true;
+                auto result = testModule->Execute(library);
             });
             threads.push_back(std::move(thread));
 #else
             pLogger->Error("Must compile with 'TRUN_HAVE_THREADS' to enable paralell execution!");
+            exit(1);
 #endif
 
         } else {
             hack_glbCurrentTestModule = testModule;
-            auto result = testModule->ExecuteTests(library);
+            auto result = testModule->Execute(library);
             if ((result != nullptr) && (result->CheckIfContinue() == TestResult::kRunResultAction::kAbortAll)) {
                 break;
             }
-            testModule->bExecuted = true;
             hack_glbCurrentTestModule = nullptr;
 
         }
@@ -567,10 +558,11 @@ void TestRunner::PrepareTests() {
 
 TestModule::Ref TestRunner::GetOrAddModule(std::string &moduleName) {
     TestModule::Ref tModule = nullptr;
-    // Have library with this name????
+
     auto it = testModules.find(moduleName);
     if (it == testModules.end()) {
         tModule = TestModule::Create(moduleName);
+        // Note: Don't filter modules here - as we use this list during 'dry-run'..
         testModules.insert(std::pair<std::string, TestModule::Ref>(moduleName, tModule));
     } else {
         tModule = it->second;

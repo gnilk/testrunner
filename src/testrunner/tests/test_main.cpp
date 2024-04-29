@@ -1,7 +1,7 @@
     //
 // Created by Fredrik Kling on 18.08.22.
 //
-#include "testinterface.h"
+#include "../testinterface.h"
 #include "logger.h"
 #include "config.h"
 #include <functional>
@@ -13,6 +13,10 @@ extern "C" {
     DLL_EXPORT int test_ifv2(ITesting *t);
     DLL_EXPORT int test_ifv2_assert(ITesting *t);
     DLL_EXPORT int test_ifv2_exit(ITesting *t);
+
+    DLL_EXPORT int test_prepost(ITesting *t);
+    DLL_EXPORT int test_prepost_dummy(ITesting *t);
+    DLL_EXPORT int test_prepost_exit(ITesting *t);
 
     DLL_EXPORT int test_prefail(ITesting *t);
     DLL_EXPORT int test_prefail_dummy(ITesting *t);
@@ -134,5 +138,35 @@ DLL_EXPORT int test_postfail_dummy(ITesting *t) {
     return kTR_Pass;
 }
 DLL_EXPORT int test_postfail_exit(ITesting *t) {
+    return kTR_Pass;
+}
+
+//
+static bool was_pre_called = false;
+static bool was_post_called = false;
+static int prepost_precase_cb(ITesting *t) {
+    //return kTR_Fail;
+    TR_ASSERT(t, false);
+    was_pre_called = true;
+    return kTR_Pass;
+}
+static int prepost_postcase_cb(ITesting *t) {
+    was_post_called = true;
+    return kTR_Pass;
+}
+DLL_EXPORT int test_prepost(ITesting *t) {
+    was_pre_called = false;
+    was_post_called = false;
+
+    t->SetPreCaseCallback(prepost_precase_cb);
+    t->SetPostCaseCallback(prepost_postcase_cb);
+    return kTR_Pass;
+}
+DLL_EXPORT int test_prepost_dummy(ITesting *t) {
+        return kTR_Pass;
+}
+DLL_EXPORT int test_prepost_exit(ITesting *t) {
+    TR_ASSERT(t, was_pre_called);
+    TR_ASSERT(t, was_post_called);
     return kTR_Pass;
 }

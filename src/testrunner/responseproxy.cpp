@@ -114,6 +114,14 @@ void TestResponseProxy::Begin(const std::string &use_symbolName, const std::stri
     assertError.Reset();
 }
 
+void TestResponseProxy::End() {
+    tElapsed = timer.Sample();
+    symbolName.clear();     // No?
+    moduleName.clear();
+    pLogger = nullptr;
+}
+
+
 // Consider moving this out of here
 ITesting *TestResponseProxy::GetTRTestInterface() {
     static ITesting trp_bridge = {
@@ -145,12 +153,6 @@ double TestResponseProxy::ElapsedTimeInSec() {
     return tElapsed;
 }
 
-void TestResponseProxy::End() {
-    tElapsed = timer.Sample();
-    symbolName.clear();    
-    moduleName.clear();
-    pLogger = nullptr;
-}
 
 int TestResponseProxy::Errors() {
     return errorCount;
@@ -179,7 +181,9 @@ void TestResponseProxy::Warning(int line, const char *file, std::string message)
 // All error functions will abort the running test!!!
 //
 void TestResponseProxy::Error(int line, const char *file, std::string message) {
-    pLogger->Error("%s:%d:%s", file, line, message.c_str());
+    pLogger->Error("%s:%d\t'%s'", file, line, message.c_str());
+
+    printf("*** GENERAL ERROR: %s:%d\t'%s'\n", file, line, message.c_str());
     this->errorCount++;
     if (testResult < kTestResult_TestFail) {
         testResult = kTestResult_TestFail;
@@ -188,7 +192,9 @@ void TestResponseProxy::Error(int line, const char *file, std::string message) {
 }
 
 void TestResponseProxy::Fatal(int line, const char *file, std::string message) {
-    pLogger->Critical("%s:%d: %s", file, line, message.c_str());
+    pLogger->Debug("%s:%d:\t'%s'", file, line, message.c_str());
+
+    printf("*** FATAL ERROR: %s:%d\t'%s'\n", file, line, message.c_str());
     this->errorCount++;
     if (testResult < kTestResult_ModuleFail) {
         testResult = kTestResult_ModuleFail;
@@ -198,7 +204,9 @@ void TestResponseProxy::Fatal(int line, const char *file, std::string message) {
 }
 
 void TestResponseProxy::Abort(int line, const char *file, std::string message) {
-    pLogger->Critical("%s:%d: %s", file, line, message.c_str());
+    pLogger->Debug("Abort Error: %s:%d\t'%s'", file, line, message.c_str());
+
+    printf("*** ABORT ERROR: %s:%d\t'%s'\n", file, line, message.c_str());
     this->errorCount++;
     if (testResult < kTestResult_AllFail) {
         testResult = kTestResult_AllFail;
@@ -209,7 +217,9 @@ void TestResponseProxy::Abort(int line, const char *file, std::string message) {
 
 //void (*AssertError)(const char *exp, const char *file, const int line);
 void TestResponseProxy::AssertError(const char *exp, const char *file, const int line) {
-    pLogger->Error("Assert Error: %s:%d\t'%s'", file, line, exp);
+    pLogger->Debug("Assert Error: %s:%d\t'%s'", file, line, exp);
+    printf("*** ASSERT ERROR: %s:%d\t'%s'\n", file, line, exp);
+
     this->assertCount++;
     if (testResult < kTestResult_TestFail) {
         testResult = kTestResult_TestFail;

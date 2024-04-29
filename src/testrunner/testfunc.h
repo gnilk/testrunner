@@ -42,7 +42,7 @@ namespace trun {
         bool IsModuleMain();
         bool IsGlobalMain();
         bool IsGlobalExit();
-        TestResult::Ref Execute(IDynLibrary::Ref module);
+        TestResult::Ref Execute(IDynLibrary::Ref module, TRUN_PRE_POST_HOOK_DELEGATE cbPreHook, TRUN_PRE_POST_HOOK_DELEGATE cbPostHook);
 
         // This was the old function - which also verified dependencies
         __inline bool ShouldExecute() {
@@ -76,19 +76,20 @@ namespace trun {
 
     public:
         // Note: Must be public as we are executing through Win32 Threading layer...
-        void ExecuteSync();
+        void ExecuteSync(TRUN_PRE_POST_HOOK_DELEGATE cbPreHook, TRUN_PRE_POST_HOOK_DELEGATE cbPostHook);
 #ifdef WIN32
             // Windows has no conditional compile - so always declare
             void ExecuteAsync();
 #else
 #ifdef TRUN_HAVE_THREADS
-            void ExecuteAsync();
+            void ExecuteAsync(TRUN_PRE_POST_HOOK_DELEGATE cbPreHook, TRUN_PRE_POST_HOOK_DELEGATE cbPostHook);
 #endif
 #endif
 
     private:
+        void CreateTestResult(TestResponseProxy &proxy);
         void PrintTestResult();
-        void ExecuteDependencies(IDynLibrary::Ref dynlib);
+        void ExecuteDependencies(IDynLibrary::Ref dynlib, TRUN_PRE_POST_HOOK_DELEGATE cbPreHook, TRUN_PRE_POST_HOOK_DELEGATE cbPostHook);
         void ChangeState(kState newState) {
             state = newState;
         }
@@ -108,7 +109,7 @@ namespace trun {
         std::vector<TestFunc::Ref> dependencies;
 
         PTESTFUNC pFunc = nullptr;
-        int testReturnCode = -1;
+        int testReturnCode = -1;    // hmm...
         TestResult::Ref testResult = nullptr;
 
     };
