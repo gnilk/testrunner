@@ -312,12 +312,16 @@ static void RunTestsForAllLibraries() {
     for(auto lib : librariesToTest) {
         RunTestsForLibrary(lib);
     }
+    // Once done - let the logger catch up...
+    gnilk::Logger::Consume();
 }
 
 static void RunTestsForLibrary(IDynLibrary::Ref library) {
     TestRunner testRunner(library);
     testRunner.PrepareTests();
-
+    // Since we might be running threads from here - I just want the logger to catch up (flushing it's outgoing queue)
+    // this makes logging and printf statements somewhat aligned...
+    gnilk::Logger::Consume();
     if (Config::Instance().executeTests) {
         pLogger->Debug("Running tests for: %s", library->Name().c_str());
         testRunner.ExecuteTests();
