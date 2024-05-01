@@ -473,10 +473,10 @@ JSON Format (some results omitted):
 
 # Version history
 ## v2.0-dev
-- Pre/Post now returns test-result (kTR_xyz), this will cause any previous unit-tests to break compile..
+- Pre/Post now returns test-result (kTR_xyz), this will cause any previous unit-tests to break compile.
 - Extensions are now supported through function `QueryInterface` in ITesting
 - Threads are now always compiled (except for in embedded) but can be disabled (`--no-threads`)
-- Modules are executed in parallel when (`--parallel`) is specified (note: output is NOT nice)
+- Modules are executed in parallel when (`--parallel`) is specified
 - More stringent, no global test functions except `test_main` and `test_exit` (module main are still `test_<module>`)
 ## v1.6.3
 - Dangling reference could lead to seg-fault when finished
