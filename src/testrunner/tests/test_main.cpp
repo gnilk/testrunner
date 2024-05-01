@@ -26,6 +26,10 @@ extern "C" {
     DLL_EXPORT int test_postfail_dummy(ITesting *t);
     DLL_EXPORT int test_postfail_exit(ITesting *t);
 
+    DLL_EXPORT int test_abortmod(ITesting *t);
+    DLL_EXPORT int test_abortmod_dummy(ITesting *t);
+    DLL_EXPORT int test_abortmod_exit(ITesting *t);
+
 }
 
 using namespace trun;
@@ -111,6 +115,7 @@ DLL_EXPORT int test_prefail(ITesting *t) {
     return kTR_Pass;
 }
 DLL_EXPORT int test_prefail_dummy(ITesting *t) {
+    printf(":::: SHOULD NOT BE SEEN:::\n");
     return kTR_Pass;
 }
 DLL_EXPORT int test_prefail_exit(ITesting *t) {
@@ -144,9 +149,9 @@ DLL_EXPORT int test_postfail_exit(ITesting *t) {
 //
 static bool was_pre_called = false;
 static bool was_post_called = false;
+
+
 static int prepost_precase_cb(ITesting *t) {
-    //return kTR_Fail;
-    TR_ASSERT(t, false);
     was_pre_called = true;
     return kTR_Pass;
 }
@@ -169,4 +174,14 @@ DLL_EXPORT int test_prepost_exit(ITesting *t) {
     TR_ASSERT(t, was_pre_called);
     TR_ASSERT(t, was_post_called);
     return kTR_Pass;
+}
+
+DLL_EXPORT int test_abortmod(ITesting *t) {
+        return kTR_Pass;
+}
+DLL_EXPORT int test_abortmod_dummy(ITesting *t) {
+        return kTR_FailModule;
+}
+DLL_EXPORT int test_abortmod_exit(ITesting *t) {
+        return kTR_Pass;
 }
