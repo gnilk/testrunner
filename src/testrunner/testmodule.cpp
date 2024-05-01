@@ -57,7 +57,7 @@ TestResult::Ref TestModule::DoExecute(IDynLibrary::Ref dynlib) {
         if (result != nullptr) {
             ResultSummary::Instance().AddResult(func);
             if (result->CheckIfContinue() != TestResult::kRunResultAction::kContinue) {
-                // FIXME: Should we do this?
+                // We call Exit here, since we call 'main' (and that didn't fail) - so any left overs might need cleaning up
                 ExecuteExit(dynlib);
                 return result;
             }
@@ -95,7 +95,7 @@ TestResult::Ref TestModule::ExecuteExit(IDynLibrary::Ref dynlib) {
     auto testResult = exitFunc->Execute(dynlib, nullptr, nullptr);
 
     if (testResult != nullptr) {
-        ResultSummary::Instance().AddResult(mainFunc);
+        ResultSummary::Instance().AddResult(exitFunc);
     }
 
     return testResult;
