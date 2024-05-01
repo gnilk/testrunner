@@ -30,6 +30,10 @@ extern "C" {
     DLL_EXPORT int test_abortmod_dummy(ITesting *t);
     DLL_EXPORT int test_abortmod_exit(ITesting *t);
 
+    DLL_EXPORT int test_abortall(ITesting *t);
+    DLL_EXPORT int test_abortall_dummy(ITesting *t);
+    DLL_EXPORT int test_abortall_exit(ITesting *t);
+
 }
 
 using namespace trun;
@@ -177,11 +181,21 @@ DLL_EXPORT int test_prepost_exit(ITesting *t) {
 }
 
 DLL_EXPORT int test_abortmod(ITesting *t) {
-        return kTR_Pass;
+    return kTR_Pass;
 }
 DLL_EXPORT int test_abortmod_dummy(ITesting *t) {
-        return kTR_FailModule;
+    return kTR_FailModule;
 }
 DLL_EXPORT int test_abortmod_exit(ITesting *t) {
+    return kTR_Pass;
+}
+
+DLL_EXPORT int test_abortall(ITesting *t) {
+        return kTR_Pass;
+}
+DLL_EXPORT int test_abortall_dummy(ITesting *t) {
+        return kTR_FailAll;
+}
+DLL_EXPORT int test_abortall_exit(ITesting *t) {
         return kTR_Pass;
 }
