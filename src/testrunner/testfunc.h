@@ -25,6 +25,12 @@ namespace trun {
             Executing,
             Finished,
         };
+        enum class kExecState {
+            None,
+            PreCallback,
+            Main,
+            PostCallback,
+        };
         enum class kTestScope {
             kUnknown,
             kGlobal,
@@ -70,6 +76,7 @@ namespace trun {
 
         bool IsIdle() { return (state == kState::Idle); }
         kState State() { return state; }
+        kExecState ExecState() { return execState; }
 
         // I use this in the unit test in order to create a mock-up result...
         void UTEST_SetMockResultPtr(TestResult::Ref pMockResult) { testResult = pMockResult; }
@@ -93,12 +100,16 @@ namespace trun {
         void ChangeState(kState newState) {
             state = newState;
         }
+        void ChangeExecState(kExecState newExecState) {
+            execState = newExecState;
+        }
     private:
         std::string symbolName;
         std::string moduleName;
         std::string caseName;
 
         kState state = kState::Idle;
+        kExecState execState = kExecState::None;
 
         kTestScope testScope = kTestScope::kUnknown;
         gnilk::ILogger *pLogger = nullptr;

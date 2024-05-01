@@ -241,6 +241,7 @@ void TestFunc::ExecuteSync(TRUN_PRE_POST_HOOK_DELEGATE cbPreHook, TRUN_PRE_POST_
 
     if (cbPreHook != nullptr) {
         // Note: in case of threaded test execution, we this will terminate on error - we need to disable thread here OR we need to actually thread pre/post as well
+        ChangeExecState(kExecState::PreCallback);
         int preHookReturnCode = cbPreHook(proxy.GetExtInterface());
         if (preHookReturnCode != kTR_Pass) {
             testReturnCode = preHookReturnCode;
@@ -249,9 +250,11 @@ void TestFunc::ExecuteSync(TRUN_PRE_POST_HOOK_DELEGATE cbPreHook, TRUN_PRE_POST_
     }
 
     // Main
+    ChangeExecState(kExecState::Main);
     testReturnCode = pFunc((void *) proxy.GetExtInterface());
 
     if (cbPostHook != nullptr) {
+        ChangeExecState(kExecState::PostCallback);
         int postHookReturnCode = cbPostHook(proxy.GetExtInterface());
         if (postHookReturnCode != kTR_Pass) {
             // FIXME: We need a flag to deal with
@@ -270,6 +273,20 @@ void TestFunc::CreateTestResult(TestResponseProxy &proxy) {
     testResult->SetNumberOfAsserts(proxy.Asserts());
     testResult->SetTimeElapsedSec(proxy.ElapsedTimeInSec());
 
+    switch(ExecState()) {
+        case kExecState::PreCallback :
+            testResult->SetFailState(TestResult::kFailState::PreHook);
+            break;
+        case kExecState::PostCallback :
+            testResult->SetFailState(TestResult::kFailState::PostHook);
+            break;
+        case kExecState::Main :
+            testResult->SetFailState(TestResult::kFailState::Main);
+            break;
+        default :
+            // Unknown
+            break;
+    }
     // Should be done last..
     testResult->SetTestResultFromReturnCode(testReturnCode);
 }
