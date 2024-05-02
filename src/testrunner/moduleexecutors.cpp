@@ -1,7 +1,22 @@
-//
-// Created by gnilk on 02.05.24.
-//
+/*-------------------------------------------------------------------------
+ File    : moduleexecutors.cpp
+ Author  : FKling
+ Version : -
+ Orginal : 2024-05-02
+ Descr   : Implementation of different execution 'strategies' for modules
 
+ Part of testrunner
+ BSD3 License!
+
+ Modified: $Date: $ by $Author: $
+ ---------------------------------------------------------------------------
+ TO-DO: [ -:Not done, +:In progress, !:Completed]
+ <pre>
+ </pre>
+
+ \History
+ - 2024.05.02, FKling, Implementation
+ ---------------------------------------------------------------------------*/
 #include "testrunner.h"
 #include "moduleexecutors.h"
 

@@ -1,6 +1,22 @@
-//
-// Created by gnilk on 21.11.23.
-//
+/*-------------------------------------------------------------------------
+ File    : testmodule.cpp
+ Author  : FKling
+ Version : -
+ Orginal : 2021-11-03
+ Descr   : Implementation of a test-module
+
+ Part of testrunner
+ BSD3 License!
+
+ Modified: $Date: $ by $Author: $
+ ---------------------------------------------------------------------------
+ TO-DO: [ -:Not done, +:In progress, !:Completed]
+ <pre>
+ </pre>
+
+ \History
+ - 2021.11.03, FKling, Implementation
+ ---------------------------------------------------------------------------*/
 #include <string>
 #include <memory>
 #include <algorithm>

@@ -1,7 +1,22 @@
-//
-// Created by gnilk on 02.05.24.
-//
+/*-------------------------------------------------------------------------
+ File    : funcexecutors.cpp
+ Author  : FKling
+ Version : -
+ Orginal : 2024-05-02
+ Descr   : Implementation of different execution 'strategies' for test-cases
 
+ Part of testrunner
+ BSD3 License!
+
+ Modified: $Date: $ by $Author: $
+ ---------------------------------------------------------------------------
+ TO-DO: [ -:Not done, +:In progress, !:Completed]
+ <pre>
+ </pre>
+
+ \History
+ - 2024.05.02, FKling, Implementation
+ ---------------------------------------------------------------------------*/
 #include "testrunner.h"
 #include "funcexecutors.h"
 
@@ -17,7 +32,10 @@
 
 using namespace trun;
 
-
+//
+// Factory function for the executor
+// Class only for encapsulation...
+//
 TestFuncExecutorBase &TestFuncExecutorFactory::Create() {
     static TestFuncExecutorSequential sequentialExecutor;
     // Threaded versions not available on embedded libraray
