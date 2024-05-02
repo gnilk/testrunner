@@ -10,17 +10,13 @@
  
  Modified: $Date: $ by $Author: $
  ---------------------------------------------------------------------------
- TODO: [ -:Not done, +:In progress, !:Completed]
+ TO-DO: [ -:Not done, +:In progress, !:Completed]
  <pre>
-
  </pre>
- 
- 
+
  \History
  - 2020.01.08, FKling, Implementation
- 
  ---------------------------------------------------------------------------*/
-
 #ifdef WIN32
 #include <windows.h>
 #include <winnt.h>

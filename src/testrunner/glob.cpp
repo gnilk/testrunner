@@ -1,7 +1,22 @@
-//
-// Created by gnilk on 29.08.23.
-//
+/*-------------------------------------------------------------------------
+ File    : config.cpp
+ Author  : FKling
+ Version : -
+ Orginal : 2023-08-29
+ Descr   : GLOB matching
 
+ Part of testrunner
+ BSD3 License!
+
+ Modified: $Date: $ by $Author: $
+ ---------------------------------------------------------------------------
+ TO-DO: [ -:Not done, +:In progress, !:Completed]
+ <pre>
+ </pre>
+
+ \History
+ - 2023.08.29, FKling, Implementation
+ ---------------------------------------------------------------------------*/
 #include "glob.h"
 
 using namespace trun;

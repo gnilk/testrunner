@@ -1,7 +1,22 @@
-//
-// Created by gnilk on 11/21/2022.
-//
+/*-------------------------------------------------------------------------
+ File    : timer.cpp
+ Author  : FKling
+ Version : -
+ Orginal : 2022-11-21
+ Descr   : Embedded front end for testrunner..
 
+ Part of testrunner
+ BSD3 License!
+
+ Modified: $Date: $ by $Author: $
+ ---------------------------------------------------------------------------
+ TO-DO: [ -:Not done, +:In progress, !:Completed]
+ <pre>
+ </pre>
+
+ \History
+ - 2022.11.21, FKling, Implementation
+ ---------------------------------------------------------------------------*/
 #include "trunembedded.h"
 #include "testrunner.h"
 #include "embedded/dynlib_embedded.h"

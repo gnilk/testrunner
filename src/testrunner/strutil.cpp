@@ -10,17 +10,13 @@
  
  Modified: $Date: $ by $Author: $
  ---------------------------------------------------------------------------
- TODO: [ -:Not done, +:In progress, !:Completed]
+ TO-DO: [ -:Not done, +:In progress, !:Completed]
  <pre>
-
  </pre>
- 
- 
+
  \History
  - 2018.10.18, FKling, Implementation
- 
  ---------------------------------------------------------------------------*/
-
 #include <string>
 #include <vector>
 #include <string.h>

@@ -1,6 +1,22 @@
-//
-// Created by Fredrik Kling on 17.08.22.
-//
+/*-------------------------------------------------------------------------
+ File    : resultsummary.cpp
+ Author  : FKling
+ Version : -
+ Orginal : 2022-08-17
+ Descr   : Result summary and report execution
+
+ Part of testrunner
+ BSD3 License!
+
+ Modified: $Date: $ by $Author: $
+ ---------------------------------------------------------------------------
+ TO-DO: [ -:Not done, +:In progress, !:Completed]
+ <pre>
+ </pre>
+
+ \History
+ - 2022.08.17, FKling, Implementation
+ ---------------------------------------------------------------------------*/
 #include <map>
 #include <functional>
 #include <stdio.h>

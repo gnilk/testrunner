@@ -10,16 +10,13 @@
  
  Modified: $Date: $ by $Author: $
  ---------------------------------------------------------------------------
- TODO: [ -:Not done, +:In progress, !:Completed]
+ TO-DO: [ -:Not done, +:In progress, !:Completed]
  <pre>
-
  </pre>
- 
- 
+
  \History
  - 2018.12.21, FKling, Support for test case specification and skipping test_main
  - 2018.10.18, FKling, Implementation
- 
  ---------------------------------------------------------------------------*/
 #include "config.h"
 #include "logger.h"
