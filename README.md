@@ -34,6 +34,9 @@ Just run `make -j; sudo make install`. The binary (trun) will be installed in /u
 You can also run `make -j package` to generate a `.deb` package. Which you can install with `sudo apt install ./testrunner-<version>-Linux.deb`.
 
 ## Windows
+
+Note: V2 is currently untested on Windows.
+
 Launch a 'Developer Command Prompt' from your Visual Studio installation.
 To build release version: `msbuild ALL_BUILD.vcxproj -p:Configuration=Release`.
 The default will build 64bit with Visual Studio 2019 and 32bit with Visual Studio 2017.
@@ -41,6 +44,9 @@ The default will build 64bit with Visual Studio 2019 and 32bit with Visual Studi
 As Windows don't have a default place to store 3rd party include files you need to copy the `testinterface.h` file somewhere common on your environment. You want to include this file in your unit tests (note: It's optional).
 
 ## Embedded
+
+Note: V2 is currently not supported for embedded - it is work in progress..
+
 <b>Only tested with PlatformIO as build system</b>
 
 Clone the repository into your `lib_extras_dir`, if you use Arduino as underlying framework this is the library 
@@ -81,7 +87,7 @@ The runner looks for exported functions within dynamic libraries. The exported f
 
 `test_<module>_<testcase>`
 
-_NOTE:_ In order to use the testrunner on your project you must compile your project as a dynamic library. And for Windows you must explicitly mark functions for export.
+_NOTE:_ In order to use the testrunner on your project you must compile your project as a dynamic library (shared object). And for Windows you must explicitly mark functions for export.
 
 ### Rules:
 * Any test cased must be prefixed with 'test_' otherwise the runner will not pick them up
@@ -94,20 +100,20 @@ Do NOT use these reserved names (_main, _exit) for anything else.
 
 ### Test Execution
 The runner executes tests in the following order:
-1. test_main, always executed
+1. test_main, always executed (can be disabled via -G)
 2. library functions
    - library main (test_module)
    - any other library function (test_module_XYZ)
    - library exit (test_module_exit) 
-3test_exit, always executed last
+3. test_exit, always executed last (also disabled via -G)
 
 The order of library functions can be controlled via the `-m` switch. Default is to test all modules (`-m -`) but it is possible to change the order like: `-m shared,-` this will first test the library `shared` before proceeding with all other modules.
 
 ### Pass/Fail distinction
-Each test case should return `kTR_Pass` if no error occured. It is possible to discard the return code (`-r`) and the test runner will deduce the result based on interface call's.
+Each test case should return `kTR_Pass` if no error occurred. It is possible to discard the return code (`-r`) and the test runner will deduce the result based on interface calls.
 
 The structure of the pass/fail output is:
-`marker, testcase, duration, result code, errros, assert failures`
+`marker, testcase, duration, result code, errrors, assert failures`
 
 *Example:*
 
@@ -118,13 +124,13 @@ The structure of the pass/fail output is:
 There are 5 result codes:
 - _0_, test pass (`kTestResult_Pass`)
 - _1_, test fail (`kTestResult_TestFail`)
-- _2_, library fail (`kTestResult_ModuleFail`)
+- _2_, module fail (`kTestResult_ModuleFail`)
 - _3_, all fail (`kTestResult_AllFail`)
 - _4_, not executed (`kTestResult_NotExecuted`) - not used
 
-_module fail_ means that a test case aborted any further testing of the current library.
+_module fail_ means that a test case aborted any further testing of the current module.
 
-_all fail_ means that a test case aborted all further testing for the current dylib.
+_all fail_ means that a test case aborted all further testing for the current library.
 
 ### ITesting interface
 
@@ -140,10 +146,11 @@ struct ITesting {
     void (*Fatal)(int line, const char *file, const char *format, ...); // Current test, stop library and proceed to next
     void (*Abort)(int line, const char *file, const char *format, ...); // Current test, stop execution
     // Hooks
-    void (*SetPreCaseCallback)(void(*)(ITesting *));
-    void (*SetPostCaseCallback)(void(*)(ITesting *));
+    void (*SetPreCaseCallback)(int(*)(ITesting *));     // V2 - introducing ability to abort from pre/post - breaks compatibility
+    void (*SetPostCaseCallback)(int(*)(ITesting *));    // V2 - introducing ability to abort from pre/post - breaks compatibility
     // Dependency handling
     void (*CaseDepends)(const char *caseName, const char *dependencyList);
+    void (*ModuleDepends)(const char *moduleName, const char *dependencyList);      // V2 - ability for modules to depend on other modules
     // V2. has 'QueryInterface' as an extension mechanism for future stuff..
     void (*QueryInterface)(uint32_t interface_id, void **outPtr);    
 };
@@ -166,7 +173,7 @@ Sometimes it is quite convenient to control order of test execution or ability t
 For instance reading data from a database depends on both the connection to DB having been established and the data written.
 Same for encoding/decoding. The decoder normally depends on having some encoding data written.
 
-This is configured in runtime during execution of the module/library main function.
+This is configured in runtime during execution of the module main function.
 Like:
 ```cpp
 int test_module(ITesting *t) {
@@ -188,6 +195,26 @@ int test_module_decoding(ITesting *t) {
 ```
 
 During execution the test-runner will ensure that the encoding test is being executed before the decoding test.
+It is not possible to have module dependencies!
+
+
+### Module Dependencies
+Similar to case-dependencies, you can control/override module execution order by letting them depend on each other.
+This allows for overriding module execution order and other thins. While it also allows for separation when configuring 
+modules with side-effects, for example integration testing, where one module might initialize a full system.
+
+Like:
+```c++
+int test_mymodule(ITesting *t) {
+    t->ModuleDepends("dbwrite", "dbconfigure, dbconnect");
+    t->ModuleDepends("dbconnect", "dbconfigure);
+    t->ModuleDepends("dbread", "dbwrite");
+    return kTR_Pass;
+}
+```
+The above would ensure that `dbconfigure` is ran first. Also `dbconnect` will be executed before any of `dbread` or `dbwrite`. 
+At the same time - there is no point with read-testing unless we have written something first. Therefore
+we say that `dbwrite` should execute before `dbread` (as `dbread` depends on `dbwrite`).
 
 ### Advanced functionality
 It is possible to register a pre/post callback hook for a test. You can/should set them in your library main. You can reset them (set to null) in your test exit.
@@ -228,6 +255,35 @@ For instance assume you have a memory allocation tracking library and you want t
     }
 ```    
 
+### Using QueryInterface
+From version 2.0 of the TestRunner the ITesting interface provides a new function 'QueryInterface' this is a generic extension point interface. 
+At the present there is only one extension present; `ITestingConfig`. Which allows a library under test to check how it is being executed.
+
+While it is allowed to access `QueryInterface` from any place, the recommended place is `test_main` (the global library main point). 
+The `ITestingConfig` extension can be used to verify if the test-runner is invoked in a supported manner. A project might not actually support parallell testing.
+And can basically abort the test if the test-runner is invoked in such a manner.
+```c++
+int test_main(ITesting *t) {
+    ITestingConfig *tr_config = nullptr;
+    t->QueryInterface(ITestingConfig_IFace_ID, (void **)&tr_config);
+    TR_ASSERT(t, tr_config != nullptr);
+    TRUN_ConfigItem cfg_enableParallelExecution = {};
+    tr_config->get("enableParallelExecution", cfg_enableParallelExecution);
+    
+    // Convoluted for now...
+    if (cfg_enableParallelExecution.isValid) {
+        if (cfg_enableParallelExecution.value_type == kTRCfgType_Bool) {
+            if (cfg_enableParallelExecution.value.boolean == true) {
+                // Don't support parallel module testing for this project
+                return kTR_FailAll;
+            }
+        } 
+    }
+}
+```
+ 
+The above checks if the `testrunner` (`trun`) was invoked with `--parallel` (enabled multi-threaded module testing) and rejects the testing all together if so.
+Three can be many reasons why you would like to reject testing. In this specific case there are memory-arenas which will run amok unless threading is very explict.
 
 ## Your Code
 In your dynamic library export the test cases (following the pattern) you would like to expose. Compile your library and execute the runner on it.
