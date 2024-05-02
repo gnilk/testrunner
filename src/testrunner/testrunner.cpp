@@ -41,6 +41,7 @@
 #include "resultsummary.h"
 #include "testresult.h"
 #include "timer.h"
+#include "moduleexecutors.h"
 
 using namespace trun;
 
@@ -62,10 +63,9 @@ static ThreadContext threadContext;
 // ! introduce states (from testfunc) to test-module, so we can track if they are executing or finished
 // ! split the 'ExecuteModule' into 'ExecuteModuleAsync' and 'ExecuteModuleSync' <- same as test-func
 // ! call pre/post cases (not sure that is done today)
-// - collect test results in a better fashion - we either should store the 'testfunc' or test-result should have all necessary information
-// - in case of parallel execution, defer output to keep run/pass information together (this might be a bad idea as we don't gather stdout information)
-// - suport 'AbortAll' and the likes during test-execution
-// - consider having callback's instead of how it currently works..  TestModuleExecuteAsync(OnFinished = {}) // you get the drift..
+// ! collect test results in a better fashion - we either should store the 'testfunc' or test-result should have all necessary information
+// ! in case of parallel execution, defer output to keep run/pass information together (this might be a bad idea as we don't gather stdout information)
+// ! suport 'AbortAll' and the likes during test-execution
 // - make a tool that generates test-cases (can be single-file) but I want to specify
 //   -num_module = <exact_number>, -cases=<average> -c_dev=<+/- in percentage>
 //   - Either fill every case with a 'thread::sleep(x)' or if that is null just pass on kTR_Pass;
@@ -189,70 +189,16 @@ bool TestRunner::ExecuteMainExit() {
 
 }
 
-
 //
 // Execute library test
 //
 bool TestRunner::ExecuteModuleTests() {
-    //
-    // 3) all modules, executing according to cmd line library specification
-    //
-    bool bRes = true;
+    SetCurrentTestRunner(this);
     pLogger->Info("Executing library tests");
-
-#ifdef TRUN_HAVE_THREADS
-    std::vector<std::thread> threads;
-#endif
-
-    for (auto &[name, testModule] : testModules) {
-
-        if (!testModule->ShouldExecute()) {
-            // Skip, this is not part of the configured filtered..
-            continue;
-        }
-        // Already executed?
-        if (!testModule->IsIdle()) {
-            //pLogger->Debug("Tests for '%s' already executed, skipping",testModule->name.c_str());
-            continue;
-        }
-
-        pLogger->Info("Executing tests for library: %s", testModule->name.c_str());
-
-        if (Config::Instance().enableParallelTestExecution) {
-#ifdef TRUN_HAVE_THREADS
-            auto thread = std::thread([this, &testModule] {
-                SetCurrentTestRunner(this);
-                SetCurrentTestModule(testModule);
-                auto result = testModule->Execute(library);
-            });
-            threads.push_back(std::move(thread));
-#else
-            pLogger->Error("Must compile with 'TRUN_HAVE_THREADS' to enable paralell execution!");
-            exit(1);
-#endif
-
-        } else {
-            SetCurrentTestModule(testModule);
-            auto result = testModule->Execute(library);
-            if ((result != nullptr) && (result->CheckIfContinue() == TestResult::kRunResultAction::kAbortAll)) {
-                break;
-            }
-            SetCurrentTestModule(nullptr);
-        }
-    } // for modules
-
-    // Did we run them in parallel - wait for termination...
-#ifdef TRUN_HAVE_THREADS
-    if (Config::Instance().enableParallelTestExecution) {
-        pLogger->Debug("Waiting for %zu module threads", threads.size());
-        for(auto &t : threads) {
-            t.join();
-        }
-    }
-#endif
-
+    auto &executor = TestModuleExecutorFactory::Create();
+    auto res = executor.Execute(library, testModules);
     pLogger->Info("Done: library tests\n\n");
-    return bRes;
+    return res;
 }
 
 //
@@ -287,7 +233,7 @@ void TestRunner::PrepareTests() {
             func->SetTestScope(TestFunc::kTestScope::kGlobal);
             globalExit = func;
         } else {
-            // These are library functions - and handled differently and with lower priority
+            // These are module functions - and handled differently and with lower priority
             auto tModule = GetOrAddModule(moduleName);
             if (func->IsGlobal()) {
                 func->SetTestScope(TestFunc::kTestScope::kModuleMain);
@@ -300,14 +246,10 @@ void TestRunner::PrepareTests() {
                 func->SetTestScope(TestFunc::kTestScope::kModuleCase);
                 tModule->testFuncs.push_back(func);
             }
-            // Link them togehter...
-//            if (tModule != nullptr) {
-//                func->SetTestModule(tModule);
-//            }
         }
     }
 
-    // Note: We can't resolve dependencies here as they are configured during library main
+    // Note: We can't resolve dependencies here as they are configured during module main
 
 }
 void TestRunner::AddDependenciesForModule(const std::string &moduleName, const std::string &dependencyList) {
