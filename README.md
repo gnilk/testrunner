@@ -256,6 +256,9 @@ For instance assume you have a memory allocation tracking library and you want t
 ```    
 
 ### Using QueryInterface
+
+_NOTE:_ QueryInterface is considered experimental and unstable. The API might change.
+
 From version 2.0 of the TestRunner the ITesting interface provides a new function 'QueryInterface' this is a generic extension point interface. 
 At the present there is only one extension present; `ITestingConfig`. Which allows a library under test to check how it is being executed.
 
