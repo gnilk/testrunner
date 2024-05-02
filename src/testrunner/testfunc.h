@@ -16,8 +16,15 @@
 
 namespace trun {
 
+
+    // TEMP - Move out of here!
+    class TestFuncExecutorSequential;
+
+
+
     // The core structure defining a testable function which belongs to a test-module
     class TestFunc {
+        friend TestFuncExecutorSequential;
     public:
         using Ref = std::shared_ptr<TestFunc>;
         enum class kState {
@@ -56,8 +63,6 @@ namespace trun {
         }
         bool ShouldExecuteNoDeps();
 
-        void SetResultFromPrePostExec(TestResult::Ref newResult);
-
         void SetLibrary(IDynLibrary::Ref dynLibrary) { library = dynLibrary; }
         const IDynLibrary::Ref Library() const { return library; }
 
@@ -81,28 +86,21 @@ namespace trun {
         // I use this in the unit test in order to create a mock-up result...
         void UTEST_SetMockResultPtr(TestResult::Ref pMockResult) { testResult = pMockResult; }
 
-    public:
-        // Note: Must be public as we are executing through Win32 Threading layer...
-        void ExecuteSync(TRUN_PRE_POST_HOOK_DELEGATE cbPreHook, TRUN_PRE_POST_HOOK_DELEGATE cbPostHook);
-#ifdef WIN32
-            // Windows has no conditional compile - so always declare
-            void ExecuteAsync();
-#else
-#ifdef TRUN_HAVE_THREADS
-            void ExecuteAsync(TRUN_PRE_POST_HOOK_DELEGATE cbPreHook, TRUN_PRE_POST_HOOK_DELEGATE cbPostHook);
-#endif
-#endif
-
-    private:
+    protected:
         void CreateTestResult(TestResponseProxy &proxy);
         void PrintTestResult();
         void ExecuteDependencies(IDynLibrary::Ref dynlib, TRUN_PRE_POST_HOOK_DELEGATE cbPreHook, TRUN_PRE_POST_HOOK_DELEGATE cbPostHook);
+
         void ChangeState(kState newState) {
             state = newState;
         }
         void ChangeExecState(kExecState newExecState) {
             execState = newExecState;
         }
+        int InvokeTestCase(TestResponseProxy &proxy) {
+            return pFunc((void *)proxy.GetExtInterface());
+        }
+
     private:
         std::string symbolName;
         std::string moduleName;
@@ -124,4 +122,7 @@ namespace trun {
         TestResult::Ref testResult = nullptr;
 
     };
+
+
+
 }

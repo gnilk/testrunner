@@ -5,15 +5,21 @@
 #include "testrunner.h"
 #include "moduleexecutors.h"
 
+#ifdef TRUN_HAVE_THREADS
+    #include <thread>
+#endif
+
 using namespace trun;
 
 TestModuleExecutorBase &TestModuleExecutorFactory::Create() {
     static TestModuleExecutorSequential sequentialExecutor;
-    static TestModuleExecutorParallel parallelExecutor;
 
+#ifdef TRUN_HAVE_THREADS
     if (Config::Instance().enableParallelTestExecution) {
+        static TestModuleExecutorParallel parallelExecutor;
         return parallelExecutor;
     }
+#endif
     return sequentialExecutor;
 }
 

@@ -29,6 +29,9 @@ namespace trun {
         gnilk::ILogger *pLogger = nullptr;
     };
 
+    // Embedded library compiled without threads - could have gotten away without it - but it is needed in several other places (which are not that easy)
+    // so I let's just keep the ifdef here for the time being..
+#ifdef TRUN_HAVE_THREADS
     // parallel execution - each module in a separate thread
     class TestModuleExecutorParallel : public TestModuleExecutorBase {
     public:
@@ -39,6 +42,7 @@ namespace trun {
     private:
         gnilk::ILogger *pLogger = nullptr;
     };
+#endif
 
     // A bit of enterprise perhaps?  - in this case it sort of makes sense...
     class TestModuleExecutorFactory {

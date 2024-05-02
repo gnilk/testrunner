@@ -26,14 +26,6 @@
  
  ---------------------------------------------------------------------------*/
 
-#ifdef WIN32
-#include <Windows.h>
-#else
-    #if TRUN_HAVE_THREADS
-        #include <pthread.h>
-        #include <thread>
-    #endif
-#endif
 #include <map>
 #include "testfunc.h"
 #include "config.h"
@@ -42,6 +34,7 @@
 #include "responseproxy.h"
 #include "strutil.h"
 #include "resultsummary.h"
+#include "funcexecutors.h"
 #include <string>
 
 using namespace trun;
@@ -64,11 +57,6 @@ TestFunc::TestFunc(const std::string &use_symbolName, const std::string &use_mod
     testResult = nullptr;
     testReturnCode = -1;
 }
-
-void TestFunc::SetResultFromPrePostExec(TestResult::Ref newResult) {
-    testResult = newResult;
-}
-
 
 bool TestFunc::IsGlobal() {
     return (moduleName == "-");
@@ -99,15 +87,6 @@ bool TestFunc::ShouldExecuteNoDeps() {
 
     return caseMatch(caseName, Config::Instance().testcases);
 }
-
-struct ThreadArg {
-    TestFunc *testFunc;
-    TestModule::Ref testModule;
-    TestRunner *testRunner;
-    TRUN_PRE_POST_HOOK_DELEGATE *cbPreHook;
-    TRUN_PRE_POST_HOOK_DELEGATE *cbPostHook;
-};
-
 
 TestResult::Ref TestFunc::Execute(IDynLibrary::Ref dynlib, TRUN_PRE_POST_HOOK_DELEGATE cbPreHook, TRUN_PRE_POST_HOOK_DELEGATE cbPostHook) {
     // Unless idle, we should not execute
@@ -142,18 +121,9 @@ TestResult::Ref TestFunc::Execute(IDynLibrary::Ref dynlib, TRUN_PRE_POST_HOOK_DE
     auto &proxy = currentModule->GetTestResponseProxy();
     proxy.Begin(symbolName, moduleName);
 
+    auto &executor = TestFuncExecutorFactory::Create();
+    testReturnCode = executor.Execute(this, cbPreHook, cbPostHook);
 
-#if defined(TRUN_HAVE_THREADS)
-    if (Config::Instance().enableThreadTestExecution == true) {
-        ExecuteAsync(cbPreHook, cbPostHook);
-        pLogger->Debug("Execute, thread done...\n");
-    } else {
-        ExecuteSync(cbPreHook, cbPostHook);
-    }
-#else
-    // If we don't have threads (i.e. embedded) - we simply just execute this...
-    ExecuteSync();
-#endif
     proxy.End();
     CreateTestResult(proxy);
 
@@ -161,112 +131,6 @@ TestResult::Ref TestFunc::Execute(IDynLibrary::Ref dynlib, TRUN_PRE_POST_HOOK_DE
     ChangeState(kState::Finished);
     return testResult;
 }
-
-
-
-#ifdef WIN32
-DWORD WINAPI testfunc_thread_starter(LPVOID lpParam) {
-    // NOTE: Should not be 'TestFunc::Ref' - called with 'this' as the 'void *' param from within 'TestFunc'
-    TestFunc* func = reinterpret_cast<TestFunc *>(lpParam);
-    func->ExecuteSync();
-    return NULL;
-}
-
-void TestFunc::ExecuteAsync() {
-    DWORD dwThreadID;
-    HANDLE hThread = CreateThread(NULL, 0, testfunc_thread_starter, this, 0, &dwThreadID);
-    pLogger->Debug("Execute, waiting for thread");
-    WaitForSingleObject(hThread, INFINITE);
-}
-
-#else
-
-
-// Pthread wrapper..
-#ifdef TRUN_HAVE_THREADS
-static void *testfunc_thread_starter(void *arg) {
-    auto threadArg = reinterpret_cast<ThreadArg *>(arg);
-
-    TestRunner::SetCurrentTestModule(threadArg->testModule);
-    TestRunner::SetCurrentTestRunner(threadArg->testRunner);
-
-    threadArg->testFunc->ExecuteSync(threadArg->cbPreHook, threadArg->cbPostHook);
-    // Return NULL here as this is a C callback..
-    return NULL;
-}
-
-void TestFunc::ExecuteAsync(TRUN_PRE_POST_HOOK_DELEGATE cbPreHook, TRUN_PRE_POST_HOOK_DELEGATE cbPostHook) {
-    pthread_attr_t attr;
-    pthread_t hThread;
-    int err;
-    pthread_attr_init(&attr);
-
-    {
-        int s;
-        size_t v;
-        s = pthread_attr_getstacksize(&attr, &v);
-        if (s) {
-            pLogger->Error("Failed to fetch stack size: %d\n", s);
-        } else {
-            pLogger->Debug("Thread Stack size = %d kbytes\n", v/1024);
-
-        }
-    }
-
-    auto threadArg = ThreadArg {
-            .testFunc = this,
-            .testModule = TestRunner::GetCurrentTestModule(),
-            .testRunner = TestRunner::GetCurrentRunner(),
-            .cbPreHook = cbPreHook,
-            .cbPostHook = cbPostHook,
-    };
-
-    if ((err = pthread_create(&hThread,&attr,testfunc_thread_starter, &threadArg))) {
-        pLogger->Error("pthread_create, failed with code: %d\n", err);
-        exit(1);
-    }
-    pLogger->Debug("Execute, waiting for thread");
-    void *ret;
-    pthread_join(hThread, &ret);
-}
-#endif
-#endif
-
-void TestFunc::ExecuteSync(TRUN_PRE_POST_HOOK_DELEGATE cbPreHook, TRUN_PRE_POST_HOOK_DELEGATE cbPostHook) {
-
-    // Begin test, note: THIS MUST BE DONE HERE - in case of threading!
-    auto currentModule = TestRunner::GetCurrentTestModule();
-    if (currentModule == nullptr) {
-        pLogger->Error("No module, can't execute!");
-        return;
-    }
-
-    auto &proxy = currentModule->GetTestResponseProxy();
-
-    if (cbPreHook != nullptr) {
-        // Note: in case of threaded test execution, we this will terminate on error - we need to disable thread here OR we need to actually thread pre/post as well
-        ChangeExecState(kExecState::PreCallback);
-        int preHookReturnCode = cbPreHook(proxy.GetExtInterface());
-        if (preHookReturnCode != kTR_Pass) {
-            testReturnCode = preHookReturnCode;
-            return;
-        }
-    }
-
-    // Main
-    ChangeExecState(kExecState::Main);
-    testReturnCode = pFunc((void *) proxy.GetExtInterface());
-
-    if (cbPostHook != nullptr) {
-        ChangeExecState(kExecState::PostCallback);
-        int postHookReturnCode = cbPostHook(proxy.GetExtInterface());
-        if (postHookReturnCode != kTR_Pass) {
-            // FIXME: We need a flag to deal with
-            testReturnCode = postHookReturnCode;
-        }
-    }
-}
-
 
 void TestFunc::CreateTestResult(TestResponseProxy &proxy) {
 
