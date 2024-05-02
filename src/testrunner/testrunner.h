@@ -40,18 +40,8 @@ namespace trun {
         bool ExecuteMain();
         bool ExecuteMainExit();
         bool ExecuteModuleTests();
-//        bool ExecuteGlobalTests();
-//        bool ExecuteModuleTestFuncs(TestModule::Ref testModule);
-//        TestResult::Ref ExecuteModuleMain(const TestModule::Ref &testModule);
-//        void ExecuteModuleExit(TestModule::Ref testModule);
-//        TestResult::Ref ExecuteTest(const TestModule::Ref &testModule, const TestFunc::Ref &testCase);
-//        void HandleTestResult(TestResult::Ref result);
         TestFunc::Ref CreateTestFunc(std::string sym);
-
-//        TestResult::Ref ExecuteModulePreHook(const TestModule::Ref &testModule, const TestFunc::Ref &testCase);
-//        TestResult::Ref ExecuteModulePostHook(const TestModule::Ref &testModule, const TestFunc::Ref &testCase);
-//        TestResult::Ref ExecuteModulePrePostHook(const TestModule::Ref &testModule, const TestFunc::Ref &testCase, kRunPrePostHook runHook);
-//        kRunResultAction CheckResultIfContinue(const TestResult::Ref &result) const;
+        void AddDependencyForModule(const std::string &moduleName, const std::string &dependencyList);
         TestModule::Ref GetOrAddModule(std::string &module);
     private:
         kRunResultAction ExecuteTestWithDependencies(const TestModule::Ref &testModule, TestFunc::Ref testCase, std::vector<TestFunc::Ref> &deps);

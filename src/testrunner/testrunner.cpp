@@ -295,7 +295,11 @@ void TestRunner::PrepareTests() {
     // Note: We can't resolve dependencies here as they are configured during library main
 
 }
-
+void TestRunner::AddDependencyForModule(const std::string &moduleName, const std::string &dependencyList) {
+    // FIXME: Implement this
+    printf("NOT IMPLEMENTED!\n");
+    exit(1);
+}
 TestModule::Ref TestRunner::GetOrAddModule(std::string &moduleName) {
     TestModule::Ref tModule = nullptr;
 

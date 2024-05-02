@@ -101,6 +101,10 @@ TestResult::Ref TestModule::ExecuteExit(IDynLibrary::Ref dynlib) {
     return testResult;
 }
 
+void TestModule::AddDependency(TestModule::Ref depModule) {
+    dependencies.push_back(depModule);
+}
+
 void TestModule::AddDependencyForCase(const std::string &caseName, const std::string &dependencyList) {
     std::vector<std::string> deplist;
     trun::split(deplist, dependencyList.c_str(), ',');

@@ -44,6 +44,9 @@ namespace trun {
         TestResult::Ref ExecuteMain(IDynLibrary::Ref dynlib);
         TestResult::Ref ExecuteExit(IDynLibrary::Ref dynlib);
 
+        void AddDependency(TestModule::Ref depModule);
+        const std::vector<TestModule::Ref> &Dependencies() const { return dependencies; }
+
         void AddDependencyForCase(const std::string &caseName, const std::string &dependencyList);
 
     protected:
@@ -69,6 +72,8 @@ namespace trun {
         std::unordered_map<std::string, std::vector<std::string>> caseDependencyList;
     public: // FIX THIS - I don't want these public...
         std::string name;
+        std::vector<TestModule::Ref> dependencies;
+
         TestFunc::Ref mainFunc = nullptr;
         TestFunc::Ref exitFunc = nullptr;
         TestResponseProxy testResponseProxy;
@@ -76,7 +81,6 @@ namespace trun {
         TRUN_PRE_POST_HOOK_DELEGATE *cbPreHook = nullptr;
         TRUN_PRE_POST_HOOK_DELEGATE *cbPostHook = nullptr;
 
-        std::vector<TestFunc::Ref> dependencies;
         std::vector<TestFunc::Ref> testFuncs;
     };
 }

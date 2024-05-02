@@ -265,7 +265,7 @@ void TestResponseProxy::CaseDepends(const char *caseName, const char *dependency
 }
 
 // FIXME: Implement
-void TestResponseProxy::ModuleDepends(const char *moduleName, const char *dependencyList) {
+void TestResponseProxy::ModuleDepends(const char *modName, const char *dependencyList) {
     pLogger->Debug("NOT YET IMPLEMENTED");
 }
 
