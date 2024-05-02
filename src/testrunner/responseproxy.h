@@ -47,6 +47,7 @@ namespace trun {
         void SetPostCaseCallback(TRUN_PRE_POST_HOOK_DELEGATE cbPostCase);
 
         void CaseDepends(const char *caseName, const char *dependencyList);
+        void ModuleDepends(const char *moduleName, const char *dependencyList);
 
         void QueryInterface(uint32_t interface_id, void **outPtr);
     private:

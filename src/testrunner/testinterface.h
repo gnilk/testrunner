@@ -72,6 +72,7 @@ struct ITesting {
 
     // Dependency handling
     void (*CaseDepends)(const char *caseName, const char *dependencyList);
+    void (*ModuleDepends)(const char *moduleName, const char *dependencyList);  // v2 - module dependencies
 
     // This is perhaps a better way, we can extend as we see fit..
     // I think the biggest question is WHAT we need...

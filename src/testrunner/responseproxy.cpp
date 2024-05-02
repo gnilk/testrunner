@@ -57,6 +57,7 @@ static void int_trp_assert_error(const char *exp, const char *file, int line);
 static void int_trp_hook_precase(TRUN_PRE_POST_HOOK_DELEGATE cbPreCase);
 static void int_trp_hook_postcase(TRUN_PRE_POST_HOOK_DELEGATE cbPostCase);
 static void int_trp_casedepend(const char *caseName, const char *dependencyList);
+static void int_trp_moduledepend(const char *moduleName, const char *dependencyList);
 static void int_trp_query_interface(uint32_t interface_id, void **ouPtr);
 
 // Config interface
@@ -135,6 +136,7 @@ ITesting *TestResponseProxy::GetTRTestInterface() {
             .SetPreCaseCallback = int_trp_hook_precase,
             .SetPostCaseCallback = int_trp_hook_postcase,
             .CaseDepends = int_trp_casedepend,
+            .ModuleDepends = int_trp_moduledepend,
             .QueryInterface = int_trp_query_interface,
     };
     return &trp_bridge;
@@ -262,6 +264,11 @@ void TestResponseProxy::CaseDepends(const char *caseName, const char *dependency
     }
 }
 
+// FIXME: Implement
+void TestResponseProxy::ModuleDepends(const char *moduleName, const char *dependencyList) {
+    pLogger->Debug("NOT YET IMPLEMENTED");
+}
+
 void TestResponseProxy::QueryInterface(uint32_t interface_id, void **outPtr) {
     if (outPtr == nullptr) {
         pLogger->Error("QueryInterface, outPtr is null");
@@ -374,6 +381,10 @@ static void int_trp_casedepend(const char *caseName, const char *dependencyList)
     TestRunner::HACK_GetCurrentTestModule()->GetTestResponseProxy().CaseDepends(caseName, dependencyList);
     //TestResponseProxy::Instance().CaseDepends(caseName, dependencyList);
 }
+static void int_trp_moduledepend(const char *moduleName, const char *dependencyList) {
+    TestRunner::HACK_GetCurrentTestModule()->GetTestResponseProxy().ModuleDepends(moduleName, dependencyList);
+}
+
 
 
 static void int_trp_query_interface(uint32_t interface_id, void **outPtr) {
