@@ -40,14 +40,14 @@ namespace trun {
 
 
 
-        TestResult::Ref Execute(IDynLibrary::Ref dynlib);
-        TestResult::Ref ExecuteMain(IDynLibrary::Ref dynlib);
-        TestResult::Ref ExecuteExit(IDynLibrary::Ref dynlib);
+        TestResult::Ref Execute(const IDynLibrary::Ref &dynlib);
+        TestResult::Ref ExecuteMain(const IDynLibrary::Ref &dynlib);
+        TestResult::Ref ExecuteExit(const IDynLibrary::Ref &dynlib);
 
         void AddDependency(TestModule::Ref depModule);
         const std::vector<TestModule::Ref> &Dependencies() const { return dependencies; }
 
-        void AddDependencyForCase(const std::string &caseName, const std::string &dependencyList);
+        void AddDependencyForCase(const std::string &caseName, const std::string &dependencyList) const;
 
     protected:
         enum class kState {
@@ -65,11 +65,11 @@ namespace trun {
             state = newState;
         }
 
-        void ExecuteDependencies(IDynLibrary::Ref dynlib);
+        void ExecuteDependencies(const IDynLibrary::Ref &dynlib);
 
         // Internal - this wraps state handling...
-        TestResult::Ref DoExecute(IDynLibrary::Ref dynlib);
-        TestResult::Ref DoExecuteFunc(IDynLibrary::Ref dynlib, TestFunc::Ref func);
+        TestResult::Ref DoExecute(const IDynLibrary::Ref &dynlib);
+        TestResult::Ref DoExecuteTestCase(const IDynLibrary::Ref &dynlib, const TestFunc::Ref &func) const;
 
         std::unordered_map<std::string, std::vector<std::string>> caseDependencyList;
     public: // FIX THIS - I don't want these public...

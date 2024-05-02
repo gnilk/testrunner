@@ -29,35 +29,37 @@ TestModule::TestModule(const std::string &moduleName) :
         name(moduleName) {
 }
 
-
 bool TestModule::ShouldExecute() const {
     return caseMatch(name, Config::Instance().modules);
 }
 
-TestResult::Ref TestModule::Execute(IDynLibrary::Ref dynlib) {
+// Execute a module
+TestResult::Ref TestModule::Execute(const IDynLibrary::Ref &dynlib) {
     // Should not happen - but you never know..
     if (State() != kState::Idle) {
         return nullptr;
     }
-
+    // Important - change state first - this way we prohibit circular dependencies
     ChangeState(kState::Executing);
 
     // First execute dependencies...
     ExecuteDependencies(dynlib);
-
+    // Then we execute the module it self
     auto result = DoExecute(dynlib);
+
     ChangeState(kState::Finished);
     return result;
 }
+
 // Internal - make state handling easier..
-TestResult::Ref TestModule::DoExecute(IDynLibrary::Ref dynlib) {
+TestResult::Ref TestModule::DoExecute(const IDynLibrary::Ref &dynlib) {
     auto mainResult = ExecuteMain(dynlib);
     if ((mainResult != nullptr) && (mainResult->CheckIfContinue() != TestResult::kRunResultAction::kContinue)) {
         return mainResult;
     }
 
     for (auto &func : testFuncs) {
-        auto result = DoExecuteFunc(dynlib, func);
+        auto result = DoExecuteTestCase(dynlib, func);
         if (result != nullptr) {
             ResultSummary::Instance().AddResult(func);
             if (result->CheckIfContinue() != TestResult::kRunResultAction::kContinue) {
@@ -71,17 +73,16 @@ TestResult::Ref TestModule::DoExecute(IDynLibrary::Ref dynlib) {
     auto exitResult = ExecuteExit(dynlib);
     return exitResult;
 }
-TestResult::Ref TestModule::DoExecuteFunc(IDynLibrary::Ref dynlib, TestFunc::Ref func) {
 
-
-    // Should just return true/false
+// Execute a single test case
+TestResult::Ref TestModule::DoExecuteTestCase(const IDynLibrary::Ref &dynlib, const TestFunc::Ref &func) const {
+    // note: keeping them separate because easier debugging...
     auto result = func->Execute(dynlib, cbPreHook, cbPostHook);
-
     return result;
 }
 
-
-TestResult::Ref TestModule::ExecuteMain(IDynLibrary::Ref dynlib) {
+// Execute module main function
+TestResult::Ref TestModule::ExecuteMain(const IDynLibrary::Ref &dynlib) {
     if (mainFunc == nullptr) return nullptr;
     if (!Config::Instance().testModuleGlobals) return nullptr;
 
@@ -92,7 +93,9 @@ TestResult::Ref TestModule::ExecuteMain(IDynLibrary::Ref dynlib) {
 
     return testResult;
 }
-TestResult::Ref TestModule::ExecuteExit(IDynLibrary::Ref dynlib) {
+
+// Execute module exit function
+TestResult::Ref TestModule::ExecuteExit(const IDynLibrary::Ref &dynlib) {
     if (exitFunc == nullptr) return nullptr;
     if (!Config::Instance().testModuleGlobals) return nullptr;
 
@@ -101,12 +104,13 @@ TestResult::Ref TestModule::ExecuteExit(IDynLibrary::Ref dynlib) {
     if (testResult != nullptr) {
         ResultSummary::Instance().AddResult(exitFunc);
     }
-
     return testResult;
 }
 
-void TestModule::ExecuteDependencies(IDynLibrary::Ref dynlib) {
+// Execute module dependencies
+void TestModule::ExecuteDependencies(const IDynLibrary::Ref &dynlib) {
     for (auto &mod : dependencies) {
+        // We are not idle - i.e. either we are executing or executed, protect against circular dependencies as well
         if (!mod->IsIdle()) {
             continue;
         }
@@ -114,23 +118,25 @@ void TestModule::ExecuteDependencies(IDynLibrary::Ref dynlib) {
     }
 }
 
+// Add a module dependency to the list
 void TestModule::AddDependency(TestModule::Ref depModule) {
     dependencies.push_back(depModule);
 }
 
-void TestModule::AddDependencyForCase(const std::string &caseName, const std::string &dependencyList) {
+// Parse and handle test case dependencies..
+// Dependencies are a comma separated case-name list..  it; 'test_module_<case>'
+void TestModule::AddDependencyForCase(const std::string &caseName, const std::string &dependencyList) const {
     std::vector<std::string> deplist;
+
     trun::split(deplist, dependencyList.c_str(), ',');
 
     auto tc = TestCaseFromName(caseName);
     if (tc == nullptr) {
-        // FIXME: Log error
         return;
     }
     for(auto &dep : deplist) {
         auto tc_dep = TestCaseFromName(dep);
         if (tc_dep == nullptr) {
-            // FIXME: log error
             continue;
         }
         tc->AddDependency(tc_dep);
