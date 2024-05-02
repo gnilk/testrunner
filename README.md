@@ -44,9 +44,6 @@ The default will build 64bit with Visual Studio 2019 and 32bit with Visual Studi
 As Windows don't have a default place to store 3rd party include files you need to copy the `testinterface.h` file somewhere common on your environment. You want to include this file in your unit tests (note: It's optional).
 
 ## Embedded
-
-Note: V2 is currently not supported for embedded - it is work in progress..
-
 <b>Only tested with PlatformIO as build system</b>
 
 Clone the repository into your `lib_extras_dir`, if you use Arduino as underlying framework this is the library 
