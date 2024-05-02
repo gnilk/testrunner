@@ -47,6 +47,12 @@ DLL_EXPORT int test_main(ITesting *t) {
     // Now set the log-level, we just want errors (this is for the library and not for the testrunner)
     gnilk::Logger::SetAllSinkDebugLevel(gnilk::LogLevel::kError);
 
+    // Test the module dependency
+    t->ModuleDepends("mdepmodA", "mdepmodB");
+    t->ModuleDepends("mdepmodB", "mdepmodC,mdepmodD");
+
+
+    // Testing the v2 query-interface features
     ITestingConfig *tr_config = nullptr;
     t->QueryInterface(ITestingConfig_IFace_ID, (void **)&tr_config);
     TR_ASSERT(t, tr_config != nullptr);

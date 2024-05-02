@@ -41,6 +41,10 @@ TestResult::Ref TestModule::Execute(IDynLibrary::Ref dynlib) {
     }
 
     ChangeState(kState::Executing);
+
+    // First execute dependencies...
+    ExecuteDependencies(dynlib);
+
     auto result = DoExecute(dynlib);
     ChangeState(kState::Finished);
     return result;
@@ -99,6 +103,15 @@ TestResult::Ref TestModule::ExecuteExit(IDynLibrary::Ref dynlib) {
     }
 
     return testResult;
+}
+
+void TestModule::ExecuteDependencies(IDynLibrary::Ref dynlib) {
+    for (auto &mod : dependencies) {
+        if (!mod->IsIdle()) {
+            continue;
+        }
+        mod->Execute(dynlib);
+    }
 }
 
 void TestModule::AddDependency(TestModule::Ref depModule) {

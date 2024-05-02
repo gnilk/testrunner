@@ -244,21 +244,21 @@ void TestResponseProxy::TerminateThreadIfNeeded() {
 
 
 void TestResponseProxy::SetPreCaseCallback(TRUN_PRE_POST_HOOK_DELEGATE cbPreCase) {
-    auto testModule = TestRunner::HACK_GetCurrentTestModule();
+    auto testModule = TestRunner::GetCurrentTestModule();
     if (testModule != nullptr) {
         testModule->cbPreHook = cbPreCase;
     }
 }
 
 void TestResponseProxy::SetPostCaseCallback(TRUN_PRE_POST_HOOK_DELEGATE cbPostCase) {
-    auto testModule = TestRunner::HACK_GetCurrentTestModule();
+    auto testModule = TestRunner::GetCurrentTestModule();
     if (testModule != nullptr) {
         testModule->cbPostHook = cbPostCase;
     }
 }
 
 void TestResponseProxy::CaseDepends(const char *caseName, const char *dependencyList) {
-    auto testModule = TestRunner::HACK_GetCurrentTestModule();
+    auto testModule = TestRunner::GetCurrentTestModule();
     if (testModule != nullptr) {
         testModule->AddDependencyForCase(caseName, dependencyList);
     }
@@ -266,7 +266,14 @@ void TestResponseProxy::CaseDepends(const char *caseName, const char *dependency
 
 // FIXME: Implement
 void TestResponseProxy::ModuleDepends(const char *modName, const char *dependencyList) {
-    pLogger->Debug("NOT YET IMPLEMENTED");
+    auto ptrRunner = TestRunner::GetCurrentRunner();
+
+
+    if (ptrRunner == nullptr) {
+        pLogger->Error("No test runner!");
+        return;
+    }
+    ptrRunner->AddDependenciesForModule(modName, dependencyList);
 }
 
 void TestResponseProxy::QueryInterface(uint32_t interface_id, void **outPtr) {
@@ -329,66 +336,66 @@ static bool IsMsgSizeOk(uint32_t szbuf) {
 
 static void int_trp_debug(int line, const char *file, const char *format, ...) {
     CREATE_REPORT_STRING()
-    TestRunner::HACK_GetCurrentTestModule()->GetTestResponseProxy().Debug(line, file, std::string(newstr));
+    TestRunner::GetCurrentTestModule()->GetTestResponseProxy().Debug(line, file, std::string(newstr));
     //TestResponseProxy::Instance().Debug(line, file, std::string(newstr));
 }
 static void int_trp_info(int line, const char *file, const char *format, ...) {
     CREATE_REPORT_STRING()
-    TestRunner::HACK_GetCurrentTestModule()->GetTestResponseProxy().Info(line, file, std::string(newstr));
+    TestRunner::GetCurrentTestModule()->GetTestResponseProxy().Info(line, file, std::string(newstr));
 //    TestResponseProxy::Instance().Info(line, file, std::string(newstr));
 }
 static void int_trp_warning(int line, const char *file, const char *format, ...) {
     CREATE_REPORT_STRING()
-    TestRunner::HACK_GetCurrentTestModule()->GetTestResponseProxy().Warning(line, file, std::string(newstr));
+    TestRunner::GetCurrentTestModule()->GetTestResponseProxy().Warning(line, file, std::string(newstr));
 //    TestResponseProxy::Instance().Warning(line, file, std::string(newstr));
 }
 static void int_trp_error(int line, const char *file, const char *format, ...) {
     CREATE_REPORT_STRING()
-    TestRunner::HACK_GetCurrentTestModule()->GetTestResponseProxy().Error(line, file, std::string(newstr));
+    TestRunner::GetCurrentTestModule()->GetTestResponseProxy().Error(line, file, std::string(newstr));
 //    TestResponseProxy::Instance().Error(line, file, std::string(newstr));
 }
 
 static void int_trp_fatal(int line, const char *file, const char *format, ...) {
     CREATE_REPORT_STRING()
-    TestRunner::HACK_GetCurrentTestModule()->GetTestResponseProxy().Fatal(line, file, std::string(newstr));
+    TestRunner::GetCurrentTestModule()->GetTestResponseProxy().Fatal(line, file, std::string(newstr));
 //    TestResponseProxy::Instance().Fatal(line, file, std::string(newstr));
 }
 
 static void int_trp_abort(int line, const char *file, const char *format, ...) {
     CREATE_REPORT_STRING()
-    TestRunner::HACK_GetCurrentTestModule()->GetTestResponseProxy().Abort(line, file, std::string(newstr));
+    TestRunner::GetCurrentTestModule()->GetTestResponseProxy().Abort(line, file, std::string(newstr));
     //TestResponseProxy::Instance().Abort(line,file, std::string(newstr));
 }
 
 static void int_trp_assert_error(const char *exp, const char *file, int line) {
-    TestRunner::HACK_GetCurrentTestModule()->GetTestResponseProxy().AssertError(exp, file, line);
+    TestRunner::GetCurrentTestModule()->GetTestResponseProxy().AssertError(exp, file, line);
     //TestResponseProxy::Instance().AssertError(exp, file, line);
 }
 
 #undef CREATE_REPORT_STRING
 
 static void int_trp_hook_precase(TRUN_PRE_POST_HOOK_DELEGATE cbPreCase) {
-    TestRunner::HACK_GetCurrentTestModule()->GetTestResponseProxy().SetPreCaseCallback(cbPreCase);
+    TestRunner::GetCurrentTestModule()->GetTestResponseProxy().SetPreCaseCallback(cbPreCase);
     //TestResponseProxy::Instance().SetPreCaseCallback(cbPreCase);
 }
 
 static void int_trp_hook_postcase(TRUN_PRE_POST_HOOK_DELEGATE cbPostCase) {
-    TestRunner::HACK_GetCurrentTestModule()->GetTestResponseProxy().SetPostCaseCallback(cbPostCase);
+    TestRunner::GetCurrentTestModule()->GetTestResponseProxy().SetPostCaseCallback(cbPostCase);
     //TestResponseProxy::Instance().SetPostCaseCallback(cbPostCase);
 }
 
 static void int_trp_casedepend(const char *caseName, const char *dependencyList) {
-    TestRunner::HACK_GetCurrentTestModule()->GetTestResponseProxy().CaseDepends(caseName, dependencyList);
+    TestRunner::GetCurrentTestModule()->GetTestResponseProxy().CaseDepends(caseName, dependencyList);
     //TestResponseProxy::Instance().CaseDepends(caseName, dependencyList);
 }
 static void int_trp_moduledepend(const char *moduleName, const char *dependencyList) {
-    TestRunner::HACK_GetCurrentTestModule()->GetTestResponseProxy().ModuleDepends(moduleName, dependencyList);
+    TestRunner::GetCurrentTestModule()->GetTestResponseProxy().ModuleDepends(moduleName, dependencyList);
 }
 
 
 
 static void int_trp_query_interface(uint32_t interface_id, void **outPtr) {
-    TestRunner::HACK_GetCurrentTestModule()->GetTestResponseProxy().QueryInterface(interface_id, outPtr);
+    TestRunner::GetCurrentTestModule()->GetTestResponseProxy().QueryInterface(interface_id, outPtr);
 //    return TestResponseProxy::Instance().QueryInterface(interface_id, outPtr);
 }
 

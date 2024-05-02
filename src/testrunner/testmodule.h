@@ -65,6 +65,8 @@ namespace trun {
             state = newState;
         }
 
+        void ExecuteDependencies(IDynLibrary::Ref dynlib);
+
         // Internal - this wraps state handling...
         TestResult::Ref DoExecute(IDynLibrary::Ref dynlib);
         TestResult::Ref DoExecuteFunc(IDynLibrary::Ref dynlib, TestFunc::Ref func);

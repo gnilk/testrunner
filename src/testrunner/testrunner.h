@@ -23,8 +23,15 @@ namespace trun {
         void PrepareTests();
         void ExecuteTests();
         void DumpTestsToRun();
-        static TestModule::Ref HACK_GetCurrentTestModule();
-        static void HACK_SetCurrentTestModule(TestModule::Ref currentTestModule);
+
+        // ITesting can call-us (any time) to set this...
+        void AddDependenciesForModule(const std::string &moduleName, const std::string &dependencyList);
+
+        // These fetch from either thread_local Context or just Context - depending on IF we are compiled with threads or not
+        static void SetCurrentTestModule(TestModule::Ref currentTestModule);
+        static void SetCurrentTestRunner(TestRunner *currentTestRunner);
+        static TestModule::Ref GetCurrentTestModule();
+        static TestRunner *GetCurrentRunner();
 
     private:
         enum class kRunResultAction {
@@ -40,9 +47,9 @@ namespace trun {
         bool ExecuteMain();
         bool ExecuteMainExit();
         bool ExecuteModuleTests();
-        TestFunc::Ref CreateTestFunc(std::string sym);
-        void AddDependencyForModule(const std::string &moduleName, const std::string &dependencyList);
-        TestModule::Ref GetOrAddModule(std::string &module);
+        TestFunc::Ref CreateTestFunc(const std::string &sym);
+        TestModule::Ref GetOrAddModule(const std::string &module);
+        TestModule::Ref ModuleFromName(const std::string &moduleName);
     private:
         kRunResultAction ExecuteTestWithDependencies(const TestModule::Ref &testModule, TestFunc::Ref testCase, std::vector<TestFunc::Ref> &deps);
 

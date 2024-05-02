@@ -44,10 +44,17 @@
 
 using namespace trun;
 
+struct ThreadContext {
+    TestModule::Ref currentTestModule = nullptr;
+    TestRunner *currentTestRunner = nullptr;
+};
+
 #ifdef TRUN_HAVE_THREADS
-static thread_local TestModule::Ref hack_glbCurrentTestModule = nullptr;
+//static thread_local TestModule::Ref hack_glbCurrentTestModule = nullptr;
+static thread_local ThreadContext threadContext;
 #else
-static TestModule::Ref hack_glbCurrentTestModule = nullptr;
+//static TestModule::Ref hack_glbCurrentTestModule = nullptr;
+static ThreadContext threadContext;
 #endif
 
 //
@@ -64,13 +71,19 @@ static TestModule::Ref hack_glbCurrentTestModule = nullptr;
 //   - Either fill every case with a 'thread::sleep(x)' or if that is null just pass on kTR_Pass;
 //
 
-TestModule::Ref TestRunner::HACK_GetCurrentTestModule() {
-    return hack_glbCurrentTestModule;
-}
-void TestRunner::HACK_SetCurrentTestModule(TestModule::Ref currentTestModule) {
-    hack_glbCurrentTestModule = currentTestModule;
+TestRunner *TestRunner::GetCurrentRunner() {
+    return threadContext.currentTestRunner;
 }
 
+TestModule::Ref TestRunner::GetCurrentTestModule() {
+    return threadContext.currentTestModule;
+}
+void TestRunner::SetCurrentTestModule(TestModule::Ref currentTestModule) {
+    threadContext.currentTestModule = currentTestModule;
+}
+void TestRunner::SetCurrentTestRunner(TestRunner *currentTestRunner) {
+    threadContext.currentTestRunner = currentTestRunner;
+}
 
 //////--- Ok, let's go...
 
@@ -101,6 +114,9 @@ void TestRunner::ExecuteTests() {
 
     printf("---> Start Module  \t%s\n", library->Name().c_str());
 
+    // Update the thread context with ourselves, we do this directly as it won't change
+    SetCurrentTestRunner(this);
+
     // 1) Execute main
     if (ExecuteMain()) {
         ExecuteModuleTests();
@@ -128,7 +144,7 @@ bool TestRunner::ExecuteMain() {
 
     // FIXME: Verify we need to create a dummy module after refactoring
     auto dummy = TestModule::Create("_dummy-main_");
-    hack_glbCurrentTestModule = dummy;
+    SetCurrentTestModule(dummy);
     TestResult::Ref result = globalMain->Execute(library, nullptr, nullptr);
     ResultSummary::Instance().AddResult(globalMain);
     if ((result->Result() == kTestResult_AllFail) || (result->Result() == kTestResult_TestFail)) {
@@ -156,7 +172,7 @@ bool TestRunner::ExecuteMainExit() {
 
     // FIXME: Verify we need to create a dummy module after refactoring
     auto dummy = TestModule::Create("_dummy-main_");
-    hack_glbCurrentTestModule = dummy;
+    SetCurrentTestModule(dummy);
 
     TestResult::Ref result = globalExit->Execute(library, nullptr, nullptr);
     ResultSummary::Instance().AddResult(globalExit);
@@ -205,8 +221,8 @@ bool TestRunner::ExecuteModuleTests() {
         if (Config::Instance().enableParallelTestExecution) {
 #ifdef TRUN_HAVE_THREADS
             auto thread = std::thread([this, &testModule] {
-                hack_glbCurrentTestModule = testModule;
-                void *ptrRaw = (void *)hack_glbCurrentTestModule.get();
+                SetCurrentTestRunner(this);
+                SetCurrentTestModule(testModule);
                 auto result = testModule->Execute(library);
             });
             threads.push_back(std::move(thread));
@@ -216,13 +232,12 @@ bool TestRunner::ExecuteModuleTests() {
 #endif
 
         } else {
-            hack_glbCurrentTestModule = testModule;
+            SetCurrentTestModule(testModule);
             auto result = testModule->Execute(library);
             if ((result != nullptr) && (result->CheckIfContinue() == TestResult::kRunResultAction::kAbortAll)) {
                 break;
             }
-            hack_glbCurrentTestModule = nullptr;
-
+            SetCurrentTestModule(nullptr);
         }
     } // for modules
 
@@ -295,12 +310,36 @@ void TestRunner::PrepareTests() {
     // Note: We can't resolve dependencies here as they are configured during library main
 
 }
-void TestRunner::AddDependencyForModule(const std::string &moduleName, const std::string &dependencyList) {
-    // FIXME: Implement this
-    printf("NOT IMPLEMENTED!\n");
-    exit(1);
+void TestRunner::AddDependenciesForModule(const std::string &moduleName, const std::string &dependencyList) {
+    std::vector<std::string> deplist;
+    trun::split(deplist, dependencyList.c_str(), ',');
+
+    auto tm = ModuleFromName(moduleName);
+    if (tm == nullptr) {
+        // FIXME: Log error
+        pLogger->Error("Module not found; '%s'", moduleName.c_str());
+        return;
+    }
+    for(auto &dep : deplist) {
+        auto mod_dep = ModuleFromName(dep);
+        if (mod_dep == nullptr) {
+            // FIXME: log error
+            pLogger->Error("Module Dependency not found; '%s'", dep.c_str());
+            continue;
+        }
+        tm->AddDependency(mod_dep);
+    }
+
 }
-TestModule::Ref TestRunner::GetOrAddModule(std::string &moduleName) {
+
+TestModule::Ref TestRunner::ModuleFromName(const std::string &moduleName) {
+    if (testModules.find(moduleName) == testModules.end()) {
+        return nullptr;
+    }
+    return testModules[moduleName];
+}
+
+TestModule::Ref TestRunner::GetOrAddModule(const std::string &moduleName) {
     TestModule::Ref tModule = nullptr;
 
     auto it = testModules.find(moduleName);
@@ -324,7 +363,7 @@ TestModule::Ref TestRunner::GetOrAddModule(std::string &moduleName) {
 // 'library' - this is the code library you are testing, this can be used to filter out tests from cmd line
 // 'case'   - this is the test case
 //
-TestFunc::Ref TestRunner::CreateTestFunc(std::string symbol) {
+TestFunc::Ref TestRunner::CreateTestFunc(const std::string &symbol) {
     TestFunc::Ref func = nullptr;
 
     std::vector<std::string> funcparts;

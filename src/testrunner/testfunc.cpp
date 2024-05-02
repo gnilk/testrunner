@@ -103,6 +103,7 @@ bool TestFunc::ShouldExecuteNoDeps() {
 struct ThreadArg {
     TestFunc *testFunc;
     TestModule::Ref testModule;
+    TestRunner *testRunner;
     TRUN_PRE_POST_HOOK_DELEGATE *cbPreHook;
     TRUN_PRE_POST_HOOK_DELEGATE *cbPostHook;
 };
@@ -126,7 +127,7 @@ TestResult::Ref TestFunc::Execute(IDynLibrary::Ref dynlib, TRUN_PRE_POST_HOOK_DE
     }
 
     // Without the test-module (as a thread_local instance - we won't execute)
-    auto currentModule = TestRunner::HACK_GetCurrentTestModule();
+    auto currentModule = TestRunner::GetCurrentTestModule();
     if (currentModule == nullptr) {
         pLogger->Error("No module, can't execute!");
         ChangeState(kState::Finished);
@@ -186,7 +187,9 @@ void TestFunc::ExecuteAsync() {
 static void *testfunc_thread_starter(void *arg) {
     auto threadArg = reinterpret_cast<ThreadArg *>(arg);
 
-    TestRunner::HACK_SetCurrentTestModule(threadArg->testModule);
+    TestRunner::SetCurrentTestModule(threadArg->testModule);
+    TestRunner::SetCurrentTestRunner(threadArg->testRunner);
+
     threadArg->testFunc->ExecuteSync(threadArg->cbPreHook, threadArg->cbPostHook);
     // Return NULL here as this is a C callback..
     return NULL;
@@ -212,7 +215,8 @@ void TestFunc::ExecuteAsync(TRUN_PRE_POST_HOOK_DELEGATE cbPreHook, TRUN_PRE_POST
 
     auto threadArg = ThreadArg {
             .testFunc = this,
-            .testModule = TestRunner::HACK_GetCurrentTestModule(),
+            .testModule = TestRunner::GetCurrentTestModule(),
+            .testRunner = TestRunner::GetCurrentRunner(),
             .cbPreHook = cbPreHook,
             .cbPostHook = cbPostHook,
     };
@@ -231,7 +235,7 @@ void TestFunc::ExecuteAsync(TRUN_PRE_POST_HOOK_DELEGATE cbPreHook, TRUN_PRE_POST
 void TestFunc::ExecuteSync(TRUN_PRE_POST_HOOK_DELEGATE cbPreHook, TRUN_PRE_POST_HOOK_DELEGATE cbPostHook) {
 
     // Begin test, note: THIS MUST BE DONE HERE - in case of threading!
-    auto currentModule = TestRunner::HACK_GetCurrentTestModule();
+    auto currentModule = TestRunner::GetCurrentTestModule();
     if (currentModule == nullptr) {
         pLogger->Error("No module, can't execute!");
         return;

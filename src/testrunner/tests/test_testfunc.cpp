@@ -93,10 +93,10 @@ DLL_EXPORT int test_tfunc_exec(ITesting *t) {
     // high-level. We are testing: TestResponseProxy, AssertError, TestResult, etc...
     //
 
-    auto actualRunningModule = TestRunner::HACK_GetCurrentTestModule();
+    auto actualRunningModule = TestRunner::GetCurrentTestModule();
     // Note: I don't think this will be 'null' on windows
     auto mockModule = TestModule::Create("mock");
-    TestRunner::HACK_SetCurrentTestModule(mockModule);
+    TestRunner::SetCurrentTestModule(mockModule);
 
     auto testResult = func.Execute(mockDynLib, nullptr, nullptr);
     TR_ASSERT(t, testResult != nullptr);
@@ -104,7 +104,7 @@ DLL_EXPORT int test_tfunc_exec(ITesting *t) {
     TR_ASSERT(t, testResult->Errors() == 0);
     TR_ASSERT(t, testResult->Result() == kTestResult_Pass);
 
-    TestRunner::HACK_SetCurrentTestModule(actualRunningModule);
+    TestRunner::SetCurrentTestModule(actualRunningModule);
 
     return kTR_Pass;
 }
