@@ -5,6 +5,10 @@
  Orginal : 2006-07-26, 15:50
  Descr   : Tiny Log4Net look-alike for C++ 
 
+
+ Part of testrunner
+ BSD3 License!
+
  Layout can be changed in: Logger::WriteReportString
  
  Comparision in output is '>=' means, setting debug level filtering to 
@@ -21,7 +25,7 @@
  
  Modified: $Date: $ by $Author: $
  ---------------------------------------------------------------------------
- TODO: [ -:Not done, +:In progress, !:Completed]
+ TO-DO: [ -:Not done, +:In progress, !:Completed]
  <pre>
    ! Level filtering [sink levels]
    ! Global properties [early filtering]

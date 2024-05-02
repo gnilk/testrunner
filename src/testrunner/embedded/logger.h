@@ -4,6 +4,10 @@ Author  :   FKling
 Orginal :	2005-7-19, 11:39
 Descr   :	Logger, simplistic stuff, mimics Log4Net/Log4Java/Log4Delphi
 
+ Part of testrunner
+ BSD3 License!
+
+
 No support for layout's, output is fixed
 
 Loglevel filtering can be set on:
@@ -19,7 +23,7 @@ Loglevel filtering can be set on:
  set it to "NONE" (kMCNone)
 
 --------------------------------------------------------------------------- 
-Todo [-:undone,+:inprogress,!:done]:
+To-do [-:undone,+:inprogress,!:done]:
 
  
 Changes: 

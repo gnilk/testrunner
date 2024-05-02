@@ -1,6 +1,22 @@
-//
-// Created by gnilk on 11/21/2022.
-//
+/*-------------------------------------------------------------------------
+ File    : dynlib_embedded.cpp
+ Author  : FKling
+ Version : -
+ Orginal : 2022-11-21
+ Descr   : Dynamic library functionality wrapper for embedded platforms
+
+ Part of testrunner
+ BSD3 License!
+
+ Modified: $Date: $ by $Author: $
+ ---------------------------------------------------------------------------
+ TO-DO: [ -:Not done, +:In progress, !:Completed]
+ <pre>
+ </pre>
+
+ \History
+ - 2022.11.21, FKling, Implementation
+ ---------------------------------------------------------------------------*/
 
 #include "dynlib_embedded.h"
 #include <memory>
