@@ -24,7 +24,13 @@ TestFuncExecutorBase &TestFuncExecutorFactory::Create() {
 #ifdef TRUN_HAVE_THREADS
     if (Config::Instance().enableThreadTestExecution == true) {
         static TestFuncExecutorParallel parallelExecutor;
-        //static TestFuncExecutorParallelPThread parallelExecutor;
+        static TestFuncExecutorParallelPThread parallelExecutorPThread;
+
+        // If we allow this - we MUST use the pthread version...
+        if (Config::Instance().allowThreadTermination == true) {
+            return parallelExecutorPThread;
+        }
+
         return parallelExecutor;
 
     }

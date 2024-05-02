@@ -229,9 +229,11 @@ void TestResponseProxy::AssertError(const char *exp, const char *file, const int
     assertError.Set(AssertError::kAssert_Error, line, file, exp);
     TerminateThreadIfNeeded();
 }
+
+// Terminates the running thread if allowed - i.e. you must have 'allowThreadTermination' enabled...
 void TestResponseProxy::TerminateThreadIfNeeded() {
 #ifdef TRUN_HAVE_THREADS
-    if (Config::Instance().enableThreadTestExecution) {
+    if ((Config::Instance().enableThreadTestExecution) && (Config::Instance().allowThreadTermination)) {
         #ifdef WIN32
             TerminateThread(GetCurrentThread(), 0);
         #else

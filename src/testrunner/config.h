@@ -42,8 +42,9 @@ namespace trun {
         bool discardTestReturnCode;
         bool linuxUseDeepBinding;       // Causes dlopen to use RTLD_DEEPBIND
         bool enableThreadTestExecution; // Run tests in separate threads - default is 'true'
-        // EXPERIMENTAL!!!
         bool enableParallelTestExecution;   // This is different, this allows tests to run in parallell
+        bool allowThreadTermination;    // On Windows and Linux (with pthread) we can terminate threads from within the thread itself - this allows certain macros and other call's to terminate from whereever...
+
         gnilk::ILogger *pLogger;
     private:
         Config();

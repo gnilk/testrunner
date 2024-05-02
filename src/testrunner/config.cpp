@@ -65,6 +65,7 @@ Config::Config() {
     responseMsgByteLimit = 1024 * 8;
     enableThreadTestExecution = true;
     enableParallelTestExecution = false;
+    allowThreadTermination = true;
     //
     // Setup logger
     //
