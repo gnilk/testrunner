@@ -105,6 +105,15 @@ static void Help() {
     printf("  -t  <list> List of test cases to test (default: '-' (all))\n");
     printf("  --no-threads\n");
     printf("      Disable threaded execution of tests\n");
+    printf("  --parallel\n");
+    printf("      Enable parallel execution of modules\n");
+#ifdef WIN32
+    printf("  --use-winthreads\n");
+    printf("      Use Win32 Native threads\n");
+#else
+    printf("  --use-pthreads\n");
+    printf("      Use pthread implementation\n");
+#endif
     printf("\n");
     printf("Input should be a directory or list of dylib's to be tested, default is current directory ('.')\n");
     printf("Module and test case list can use wild cards, like: -m encode -t json*\n");
@@ -211,6 +220,12 @@ static bool ParseArguments(int argc, char **argv) {
                             } else if (longArgument == "parallel") {
                                 Config::Instance().enableParallelTestExecution = true;
                                 printf("WARNING - enabling parallel execution - ONLY for development!!!\n");
+                                goto next_argument;
+                            } else if (longArgument == "use-pthreads") {
+                                Config::Instance().allowThreadTermination = true;
+                                goto next_argument;
+                            } else if (longArgument == "use-winthreads") {
+                                Config::Instance().allowThreadTermination = true;
                                 goto next_argument;
                             }
                             printf("Unknown long argument: %s\n", longArgument.c_str());
