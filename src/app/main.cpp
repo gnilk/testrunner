@@ -93,12 +93,11 @@ static void Help() {
     printf("  -d  Dump configuration before starting\n");
     printf("  -S  Include success pass in summary when done (default: off)\n");
     printf("  -D  Linux Only - disable RTLD_DEEPBIND\n");
-    printf("  -g  Skip library globals (default: off)\n");
     printf("  -G  Skip global main (default: off)\n");
     printf("  -s  Silent, surpress messages from test cases (default: off)\n");
     printf("  -r  Discard return from test case (default: off)\n");
-    printf("  -c  Continue on library failure (default: off)\n");
-    printf("  -C  Continue on total failure (default: off)\n");
+    printf("  -c  Continue on module failure - kTR_FailModule - (default: off)\n");
+    printf("  -C  Continue on total failure - kTR_FailAll -  (default: off)\n");
     printf("  -x  Don't execute tests (default: off)\n");
     printf("  -R  <name> Use reporting library (default: console)\n");
     printf("  -O  <file> Report final result to this file, use '-' for stdout (default: -)\n");
