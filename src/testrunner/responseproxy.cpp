@@ -15,13 +15,10 @@
  ---------------------------------------------------------------------------
  TO-DO: [ -:Not done, +:In progress, !:Completed]
  <pre>
-
  </pre>
- 
- 
+
  \History
  - 2018.10.18, FKling, Implementation
- 
  ---------------------------------------------------------------------------*/
 #ifdef WIN32
 #include <Windows.h>
@@ -64,32 +61,10 @@ static void int_trp_query_interface(uint32_t interface_id, void **ouPtr);
 static size_t int_tcfg_list(size_t maxItems, TRUN_ConfigItem *outArray);
 static void int_tcfg_get(const char *key, TRUN_ConfigItem *outValue);
 
-// Holds a calling proxy per thread
-#ifdef WIN32
-static std::map<DWORD, TestResponseProxy*> trpLookup;
-#else
-static std::map<pthread_t, TestResponseProxy *> trpLookup;
-#endif
 
 //
-// GetInstance - returns a test proxy, if one does not exists for the thread one will be allocated
+// Setup the test response proxy before a test is invoked
 //
-TestResponseProxy &TestResponseProxy::Instance() {
-
-    // Note: can't have this in thread-local, each tests will still run in it's own isolated thread..
-#ifdef TRUN_HAVE_THREADS
-    static TestResponseProxy glbResponseProxy;
-#else
-    static TestResponseProxy glbResponseProxy;
-#endif
-    return glbResponseProxy;
-}
-
-
-//
-TestResponseProxy::TestResponseProxy() {
-}
-
 void TestResponseProxy::Begin(const std::string &use_symbolName, const std::string &use_moduleName) {
     symbolName = use_symbolName;
     moduleName = use_moduleName;
@@ -100,25 +75,16 @@ void TestResponseProxy::Begin(const std::string &use_symbolName, const std::stri
 
     trp = TestResponseProxy::GetTRTestInterface();
 
-    // Apply verbose filtering to log output from test cases or not??
-    // This was part of the old logging library but not the new one..
-#if 0
-    // Not supported on gnklog - not sure if this was a feature or if I hacked it in for this project...
-    if (!Config::Instance().testLogFilter) {
-        pLogger->Enable(Logger::kFlags_PassThrough);
-    } else {
-        pLogger->Enable(Logger::kFlags_BlockAll);
-    } 
-#endif
-
+    // Reset the timer
     timer.Reset();
     assertError.Reset();
 }
 
+//
+//
+//
 void TestResponseProxy::End() {
     tElapsed = timer.Sample();
-    symbolName.clear();     // No?
-    moduleName.clear();
     pLogger = nullptr;
 }
 
@@ -155,7 +121,6 @@ double TestResponseProxy::ElapsedTimeInSec() {
     return tElapsed;
 }
 
-
 int TestResponseProxy::Errors() {
     return errorCount;
 }
@@ -180,7 +145,8 @@ void TestResponseProxy::Warning(int line, const char *file, std::string message)
 }
 
 //
-// All error functions will abort the running test!!!
+// Note: These function may abort the running thread if threads are enabled (default = yes) and we are using
+// pthreads (--pthreads) or on Windows..
 //
 void TestResponseProxy::Error(int line, const char *file, std::string message) {
     pLogger->Error("%s:%d\t'%s'", file, line, message.c_str());
@@ -339,66 +305,47 @@ static bool IsMsgSizeOk(uint32_t szbuf) {
 static void int_trp_debug(int line, const char *file, const char *format, ...) {
     CREATE_REPORT_STRING()
     TestRunner::GetCurrentTestModule()->GetTestResponseProxy().Debug(line, file, std::string(newstr));
-    //TestResponseProxy::Instance().Debug(line, file, std::string(newstr));
 }
 static void int_trp_info(int line, const char *file, const char *format, ...) {
     CREATE_REPORT_STRING()
     TestRunner::GetCurrentTestModule()->GetTestResponseProxy().Info(line, file, std::string(newstr));
-//    TestResponseProxy::Instance().Info(line, file, std::string(newstr));
 }
 static void int_trp_warning(int line, const char *file, const char *format, ...) {
     CREATE_REPORT_STRING()
     TestRunner::GetCurrentTestModule()->GetTestResponseProxy().Warning(line, file, std::string(newstr));
-//    TestResponseProxy::Instance().Warning(line, file, std::string(newstr));
 }
 static void int_trp_error(int line, const char *file, const char *format, ...) {
     CREATE_REPORT_STRING()
     TestRunner::GetCurrentTestModule()->GetTestResponseProxy().Error(line, file, std::string(newstr));
-//    TestResponseProxy::Instance().Error(line, file, std::string(newstr));
 }
-
 static void int_trp_fatal(int line, const char *file, const char *format, ...) {
     CREATE_REPORT_STRING()
     TestRunner::GetCurrentTestModule()->GetTestResponseProxy().Fatal(line, file, std::string(newstr));
-//    TestResponseProxy::Instance().Fatal(line, file, std::string(newstr));
 }
-
 static void int_trp_abort(int line, const char *file, const char *format, ...) {
     CREATE_REPORT_STRING()
     TestRunner::GetCurrentTestModule()->GetTestResponseProxy().Abort(line, file, std::string(newstr));
-    //TestResponseProxy::Instance().Abort(line,file, std::string(newstr));
 }
-
 static void int_trp_assert_error(const char *exp, const char *file, int line) {
     TestRunner::GetCurrentTestModule()->GetTestResponseProxy().AssertError(exp, file, line);
-    //TestResponseProxy::Instance().AssertError(exp, file, line);
 }
 
 #undef CREATE_REPORT_STRING
 
 static void int_trp_hook_precase(TRUN_PRE_POST_HOOK_DELEGATE cbPreCase) {
     TestRunner::GetCurrentTestModule()->GetTestResponseProxy().SetPreCaseCallback(cbPreCase);
-    //TestResponseProxy::Instance().SetPreCaseCallback(cbPreCase);
 }
-
 static void int_trp_hook_postcase(TRUN_PRE_POST_HOOK_DELEGATE cbPostCase) {
     TestRunner::GetCurrentTestModule()->GetTestResponseProxy().SetPostCaseCallback(cbPostCase);
-    //TestResponseProxy::Instance().SetPostCaseCallback(cbPostCase);
 }
-
 static void int_trp_casedepend(const char *caseName, const char *dependencyList) {
     TestRunner::GetCurrentTestModule()->GetTestResponseProxy().CaseDepends(caseName, dependencyList);
-    //TestResponseProxy::Instance().CaseDepends(caseName, dependencyList);
 }
 static void int_trp_moduledepend(const char *moduleName, const char *dependencyList) {
     TestRunner::GetCurrentTestModule()->GetTestResponseProxy().ModuleDepends(moduleName, dependencyList);
 }
-
-
-
 static void int_trp_query_interface(uint32_t interface_id, void **outPtr) {
     TestRunner::GetCurrentTestModule()->GetTestResponseProxy().QueryInterface(interface_id, outPtr);
-//    return TestResponseProxy::Instance().QueryInterface(interface_id, outPtr);
 }
 
 

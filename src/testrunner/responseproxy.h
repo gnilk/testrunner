@@ -17,7 +17,8 @@ namespace trun {
         static const int ITesting_MIN_VER = 1;
         static const int ITesting_MAX_VER = 2;
     public:
-        TestResponseProxy();
+        TestResponseProxy() = default;
+        virtual ~TestResponseProxy() = default;
 
         ITesting *GetExtInterface() { return trp; }
 
@@ -51,8 +52,6 @@ namespace trun {
 
         void QueryInterface(uint32_t interface_id, void **outPtr);
     private:
-        static TestResponseProxy &Instance();
-
         static ITesting *GetTRTestInterface();
         static ITestingConfig *GetTRConfigInterface();
 
