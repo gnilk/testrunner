@@ -67,6 +67,7 @@ bool TestModuleExecutorSequential::Execute(const IDynLibrary::Ref &library, cons
     return bRes;
 }
 
+#ifdef TRUN_HAVE_THREADS
 bool TestModuleExecutorParallel::Execute(const IDynLibrary::Ref &library, const std::map<std::string, TestModule::Ref> &testModules) {
     //
     // 3) all modules, executing according to cmd line library specification
@@ -108,4 +109,4 @@ bool TestModuleExecutorParallel::Execute(const IDynLibrary::Ref &library, const 
     return bRes;
 
 }
-
+#endif
