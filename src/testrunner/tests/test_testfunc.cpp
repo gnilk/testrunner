@@ -1,4 +1,4 @@
-#include "../testinterface.h"
+#include "../testinterface_internal.h"
 #include "../testfunc.h"
 #include "../dynlib.h"
 #include "../strutil.h"
@@ -98,7 +98,7 @@ DLL_EXPORT int test_tfunc_exec(ITesting *t) {
     auto mockModule = TestModule::Create("mock");
     TestRunner::SetCurrentTestModule(mockModule);
 
-    auto testResult = func.Execute(mockDynLib, nullptr, nullptr);
+    auto testResult = func.Execute(mockDynLib, {}, {});
     TR_ASSERT(t, testResult != nullptr);
 
     TR_ASSERT(t, testResult->Errors() == 0);

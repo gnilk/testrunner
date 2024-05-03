@@ -4,7 +4,7 @@
 #include <memory>
 
 #include "../config.h"
-#include "../testinterface.h"
+#include "../testinterface_internal.h"
 #include "../testresult.h"
 #include "../resultsummary.h"
 #include "../reporting/reportjson.h"

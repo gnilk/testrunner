@@ -3,7 +3,7 @@
 
 
 #include <string>
-#include "testinterface.h"
+#include "testinterface_internal.h"
 #include "timer.h"
 #include "logger.h"
 #include "testresult.h"
@@ -13,9 +13,6 @@
 namespace trun {
 
     class TestResponseProxy {
-    public:
-        static const int ITesting_MIN_VER = 1;
-        static const int ITesting_MAX_VER = 2;
     public:
         TestResponseProxy() = default;
         virtual ~TestResponseProxy() = default;
@@ -41,15 +38,15 @@ namespace trun {
 
         void AssertError(const char *exp, const char *file, const int line);
 
-        void SetPreCaseCallback(TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPreCase);
-        void SetPostCaseCallback(TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPostCase);
+        void SetPreCaseCallback(const CBPrePostHook &cbPreCase);
+        void SetPostCaseCallback(const CBPrePostHook &cbPostCase);
 
         void CaseDepends(const char *caseName, const char *dependencyList);
         void ModuleDepends(const char *moduleName, const char *dependencyList);
 
         void QueryInterface(uint32_t interface_id, void **outPtr);
 
-        static void *GetTRTestInterface();
+        static void *GetTRTestInterface(uint32_t version);
     private:
         static ITestingConfig *GetTRConfigInterface();
 

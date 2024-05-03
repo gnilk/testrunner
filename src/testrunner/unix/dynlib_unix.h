@@ -1,7 +1,7 @@
 #pragma once
 
 #include "logger.h"
-#include "testinterface.h"
+#include "testinterface_internal.h"
 #include "dynlib.h"
 
 

@@ -19,6 +19,8 @@
  ---------------------------------------------------------------------------*/
 #include "testrunner.h"
 #include "funcexecutors.h"
+#include "responseproxy.h"
+#include "testinterface_internal.h"
 
 #ifdef TRUN_HAVE_THREADS
     #include <thread>
@@ -36,7 +38,7 @@ using namespace trun;
 // Factory function for the executor
 // Class only for encapsulation...
 //
-TestFuncExecutorBase &TestFuncExecutorFactory::Create() {
+TestFuncExecutorBase &TestFuncExecutorFactory::Create(IDynLibrary::Ref library) {
     static TestFuncExecutorSequential sequentialExecutor;
     // Threaded versions not available on embedded libraray
 #ifdef TRUN_HAVE_THREADS
@@ -46,33 +48,32 @@ TestFuncExecutorBase &TestFuncExecutorFactory::Create() {
 
         // If we allow this - we MUST use the pthread version...
         if (Config::Instance().allowThreadTermination == true) {
+            parallelExecutorPThread.SetLibrary(library);
             return parallelExecutorPThread;
         }
 
+        parallelExecutor.SetLibrary(library);
         return parallelExecutor;
 
     }
 #endif
+    sequentialExecutor.SetLibrary(library);
     return sequentialExecutor;
 }
 
 //
 // Invoke a hook with versioning...
 //
-int TestFuncExecutorBase::InvokeHook(trun::TRUN_PRE_POST_HOOK_DELEGATE_V2 *cbHook) {
-    CBPrePostHook hook;
-
-    // The hook structure holds function pointers - essentially this is just one pointer with two types...
-
-    hook.cbHookV2 = cbHook;
+int TestFuncExecutorBase::InvokeHook(const CBPrePostHook &hook) {
     int returnCode = kTR_Pass;
 
-    if (Config::Instance().useITestingVersion == 1) {
-        // FIXME: Correct version
-        hook.cbHookV1((ITestingV1 *)TestResponseProxy::GetTRTestInterface());
+    // Fetch version..
+    auto version = library->GetVersion();
+    // Hook signatures have changed so we need to do this - a bit convoluted..
+    if (version == TRUN_MAGICAL_IF_VERSION1) {
+        hook.cbHookV1((ITestingV1 *)TestResponseProxy::GetTRTestInterface(version));
     } else {
-        // FIXME: Correct version
-        returnCode = hook.cbHookV2((ITestingV2 *)TestResponseProxy::GetTRTestInterface());
+        returnCode = hook.cbHookV2((ITestingV2*)TestResponseProxy::GetTRTestInterface(version));
     }
     return returnCode;
 }
@@ -81,7 +82,7 @@ int TestFuncExecutorBase::InvokeHook(trun::TRUN_PRE_POST_HOOK_DELEGATE_V2 *cbHoo
 //
 // Sequential execution
 //
-int TestFuncExecutorSequential::Execute(TestFunc *testFunc, TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPreHook, TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPostHook) {
+int TestFuncExecutorSequential::Execute(TestFunc *testFunc, const CBPrePostHook &cbPreHook, const CBPrePostHook &cbPostHook) {
     // Begin test, note: THIS MUST BE DONE HERE - in case of threading!
     gnilk::ILogger  *pLogger = gnilk::Logger::GetLogger("TestFuncExeSeq");
     auto currentModule = TestRunner::GetCurrentTestModule();
@@ -93,7 +94,8 @@ int TestFuncExecutorSequential::Execute(TestFunc *testFunc, TRUN_PRE_POST_HOOK_D
     auto &proxy = currentModule->GetTestResponseProxy();
 
     // Test-case pre function
-    if (cbPreHook != nullptr) {
+    // FIXME: this can be done better
+    if (cbPreHook.cbHookV1 != nullptr) {
         // Note: in case of threaded test execution, we this will terminate on error - we need to disable thread here OR we need to actually thread pre/post as well
         testFunc->ChangeExecState(TestFunc::kExecState::PreCallback);
 
@@ -111,7 +113,9 @@ int TestFuncExecutorSequential::Execute(TestFunc *testFunc, TRUN_PRE_POST_HOOK_D
 
 
     // Test-case post function
-    if (cbPostHook != nullptr) {
+
+    // FIXME: this can be done better
+    if (cbPostHook.cbHookV1 != nullptr) {
         testFunc->ChangeExecState(TestFunc::kExecState::PostCallback);
         int postHookReturnCode = InvokeHook(cbPostHook);
         //int postHookReturnCode = cbPostHook((ITestingV2 *)TestResponseProxy::GetTRTestInterface());
@@ -135,15 +139,15 @@ struct ThreadArg {
     TestFunc *testFunc;
     TestModule::Ref testModule;
     TestRunner *testRunner;
-    TRUN_PRE_POST_HOOK_DELEGATE_V2 *cbPreHook;
-    TRUN_PRE_POST_HOOK_DELEGATE_V2 *cbPostHook;
+    const CBPrePostHook &cbPreHook;
+    const CBPrePostHook &cbPostHook;
     int returnValue;
 
     // FIXME: Have this disabled by default
     TestFuncExecutorParallelPThread *executor;
 };
 
-int TestFuncExecutorParallel::Execute(TestFunc *testFunc, TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPreHook, TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPostHook) {
+int TestFuncExecutorParallel::Execute(TestFunc *testFunc, const CBPrePostHook &cbPreHook, const CBPrePostHook &cbPostHook) {
 
     auto threadArg = ThreadArg {
             .testFunc = testFunc,
@@ -202,11 +206,11 @@ static void *testfunc_thread_starter(void *arg) {
 #endif
 
 
-int TestFuncExecutorParallelPThread::ThreadFunc(TestFunc *testFunc, TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPreHook, TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPostHook) {
+int TestFuncExecutorParallelPThread::ThreadFunc(TestFunc *testFunc, const CBPrePostHook &cbPreHook, const CBPrePostHook &cbPostHook) {
     return TestFuncExecutorSequential::Execute(testFunc, cbPreHook, cbPostHook);
 }
 
-int TestFuncExecutorParallelPThread::Execute(TestFunc *testFunc, TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPreHook, TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPostHook) {
+int TestFuncExecutorParallelPThread::Execute(TestFunc *testFunc, const CBPrePostHook &cbPreHook, const CBPrePostHook &cbPostHook) {
 
     auto threadArg = ThreadArg {
             .testFunc = testFunc,

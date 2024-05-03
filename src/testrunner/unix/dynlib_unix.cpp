@@ -30,6 +30,8 @@
 #include "logger.h"
 #include "config.h"
 
+#include "testinterface_internal.h"
+
 #include "process.h"
 #include "dynlib_unix.h"
 
@@ -146,6 +148,14 @@ bool DynLibLinux::Open() {
         return false;
     }
 
+
+
+
+    uint32_t *ptrMagic = (uint32_t *)dlsym(handle, "TRUN_MAGICAL_IF_VERSION");
+    if (ptrMagic != nullptr) {
+        version = *ptrMagic;
+        printf("Magic is: %d\n",*ptrMagic);
+    }
 
 	MyProcCallbacks cb;
 

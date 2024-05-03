@@ -18,7 +18,7 @@
  \History
  - 2018.10.18, FKling, Implementation
  ---------------------------------------------------------------------------*/
-#include "testinterface.h"
+#include "testinterface_internal.h"
 #include "testresult.h"
 #include <string>
 #include "config.h"

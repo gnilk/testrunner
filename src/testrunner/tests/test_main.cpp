@@ -1,4 +1,4 @@
-    //
+//
 // Created by Fredrik Kling on 18.08.22.
 //
 #include "../testinterface.h"
@@ -40,7 +40,6 @@ using namespace trun;
 
 // this is the global test main - if you need to setup something for the whole test-suite, do it here..
 DLL_EXPORT int test_main(ITesting *t) {
-
     // Don't do anything - just call it - as it performs initialization on the logger and other things
     // otherwise it will be reinitialized later by functions under test
     Config::Instance();
@@ -50,7 +49,6 @@ DLL_EXPORT int test_main(ITesting *t) {
     // Test the module dependency
     t->ModuleDepends("mdepmodA", "mdepmodB");
     t->ModuleDepends("mdepmodB", "mdepmodC,mdepmodD");
-
 
     // Testing the v2 query-interface features
     ITestingConfig *tr_config = nullptr;
@@ -83,7 +81,6 @@ DLL_EXPORT int test_main(ITesting *t) {
 
     size_t nItems2 = tr_config->List(2, &configItems[0]);
     TR_ASSERT(t, nItems2 == 2);
-
 
     return kTR_Pass;
 }

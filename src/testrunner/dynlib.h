@@ -6,14 +6,15 @@
 
 #include <memory>
 
+
+#include "testinterface_internal.h"
+
 #include <stdint.h>
 #include <vector>
 #include <string>
 #include <map>
 
 #include "logger.h"
-#include "testinterface.h"
-
 
 extern "C"
 {
@@ -41,5 +42,9 @@ namespace trun {
         virtual PTESTFUNC FindExportedSymbol(const std::string &funcName) = 0;
         virtual const std::vector<std::string> &Exports() const = 0;
         virtual const std::string &Name() const = 0;
+
+        uint32_t GetVersion() { return version; }
+    protected:
+        uint32_t version = TRUN_MAGICAL_IF_VERSION1;
     };
 }

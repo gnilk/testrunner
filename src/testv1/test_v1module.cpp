@@ -1,13 +1,10 @@
 //
 // Created by gnilk on 03.05.24.
 //
-#define TRUN_USE_V1
-#include "../testinterface.h"
+#include "testinterface.h"
 
-#include "logger.h"
-#include "config.h"
-#include <functional>
-#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 extern "C" {
 DLL_EXPORT int test_ifv1(ITesting *t);

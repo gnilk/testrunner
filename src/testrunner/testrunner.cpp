@@ -130,7 +130,7 @@ bool TestRunner::ExecuteMain() {
     //
     auto dummy = TestModule::Create("_dummy-main_");
     SetCurrentTestModule(dummy);
-    TestResult::Ref result = globalMain->Execute(library, nullptr, nullptr);
+    TestResult::Ref result = globalMain->Execute(library, {}, {});
     ResultSummary::Instance().AddResult(globalMain);
     if ((result->Result() == kTestResult_AllFail) || (result->Result() == kTestResult_TestFail)) {
         if (Config::Instance().stopOnAllFail) {
@@ -162,7 +162,7 @@ bool TestRunner::ExecuteMainExit() {
     auto dummy = TestModule::Create("_dummy-main_");
     SetCurrentTestModule(dummy);
 
-    TestResult::Ref result = globalExit->Execute(library, nullptr, nullptr);
+    TestResult::Ref result = globalExit->Execute(library, {}, {});
     ResultSummary::Instance().AddResult(globalExit);
 
     if ((result->Result() == kTestResult_AllFail) || (result->Result() == kTestResult_TestFail)) {

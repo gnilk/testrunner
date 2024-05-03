@@ -4,7 +4,7 @@
 
 // using dev-version, instead of install version... self-hosting..
 #include "../config.h"
-#include "../testinterface.h"
+#include "../testinterface_internal.h"
 #include "../dynlib.h"
 #include "../unix/dynlib_unix.h"
 

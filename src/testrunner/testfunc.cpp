@@ -88,7 +88,7 @@ bool TestFunc::ShouldExecuteNoDeps() {
     return caseMatch(caseName, Config::Instance().testcases);
 }
 
-TestResult::Ref TestFunc::Execute(IDynLibrary::Ref dynlib, TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPreHook, TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPostHook) {
+TestResult::Ref TestFunc::Execute(IDynLibrary::Ref dynlib, const CBPrePostHook &cbPreHook, const CBPrePostHook &cbPostHook) {
     // Unless idle, we should not execute
     if (State() != kState::Idle) {
         return nullptr;
@@ -99,6 +99,8 @@ TestResult::Ref TestFunc::Execute(IDynLibrary::Ref dynlib, TRUN_PRE_POST_HOOK_DE
     pLogger->Debug("  Case..: %s", caseName.c_str());
     pLogger->Debug("  Export: %s", symbolName.c_str());
     pLogger->Debug("  Func..: %p", (void *)this);
+
+    // Resolve symbol...
     pFunc = (PTESTFUNC)dynlib->FindExportedSymbol(symbolName);
     if (pFunc == nullptr) {
         ChangeState(kState::Finished);
@@ -121,7 +123,7 @@ TestResult::Ref TestFunc::Execute(IDynLibrary::Ref dynlib, TRUN_PRE_POST_HOOK_DE
     auto &proxy = currentModule->GetTestResponseProxy();
     proxy.Begin(symbolName, moduleName);
 
-    auto &executor = TestFuncExecutorFactory::Create();
+    auto &executor = TestFuncExecutorFactory::Create(dynlib);
     testReturnCode = executor.Execute(this, cbPreHook, cbPostHook);
 
     proxy.End();
@@ -189,7 +191,7 @@ void TestFunc::PrintTestResult() {
 }
 
 
-void TestFunc::ExecuteDependencies(IDynLibrary::Ref dynlib, TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPreHook, TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPostHook) {
+void TestFunc::ExecuteDependencies(IDynLibrary::Ref dynlib, const CBPrePostHook &cbPreHook, const CBPrePostHook &cbPostHook) {
     for (auto &func : dependencies) {
         if (!func->IsIdle()) {
             continue;

@@ -6,7 +6,7 @@
 #include "logger.h"
 #include "testresult.h"
 #include "responseproxy.h"
-#include "testinterface.h"
+#include "testinterface_internal.h"
 #include "testhooks.h"
 #include "testfunc.h"
 #include "strutil.h"
@@ -80,8 +80,8 @@ namespace trun {
         TestFunc::Ref exitFunc = nullptr;
         TestResponseProxy testResponseProxy;
 
-        TRUN_PRE_POST_HOOK_DELEGATE_V2 *cbPreHook = nullptr;
-        TRUN_PRE_POST_HOOK_DELEGATE_V2 *cbPostHook = nullptr;
+        CBPrePostHook cbPreHook = {};
+        CBPrePostHook cbPostHook = {};
 
         std::vector<TestFunc::Ref> testFuncs;
     };

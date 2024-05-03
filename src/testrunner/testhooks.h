@@ -11,8 +11,9 @@
 
 namespace trun {
 
-    typedef int(TRUN_PRE_POST_HOOK_DELEGATE_V2)(ITestingV2 *);
+    // FIXME: Move to 'testinterface_internal.h'
     typedef void(TRUN_PRE_POST_HOOK_DELEGATE_V1)(ITestingV1 *);
+    typedef int(TRUN_PRE_POST_HOOK_DELEGATE_V2)(ITestingV2 *);
 
     union CBPrePostHook {
         TRUN_PRE_POST_HOOK_DELEGATE_V1 *cbHookV1;

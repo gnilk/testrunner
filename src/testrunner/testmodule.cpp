@@ -28,7 +28,7 @@
 #include "logger.h"
 #include "testresult.h"
 #include "responseproxy.h"
-#include "testinterface.h"
+#include "testinterface_internal.h"
 #include "testhooks.h"
 #include "testmodule.h"
 #include "strutil.h"
@@ -102,7 +102,7 @@ TestResult::Ref TestModule::ExecuteMain(const IDynLibrary::Ref &dynlib) {
     if (mainFunc == nullptr) return nullptr;
     if (!Config::Instance().testModuleGlobals) return nullptr;
 
-    auto testResult = mainFunc->Execute(dynlib, nullptr, nullptr);
+    auto testResult = mainFunc->Execute(dynlib, {}, {});
     if (testResult != nullptr) {
         ResultSummary::Instance().AddResult(mainFunc);
     }
@@ -115,7 +115,7 @@ TestResult::Ref TestModule::ExecuteExit(const IDynLibrary::Ref &dynlib) {
     if (exitFunc == nullptr) return nullptr;
     if (!Config::Instance().testModuleGlobals) return nullptr;
 
-    auto testResult = exitFunc->Execute(dynlib, nullptr, nullptr);
+    auto testResult = exitFunc->Execute(dynlib, {}, {});
 
     if (testResult != nullptr) {
         ResultSummary::Instance().AddResult(exitFunc);

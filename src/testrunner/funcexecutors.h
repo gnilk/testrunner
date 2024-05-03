@@ -16,9 +16,12 @@ namespace trun {
         TestFuncExecutorBase() = default;
         virtual ~TestFuncExecutorBase() = default;
 
-        virtual int Execute(TestFunc *testFunc, TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPreHook, TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPostHook) { return -1; }
+        void SetLibrary(IDynLibrary::Ref useLibrary) { library = useLibrary; }
+        IDynLibrary::Ref GetLibrary() { return library; }
+        virtual int Execute(TestFunc *testFunc, const CBPrePostHook &cbPreHook, const CBPrePostHook &cbPostHook) { return -1; }
     protected:
-        int InvokeHook(TRUN_PRE_POST_HOOK_DELEGATE_V2 cbHook);
+        int InvokeHook(const CBPrePostHook &cbHook);
+        IDynLibrary::Ref library = nullptr;
     };
 
     class TestFuncExecutorSequential : public TestFuncExecutorBase {
@@ -26,7 +29,7 @@ namespace trun {
         TestFuncExecutorSequential() = default;
         virtual ~TestFuncExecutorSequential() = default;
 
-        int Execute(TestFunc *testFunc, TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPreHook, TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPostHook) override;
+        int Execute(TestFunc *testFunc, const CBPrePostHook &cbPreHook, const CBPrePostHook &cbPostHook) override;
     };
 
     // Only available if compiled with thread support
@@ -36,7 +39,7 @@ namespace trun {
         TestFuncExecutorParallel() = default;
         virtual ~TestFuncExecutorParallel() = default;
 
-        int Execute(TestFunc *testFunc, TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPreHook, TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPostHook) override;
+        int Execute(TestFunc *testFunc, const CBPrePostHook &cbPreHook, const CBPrePostHook &cbPostHook) override;
     };
 
     class TestFuncExecutorParallelPThread : public TestFuncExecutorSequential {
@@ -44,9 +47,9 @@ namespace trun {
         TestFuncExecutorParallelPThread() = default;
         virtual ~TestFuncExecutorParallelPThread() = default;
 
-        int Execute(TestFunc *testFunc, TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPreHook, TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPostHook) override;
+        int Execute(TestFunc *testFunc, const CBPrePostHook &cbPreHook, const CBPrePostHook &cbPostHook) override;
 
-        int ThreadFunc(TestFunc *testFunc, TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPreHook, TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPostHook);
+        int ThreadFunc(TestFunc *testFunc, const CBPrePostHook &cbPreHook, const CBPrePostHook &cbPostHook);
     protected:
         int returnValue = {};
     };
@@ -54,7 +57,7 @@ namespace trun {
 
     class TestFuncExecutorFactory {
     public:
-        static TestFuncExecutorBase &Create();
+        static TestFuncExecutorBase &Create(IDynLibrary::Ref library);
     };
 
 }

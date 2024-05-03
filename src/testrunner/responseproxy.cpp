@@ -29,7 +29,7 @@
 #endif
 
 #include <string.h>
-#include "testinterface.h"
+#include "testinterface_internal.h"
 #include "responseproxy.h"
 #include "logger.h"
 #include "config.h"
@@ -56,6 +56,11 @@ static void int_trp_hook_postcase(TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPostCase);
 static void int_trp_casedepend(const char *caseName, const char *dependencyList);
 static void int_trp_moduledepend(const char *moduleName, const char *dependencyList);
 static void int_trp_query_interface(uint32_t interface_id, void **ouPtr);
+
+// V1
+static void int_trp_hook_precase_v1(TRUN_PRE_POST_HOOK_DELEGATE_V1 cbPreCase);
+static void int_trp_hook_postcase_v1(TRUN_PRE_POST_HOOK_DELEGATE_V1 cbPostCase);
+
 
 // Config interface
 static size_t int_tcfg_list(size_t maxItems, TRUN_ConfigItem *outArray);
@@ -88,8 +93,21 @@ void TestResponseProxy::End() {
 
 
 // Consider moving this out of here
-void *TestResponseProxy::GetTRTestInterface() {
-    static ITesting trp_bridge = {
+void *TestResponseProxy::GetTRTestInterface(uint32_t version) {
+    static ITestingV1 trp_bridge_v1 = {
+            .Debug = int_trp_debug,
+            .Info = int_trp_info,
+            .Warning = int_trp_warning,
+            .Error = int_trp_error,
+            .Fatal = int_trp_fatal,
+            .Abort = int_trp_abort,
+            .AssertError = int_trp_assert_error,
+            .SetPreCaseCallback = int_trp_hook_precase_v1,
+            .SetPostCaseCallback = int_trp_hook_postcase_v1,
+            .CaseDepends = int_trp_casedepend,
+    };
+
+    static ITestingV2 trp_bridge_v2 = {
             .Debug = int_trp_debug,
             .Info = int_trp_info,
             .Warning = int_trp_warning,
@@ -103,7 +121,10 @@ void *TestResponseProxy::GetTRTestInterface() {
             .ModuleDepends = int_trp_moduledepend,
             .QueryInterface = int_trp_query_interface,
     };
-    return &trp_bridge;
+    if (version == TRUN_MAGICAL_IF_VERSION1) {
+        return (void *) &trp_bridge_v1;
+    }
+    return (void *)&trp_bridge_v2;
 }
 
 // Move to other file
@@ -196,6 +217,9 @@ void TestResponseProxy::AssertError(const char *exp, const char *file, const int
 
 // Terminates the running thread if allowed - i.e. you must have 'allowThreadTermination' enabled...
 void TestResponseProxy::TerminateThreadIfNeeded() {
+
+    // FIXME: In case of V1 we should have this enabled - but we don't know the library at this point
+
 #ifdef TRUN_HAVE_THREADS
     if ((Config::Instance().enableThreadTestExecution) && (Config::Instance().allowThreadTermination)) {
         #ifdef WIN32
@@ -209,14 +233,14 @@ void TestResponseProxy::TerminateThreadIfNeeded() {
 }
 
 
-void TestResponseProxy::SetPreCaseCallback(TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPreCase) {
+void TestResponseProxy::SetPreCaseCallback(const CBPrePostHook &cbPreCase) {
     auto testModule = TestRunner::GetCurrentTestModule();
     if (testModule != nullptr) {
         testModule->cbPreHook = cbPreCase;
     }
 }
 
-void TestResponseProxy::SetPostCaseCallback(TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPostCase) {
+void TestResponseProxy::SetPostCaseCallback(const CBPrePostHook &cbPostCase) {
     auto testModule = TestRunner::GetCurrentTestModule();
     if (testModule != nullptr) {
         testModule->cbPostHook = cbPostCase;
@@ -331,10 +355,14 @@ static void int_trp_assert_error(const char *exp, const char *file, int line) {
 #undef CREATE_REPORT_STRING
 
 static void int_trp_hook_precase(TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPreCase) {
-    TestRunner::GetCurrentTestModule()->GetTestResponseProxy().SetPreCaseCallback(cbPreCase);
+    CBPrePostHook hook;
+    hook.cbHookV2 = cbPreCase;
+    TestRunner::GetCurrentTestModule()->GetTestResponseProxy().SetPreCaseCallback(hook);
 }
 static void int_trp_hook_postcase(TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPostCase) {
-    TestRunner::GetCurrentTestModule()->GetTestResponseProxy().SetPostCaseCallback(cbPostCase);
+    CBPrePostHook hook;
+    hook.cbHookV2 = cbPostCase;
+    TestRunner::GetCurrentTestModule()->GetTestResponseProxy().SetPostCaseCallback(hook);
 }
 static void int_trp_casedepend(const char *caseName, const char *dependencyList) {
     TestRunner::GetCurrentTestModule()->GetTestResponseProxy().CaseDepends(caseName, dependencyList);
@@ -345,6 +373,21 @@ static void int_trp_moduledepend(const char *moduleName, const char *dependencyL
 static void int_trp_query_interface(uint32_t interface_id, void **outPtr) {
     TestRunner::GetCurrentTestModule()->GetTestResponseProxy().QueryInterface(interface_id, outPtr);
 }
+
+//
+// V1 trampoline versions
+//
+static void int_trp_hook_precase_v1(TRUN_PRE_POST_HOOK_DELEGATE_V1 cbPreCase) {
+    CBPrePostHook hook;
+    hook.cbHookV1 = cbPreCase;
+    TestRunner::GetCurrentTestModule()->GetTestResponseProxy().SetPreCaseCallback(hook);
+}
+static void int_trp_hook_postcase_v1(TRUN_PRE_POST_HOOK_DELEGATE_V1 cbPostCase) {
+    CBPrePostHook hook;
+    hook.cbHookV1 = cbPostCase;
+    TestRunner::GetCurrentTestModule()->GetTestResponseProxy().SetPostCaseCallback(hook);
+}
+
 
 
 // Taken from another project...

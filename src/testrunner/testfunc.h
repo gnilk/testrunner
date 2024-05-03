@@ -10,7 +10,7 @@
 #include "logger.h"
 #include "testresult.h"
 #include "responseproxy.h"
-#include "testinterface.h"
+#include "testinterface_internal.h"
 #include "testhooks.h"
 #include "strutil.h"
 
@@ -55,7 +55,7 @@ namespace trun {
         bool IsModuleMain();
         bool IsGlobalMain();
         bool IsGlobalExit();
-        TestResult::Ref Execute(IDynLibrary::Ref module, TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPreHook, TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPostHook);
+        TestResult::Ref Execute(IDynLibrary::Ref module, const CBPrePostHook &cbPreHook, const CBPrePostHook &cbPostHook);
 
         // This was the old function - which also verified dependencies
         __inline bool ShouldExecute() {
@@ -89,7 +89,7 @@ namespace trun {
     protected:
         void CreateTestResult(TestResponseProxy &proxy);
         void PrintTestResult();
-        void ExecuteDependencies(IDynLibrary::Ref dynlib, TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPreHook, TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPostHook);
+        void ExecuteDependencies(IDynLibrary::Ref dynlib, const CBPrePostHook &cbPreHook, const CBPrePostHook &cbPostHook);
 
         void ChangeState(kState newState) {
             state = newState;
@@ -98,7 +98,7 @@ namespace trun {
             execState = newExecState;
         }
         int InvokeTestCase(TestResponseProxy &proxy) {
-            return pFunc((void *)TestResponseProxy::GetTRTestInterface());
+            return pFunc((void *)TestResponseProxy::GetTRTestInterface(library->GetVersion()));
         }
 
     private:

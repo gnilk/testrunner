@@ -115,7 +115,7 @@ list(APPEND testsrc src/testrunner/tests/test_strutil.cpp)
 list(APPEND testsrc src/testrunner/tests/test_testfunc.cpp)
 list(APPEND testsrc src/testrunner/tests/test_testmod.cpp)
 list(APPEND testsrc src/testrunner/tests/test_timer.cpp)
-list(APPEND testsrc src/testrunner/tests/test_v1module.cpp)
+list(APPEND testsrc src/testv1/test_v1module.cpp)
 
 # Platform specific
 # Unix = Apple and Linux
@@ -163,6 +163,20 @@ target_include_directories(trun_utests PUBLIC ${CMAKE_SOURCE_DIR}/src/testrunner
 target_include_directories(trun_utests PUBLIC ${CMAKE_SOURCE_DIR}/ext/gnklog/src)
 
 set_property(TARGET trun_utests PROPERTY CXX_STANDARD 20)
+
+#
+# create the v1 unit-test library
+#
+add_library(trv1_utest SHARED src/testv1/test_v1module.cpp)
+set_property(TARGET trv1_utest PROPERTY CXX_STANDARD 20)
+
+#
+# create the v2 unit-test library
+#
+add_library(trv2_utest SHARED src/testv2/test_v2module.cpp)
+set_property(TARGET trv2_utest PROPERTY CXX_STANDARD 20)
+
+
 
 #
 # Create the library for embedding trun functionality in your executeable
@@ -260,6 +274,8 @@ endif()
 
 target_link_libraries(trun ${platformlibs} ${extlibs})
 target_link_libraries(trun_utests ${platformlibs} ${extlibs})
+target_link_libraries(trv1_utest ${platformlibs})
+target_link_libraries(trv2_utest ${platformlibs})
 target_link_libraries(trunlib)
 
 # Can't use this for embedded..
