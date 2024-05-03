@@ -56,12 +56,32 @@ TestFuncExecutorBase &TestFuncExecutorFactory::Create() {
     return sequentialExecutor;
 }
 
+//
+// Invoke a hook with versioning...
+//
+int TestFuncExecutorBase::InvokeHook(trun::TRUN_PRE_POST_HOOK_DELEGATE_V2 *cbHook) {
+    CBPrePostHook hook;
+
+    // The hook structure holds function pointers - essentially this is just one pointer with two types...
+
+    hook.cbHookV2 = cbHook;
+    int returnCode = kTR_Pass;
+
+    if (Config::Instance().useITestingVersion == 1) {
+        // FIXME: Correct version
+        hook.cbHookV1((ITestingV1 *)TestResponseProxy::GetTRTestInterface());
+    } else {
+        // FIXME: Correct version
+        returnCode = hook.cbHookV2((ITestingV2 *)TestResponseProxy::GetTRTestInterface());
+    }
+    return returnCode;
+}
 
 
 //
 // Sequential execution
 //
-int TestFuncExecutorSequential::Execute(TestFunc *testFunc, TRUN_PRE_POST_HOOK_DELEGATE cbPreHook, TRUN_PRE_POST_HOOK_DELEGATE cbPostHook) {
+int TestFuncExecutorSequential::Execute(TestFunc *testFunc, TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPreHook, TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPostHook) {
     // Begin test, note: THIS MUST BE DONE HERE - in case of threading!
     gnilk::ILogger  *pLogger = gnilk::Logger::GetLogger("TestFuncExeSeq");
     auto currentModule = TestRunner::GetCurrentTestModule();
@@ -76,7 +96,9 @@ int TestFuncExecutorSequential::Execute(TestFunc *testFunc, TRUN_PRE_POST_HOOK_D
     if (cbPreHook != nullptr) {
         // Note: in case of threaded test execution, we this will terminate on error - we need to disable thread here OR we need to actually thread pre/post as well
         testFunc->ChangeExecState(TestFunc::kExecState::PreCallback);
-        int preHookReturnCode = cbPreHook(proxy.GetExtInterface());
+
+        int preHookReturnCode = InvokeHook(cbPreHook);
+        //preHookReturnCode = cbPreHook();
         if (preHookReturnCode != kTR_Pass) {
             //testReturnCode = preHookReturnCode;
             return preHookReturnCode;
@@ -91,7 +113,8 @@ int TestFuncExecutorSequential::Execute(TestFunc *testFunc, TRUN_PRE_POST_HOOK_D
     // Test-case post function
     if (cbPostHook != nullptr) {
         testFunc->ChangeExecState(TestFunc::kExecState::PostCallback);
-        int postHookReturnCode = cbPostHook(proxy.GetExtInterface());
+        int postHookReturnCode = InvokeHook(cbPostHook);
+        //int postHookReturnCode = cbPostHook((ITestingV2 *)TestResponseProxy::GetTRTestInterface());
         if (postHookReturnCode != kTR_Pass) {
             testReturnCode = postHookReturnCode;
         }
@@ -112,15 +135,15 @@ struct ThreadArg {
     TestFunc *testFunc;
     TestModule::Ref testModule;
     TestRunner *testRunner;
-    TRUN_PRE_POST_HOOK_DELEGATE *cbPreHook;
-    TRUN_PRE_POST_HOOK_DELEGATE *cbPostHook;
+    TRUN_PRE_POST_HOOK_DELEGATE_V2 *cbPreHook;
+    TRUN_PRE_POST_HOOK_DELEGATE_V2 *cbPostHook;
     int returnValue;
 
     // FIXME: Have this disabled by default
     TestFuncExecutorParallelPThread *executor;
 };
 
-int TestFuncExecutorParallel::Execute(TestFunc *testFunc, TRUN_PRE_POST_HOOK_DELEGATE cbPreHook, TRUN_PRE_POST_HOOK_DELEGATE cbPostHook) {
+int TestFuncExecutorParallel::Execute(TestFunc *testFunc, TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPreHook, TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPostHook) {
 
     auto threadArg = ThreadArg {
             .testFunc = testFunc,
@@ -179,11 +202,11 @@ static void *testfunc_thread_starter(void *arg) {
 #endif
 
 
-int TestFuncExecutorParallelPThread::ThreadFunc(TestFunc *testFunc, TRUN_PRE_POST_HOOK_DELEGATE cbPreHook, TRUN_PRE_POST_HOOK_DELEGATE cbPostHook) {
+int TestFuncExecutorParallelPThread::ThreadFunc(TestFunc *testFunc, TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPreHook, TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPostHook) {
     return TestFuncExecutorSequential::Execute(testFunc, cbPreHook, cbPostHook);
 }
 
-int TestFuncExecutorParallelPThread::Execute(TestFunc *testFunc, TRUN_PRE_POST_HOOK_DELEGATE cbPreHook, TRUN_PRE_POST_HOOK_DELEGATE cbPostHook) {
+int TestFuncExecutorParallelPThread::Execute(TestFunc *testFunc, TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPreHook, TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPostHook) {
 
     auto threadArg = ThreadArg {
             .testFunc = testFunc,

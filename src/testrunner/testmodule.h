@@ -80,8 +80,8 @@ namespace trun {
         TestFunc::Ref exitFunc = nullptr;
         TestResponseProxy testResponseProxy;
 
-        TRUN_PRE_POST_HOOK_DELEGATE *cbPreHook = nullptr;
-        TRUN_PRE_POST_HOOK_DELEGATE *cbPostHook = nullptr;
+        TRUN_PRE_POST_HOOK_DELEGATE_V2 *cbPreHook = nullptr;
+        TRUN_PRE_POST_HOOK_DELEGATE_V2 *cbPostHook = nullptr;
 
         std::vector<TestFunc::Ref> testFuncs;
     };

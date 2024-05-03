@@ -29,8 +29,6 @@ extern "C" {
 #define kTR_FailModule 0x20
 #define kTR_FailAll 0x30
 
-typedef struct ITesting ITesting;
-
 //
 // If you embed the trun library you need to specify if you run single threaded or not!
 // The default (no config) is multithreading as this is the main use case...
@@ -52,14 +50,39 @@ typedef struct ITesting ITesting;
         return kTR_Fail; \
     }
 
+#ifdef TRUN_USE_V1
+typedef struct ITestingV1 ITesting;
+#else
+typedef struct ITestingV2 ITesting;
+#endif
+
 //
 // Callback interface for test reporting
 //
-struct ITesting {
+struct ITestingV1 {
     // Just info output - doesn't affect test execution
     void (*Debug)(int line, const char *file, const char *format, ...); 
     void (*Info)(int line, const char *file, const char *format, ...); 
     void (*Warning)(int line, const char *file, const char *format, ...); 
+    // Errors - affect test execution
+    void (*Error)(int line, const char *file, const char *format, ...); // Current test, proceed to next
+    void (*Fatal)(int line, const char *file, const char *format, ...); // Current test, stop library and proceed to next
+    void (*Abort)(int line, const char *file, const char *format, ...); // Current test, stop execution
+    // Asserts
+    void (*AssertError)(const char *exp, const char *file, const int line);
+    // Hooks - this change leads to compile errors for old unit-tests - is that ok?
+    void (*SetPreCaseCallback)(void(*)(ITesting *));
+    void (*SetPostCaseCallback)(void(*)(ITesting *));
+
+    // Dependency handling
+    void (*CaseDepends)(const char *caseName, const char *dependencyList);
+};
+
+struct ITestingV2 {
+    // Just info output - doesn't affect test execution
+    void (*Debug)(int line, const char *file, const char *format, ...);
+    void (*Info)(int line, const char *file, const char *format, ...);
+    void (*Warning)(int line, const char *file, const char *format, ...);
     // Errors - affect test execution
     void (*Error)(int line, const char *file, const char *format, ...); // Current test, proceed to next
     void (*Fatal)(int line, const char *file, const char *format, ...); // Current test, stop library and proceed to next
@@ -78,6 +101,8 @@ struct ITesting {
     // I think the biggest question is WHAT we need...
     void (*QueryInterface)(uint32_t interface_id, void **outPtr);                 // V2 - Optional, query an interface from the runner...
 };
+
+
 
 enum kTRConfigType {
     kTRCfgType_Bool,

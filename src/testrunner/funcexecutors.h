@@ -16,7 +16,9 @@ namespace trun {
         TestFuncExecutorBase() = default;
         virtual ~TestFuncExecutorBase() = default;
 
-        virtual int Execute(TestFunc *testFunc, TRUN_PRE_POST_HOOK_DELEGATE cbPreHook, TRUN_PRE_POST_HOOK_DELEGATE cbPostHook) { return -1; }
+        virtual int Execute(TestFunc *testFunc, TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPreHook, TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPostHook) { return -1; }
+    protected:
+        int InvokeHook(TRUN_PRE_POST_HOOK_DELEGATE_V2 cbHook);
     };
 
     class TestFuncExecutorSequential : public TestFuncExecutorBase {
@@ -24,7 +26,7 @@ namespace trun {
         TestFuncExecutorSequential() = default;
         virtual ~TestFuncExecutorSequential() = default;
 
-        int Execute(TestFunc *testFunc, TRUN_PRE_POST_HOOK_DELEGATE cbPreHook, TRUN_PRE_POST_HOOK_DELEGATE cbPostHook) override;
+        int Execute(TestFunc *testFunc, TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPreHook, TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPostHook) override;
     };
 
     // Only available if compiled with thread support
@@ -34,7 +36,7 @@ namespace trun {
         TestFuncExecutorParallel() = default;
         virtual ~TestFuncExecutorParallel() = default;
 
-        int Execute(TestFunc *testFunc, TRUN_PRE_POST_HOOK_DELEGATE cbPreHook, TRUN_PRE_POST_HOOK_DELEGATE cbPostHook) override;
+        int Execute(TestFunc *testFunc, TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPreHook, TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPostHook) override;
     };
 
     class TestFuncExecutorParallelPThread : public TestFuncExecutorSequential {
@@ -42,9 +44,9 @@ namespace trun {
         TestFuncExecutorParallelPThread() = default;
         virtual ~TestFuncExecutorParallelPThread() = default;
 
-        int Execute(TestFunc *testFunc, TRUN_PRE_POST_HOOK_DELEGATE cbPreHook, TRUN_PRE_POST_HOOK_DELEGATE cbPostHook) override;
+        int Execute(TestFunc *testFunc, TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPreHook, TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPostHook) override;
 
-        int ThreadFunc(TestFunc *testFunc, TRUN_PRE_POST_HOOK_DELEGATE cbPreHook, TRUN_PRE_POST_HOOK_DELEGATE cbPostHook);
+        int ThreadFunc(TestFunc *testFunc, TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPreHook, TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPostHook);
     protected:
         int returnValue = {};
     };

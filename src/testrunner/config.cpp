@@ -63,6 +63,8 @@ Config::Config() {
     enableThreadTestExecution = true;
     enableParallelTestExecution = false;
     allowThreadTermination = true;
+
+    useITestingVersion = 1; // tmp tmp
     //
     // Setup logger
     //

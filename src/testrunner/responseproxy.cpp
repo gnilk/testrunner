@@ -51,8 +51,8 @@ static void int_trp_error(int line, const char *file, const char *format, ...);
 static void int_trp_fatal(int line, const char *file, const char *format, ...);
 static void int_trp_abort(int line, const char *file, const char *format, ...);
 static void int_trp_assert_error(const char *exp, const char *file, int line);
-static void int_trp_hook_precase(TRUN_PRE_POST_HOOK_DELEGATE cbPreCase);
-static void int_trp_hook_postcase(TRUN_PRE_POST_HOOK_DELEGATE cbPostCase);
+static void int_trp_hook_precase(TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPreCase);
+static void int_trp_hook_postcase(TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPostCase);
 static void int_trp_casedepend(const char *caseName, const char *dependencyList);
 static void int_trp_moduledepend(const char *moduleName, const char *dependencyList);
 static void int_trp_query_interface(uint32_t interface_id, void **ouPtr);
@@ -73,8 +73,6 @@ void TestResponseProxy::Begin(const std::string &use_symbolName, const std::stri
     testResult = kTestResult_Pass;
     pLogger = gnilk::Logger::GetLogger("TestResponseProxy");
 
-    trp = TestResponseProxy::GetTRTestInterface();
-
     // Reset the timer
     timer.Reset();
     assertError.Reset();
@@ -90,7 +88,7 @@ void TestResponseProxy::End() {
 
 
 // Consider moving this out of here
-ITesting *TestResponseProxy::GetTRTestInterface() {
+void *TestResponseProxy::GetTRTestInterface() {
     static ITesting trp_bridge = {
             .Debug = int_trp_debug,
             .Info = int_trp_info,
@@ -211,14 +209,14 @@ void TestResponseProxy::TerminateThreadIfNeeded() {
 }
 
 
-void TestResponseProxy::SetPreCaseCallback(TRUN_PRE_POST_HOOK_DELEGATE cbPreCase) {
+void TestResponseProxy::SetPreCaseCallback(TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPreCase) {
     auto testModule = TestRunner::GetCurrentTestModule();
     if (testModule != nullptr) {
         testModule->cbPreHook = cbPreCase;
     }
 }
 
-void TestResponseProxy::SetPostCaseCallback(TRUN_PRE_POST_HOOK_DELEGATE cbPostCase) {
+void TestResponseProxy::SetPostCaseCallback(TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPostCase) {
     auto testModule = TestRunner::GetCurrentTestModule();
     if (testModule != nullptr) {
         testModule->cbPostHook = cbPostCase;
@@ -332,10 +330,10 @@ static void int_trp_assert_error(const char *exp, const char *file, int line) {
 
 #undef CREATE_REPORT_STRING
 
-static void int_trp_hook_precase(TRUN_PRE_POST_HOOK_DELEGATE cbPreCase) {
+static void int_trp_hook_precase(TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPreCase) {
     TestRunner::GetCurrentTestModule()->GetTestResponseProxy().SetPreCaseCallback(cbPreCase);
 }
-static void int_trp_hook_postcase(TRUN_PRE_POST_HOOK_DELEGATE cbPostCase) {
+static void int_trp_hook_postcase(TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPostCase) {
     TestRunner::GetCurrentTestModule()->GetTestResponseProxy().SetPostCaseCallback(cbPostCase);
 }
 static void int_trp_casedepend(const char *caseName, const char *dependencyList) {

@@ -20,11 +20,8 @@ namespace trun {
         TestResponseProxy() = default;
         virtual ~TestResponseProxy() = default;
 
-        ITesting *GetExtInterface() { return trp; }
-
         void Begin(const std::string &symbolName, const std::string &moduleName);
         void End();
-
 
         double ElapsedTimeInSec();
         int Errors();
@@ -44,15 +41,16 @@ namespace trun {
 
         void AssertError(const char *exp, const char *file, const int line);
 
-        void SetPreCaseCallback(TRUN_PRE_POST_HOOK_DELEGATE cbPreCase);
-        void SetPostCaseCallback(TRUN_PRE_POST_HOOK_DELEGATE cbPostCase);
+        void SetPreCaseCallback(TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPreCase);
+        void SetPostCaseCallback(TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPostCase);
 
         void CaseDepends(const char *caseName, const char *dependencyList);
         void ModuleDepends(const char *moduleName, const char *dependencyList);
 
         void QueryInterface(uint32_t interface_id, void **outPtr);
+
+        static void *GetTRTestInterface();
     private:
-        static ITesting *GetTRTestInterface();
         static ITestingConfig *GetTRConfigInterface();
 
         void TerminateThreadIfNeeded();
@@ -70,7 +68,5 @@ namespace trun {
         std::string moduleName; // current library under test
 
         gnilk::ILogger *pLogger = nullptr;
-        ITesting *trp = nullptr;
-
     };
 }

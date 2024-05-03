@@ -55,7 +55,7 @@ namespace trun {
         bool IsModuleMain();
         bool IsGlobalMain();
         bool IsGlobalExit();
-        TestResult::Ref Execute(IDynLibrary::Ref module, TRUN_PRE_POST_HOOK_DELEGATE cbPreHook, TRUN_PRE_POST_HOOK_DELEGATE cbPostHook);
+        TestResult::Ref Execute(IDynLibrary::Ref module, TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPreHook, TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPostHook);
 
         // This was the old function - which also verified dependencies
         __inline bool ShouldExecute() {
@@ -89,7 +89,7 @@ namespace trun {
     protected:
         void CreateTestResult(TestResponseProxy &proxy);
         void PrintTestResult();
-        void ExecuteDependencies(IDynLibrary::Ref dynlib, TRUN_PRE_POST_HOOK_DELEGATE cbPreHook, TRUN_PRE_POST_HOOK_DELEGATE cbPostHook);
+        void ExecuteDependencies(IDynLibrary::Ref dynlib, TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPreHook, TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPostHook);
 
         void ChangeState(kState newState) {
             state = newState;
@@ -98,7 +98,7 @@ namespace trun {
             execState = newExecState;
         }
         int InvokeTestCase(TestResponseProxy &proxy) {
-            return pFunc((void *)proxy.GetExtInterface());
+            return pFunc((void *)TestResponseProxy::GetTRTestInterface());
         }
 
     private:

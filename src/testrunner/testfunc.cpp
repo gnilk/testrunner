@@ -88,7 +88,7 @@ bool TestFunc::ShouldExecuteNoDeps() {
     return caseMatch(caseName, Config::Instance().testcases);
 }
 
-TestResult::Ref TestFunc::Execute(IDynLibrary::Ref dynlib, TRUN_PRE_POST_HOOK_DELEGATE cbPreHook, TRUN_PRE_POST_HOOK_DELEGATE cbPostHook) {
+TestResult::Ref TestFunc::Execute(IDynLibrary::Ref dynlib, TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPreHook, TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPostHook) {
     // Unless idle, we should not execute
     if (State() != kState::Idle) {
         return nullptr;
@@ -189,7 +189,7 @@ void TestFunc::PrintTestResult() {
 }
 
 
-void TestFunc::ExecuteDependencies(IDynLibrary::Ref dynlib, TRUN_PRE_POST_HOOK_DELEGATE cbPreHook, TRUN_PRE_POST_HOOK_DELEGATE cbPostHook) {
+void TestFunc::ExecuteDependencies(IDynLibrary::Ref dynlib, TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPreHook, TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPostHook) {
     for (auto &func : dependencies) {
         if (!func->IsIdle()) {
             continue;
