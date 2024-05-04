@@ -236,6 +236,9 @@ elseif (UNIX)
     install(TARGETS trun RUNTIME DESTINATION bin)
     install(TARGETS trunlib LIBRARY)
     install(FILES "src/testrunner/ext_testinterface/testinterface.h" "src/testrunner/trunembedded.h" TYPE INCLUDE)
+    # add the old interfaces here..
+    install(FILES "src/testrunner/ext_testinterface/testinterface_v1.h" TYPE INCLUDE)
+
     # let's install this - as type 'MAN' (/usr/share/man) and rename it to the correct director (/usr/share/man/man1/trun.1.gz)
     # not sure if this is the same across all distros - but without it - it will be placed in the 'man' root..
     # documentation about this is more than a little sparse - funny - as in principle - every bloody thing should come with a man-page...
