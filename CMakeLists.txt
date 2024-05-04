@@ -66,16 +66,6 @@ target_compile_definitions(fmt PUBLIC FMT_EXCEPTIONS=0)
 list(APPEND extlibs fmt)
 
 
-#
-# Example test libraries
-#
-list(APPEND sharedlib src/exshared/exshared.cpp src/exshared/pure.c)
-list(APPEND staticlib src/exstatic/exstatic.cpp)
-
-add_library(exshared SHARED ${sharedlib})
-add_library(exstatic STATIC ${staticlib})
-
-
 ## all files but the main application file
 list(APPEND srcfiles src/testrunner/asserterror.cpp)
 list(APPEND srcfiles src/testrunner/config.cpp)
@@ -86,6 +76,7 @@ list(APPEND srcfiles src/testrunner/responseproxy.cpp)
 list(APPEND srcfiles src/testrunner/resultsummary.cpp)
 list(APPEND srcfiles src/testrunner/strutil.cpp)
 list(APPEND srcfiles src/testrunner/timer.cpp)
+list(APPEND srcfiles src/testrunner/testlibversion.cpp src/testrunner/testlibversion.h)
 list(APPEND srcfiles src/testrunner/testfunc.cpp src/testrunner/testfunc.h)
 list(APPEND srcfiles src/testrunner/testmodule.cpp src/testrunner/testmodule.h)
 list(APPEND srcfiles src/testrunner/testresult.cpp)
@@ -223,7 +214,7 @@ if (APPLE)
 
     install(TARGETS trun RUNTIME DESTINATION bin)
     install(TARGETS trunlib LIBRARY)
-    install(FILES "src/testrunner/testinterface.h" "src/testrunner/trunembedded.h" TYPE INCLUDE)
+    install(FILES "src/testrunner/ext_testinterface/testinterface.h" "src/testrunner/trunembedded.h" TYPE INCLUDE)
     file(ARCHIVE_CREATE OUTPUT trun.1.gz PATHS "${PROJECT_SOURCE_DIR}/docs/trun.manpage" FORMAT raw COMPRESSION GZip)
     install(FILES ${CMAKE_CURRENT_BINARY_DIR}/trun.1.gz TYPE MAN RENAME "man1/trun.1.gz")
 
@@ -244,7 +235,7 @@ elseif (UNIX)
 
     install(TARGETS trun RUNTIME DESTINATION bin)
     install(TARGETS trunlib LIBRARY)
-    install(FILES "src/testrunner/testinterface.h" "src/testrunner/trunembedded.h" TYPE INCLUDE)
+    install(FILES "src/testrunner/ext_testinterface/testinterface.h" "src/testrunner/trunembedded.h" TYPE INCLUDE)
     # let's install this - as type 'MAN' (/usr/share/man) and rename it to the correct director (/usr/share/man/man1/trun.1.gz)
     # not sure if this is the same across all distros - but without it - it will be placed in the 'man' root..
     # documentation about this is more than a little sparse - funny - as in principle - every bloody thing should come with a man-page...
