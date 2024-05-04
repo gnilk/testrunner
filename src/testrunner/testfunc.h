@@ -11,7 +11,6 @@
 #include "testresult.h"
 #include "responseproxy.h"
 #include "testinterface_internal.h"
-#include "testhooks.h"
 #include "strutil.h"
 
 namespace trun {

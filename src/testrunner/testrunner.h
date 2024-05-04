@@ -7,7 +7,6 @@
 #include "testfunc.h"
 #include "testmodule.h"
 #include "testresult.h"
-#include "testhooks.h"
 #include <string>
 #include <vector>
 #include <map>

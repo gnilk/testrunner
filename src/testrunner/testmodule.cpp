@@ -29,7 +29,6 @@
 #include "testresult.h"
 #include "responseproxy.h"
 #include "testinterface_internal.h"
-#include "testhooks.h"
 #include "testmodule.h"
 #include "strutil.h"
 #include "resultsummary.h"

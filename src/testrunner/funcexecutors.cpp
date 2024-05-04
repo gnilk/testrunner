@@ -73,7 +73,7 @@ int TestFuncExecutorBase::InvokeHook(const CBPrePostHook &hook) {
     if (version == TRUN_MAGICAL_IF_VERSION1) {
         hook.cbHookV1((ITestingV1 *)TestResponseProxy::GetTRTestInterface(version));
     } else {
-        returnCode = hook.cbHookV2((ITestingV2*)TestResponseProxy::GetTRTestInterface(version));
+        returnCode = hook.cbHookV2((ITestingV2 *)TestResponseProxy::GetTRTestInterface(version));
     }
     return returnCode;
 }

@@ -45,11 +45,23 @@ extern "C" {
 #define kTR_FailAll 0x30
 
 typedef struct ITestingV2 ITesting;
+struct ITestingVersioned {};
+
+struct ITestingV1;
+struct ITestingV2;
+
+typedef void(TRUN_PRE_POST_HOOK_DELEGATE_V1)(ITestingV1 *);
+typedef int(TRUN_PRE_POST_HOOK_DELEGATE_V2)(ITestingV2 *);
+union CBPrePostHook {
+    TRUN_PRE_POST_HOOK_DELEGATE_V1 *cbHookV1;
+    TRUN_PRE_POST_HOOK_DELEGATE_V2 *cbHookV2;
+};
+
 
 //
 // Callback interface for test reporting
 //
-struct ITestingV1 {
+struct ITestingV1 : public ITestingVersioned {
     // Just info output - doesn't affect test execution
     void (*Debug)(int line, const char *file, const char *format, ...);
     void (*Info)(int line, const char *file, const char *format, ...);
@@ -68,7 +80,7 @@ struct ITestingV1 {
     void (*CaseDepends)(const char *caseName, const char *dependencyList);
 };
 
-struct ITestingV2 {
+struct ITestingV2 : public ITestingVersioned {
     // Just info output - doesn't affect test execution
     void (*Debug)(int line, const char *file, const char *format, ...);
     void (*Info)(int line, const char *file, const char *format, ...);

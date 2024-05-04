@@ -7,7 +7,6 @@
 #include "testresult.h"
 #include "responseproxy.h"
 #include "testinterface_internal.h"
-#include "testhooks.h"
 #include "testfunc.h"
 #include "strutil.h"
 #include <string>

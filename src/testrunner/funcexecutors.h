@@ -6,7 +6,6 @@
 #define TESTRUNNER_FUNC_EXECUTORS_H
 
 #include "dynlib.h"
-#include "testhooks.h"
 #include "testfunc.h"
 
 namespace trun {

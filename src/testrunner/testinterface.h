@@ -1,6 +1,11 @@
 #ifndef GNILK_TRUN_INTERFACE_H
 #define GNILK_TRUN_INTERFACE_H
 
+//
+// Defines the external interface for the test-runner, you only need to include this and link as a shared-library (DLL)
+// in order for the test-runner to pick it up...
+//
+
 #include <stdint.h>
 #include <stdlib.h>
 
@@ -14,14 +19,10 @@
     #define DLL_EXPORT
 #endif
 
-//
-// TODO: Create two testinterface.h
-//  - testinterface_internal.h => ALL VERSIONS DEFINED
-//  - testinterace.h => LATEST!
-//
 
-
-// FIXME: Solve this for
+//
+// This symbol is used to determine the version of the header file - DO NOT redefine this!
+//
 #ifdef __cplusplus
 extern "C" const uint32_t TRUN_MAGICAL_IF_VERSION  __attribute__ ((weak))  = 'GNK2';
 #else
@@ -78,6 +79,11 @@ struct ITesting {
     // I think the biggest question is WHAT we need...
     void (*QueryInterface)(uint32_t interface_id, void **outPtr);                 // V2 - Optional, query an interface from the runner...
 };
+
+
+//
+// Experimental - built in extension interface for configuration fetching..
+//
 
 enum kTRConfigType {
     kTRCfgType_Bool,

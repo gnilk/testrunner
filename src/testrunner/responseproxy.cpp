@@ -51,8 +51,8 @@ static void int_trp_error(int line, const char *file, const char *format, ...);
 static void int_trp_fatal(int line, const char *file, const char *format, ...);
 static void int_trp_abort(int line, const char *file, const char *format, ...);
 static void int_trp_assert_error(const char *exp, const char *file, int line);
-static void int_trp_hook_precase(TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPreCase);
-static void int_trp_hook_postcase(TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPostCase);
+static void int_trp_hook_precase_v2(TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPreCase);
+static void int_trp_hook_postcase_v2(TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPostCase);
 static void int_trp_casedepend(const char *caseName, const char *dependencyList);
 static void int_trp_moduledepend(const char *moduleName, const char *dependencyList);
 static void int_trp_query_interface(uint32_t interface_id, void **ouPtr);
@@ -60,6 +60,8 @@ static void int_trp_query_interface(uint32_t interface_id, void **ouPtr);
 // V1
 static void int_trp_hook_precase_v1(TRUN_PRE_POST_HOOK_DELEGATE_V1 cbPreCase);
 static void int_trp_hook_postcase_v1(TRUN_PRE_POST_HOOK_DELEGATE_V1 cbPostCase);
+
+
 
 
 // Config interface
@@ -93,38 +95,18 @@ void TestResponseProxy::End() {
 
 
 // Consider moving this out of here
-void *TestResponseProxy::GetTRTestInterface(uint32_t version) {
-    static ITestingV1 trp_bridge_v1 = {
-            .Debug = int_trp_debug,
-            .Info = int_trp_info,
-            .Warning = int_trp_warning,
-            .Error = int_trp_error,
-            .Fatal = int_trp_fatal,
-            .Abort = int_trp_abort,
-            .AssertError = int_trp_assert_error,
-            .SetPreCaseCallback = int_trp_hook_precase_v1,
-            .SetPostCaseCallback = int_trp_hook_postcase_v1,
-            .CaseDepends = int_trp_casedepend,
-    };
 
-    static ITestingV2 trp_bridge_v2 = {
-            .Debug = int_trp_debug,
-            .Info = int_trp_info,
-            .Warning = int_trp_warning,
-            .Error = int_trp_error,
-            .Fatal = int_trp_fatal,
-            .Abort = int_trp_abort,
-            .AssertError = int_trp_assert_error,
-            .SetPreCaseCallback = int_trp_hook_precase,
-            .SetPostCaseCallback = int_trp_hook_postcase,
-            .CaseDepends = int_trp_casedepend,
-            .ModuleDepends = int_trp_moduledepend,
-            .QueryInterface = int_trp_query_interface,
-    };
-    if (version == TRUN_MAGICAL_IF_VERSION1) {
-        return (void *) &trp_bridge_v1;
+ITestingVersioned *TestResponseProxy::GetTRTestInterface(uint32_t version) {
+    switch(version) {
+        case TRUN_MAGICAL_IF_VERSION1 :
+            return GetTRTestInterfaceV1();
+        case TRUN_MAGICAL_IF_VERSION2 :
+            return GetTRTestInterfaceV2();
+        default:
+            fprintf(stderr, "Critical error, unsupported version: %x (%u)\n", version, version);
+            exit(1);
     }
-    return (void *)&trp_bridge_v2;
+    // Never reach...
 }
 
 // Move to other file
@@ -284,6 +266,49 @@ void TestResponseProxy::QueryInterface(uint32_t interface_id, void **outPtr) {
 
 }
 
+// the ITestingVx inherits from empty ITestingVersioned to allow type checking on various places (alt. would be 'void *)
+// however, while ITestingVersioned is an empty structure I get complaints about anonymous fields not being initialized..
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
+// static private helpers
+ITestingV1 *TestResponseProxy::GetTRTestInterfaceV1() {
+    static ITestingV1 trp_bridge_v1 = {
+            .Debug = int_trp_debug,
+            .Info = int_trp_info,
+            .Warning = int_trp_warning,
+            .Error = int_trp_error,
+            .Fatal = int_trp_fatal,
+            .Abort = int_trp_abort,
+            .AssertError = int_trp_assert_error,
+            .SetPreCaseCallback = int_trp_hook_precase_v1,
+            .SetPostCaseCallback = int_trp_hook_postcase_v1,
+            .CaseDepends = int_trp_casedepend,
+    };
+    return &trp_bridge_v1;
+}
+ITestingV2 *TestResponseProxy::GetTRTestInterfaceV2() {
+    static ITestingV2 trp_bridge_v2 = {
+            .Debug = int_trp_debug,
+            .Info = int_trp_info,
+            .Warning = int_trp_warning,
+            .Error = int_trp_error,
+            .Fatal = int_trp_fatal,
+            .Abort = int_trp_abort,
+            .AssertError = int_trp_assert_error,
+            .SetPreCaseCallback = int_trp_hook_precase_v2,
+            .SetPostCaseCallback = int_trp_hook_postcase_v2,
+            .CaseDepends = int_trp_casedepend,
+            .ModuleDepends = int_trp_moduledepend,
+            .QueryInterface = int_trp_query_interface,
+    };
+    return &trp_bridge_v2;
+}
+#pragma GCC diagnostic pop
+
+//
+// Trampoline stuff below this point
+//
+
 //
 // wrappers for pure C call's (no this) - only one call per thread allowed.
 //
@@ -354,16 +379,17 @@ static void int_trp_assert_error(const char *exp, const char *file, int line) {
 
 #undef CREATE_REPORT_STRING
 
-static void int_trp_hook_precase(TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPreCase) {
+static void int_trp_hook_precase_v2(TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPreCase) {
     CBPrePostHook hook;
     hook.cbHookV2 = cbPreCase;
     TestRunner::GetCurrentTestModule()->GetTestResponseProxy().SetPreCaseCallback(hook);
 }
-static void int_trp_hook_postcase(TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPostCase) {
+static void int_trp_hook_postcase_v2(TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPostCase) {
     CBPrePostHook hook;
     hook.cbHookV2 = cbPostCase;
     TestRunner::GetCurrentTestModule()->GetTestResponseProxy().SetPostCaseCallback(hook);
 }
+
 static void int_trp_casedepend(const char *caseName, const char *dependencyList) {
     TestRunner::GetCurrentTestModule()->GetTestResponseProxy().CaseDepends(caseName, dependencyList);
 }

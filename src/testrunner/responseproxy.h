@@ -7,7 +7,6 @@
 #include "timer.h"
 #include "logger.h"
 #include "testresult.h"
-#include "testhooks.h"
 #include "asserterror.h"
 
 namespace trun {
@@ -46,11 +45,17 @@ namespace trun {
 
         void QueryInterface(uint32_t interface_id, void **outPtr);
 
-        static void *GetTRTestInterface(uint32_t version);
+        // Returns
+        //  ITestingVn  - where V depends on version which is resolved by looking for the TRUN_MAGICAL_IF_VERSION in the shared library...
+        static ITestingVersioned *GetTRTestInterface(uint32_t version);
     private:
         static ITestingConfig *GetTRConfigInterface();
-
         void TerminateThreadIfNeeded();
+
+        // Helpers to fetch interface of the correct version
+        static ITestingV1 *GetTRTestInterfaceV1();
+        static ITestingV2 *GetTRTestInterfaceV2();
+
     private:
         Timer timer;
         double tElapsed;
