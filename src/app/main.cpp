@@ -344,7 +344,7 @@ static void RunTestsForLibrary(IDynLibrary::Ref library) {
 static void DumpTestsForLibrary(IDynLibrary::Ref library) {
     TestRunner testRunner(library);
     testRunner.PrepareTests();
-        printf("=== Library: %s\n", library->Name().c_str());
+        printf("=== Library: %s (%s)\n", library->Name().c_str(), library->GetVersion().AsString().c_str());
     testRunner.DumpTestsToRun();
 }
 
