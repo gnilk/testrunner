@@ -5,7 +5,7 @@
 //
 // Created by gnilk on 03.05.24.
 //
-#include "testinterface.h"
+#include "../testrunner/ext_testinterface/testinterface.h"
 
 #include <stdio.h>
 #include <stdlib.h>
