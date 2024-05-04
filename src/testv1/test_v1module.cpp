@@ -1,8 +1,8 @@
 //
 // Created by gnilk on 03.05.24.
 //
-
-#include "../testrunner/ext_testinterface/testinterface_v1.h"
+#define TRUN_USE_V1
+#include "../testrunner/ext_testinterface/testinterface.h"
 
 #include <stdio.h>
 #include <stdlib.h>
