@@ -10,9 +10,10 @@ Currently works on macOS(arm/x86)/Linux/Windows (x86/x64)/embedded(ESP32/NRF52)
 
 # Note on version handling
 When you install you will always get the latest version of the `testinterface.h` file. This means if you upgrade from V1.x to V2.x there will 
-be API breaking changes to your tests. However, the testrunner itself can handle both new and old test-interface useage. Therefore, if you don't want
-to upgrade - make sure you grab the old `testinterface.h` before installing the new.
-Version 1 is also installed under the name `testinterface_v1.h` and you can always revert manually.
+be API breaking changes to your tests. However, the testrunner itself can handle both new and old test-interface useage. The old testinterface is still
+available under the name `testinterface_v1.h` and if you compile with `TRUN_USE_V1` it will be used instead of the new version.
+
+Ergo, for old versions add the compile flag `-D TRUN_USE_V1` and you can compile as normal.
 
 # Building
 You need CMake and GCC/Clang or Visual Studio (Windows). Tested with Visual Studio 17 and 19. The Windows version can be built in a 32 or 64 bit mode. Do note that the 32 bit don't support 64 bit DLL's and vice verse. 
