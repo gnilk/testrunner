@@ -151,10 +151,9 @@ bool DynLibLinux::Open() {
 
 
 
-    uint32_t *ptrMagic = (uint32_t *)dlsym(handle, "TRUN_MAGICAL_IF_VERSION");
+    version_t *ptrMagic = (version_t *)dlsym(handle, "TRUN_MAGICAL_IF_VERSION");
     if (ptrMagic != nullptr) {
-        version = *ptrMagic;
-        printf("Magic is: %d\n",*ptrMagic);
+        SetVersion(*ptrMagic);
     }
 
 	MyProcCallbacks cb;
