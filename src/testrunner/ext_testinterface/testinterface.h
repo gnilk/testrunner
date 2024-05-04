@@ -20,24 +20,15 @@
 #endif
 
 
-//
-// This symbol is used to determine the version of the header file - DO NOT redefine this!
-//
-#ifdef __cplusplus
-extern "C" const uint32_t TRUN_MAGICAL_IF_VERSION  __attribute__ ((weak))  = 'GNK2';
-#else
-const uint32_t TRUN_MAGICAL_IF_VERSION  __attribute__ ((weak))  = 'GNK2';
-#endif
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // Return codes from test functions
 #define kTR_Pass 0x00
 #define kTR_Fail 0x10
 #define kTR_FailModule 0x20
 #define kTR_FailAll 0x30
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 //
 // If you embed the trun library you need to specify if you run single threaded or not!
@@ -116,5 +107,39 @@ struct ITestingConfig {
 #ifdef __cplusplus
 }
 #endif
+
+
+//
+// Version handling is handled by exporting a symbol ('TRUN_MAGICAL_IF_VERSION')
+// this defines the testinterface version of the shared library you are feeding to the testrunner..
+//
+// Note: The use of 'weak' here allows me to basically define this for any compile-unit and not implore any kind of
+//       regular single-header-library magic (like #define TR_IMPL before first include).
+//
+// The first version (V1) didn't have this symbol - thus - if not present if assume a V1 interface..
+// Versioning is following semantic versioning rules..
+//   Major => API breakage => you will have to change your code (or revert back to a specific version of the headerfile)
+//   Minor => no API breakage => you will just have more functionality but should be able to link with any version
+//   Patch => fixes => Shouldn't change anything..
+//
+
+#define STR_TO_VER(ver) (((uint64_t)ver[0]<<56) | ((uint64_t)ver[1]<<48) | ((uint64_t)ver[2] << 40) | ((uint64_t)ver[3] << 32) | ((uint64_t)ver[4] << 24) | ((uint64_t)ver[5] << 16) | ((uint64_t)ver[6] << 8) | ((uint64_t)ver[7]))
+
+
+//
+// This symbol is used to determine the version of the header file - DO NOT redefine this!
+// FIXME: Solve for windows...
+//
+#ifdef __cplusplus
+extern "C" const uint64_t TRUN_MAGICAL_IF_VERSION  __attribute__ ((weak))  = STR_TO_VER("GNK_0200");
+#else
+const uint64_t TRUN_MAGICAL_IF_VERSION  __attribute__ ((weak))  = 'GNK2';
+#endif
+
+
+
+
+
+
 
 #endif //GNILK_TRUN_INTERFACE_H
