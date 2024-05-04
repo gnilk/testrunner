@@ -1,5 +1,10 @@
-#ifndef GNILK_TRUN_INTERFACE_H
-#define GNILK_TRUN_INTERFACE_H
+#ifdef TRUN_USE_V1
+#include "testinterface_v1.h"
+#endif
+
+
+#ifndef TRUN_TEST_INTERFACE_H
+#define TRUN_TEST_INTERFACE_H
 
 //
 // Defines the external interface for the test-runner, you only need to include this and link as a shared-library (DLL)
@@ -142,4 +147,4 @@ const uint64_t TRUN_MAGICAL_IF_VERSION  __attribute__ ((weak))  = 'GNK2';
 
 
 
-#endif //GNILK_TRUN_INTERFACE_H
+#endif // TRUN_TEST_INTERFACE_H
