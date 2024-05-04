@@ -2,7 +2,7 @@
 // Created by gnilk on 24.10.22.
 //
 #include "../config.h"
-#include "../testinterface.h"
+#include "ext_testinterface/testinterface.h"
 
 extern "C" {
 DLL_EXPORT int test_depends(ITesting *t);

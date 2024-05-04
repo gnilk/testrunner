@@ -5,7 +5,7 @@
 //
 
 #include "../config.h"
-#include "../testinterface.h"
+#include "ext_testinterface/testinterface.h"
 
 extern "C" {
 DLL_EXPORT int test_mdepmodA(ITesting *t);

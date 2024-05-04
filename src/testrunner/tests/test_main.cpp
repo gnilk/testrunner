@@ -1,7 +1,7 @@
 //
 // Created by Fredrik Kling on 18.08.22.
 //
-#include "../testinterface.h"
+#include "ext_testinterface/testinterface.h"
 #include "logger.h"
 #include "config.h"
 

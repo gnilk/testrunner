@@ -4,7 +4,7 @@
 // they don't test anything internally - they are compiled in and added to the rust project as a binary so..
 //
 #define GNILK_TRUN_CLIENT_IMPL
-#include "testinterface.h"
+#include "ext_testinterface/testinterface.h"
 #include "logger.h"
 #include <functional>
 #include <string.h>
