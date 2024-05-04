@@ -6,7 +6,7 @@
 
 #include <memory>
 
-
+#include "testlibversion.h"
 #include "testinterface_internal.h"
 
 #include <stdint.h>
@@ -36,6 +36,10 @@ namespace trun {
     public:
         using Ref = std::shared_ptr<IDynLibrary>;
     public:
+        IDynLibrary() {
+            // This will populate the string properly
+            SetVersion(TRUN_MAGICAL_IF_VERSION1);
+        }
         virtual ~IDynLibrary() = default;
         virtual bool Scan(const std::string &pathName) = 0;
         virtual void *Handle() = 0;
@@ -43,8 +47,15 @@ namespace trun {
         virtual const std::vector<std::string> &Exports() const = 0;
         virtual const std::string &Name() const = 0;
 
-        uint32_t GetVersion() { return version; }
+        version_t GetRawVersion() const { return rawVersion; }
+        const Version &GetVersion() const { return version; }
     protected:
-        uint32_t version = TRUN_MAGICAL_IF_VERSION1;
+        void SetVersion(version_t newVersion) {
+            rawVersion = newVersion;
+            version = TestLibVersion::FromVersion(rawVersion);
+        }
+
+        Version version;
+        version_t rawVersion = 0;
     };
 }

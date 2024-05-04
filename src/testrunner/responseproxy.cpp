@@ -96,14 +96,15 @@ void TestResponseProxy::End() {
 
 // Consider moving this out of here
 
-ITestingVersioned *TestResponseProxy::GetTRTestInterface(uint32_t version) {
-    switch(version) {
-        case TRUN_MAGICAL_IF_VERSION1 :
+ITestingVersioned *TestResponseProxy::GetTRTestInterface(const Version &version) {
+    // First distinguish from major - then if needed we can check minor..
+    switch(version.Major()) {
+        case 1 :
             return GetTRTestInterfaceV1();
-        case TRUN_MAGICAL_IF_VERSION2 :
+        case 2 :
             return GetTRTestInterfaceV2();
         default:
-            fprintf(stderr, "Critical error, unsupported version: %x (%u)\n", version, version);
+            fprintf(stderr, "Critical error, unsupported version: %s\n", version.AsString().c_str());
             exit(1);
     }
     // Never reach...

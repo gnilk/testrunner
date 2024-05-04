@@ -30,8 +30,15 @@
         return kTR_Fail; \
     }
 
-static constexpr uint32_t TRUN_MAGICAL_IF_VERSION1 = 'GNK1';        // This version doesn't exists - it is assumed if not other version is found...
-static constexpr uint32_t TRUN_MAGICAL_IF_VERSION2 = 'GNK2';
+//#define STR_TO_VER(ver) ((ver[0]<<24) | (ver[1]<<16) | (ver[2] << 8) | (ver[3]))
+#define STR_TO_VER(ver) (((uint64_t)ver[0]<<56) | ((uint64_t)ver[1]<<48) | ((uint64_t)ver[2] << 40) | ((uint64_t)ver[3] << 32) | ((uint64_t)ver[4] << 24) | ((uint64_t)ver[5] << 16) | ((uint64_t)ver[6] << 8) | ((uint64_t)ver[7]))
+
+// This is the raw version type
+typedef uint64_t version_t;
+
+
+static constexpr version_t TRUN_MAGICAL_IF_VERSION1 = STR_TO_VER("GNK_0100");        // This version doesn't exists - it is assumed if not other version is found...
+static constexpr version_t TRUN_MAGICAL_IF_VERSION2 = STR_TO_VER("GNK_0200");
 
 
 #ifdef __cplusplus
@@ -59,7 +66,7 @@ union CBPrePostHook {
 
 
 //
-// Callback interface for test reporting
+// Callback Version V1 - same as in ext_testinterface/testinterface_v1.h
 //
 struct ITestingV1 : public ITestingVersioned {
     // Just info output - doesn't affect test execution
@@ -80,6 +87,9 @@ struct ITestingV1 : public ITestingVersioned {
     void (*CaseDepends)(const char *caseName, const char *dependencyList);
 };
 
+//
+// Callback Version V2 - same as in ext_testinterface/testinterface_v1.h
+//
 struct ITestingV2 : public ITestingVersioned {
     // Just info output - doesn't affect test execution
     void (*Debug)(int line, const char *file, const char *format, ...);
@@ -104,6 +114,9 @@ struct ITestingV2 : public ITestingVersioned {
     void (*QueryInterface)(uint32_t interface_id, void **outPtr);                 // V2 - Optional, query an interface from the runner...
 };
 
+//
+// V2 extensions
+//
 
 enum kTRConfigType {
     kTRCfgType_Bool,

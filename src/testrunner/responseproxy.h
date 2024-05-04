@@ -3,6 +3,7 @@
 
 
 #include <string>
+#include "testlibversion.h"
 #include "testinterface_internal.h"
 #include "timer.h"
 #include "logger.h"
@@ -47,7 +48,7 @@ namespace trun {
 
         // Returns
         //  ITestingVn  - where V depends on version which is resolved by looking for the TRUN_MAGICAL_IF_VERSION in the shared library...
-        static ITestingVersioned *GetTRTestInterface(uint32_t version);
+        static ITestingVersioned *GetTRTestInterface(const Version &version);
     private:
         static ITestingConfig *GetTRConfigInterface();
         void TerminateThreadIfNeeded();

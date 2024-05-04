@@ -68,12 +68,12 @@ int TestFuncExecutorBase::InvokeHook(const CBPrePostHook &hook) {
     int returnCode = kTR_Pass;
 
     // Fetch version..
-    auto version = library->GetVersion();
+    auto rawVersion = library->GetRawVersion();
     // Hook signatures have changed so we need to do this - a bit convoluted..
-    if (version == TRUN_MAGICAL_IF_VERSION1) {
-        hook.cbHookV1((ITestingV1 *)TestResponseProxy::GetTRTestInterface(version));
+    if (rawVersion == TRUN_MAGICAL_IF_VERSION1) {
+        hook.cbHookV1((ITestingV1 *)TestResponseProxy::GetTRTestInterface(library->GetVersion()));
     } else {
-        returnCode = hook.cbHookV2((ITestingV2 *)TestResponseProxy::GetTRTestInterface(version));
+        returnCode = hook.cbHookV2((ITestingV2 *)TestResponseProxy::GetTRTestInterface(library->GetVersion()));
     }
     return returnCode;
 }

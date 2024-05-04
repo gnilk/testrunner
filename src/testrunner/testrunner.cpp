@@ -194,7 +194,7 @@ bool TestRunner::ExecuteModuleTests() {
 //
 void TestRunner::PrepareTests() {
 
-    pLogger->Info("Prepare tests in library: %s", library->Name().c_str());
+    pLogger->Info("Prepare tests in library: %s (%s)", library->Name().c_str(), library->GetVersion().AsString().c_str());
     for(auto x:library->Exports()) {
 
         TestFunc::Ref func = CreateTestFunc(x);
