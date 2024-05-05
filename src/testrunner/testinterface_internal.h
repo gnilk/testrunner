@@ -52,6 +52,8 @@ extern "C" {
 #define kTR_FailAll 0x30
 
 typedef struct ITestingV2 ITesting;
+// FIXME: This gives a warning with clang!     'testinterface_internal.h:55:1: warning: empty struct has size 0 in C, size 1 in C++ [-Wextern-c-compat]'
+//        Doesn't seem to impact execution - but I need to investigate where the extra byte is stored...
 struct ITestingVersioned {};
 
 struct ITestingV1;
