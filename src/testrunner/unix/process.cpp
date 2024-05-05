@@ -201,7 +201,7 @@ bool Process_Unix::SpawnAndLoop(std::string command, std::list<std::string> &arg
 			ConsumePipes(callback);
 		}			
 		// Consume what ever is left after the process exited, perhaps this is enough...
-		while(ConsumePipes(callback)>0);
+		while(ConsumePipes(callback)>0) {}
 
 
         gnilk::Logger::GetLogger("Process_Unix")->Debug("Process loop finished");
