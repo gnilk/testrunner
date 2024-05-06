@@ -134,7 +134,7 @@ ILogOutputSink *LogConsoleSink::CreateInstance([[maybe_unused]]const char *class
 int LogConsoleSink::WriteLine(int dbgLevel, char *hdr, char *string)
 {
 	int res = 0;
-    res = fprintf(stdout, "%s%s\n", hdr,string);
+    res = fprintf(stdout, "%s%s\n", hdr, string);
 	return res;
 }
 
@@ -356,7 +356,7 @@ void Logger::WriteReportString(int mc, char *string)
 #define WRITE_REPORT_STRING(__DBGTYPE__)    \
     va_list values;                         \
     va_start(values, sFormat);              \
-    vsnprintf(glb_log_buffer, TRUN_MAX_LOG_STRING, sFormat, values);    \
+    vsnprintf(glb_log_buffer, TRUN_MAX_LOG_STRING-1, sFormat, values);    \
     va_end(values);                         \
     Logger::WriteReportString(__DBGTYPE__, glb_log_buffer); \
 
