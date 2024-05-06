@@ -10,6 +10,7 @@
 
 
 #include "testrunner/trunembedded.h"
+#include "testrunner/config.h"
 
 // Declare some test functions
 extern "C" {
@@ -40,6 +41,11 @@ DLL_EXPORT int test_emb_func2(ITesting *t) {
 }
 
 int main(int argc, char **argv) {
+
+    // Increase log-level - this is an explicit thing in embedded, by default it is all switched off...
+    // Testrunner will read the verbose level from config (normally comes from cmd-line parsing) and update the log-level in the logger..
+    trun::Config::Instance().verbose = 2;
+
     // Add some test cases
     trun::AddTestCase("test_main", test_main);
     trun::AddTestCase("test_emb", test_emb);
