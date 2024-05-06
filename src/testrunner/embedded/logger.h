@@ -18,9 +18,7 @@ Changes:
 
 #include <string.h>
 
-#include <list>
 #include <map>
-#include <vector>
 #include <string>
 
 using namespace std;
@@ -32,10 +30,6 @@ namespace gnilk
 #define TRUN_LOG_DEFAULT_DEBUG_LEVEL 0
 #endif
 
-#ifndef TRUN_MAX_LOG_NAME
-#define TRUN_MAX_LOG_NAME 16
-#endif
-
 #ifndef TRUN_MAX_LOG_STRING
 #define TRUN_MAX_LOG_STRING 256
 #endif
@@ -44,11 +38,6 @@ namespace gnilk
 	class ILogger
 	{
 	public:
-		// properties
-		virtual const char *GetName() = 0;
-		virtual void Enable(int flag) = 0;
-		virtual void Disable(int flag) = 0;
-		
 		// functions
 		virtual void WriteLine(const char *sFormat,...) = 0;
 		virtual void WriteLine(int iDbgLevel, const char *sFormat,...) = 0;
@@ -64,7 +53,6 @@ namespace gnilk
 	class ILogOutputSink
 	{
 	public:
-		virtual const char *GetName() = 0;
 		virtual void Initialize(int argc, char **argv) = 0;
 		virtual int WriteLine(int dbgLevel, char *hdr, char *string) = 0;
 		virtual void Close() = 0;
@@ -81,14 +69,11 @@ namespace gnilk
 		int WriteLine(int dbgLevel, char *hdr, char *string) override { return -1; }
         void Close() override {};
 
-        const char *GetName() override {
-            return name;
-        }
-        void SetName(const char *newName) {
-            strncpy(name, newName,TRUN_MAX_LOG_NAME-1);
+        void SetName(const std::string &newName) {
+            name = newName;
         }
     protected:
-        char name[TRUN_MAX_LOG_NAME];
+        std::string name;
 	};
 
 	class LogConsoleSink : 	public LogBaseSink
@@ -105,7 +90,6 @@ namespace gnilk
 	{
 	public:
 		ILogger *pLogger;
-		std::list<char *> excludedModules;
 	public:
 		LoggerInstance();
 		LoggerInstance(ILogger *pLogger);
@@ -164,14 +148,7 @@ namespace gnilk
 
 
 		static const char *MessageClassNameFromInt(int mc);
-		static int MessageLevelFromName(const char *level);
 
-
-		const char *GetName() override { return name.c_str();};
-		void Enable(int flag) override { logFlags |= (flag & 0x7fff); };
-		void Disable(int flag) override { logFlags = logFlags & ((flag ^ 0x7fff) & 0x7fff); };
-
-		
 		// Functions
 		void WriteLine (int iDbgLevel, const char *sFormat,...) override;
 		void WriteLine (const char *sFormat,...) override;
@@ -197,10 +174,7 @@ namespace gnilk
         std::string name;
         int logFlags;
         static int iDebugLevel;
-        Logger(const char *sName);
         void WriteReportString(int mc, char *string);
-        void GenerateIndentString();
-
     private:
         static bool bInitialized;
         static ILoggerList loggers;

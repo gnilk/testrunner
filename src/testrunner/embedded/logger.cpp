@@ -54,7 +54,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
-
+#include <vector>
 
 #ifdef WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -327,19 +327,6 @@ const char *Logger::MessageClassNameFromInt(int mc)
 	} 
 	return lMessageClassNames[7];
 
-}
-
-int Logger::MessageLevelFromName(const char *level)
-{
-	if (!strcmp(level, "NONE")) return kMCNone;
-	if (!strcmp(level, "DEBUG")) return kMCDebug;
-	if (!strcmp(level, "INFO")) return kMCInfo;
-	if (!strcmp(level, "WARN")) return kMCWarning;
-	if (!strcmp(level, "WARNING")) return kMCWarning;
-	if (!strcmp(level, "ERROR")) return kMCError;
-	if (!strcmp(level, "CRITICAL")) return kMCCritical;
-	if (!strcmp(level, "FATAL")) return kMCFatal;
-	return kMCNone;
 }
 
 //
