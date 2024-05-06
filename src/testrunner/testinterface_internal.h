@@ -4,6 +4,9 @@
 //
 //                  DO NOT USE THIS VERSION FOR TESTABLE CODE!!!!
 //
+// Best option is to run the installer (make; make install) or via package manager (make package; sudo apt install ./<package>
+// if you don't want that - the actual header files to be used for unit-tests in projects are found in: ext_testinterface
+//
 
 #ifndef TESTRUNNER_TESTINTERFACE_INTERNAL_H
 #define TESTRUNNER_TESTINTERFACE_INTERNAL_H
@@ -37,7 +40,7 @@
 typedef uint64_t version_t;
 
 
-static constexpr version_t TRUN_MAGICAL_IF_VERSION1 = STR_TO_VER("GNK_0100");        // This version doesn't exists - it is assumed if not other version is found...
+static constexpr version_t TRUN_MAGICAL_IF_VERSION1 = STR_TO_VER("GNK_0100");        // This version doesn't formally exist - it is assumed if no other version is found...
 static constexpr version_t TRUN_MAGICAL_IF_VERSION2 = STR_TO_VER("GNK_0200");
 
 
@@ -52,9 +55,20 @@ extern "C" {
 #define kTR_FailAll 0x30
 
 typedef struct ITestingV2 ITesting;
-// FIXME: This gives a warning with clang!     'testinterface_internal.h:55:1: warning: empty struct has size 0 in C, size 1 in C++ [-Wextern-c-compat]'
-//        Doesn't seem to impact execution - but I need to investigate where the extra byte is stored...
+
+//
+// This is not a problem - I only use this structure internally during inheritance to allow treating all test-interface versions
+// in the same manner without type-problems...
+//
+#ifdef __clang__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wextern-c-compat"
+#endif
 struct ITestingVersioned {};
+#ifdef __clang__
+#pragma GCC diagnostic pop
+#endif
+
 
 struct ITestingV1;
 struct ITestingV2;
