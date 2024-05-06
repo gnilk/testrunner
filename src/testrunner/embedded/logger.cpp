@@ -350,20 +350,14 @@ void Logger::WriteReportString(int mc, char *string)
 {
 	char sHdr[64];
 	char sTime[32];	// saftey, 26 is enough
-
 	const char *sLevel = MessageClassNameFromInt(mc);
 
-	
 	TimeString(32, sTime);
-	// Create the special header string
 	// Format: "time [thread] msglevel library - "
-
     // MAX string before truncation is 62 chars; 23 + 2 + 8 + 2 + 8 + 1 + 15 + 3 = 23 + 23+20+15+4 = 43+19 = 62
     snprintf(sHdr, 63, "%-23s [%.8x] %8s %15s - ", sTime, (unsigned int)0, sLevel, name.c_str());
 
-	// gnilk, 2018-10-18, Combine with flags here - does not affect higher level API
 	int dbgLevel = DBGLEVEL_COMBINE(mc, logFlags);
-
 	Logger::SendToSinks((int)dbgLevel,sHdr, string);
 }
 
