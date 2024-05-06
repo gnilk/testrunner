@@ -2,80 +2,50 @@
 File    :	Logger.cpp
 Author  :   FKling
 Orginal :	2005-7-19, 11:39
-Descr   :	Logger, simplistic stuff, mimics Log4Net/Log4Java/Log4Delphi
+Descr   :	Stripped down version of an old logger
 
  Part of testrunner
  BSD3 License!
 
-
-No support for layout's, output is fixed
-
-Loglevel filtering can be set on:
- - Globally through "Logger::GetProperties()->SetXYZ()"
- - Appender, each appender can have their own filtering
-
- Global filtering is early rejection, if it does not pass through it won't
- make it to the log regardless.
- I.e. If global is set to CRITICAL than _ONLY_ critical messages will be
- pushed down the chain.
-
- So, for production set global to "INFO" (kMCInfo) and during development 
- set it to "NONE" (kMCNone)
-
---------------------------------------------------------------------------- 
-To-do [-:undone,+:inprogress,!:done]:
-
- 
-Changes: 
+ ---------------------------------------------------------------------------
+Changes:
 
 -- Date -- | -- Name ------- | -- Did what...                              
-2018-10-19 | FKling          | LoggerInstance in map, added 'Fatal' as level
-2010-10-21 | FKling          | Redefined the message classes to be ranges
-2010-10-21 | FKling          | Added automatic indentation logging
-2010-10-19 | FKling          | Added sink management
-2009-04-16 | FKling          | Imported from other projects
-2009-01-26 | FKling          | Imported to iPhone
-2006-11-08 | FKling          | Rewrote critical section handling, now specific lock's
-2006-10-19 | FKling          | Timers are multi-core, multi-cpu safe
-2006-01-12 | FKling          | upon creation of timers calling mark, to reset states
-2005-12-12 | FKling          | memory leak, free generated debugstring
-
+2024-05-06 | FKling          | Stripped for embedded use
 ---------------------------------------------------------------------------*/
-#include "platform.h"
+#ifndef GNK_TRUN_EMBEDDED_LOGGER_H
+#define GNK_TRUN_EMBEDDED_LOGGER_H
 
-#include <stdlib.h>
-#include <stdio.h>
+#include <string.h>
 
 #include <list>
-#include <queue>
 #include <map>
 #include <vector>
 #include <string>
-
-#ifndef __LOGGER_H__
-#define __LOGGER_H__
-
 
 using namespace std;
 
 namespace gnilk
 {
-#ifdef WIN32
-#define LOG_CALLCONV __stdcall
-#else
-#define LOG_CALLCONV
+
+#ifndef TRUN_LOG_DEFAULT_DEBUG_LEVEL
+#define TRUN_LOG_DEFAULT_DEBUG_LEVEL 0
 #endif
 
-#define MAX_INDENT 256
+#ifndef TRUN_MAX_LOG_NAME
+#define TRUN_MAX_LOG_NAME 16
+#endif
+
+#ifndef TRUN_MAX_LOG_STRING
+#define TRUN_MAX_LOG_STRING 256
+#endif
 
 	// Main public interface - this is the one you will normally use
 	class ILogger
 	{
 	public:
 		// properties
-		virtual int GetIndent() = 0;
-		virtual int SetIndent(int nIndent) = 0;
-		virtual char *GetName() = 0;
+		virtual const char *GetName() = 0;
 		virtual void Enable(int flag) = 0;
 		virtual void Disable(int flag) = 0;
 		
@@ -88,84 +58,9 @@ namespace gnilk
 		virtual void Warning(const char *sFormat, ...) = 0;
 		virtual void Info(const char *sFormat, ...) = 0;
 		virtual void Debug(const char *sFormat, ...) = 0;
-		
-		virtual void Enter() = 0;
-		virtual void Leave() = 0;
-	};
-	class LogPropertyReader
-	{
-	private:
-		std::map<std::string, std::string> properties;
-		void ParseLine(char *line);
-	public:
-		LogPropertyReader();
-		virtual ~LogPropertyReader();
-
-		void ReadFromFile(const char *filename);
-		void WriteToFile(const char *filename);
-
-		virtual char *GetValue(const char *key, char *dst, int nMax, const char *defValue);
-		virtual void SetValue(const char *key, const char *value);
-
-		virtual int GetAllStartingWith(std::vector<std::pair<std::string, std::string> > *result, const char *filter);
-
-		virtual void OnValueChanged(const char *key, const char *value) = 0;
-	};
-	// Holds properties for the logger and/or sink
-	class LogProperties : public LogPropertyReader
-	{
-	protected:
-		int iDebugLevel;	// Everything above this becomes written to the sink
-		char *name;
-		int nMaxBackupIndex;
-		long nMaxLogfileSize;
-		char *logFileName;
-		char *className;
-
-		void SetDefaults();
-	public:
-		LogProperties();
-
-		__inline bool IsLevelEnabled(int iDbgLevel) { return ((iDbgLevel>=iDebugLevel)?true:false); }
-		__inline int GetDebugLevel() { return iDebugLevel; }
-		__inline void SetDebugLevel(int newLevel) { iDebugLevel = newLevel; }
-
-		__inline const char *GetName() { return name; };
-		void SetName(const char *newName);
-
-		__inline const char *GetClassName() { return className; };
-		void SetClassName(const char *newName);
-
-		__inline const char *GetLogfileName() { return logFileName; };
-		void SetLogfileName(const char *newName);
-
-		__inline long GetMaxLogfileSize() { return nMaxLogfileSize; };
-		__inline void SetMaxLogfileSize(const long nSize) { nMaxLogfileSize = nSize; };
-		__inline int GetMaxBackupIndex() { return nMaxBackupIndex; };
-		__inline void SetMaxBackupIndex(const int nIndex) { nMaxBackupIndex = nIndex; }; 
-
-
-		// Event from reader
-		void OnValueChanged(const char *key, const char *value);
 	};
 
-	// Used to wrap up indentation when using exceptions
-	// Use this class for automatic and proper indent handling
-	class LogIndent
-	{
-	private:
-		ILogger *pLogger;
-	public:
-		LogIndent(ILogger *_pLogger) : pLogger(_pLogger) { pLogger->Enter(); }
-		virtual ~LogIndent() { pLogger->Leave(); }
-	};
-
-
-	// return valus from 'WriteLine'
-#define SINK_WRITE_UNKNOWN_ERROR -100
-#define SINK_WRITE_IO_ERROR -1
-#define SINK_WRITE_FILTERED 0
-
+    // This is a bit convoluted - but keeping as I can see someone wanting to add specifics for SWD/JTAG/WIFI/etc..
 	class ILogOutputSink
 	{
 	public:
@@ -174,87 +69,51 @@ namespace gnilk
 		virtual int WriteLine(int dbgLevel, char *hdr, char *string) = 0;
 		virtual void Close() = 0;
 	};
+
+
 	class LogBaseSink : public ILogOutputSink
 	{
-	protected:
-		char *name;
-		LogProperties properties;
-		bool WithinRange(int iDbgLevel);
-
-//		__inline bool WithinRange(int iDbgLevel) { return (iDbgLevel>=properties.GetDebugLevel())?true:false; }
-	public:	
-		LogProperties *GetProperties() { return &properties; }
 	public:
-		virtual void SetName(const char *name) { properties.SetName(name); }
-		virtual const char *GetName() { return properties.GetName(); }
-		virtual void Initialize(int argc, char **argv) = 0;
-		virtual int WriteLine(int dbgLevel, char *hdr, char *string) = 0;
-		virtual void Close() = 0;
+        LogBaseSink() = default;
+        virtual ~LogBaseSink() = default;
+
+		void Initialize(int argc, char **argv) override {}
+		int WriteLine(int dbgLevel, char *hdr, char *string) { return -1; }
+        void Close() {};
+
+        const char *GetName() override {
+            return name;
+        }
+        void SetName(const char *newName) {
+            strncpy(name, newName,TRUN_MAX_LOG_NAME-1);
+        }
+    protected:
+        char name[TRUN_MAX_LOG_NAME];
 	};
+
 	class LogConsoleSink : 	public LogBaseSink
 	{
 	public:
-		virtual void Initialize(int argc, char **argv);
-		virtual int WriteLine(int dbgLevel, char *hdr, char *string);
-		virtual void Close();
+        LogConsoleSink() = default;
+        virtual ~LogConsoleSink() = default;
 
-		static ILogOutputSink * LOG_CALLCONV CreateInstance(const char *className);
+        static ILogOutputSink * CreateInstance(const char *className);
+		int WriteLine(int dbgLevel, char *hdr, char *string) override;
 	};
-#ifndef DTRUN_EMBEDDED_MCU
-	class LogFileSink : public LogBaseSink
-	{
-	protected:
-		FILE *fOut;
 
-		void Open(const char *filename, bool bAppend);
-		long Size();
-		void ParseArgs(int argc, char **argv);
-	public:
-		LogFileSink();
-		virtual ~LogFileSink();
-		virtual void Initialize(int argc, char **argv);
-		virtual int WriteLine(int dbgLevel, char *hdr, char *string);
-		virtual void Close();
-
-		static ILogOutputSink * LOG_CALLCONV CreateInstance(const char *className);
-	};	
-
-	class LogRollingFileSink : public LogFileSink
-	{
-	private:
-		int nMaxBackupIndex;
-		long nBytesRollLimit;
-		long nBytes;
-
-		char *GetFileName(char *dst, int idx);
-		void RollOver();
-		void CheckApplyRules();
-	public:
-		LogRollingFileSink();
-		virtual ~LogRollingFileSink();
-		virtual void Initialize(int argc, char **argv);
-		virtual int WriteLine(int dbgLevel, char *hdr, char *string);
-
-		static ILogOutputSink * LOG_CALLCONV CreateInstance(const char *className);
-	};
-#endif
-	
 	class LoggerInstance
 	{
 	public:
 		ILogger *pLogger;
-		//int iDebugLevel;		// Message class must be above this to become printed
-		std::list<char *> lExcludedModeuls;		
+		std::list<char *> excludedModules;
 	public:
 		LoggerInstance();
 		LoggerInstance(ILogger *pLogger);
+        virtual ~LoggerInstance() = default;
 	};
 
 
-
-	//typedef std::list<LoggerInstance *> ILoggerList;
 	typedef std::map<std::string, LoggerInstance *> ILoggerList;
-	typedef std::list<ILogOutputSink *>ILoggerSinkList;
 
     typedef enum
     {
@@ -291,83 +150,64 @@ namespace gnilk
 			kFlags_BlockAll = 0x0002,	
 		} kFlags;
 
-		typedef enum
-		{
-			kTFDefault,
-			kTFLog4Net,
-			kTFUnix,			
-		} TimeFormat;
-	private:
-		
-		char *sName;
-		char *sIndent;
-		int iIndentLevel;
-		int logFlags;
-		Logger(const char *sName);
-		void WriteReportString(int mc, char *string);
-		void GenerateIndentString();
-		
-	private:
-		static TimeFormat kTimeFormat;
-		static bool bInitialized;
-		static int iIndentStep;
-		static ILoggerList loggers;
-		static ILoggerSinkList sinks;
-		static LogProperties properties;
-		static std::queue<void *> buffers;
-		static char *TimeString(int maxchar, char *dst);
-		static void SendToSinks(int dbgLevel, char *hdr, char *string);
-		static void RebuildSinksFromConfiguration();
-		static LoggerInstance *GetInstance(std::string name);
-
 	public:
-	
-		static ILogOutputSink *CreateSink(const char *className);
+        Logger(const std::string &newName);
+        virtual ~Logger() = default;
+
 		static void Initialize();
-		virtual ~Logger();
-		static ILogger *GetLogger(const char *name);
+
+
+		static ILogger *GetLogger(const std::string &name);
 		static void SetAllSinkDebugLevel(int iNewDebugLevel);
 		static void AddSink(ILogOutputSink *pSink, const char *sName);
 		static void AddSink(ILogOutputSink *pSink, const char *sName, int argc, char **argv);
 
-		// Refactor this to a LogManager
-		static void *RequestBuffer();
-		static void ReleaseBuffer(void *pBuf);
 
 		static const char *MessageClassNameFromInt(int mc);
 		static int MessageLevelFromName(const char *level);
 
 
-		static LogProperties *GetProperties() { return &Logger::properties; }
-
-		__inline bool IsDebugEnabled() { return (Logger::properties.IsLevelEnabled((int)kMCDebug)?true:false);}
-		__inline bool IsInfoEnabled() { return (Logger::properties.IsLevelEnabled((int)kMCInfo)?true:false);}
-		__inline bool IsWarningEnabled() { return (Logger::properties.IsLevelEnabled((int)kMCWarning)?true:false);}
-		__inline bool IsErrorEnabled() { return (Logger::properties.IsLevelEnabled((int)kMCError)?true:false);}
-		__inline bool IsCriticalEnabled() { return (Logger::properties.IsLevelEnabled((int)kMCCritical)?true:false);}
-		__inline bool IsFatalEnabled() { return (Logger::properties.IsLevelEnabled((int)kMCFatal)?true:false);}
-		
-		// properties
-		virtual int GetIndent() { return iIndentLevel; };
-		virtual int SetIndent(int nIndent) { iIndentLevel = nIndent; return iIndentLevel; };
-		virtual char *GetName() { return sName;};
-		virtual void Enable(int flag) { logFlags |= (flag & 0x7fff); };
-		virtual void Disable(int flag) { logFlags = logFlags & ((flag ^ 0x7fff) & 0x7fff); };
+		const char *GetName() override { return name.c_str();};
+		void Enable(int flag) override { logFlags |= (flag & 0x7fff); };
+		void Disable(int flag) override { logFlags = logFlags & ((flag ^ 0x7fff) & 0x7fff); };
 
 		
 		// Functions
-		virtual void WriteLine(int iDbgLevel, const char *sFormat,...);
-		virtual void WriteLine(const char *sFormat,...);
-		virtual void Fatal(const char *sFormat,...);
-		virtual void Critical(const char *sFormat,...);
-		virtual void Error(const char *sFormat, ...);
-		virtual void Warning(const char *sFormat, ...);
-		virtual void Info(const char *sFormat, ...);
-		virtual void Debug(const char *sFormat, ...);
+		void WriteLine (int iDbgLevel, const char *sFormat,...) override;
+		void WriteLine (const char *sFormat,...) override;
+		void Fatal(const char *sFormat,...) override;
+		void Critical(const char *sFormat,...) override;
+		void Error(const char *sFormat, ...) override;
+		void Warning(const char *sFormat, ...) override;
+		void Info(const char *sFormat, ...) override;
+		void Debug(const char *sFormat, ...) override;
 
-		// Enter leave functions, use to auto-indent flow statements, take care on exceptions!
-		virtual void Enter();
-		virtual void Leave();
+    protected:
+
+        __inline bool IsDebugEnabled() { return (IsLevelEnabled((int)kMCDebug)?true:false);}
+        __inline bool IsInfoEnabled() { return (IsLevelEnabled((int)kMCInfo)?true:false);}
+        __inline bool IsWarningEnabled() { return (IsLevelEnabled((int)kMCWarning)?true:false);}
+        __inline bool IsErrorEnabled() { return (IsLevelEnabled((int)kMCError)?true:false);}
+        __inline bool IsCriticalEnabled() { return (IsLevelEnabled((int)kMCCritical)?true:false);}
+        __inline bool IsFatalEnabled() { return (IsLevelEnabled((int)kMCFatal)?true:false);}
+
+        __inline bool IsLevelEnabled(int iDbgLevel) { return ((iDbgLevel>=iDebugLevel)?true:false); }
+
+    private:
+        std::string name;
+        int logFlags;
+        static int iDebugLevel;
+        Logger(const char *sName);
+        void WriteReportString(int mc, char *string);
+        void GenerateIndentString();
+
+    private:
+        static bool bInitialized;
+        static ILoggerList loggers;
+        static ILogOutputSink *sink;        // Embedded only supports one sink...
+        static char *TimeString(int maxchar, char *dst);
+        static void SendToSinks(int dbgLevel, char *hdr, char *string);
+        static LoggerInstance *GetInstance(const std::string &name);
 	};
 	
 }
