@@ -138,7 +138,7 @@ struct ITestingConfig {
 #ifdef __cplusplus
 extern "C" const uint64_t TRUN_MAGICAL_IF_VERSION  __attribute__ ((weak))  = STR_TO_VER("GNK_0200");
 #else
-const uint64_t TRUN_MAGICAL_IF_VERSION  __attribute__ ((weak))  = 'GNK2';
+const uint64_t TRUN_MAGICAL_IF_VERSION  __attribute__ ((weak))  = STR_TO_VER("GNK_0200");
 #endif
 
 
