@@ -93,10 +93,16 @@ bool TestModuleExecutorParallel::Execute(const IDynLibrary::Ref &library, const 
 
         pLogger->Info("Executing tests for library: %s", testModule->name.c_str());
 
-        auto thread = std::thread([&library, &currentTestRunner, &testModule] {
+        //
+        // Note: G++ allows capturing of structured binding but CLang not - and the standard prohibits it
+        //       But we can use init-bindings (initialize a local variable explicitly during in the capture clause)
+        //       and there we are allowed to use the structured binding...  and I am not versed enough to understand
+        //       the exact problem why this is prohibited...
+        //
+        auto thread = std::thread([&library, &currentTestRunner, &tmpModule = testModule] {
             TestRunner::SetCurrentTestRunner(currentTestRunner);
-            TestRunner::SetCurrentTestModule(testModule);
-            auto result = testModule->Execute(library);
+            TestRunner::SetCurrentTestModule(tmpModule);
+            auto result = tmpModule->Execute(library);
         });
         threads.push_back(std::move(thread));
     } // for modules
