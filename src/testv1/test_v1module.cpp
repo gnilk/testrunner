@@ -10,6 +10,7 @@
 extern "C" {
 DLL_EXPORT int test_ifv1(ITesting *t);
 DLL_EXPORT int test_ifv1_dummy(ITesting *t);
+DLL_EXPORT int test_ifv1_dummy2(ITesting *t);
 DLL_EXPORT int test_ifv1_exit(ITesting *t);
 }
 static void preCallbackV1(ITesting *t) {
@@ -27,6 +28,9 @@ DLL_EXPORT int test_ifv1(ITesting *t) {
 }
 
 DLL_EXPORT int test_ifv1_dummy(ITesting *t) {
+    return kTR_Pass;
+}
+DLL_EXPORT int test_ifv1_dummy2(ITesting *t) {
     return kTR_Pass;
 }
 DLL_EXPORT int test_ifv1_exit(ITesting *t) {

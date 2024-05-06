@@ -74,6 +74,10 @@ TestResult::Ref TestModule::DoExecute(const IDynLibrary::Ref &dynlib) {
     }
 
     for (auto &func : testFuncs) {
+        if (!func->ShouldExecute()) {
+            continue;
+        }
+
         auto result = DoExecuteTestCase(dynlib, func);
         if (result != nullptr) {
             ResultSummary::Instance().AddResult(func);
