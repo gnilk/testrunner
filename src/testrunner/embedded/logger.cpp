@@ -74,6 +74,7 @@
 
 #else
 #include <sys/time.h>
+#include <time.h>
 #endif
 
 #include <list>
@@ -211,9 +212,9 @@ char *Logger::TimeString(int maxchar, char *dst)
 	
     time_t bla = tmv.tv_sec;
     struct tm *gmt = gmtime(&bla);
-    snprintf(dst,maxchar,"%.2d.%.2d.%.4d %.2d:%.2d:%.2d.%.3d",
-             gmt->tm_mday,gmt->tm_mon,gmt->tm_year+1900,
-             gmt->tm_hour,gmt->tm_min,gmt->tm_sec,(int)tmv.tv_usec/1000);
+    snprintf(dst, maxchar, "%.4u-%.2u-%.2u %.2d:%.2d:%.2d.%.3d",
+             gmt->tm_year + 1900, gmt->tm_mon + 1, gmt->tm_mday,
+             gmt->tm_hour, gmt->tm_min, gmt->tm_sec,(int)tmv.tv_usec/1000);
 	return dst;
 }
 
@@ -357,7 +358,8 @@ void Logger::WriteReportString(int mc, char *string)
 	// Create the special header string
 	// Format: "time [thread] msglevel library - "
 
-    snprintf(sHdr, 63, "%s [%.8x] %8s %32s - ", sTime, (unsigned int)0, sLevel, name.c_str());
+    // MAX string before truncation is 62 chars; 23 + 2 + 8 + 2 + 8 + 1 + 15 + 3 = 23 + 23+20+15+4 = 43+19 = 62
+    snprintf(sHdr, 63, "%-23s [%.8x] %8s %15s - ", sTime, (unsigned int)0, sLevel, name.c_str());
 
 	// gnilk, 2018-10-18, Combine with flags here - does not affect higher level API
 	int dbgLevel = DBGLEVEL_COMBINE(mc, logFlags);

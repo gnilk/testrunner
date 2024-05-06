@@ -78,8 +78,8 @@ namespace gnilk
         virtual ~LogBaseSink() = default;
 
 		void Initialize(int argc, char **argv) override {}
-		int WriteLine(int dbgLevel, char *hdr, char *string) { return -1; }
-        void Close() {};
+		int WriteLine(int dbgLevel, char *hdr, char *string) override { return -1; }
+        void Close() override {};
 
         const char *GetName() override {
             return name;
