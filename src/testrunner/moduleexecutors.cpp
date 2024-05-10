@@ -18,7 +18,10 @@
  - 2024.05.02, FKling, Implementation
  ---------------------------------------------------------------------------*/
 #include "testrunner.h"
+#include "strutil.h"
 #include "moduleexecutors.h"
+#include <assert.h>
+#include <vector>
 
 #ifdef TRUN_HAVE_THREADS
     #include <thread>
@@ -38,6 +41,44 @@ TestModuleExecutorBase &TestModuleExecutorFactory::Create() {
     return sequentialExecutor;
 }
 
+
+enum class kMatchResult {
+    List,
+    Single,
+    NegativeSingle,
+};
+static kMatchResult caseMatch2(std::vector<TestModule::Ref> &outMatches, const std::string &tcPattern, const std::vector<TestModule::Ref> &caseList) {
+    kMatchResult result = kMatchResult::List;
+    for (auto &module: caseList) {
+        if (tcPattern == "-") {
+            outMatches.push_back(module);
+            continue;
+        }
+        if (tcPattern[0]=='!') {
+            auto negTC = tcPattern.substr(1);
+            auto isMatch = trun::match(module->name, negTC);
+            if (isMatch) {
+                // not sure...
+                //executeFlag = 0;
+                outMatches.push_back(module);
+                result = kMatchResult::NegativeSingle;
+                goto leave;
+            }
+        } else {
+            auto isMatch = trun::match(module->name, tcPattern);
+            if (isMatch) {
+                outMatches.push_back(module);
+                result = kMatchResult::Single;
+                goto leave;
+            }
+        }
+    }
+    leave:
+    return result;
+}
+
+
+
 bool TestModuleExecutorSequential::Execute(const IDynLibrary::Ref &library, const std::map<std::string, TestModule::Ref> &testModules) {
     bool bRes = true;
     pLogger = gnilk::Logger::GetLogger("TestModExeSeq");
@@ -51,28 +92,43 @@ bool TestModuleExecutorSequential::Execute(const IDynLibrary::Ref &library, cons
         return (a->name < b->name);
     });
 
-    // Now execute...
-    for(auto &testModule : testModulesList) {
-        if (!testModule->ShouldExecute()) {
-            // Skip, this is not part of the configured filtered..
+
+    // For every argument on the command line
+    for(auto argModuleName : Config::Instance().modules) {
+        // Match cases
+        std::vector<TestModule::Ref> matches;
+        auto matchResult = caseMatch2(matches, argModuleName, testModulesList);
+        // In case this is negative (i.e. don't execute) we remove it from the sorted LOCAL list
+        // NOTE: DO NOT change the state - if can be that another module depends on this one - in that case we need to execute...
+        if (matchResult == kMatchResult::NegativeSingle) {
+            assert(matches.size() == 1);
+            auto tmToRemove = matches[0];
+            // Remove this from the execution list...
+            std::erase_if(testModulesList,[tmToRemove](const TestModule::Ref &m)->bool{
+               return (tmToRemove->name == m->name);
+            });
             continue;
         }
-        // Already executed?
-        if (!testModule->IsIdle()) {
-            //pLogger->Debug("Tests for '%s' already executed, skipping",testModule->name.c_str());
-            continue;
-        }
 
-        pLogger->Info("Executing tests for library: %s", testModule->name.c_str());
+        // If here, we should execute anything in the matches list...
+        for(auto &testModule : matches) {
+            // Already executed?
+            if (!testModule->IsIdle()) {
+                //pLogger->Debug("Tests for '%s' already executed, skipping",testModule->name.c_str());
+                continue;
+            }
 
+            pLogger->Info("Executing tests for library: %s", testModule->name.c_str());
 
-        TestRunner::SetCurrentTestModule(testModule);
-        auto result = testModule->Execute(library);
-        if ((result != nullptr) && (result->CheckIfContinue() == TestResult::kRunResultAction::kAbortAll)) {
-            break;
-        }
-        TestRunner::SetCurrentTestModule(nullptr);
-    } // for modules
+            TestRunner::SetCurrentTestModule(testModule);
+            auto result = testModule->Execute(library);
+            if ((result != nullptr) && (result->CheckIfContinue() == TestResult::kRunResultAction::kAbortAll)) {
+                break;
+            }
+            TestRunner::SetCurrentTestModule(nullptr);
+        } // for modules
+
+    }
 
     return bRes;
 }
