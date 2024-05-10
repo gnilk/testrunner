@@ -47,7 +47,7 @@ enum class kMatchResult {
     Single,
     NegativeSingle,
 };
-static kMatchResult caseMatch2(std::vector<TestModule::Ref> &outMatches, const std::string &tcPattern, const std::vector<TestModule::Ref> &caseList) {
+static kMatchResult ModuleMatch(std::vector<TestModule::Ref> &outMatches, const std::string &tcPattern, const std::vector<TestModule::Ref> &caseList) {
     kMatchResult result = kMatchResult::List;
     for (auto &module: caseList) {
         if (tcPattern == "-") {
@@ -97,7 +97,7 @@ bool TestModuleExecutorSequential::Execute(const IDynLibrary::Ref &library, cons
     for(auto argModuleName : Config::Instance().modules) {
         // Match cases
         std::vector<TestModule::Ref> matches;
-        auto matchResult = caseMatch2(matches, argModuleName, testModulesList);
+        auto matchResult = ModuleMatch(matches, argModuleName, testModulesList);
         // In case this is negative (i.e. don't execute) we remove it from the sorted LOCAL list
         // NOTE: DO NOT change the state - if can be that another module depends on this one - in that case we need to execute...
         if (matchResult == kMatchResult::NegativeSingle) {
