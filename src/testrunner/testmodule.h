@@ -37,6 +37,7 @@ namespace trun {
             return testResponseProxy;
         }
 
+        void AddTestFunc(const TestFunc::Ref &tfunc);
 
 
         TestResult::Ref Execute(const IDynLibrary::Ref &dynlib);

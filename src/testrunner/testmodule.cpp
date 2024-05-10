@@ -44,6 +44,13 @@ TestModule::TestModule(const std::string &moduleName) :
         name(moduleName) {
 }
 
+void TestModule::AddTestFunc(const TestFunc::Ref &tfunc) {
+    testFuncs.push_back(tfunc);
+    std::sort(testFuncs.begin(), testFuncs.end(), [](const TestFunc::Ref &a, const TestFunc::Ref &b) -> bool {
+        return (a->CaseName() < b->CaseName());
+    });
+}
+
 bool TestModule::ShouldExecute() const {
     return caseMatch(name, Config::Instance().modules);
 }
