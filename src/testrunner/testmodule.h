@@ -57,7 +57,7 @@ namespace trun {
         };
         kState state = kState::Idle;
 
-        kState State() {
+        kState State() const {
             return state;
         }
 

@@ -52,7 +52,11 @@ void TestModule::AddTestFunc(const TestFunc::Ref &tfunc) {
     });
 }
 
+// Used when listing modules/testcases to determine if they should run or not
 bool TestModule::ShouldExecute() const {
+    if (State() != kState::Idle) {
+        return false;
+    }
     return caseMatch(name, Config::Instance().modules);
 }
 
