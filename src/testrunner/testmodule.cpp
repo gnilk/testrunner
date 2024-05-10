@@ -20,6 +20,7 @@
 #include <string>
 #include <memory>
 #include <algorithm>
+#include <assert.h>
 
 #include "platform.h"
 
@@ -73,6 +74,43 @@ TestResult::Ref TestModule::Execute(const IDynLibrary::Ref &dynlib) {
     return result;
 }
 
+
+enum class kMatchResult {
+    List,
+    Single,
+    NegativeSingle,
+};
+static kMatchResult TestCaseMatch(std::vector<TestFunc::Ref> &outMatches, const std::string &tcPattern, const std::vector<TestFunc::Ref> &caseList) {
+    kMatchResult result = kMatchResult::List;
+    for (auto &testFunc: caseList) {
+        if (tcPattern == "-") {
+            outMatches.push_back(testFunc);
+            continue;
+        }
+        if (tcPattern[0]=='!') {
+            auto negTC = tcPattern.substr(1);
+            auto isMatch = trun::match(testFunc->CaseName(), negTC);
+            if (isMatch) {
+                // not sure...
+                //executeFlag = 0;
+                outMatches.push_back(testFunc);
+                result = kMatchResult::NegativeSingle;
+                goto leave;
+            }
+        } else {
+            auto isMatch = trun::match(testFunc->CaseName(), tcPattern);
+            if (isMatch) {
+                outMatches.push_back(testFunc);
+                result = kMatchResult::Single;
+                goto leave;
+            }
+        }
+    }
+    leave:
+    return result;
+}
+
+
 // Internal - make state handling easier..
 TestResult::Ref TestModule::DoExecute(const IDynLibrary::Ref &dynlib) {
     auto mainResult = ExecuteMain(dynlib);
@@ -80,22 +118,38 @@ TestResult::Ref TestModule::DoExecute(const IDynLibrary::Ref &dynlib) {
         return mainResult;
     }
 
-    for (auto &func : testFuncs) {
-        if (!func->ShouldExecute()) {
+    // The loop below will remove test cases from the list in case of negative matches - I don't want to remove from the
+    // internal list just because they shouldn't be executed...
+    std::vector<TestFunc::Ref> testCaseList;
+    testCaseList.insert(testCaseList.begin(), testFuncs.begin(), testFuncs.end());
+
+    for(auto argCaseName : Config::Instance().testcases) {
+        std::vector<TestFunc::Ref> matches;
+        auto matchResult = TestCaseMatch(matches, argCaseName, testCaseList);
+        if (matchResult == kMatchResult::NegativeSingle) {
+            assert(matches.size() == 1);
+            auto tcToRemove = matches[0];
+            std::erase_if(testCaseList,[tcToRemove](const TestFunc::Ref &f) -> bool {
+               return (tcToRemove->CaseName() == f->CaseName());
+            });
             continue;
         }
-
-        auto result = DoExecuteTestCase(dynlib, func);
-        if (result != nullptr) {
-            ResultSummary::Instance().AddResult(func);
-            if (result->CheckIfContinue() != TestResult::kRunResultAction::kContinue) {
-                // We call Exit here, since we call 'main' (and that didn't fail) - so any left overs might need cleaning up
-                ExecuteExit(dynlib);
-                return result;
+        for(auto &func : matches) {
+            if (!func->IsIdle()) {
+                continue;
+            }
+            auto result = DoExecuteTestCase(dynlib, func);
+            if (result != nullptr) {
+                ResultSummary::Instance().AddResult(func);
+                if (result->CheckIfContinue() != TestResult::kRunResultAction::kContinue) {
+                    // We call Exit here, since we call 'main' (and that didn't fail) - so any left overs might need cleaning up
+                    ExecuteExit(dynlib);
+                    return result;
+                }
             }
         }
-
     }
+
     auto exitResult = ExecuteExit(dynlib);
     return exitResult;
 }
