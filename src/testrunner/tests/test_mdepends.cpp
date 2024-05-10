@@ -14,6 +14,10 @@ DLL_EXPORT int test_mdepmodC(ITesting *t);
 DLL_EXPORT int test_mdepmodD(ITesting *t);
 }
 
+//
+// Note: Dependencies configured in 'test_main'
+//
+
 DLL_EXPORT int test_mdepmodA(ITesting *t) {
     return kTR_Pass;
 }
