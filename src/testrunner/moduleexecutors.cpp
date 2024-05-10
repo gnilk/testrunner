@@ -42,7 +42,17 @@ bool TestModuleExecutorSequential::Execute(const IDynLibrary::Ref &library, cons
     bool bRes = true;
     pLogger = gnilk::Logger::GetLogger("TestModExeSeq");
 
-    for (auto &[name, testModule] : testModules) {
+    // Convert to vector and sort..
+    std::vector<TestModule::Ref> testModulesList;
+    for(auto &[k,v] : testModules) {
+        testModulesList.push_back(v);
+    }
+    std::sort(testModulesList.begin(), testModulesList.end(), [](const TestModule::Ref &a, const TestModule::Ref &b) {
+        return (a->name < b->name);
+    });
+
+    // Now execute...
+    for(auto &testModule : testModulesList) {
         if (!testModule->ShouldExecute()) {
             // Skip, this is not part of the configured filtered..
             continue;
