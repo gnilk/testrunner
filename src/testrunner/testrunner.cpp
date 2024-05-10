@@ -19,6 +19,17 @@
  - 2018.12.21, FKling, Support for test cases and skipping of test_main
  - 2018.10.18, FKling, Implementation
  ---------------------------------------------------------------------------*/
+
+/*
+ * To-Do V2
+ * - Module and Func execution according to cmd line lists
+ *   - Sort first => Gives same order per run
+ *   - Filter out the ones to test in the correct order!
+ *   - Note: Modules are currently a hash-map, we need to flatten and sort this before filtering
+ *
+ */
+
+
 #ifdef WIN32
 #include <Windows.h>
 #endif
@@ -222,6 +233,7 @@ void TestRunner::PrepareTests() {
             globalExit = func;
         } else {
             // These are module functions - and handled differently and with lower priority
+            // Note: the 'GetOrAdd' module will create a module if not found...
             auto tModule = GetOrAddModule(moduleName);
             if (func->IsGlobal()) {
                 func->SetTestScope(TestFunc::kTestScope::kModuleMain);
@@ -232,7 +244,7 @@ void TestRunner::PrepareTests() {
             } else {
                 tModule = GetOrAddModule(moduleName);
                 func->SetTestScope(TestFunc::kTestScope::kModuleCase);
-                tModule->testFuncs.push_back(func);
+                tModule->AddTestFunc(func);
             }
         }
     }
