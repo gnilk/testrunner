@@ -68,7 +68,11 @@ void TestResult::SetTestResultFromReturnCode(int testReturnCode) {
         default:
             if ((Errors() > 0) || (Asserts() > 0)) {
                 // in this case we have called 'thread_exit' and we don't have a return code..
-                SetResult(kTestResult_TestFail);
+                // But - we can have a test result via the 'Fatal' functions - in that case - the result has already been set..
+                // Default is to assume pass - but we know errors have been flagged (since errors or asserts are > 0)
+                if (testResult == kTestResult_Pass) {
+                    SetResult(kTestResult_TestFail);
+                }
             } else {
                 // This could be depending on 'strict' checking flag (fail in strict mode)
                 SetResult(kTestResult_InvalidReturnCode);
