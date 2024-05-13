@@ -196,7 +196,7 @@ void TestFunc::ExecuteDependencies(IDynLibrary::Ref dynlib, const CBPrePostHook 
         if (!func->IsIdle()) {
             continue;
         }
-        Execute(dynlib, cbPreHook, cbPostHook);
+        func->Execute(dynlib, cbPreHook, cbPostHook);
     }
 }
 
