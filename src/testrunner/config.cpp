@@ -63,6 +63,7 @@ Config::Config() {
     enableThreadTestExecution = true;
     enableParallelTestExecution = false;
     allowThreadTermination = false;
+    useForkForModuleParallelExec = true;    // FIXME: Change to false when/if done...
 
     useITestingVersion = 1; // tmp tmp
     //

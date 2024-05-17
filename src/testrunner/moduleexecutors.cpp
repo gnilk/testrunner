@@ -12,6 +12,7 @@
  ---------------------------------------------------------------------------
  TO-DO: [ -:Not done, +:In progress, !:Completed]
  <pre>
+   - TextExecutor using 'fork' that spawns the test-runner (hope to solve problem with parallel modules execution causing crashes)
  </pre>
 
  \History
@@ -26,6 +27,9 @@
 #ifdef TRUN_HAVE_THREADS
     #include <thread>
 #endif
+#ifdef TRUN_HAVE_FORK
+#include "unix/process.h"
+#endif
 
 using namespace trun;
 
@@ -33,9 +37,15 @@ TestModuleExecutorBase &TestModuleExecutorFactory::Create() {
     static TestModuleExecutorSequential sequentialExecutor;
 
 #ifdef TRUN_HAVE_THREADS
-    if (Config::Instance().enableParallelTestExecution) {
+    if (Config::Instance().enableParallelTestExecution && !Config::Instance().useForkForModuleParallelExec) {
         static TestModuleExecutorParallel parallelExecutor;
         return parallelExecutor;
+    }
+#endif
+#ifdef TRUN_HAVE_FORK
+if (Config::Instance().enableParallelTestExecution && Config::Instance().useForkForModuleParallelExec) {
+        static TestModuleExecutorFork forkExecutor;
+        return forkExecutor;
     }
 #endif
     return sequentialExecutor;
@@ -180,5 +190,90 @@ bool TestModuleExecutorParallel::Execute(const IDynLibrary::Ref &library, const 
     }
     return bRes;
 
+}
+#endif
+
+#ifdef TRUN_HAVE_FORK
+class ForkProcDataHandler : public ProcessCallbackBase {
+public:
+    ForkProcDataHandler() = default;
+    virtual ~ForkProcDataHandler() = default;
+    void OnStdOutData(std::string data) {
+        strings.push_back(data);
+        //printf("%s", data.c_str());
+    }
+    void OnStdErrData(std::string data) {
+        strings.push_back(data);
+    }
+    const std::vector<std::string> &Data() {
+        return strings;
+    }
+protected:
+    std::vector<std::string> strings;
+
+};
+
+struct SubProcess {
+    Process *proc;
+    std::string name;
+    ForkProcDataHandler dataHandler;
+    std::thread thread;
+    bool result;
+};
+bool TestModuleExecutorFork::Execute(const IDynLibrary::Ref &library, const std::map<std::string, TestModule::Ref> &testModules) {
+    static std::vector<SubProcess *> subProcesses;
+    auto tmpModule = (*testModules.begin()).second;
+
+    pLogger = gnilk::Logger::GetLogger("TestModExeFork");
+    pLogger->Debug("Forking module tests");
+
+    int threadCounter = 0;
+
+    for (auto &[name, module] : testModules) {
+        // Need to allocate outside, if passing reference the references is renewed before the capture picks it up..
+        SubProcess *process = new SubProcess();
+        auto tmpModule = module;
+        printf("Starting module tests '%s' (%d / %zu)\n", module->name.c_str(), threadCounter, testModules.size());
+
+        // Note: CAN'T USE REFERENCES - they will change before capture actually takes place..
+        auto thread = std::thread([&library, tmpModule, process]() {
+            process->proc = new Process("trun");
+            process->proc->SetCallback(&process->dataHandler);
+            process->name = tmpModule->name;
+            process->proc->AddArgument("-m");
+            process->proc->AddArgument(tmpModule->name);
+            process->proc->AddArgument(library->Name());
+
+            process->result = process->proc->ExecuteAndWait();
+        });
+        process->thread = std::move(thread);
+        subProcesses.push_back(process);
+    }
+
+    pLogger->Debug("Waiting for completition - %zu fork threads", subProcesses.size());
+    int threadDeadCounter = 0;
+    for(auto &p : subProcesses) {
+        printf("Waiting for '%s'",p->name.c_str());
+        p->thread.join();
+        pLogger->Debug("%d/%zu - completed", threadDeadCounter, subProcesses.size());
+        printf(" - Completed (%d/%zu)\n", threadDeadCounter, subProcesses.size());
+        threadDeadCounter++;
+
+    }
+
+    // FIXME: Consolidate output!
+    // Also - I need to derive test-result structures for all tests
+    // Starting to think the forking was the easy part...
+    pLogger->Debug("Dumping output");
+    for(auto &p : subProcesses) {
+        if (!p->result) {
+            continue;
+        }
+        auto strings = p->dataHandler.Data();
+        for(auto &s : strings) {
+            printf("%s", s.c_str());
+        }
+    }
+    return true;
 }
 #endif

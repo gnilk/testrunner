@@ -16,6 +16,8 @@ namespace trun {
         virtual ~TestModuleExecutorBase() = default;
 
         virtual bool Execute(const IDynLibrary::Ref &library, const std::map<std::string, TestModule::Ref> &testModules) { return false; };
+    protected:
+        gnilk::ILogger *pLogger = nullptr;
     };
 
     // Sequential execution - no threads
@@ -25,8 +27,6 @@ namespace trun {
         virtual ~TestModuleExecutorSequential() = default;
 
         bool Execute(const IDynLibrary::Ref &library, const std::map<std::string, TestModule::Ref> &testModules) override;
-    private:
-        gnilk::ILogger *pLogger = nullptr;
     };
 
     // Embedded library compiled without threads - could have gotten away without it - but it is needed in several other places (which are not that easy)
@@ -39,8 +39,16 @@ namespace trun {
         virtual ~TestModuleExecutorParallel() = default;
 
         bool Execute(const IDynLibrary::Ref &library, const std::map<std::string, TestModule::Ref> &testModules) override;
-    private:
-        gnilk::ILogger *pLogger = nullptr;
+    };
+#endif
+
+#ifdef TRUN_HAVE_FORK
+    class TestModuleExecutorFork : public TestModuleExecutorBase {
+    public:
+        TestModuleExecutorFork() = default;
+        virtual ~TestModuleExecutorFork() = default;
+
+        bool Execute(const IDynLibrary::Ref &library, const std::map<std::string, TestModule::Ref> &testModules) override;
     };
 #endif
 
