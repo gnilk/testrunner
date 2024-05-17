@@ -62,7 +62,7 @@ Config::Config() {
     responseMsgByteLimit = 1024 * 8;
     enableThreadTestExecution = true;
     enableParallelTestExecution = false;
-    allowThreadTermination = true;
+    allowThreadTermination = false;
 
     useITestingVersion = 1; // tmp tmp
     //
