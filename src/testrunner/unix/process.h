@@ -33,6 +33,8 @@ Note: Remove any "Logger" references if you just want to use this...
 namespace trun
 {
 
+    // FIXME: Add an async version of this..
+
 	class ProcessCallbackInterface {
 	public:
 		virtual void OnProcessStarted() = 0;
@@ -67,16 +69,16 @@ namespace trun
 		int ConsumePipes(ProcessCallbackBase *callback);
 		bool IsFinished();
 
-		
+		bool Kill();
 		bool CreatePipe(int *pipe);
 		bool SetNonBlockingPipe(int *pipe);
 		void ClosePipe(int *pipe);
 		
 	private:
-		int pipe_stdout[2];
-		int pipe_stderr[2];
-		pid_t pid;
-		posix_spawn_file_actions_t child_fd_actions;
+		int pipe_stdout[2] = {};
+		int pipe_stderr[2] = {};
+		pid_t pid = {};
+		posix_spawn_file_actions_t child_fd_actions = {};
 		//char **argv;
 	};
 
@@ -91,6 +93,7 @@ namespace trun
 		void AddArgument(std::string);
 		void AddArgument(const char *format, ...);
 		bool ExecuteAndWait();
+        bool Kill();
 	public:
 		virtual void OnProcessStarted();
 		virtual void OnProcessExit();

@@ -105,6 +105,9 @@ bool Process::ExecuteAndWait() {
 	if (!process.Duplicate()) return false;
 	return process.SpawnAndLoop(command, arguments, dynamic_cast<ProcessCallbackBase *>(this));
 }
+bool Process::Kill() {
+    return process.Kill();
+}
 
 void Process::OnProcessStarted() {
 	if (callback != NULL) {
@@ -176,6 +179,14 @@ bool Process_Unix::Duplicate() {
 		return false;					
 	}
 	return true;
+}
+
+bool Process_Unix::Kill() {
+    int err = kill(pid, SIGKILL);
+    if (err) {
+        return false;
+    }
+    return true;
 }
 
 bool Process_Unix::SpawnAndLoop(std::string command, std::list<std::string> &arguments, ProcessCallbackBase *callback) {
