@@ -292,6 +292,13 @@ int test_main(ITesting *t) {
 The above checks if the `testrunner` (`trun`) was invoked with `--parallel` (enabled multi-threaded module testing) and rejects the testing all together if so.
 Three can be many reasons why you would like to reject testing. In this specific case there are memory-arenas which will run amok unless threading is very explict.
 
+## Advanced functionality
+Specifying `--parallel` allows modules to execute in parallel. This requires your testable code to also be able to handle this.
+The execution context is the same for all tests through out the test-run. Thus, if you have singleton objects or any other globally
+defined objects used in various test-modules. These will be accessed in parallel. 
+
+The testrunner itself does not provide any protection for crashes in this case.
+
 ## Your Code
 In your dynamic library export the test cases (following the pattern) you would like to expose. Compile your library and execute the runner on it.
 See `src/exshared/exshared.cpp` for details.
@@ -378,7 +385,7 @@ See *exshared* library for an example.
 _NOTE_: TestRunner default input is the current directory. It will search recursively for any testable functions.
 
 ```
-TestRunner v1.6.0 - Linux - C/C++ Unit Test Runner
+TestRunner v2.0.0 - macOS - C/C++ Unit Test Runner
 Usage: trun [options] input
 Options: 
   -v  Verbose, increase for more!
@@ -386,21 +393,25 @@ Options:
   -d  Dump configuration before starting
   -S  Include success pass in summary when done (default: off)
   -D  Linux Only - disable RTLD_DEEPBIND
-  -g  Skip library globals (default: off)
   -G  Skip global main (default: off)
   -s  Silent, surpress messages from test cases (default: off)
   -r  Discard return from test case (default: off)
-  -c  Continue on library failure (default: off)
-  -C  Continue on total failure (default: off)
+  -c  Continue on module failure - kTR_FailModule - (default: off)
+  -C  Continue on total failure - kTR_FailAll -  (default: off)
   -x  Don't execute tests (default: off)
   -R  <name> Use reporting library (default: console)
   -O  <file> Report final result to this file, use '-' for stdout (default: -)
-  -m <list> List of modules to test (default: '-' (all))
-  -t <list> List of test cases to test (default: '-' (all))
+  -m  <list> List of modules to test (default: '-' (all))
+  -t  <list> List of test cases to test (default: '-' (all))
+  --no-threads
+      Disable threaded execution of tests
+  --parallel
+      Enable parallel execution of modules
+  --use-pthreads
+      Use pthread implementation
 
 Input should be a directory or list of dylib's to be tested, default is current directory ('.')
-Module and test case list can use wild cards, like: -m encode -t json*
-```
+Module and test case list can use wild cards, like: -m encode -t json*```
 
 ### Examples
 Be silent (`-s`) and continue even if a library fails `(-c)` or a global case fails (`-C`), test only cases in library `shared`.
