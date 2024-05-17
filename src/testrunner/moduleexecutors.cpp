@@ -23,6 +23,7 @@
 #include "moduleexecutors.h"
 #include <assert.h>
 #include <vector>
+#include <chrono>
 
 #ifdef TRUN_HAVE_THREADS
     #include <thread>
@@ -30,6 +31,7 @@
 #ifdef TRUN_HAVE_FORK
 #include "unix/process.h"
 #endif
+
 
 using namespace trun;
 
@@ -213,13 +215,30 @@ protected:
 
 };
 
+// shortcut for process clock
+using pclock = std::chrono::system_clock;
+
+enum class SubProcessState {
+    kIdle,
+    kRunning,
+    kFinished,
+};
+
 struct SubProcess {
-    Process *proc;
-    std::string name;
+
+
+    Process *proc = {};
+    std::string name = {};
     ForkProcDataHandler dataHandler;
     std::thread thread;
-    bool result;
+
+    pclock::time_point tStart;
+    SubProcessState state = SubProcessState::kIdle;
+
+    bool processedOk = false;
 };
+
+
 bool TestModuleExecutorFork::Execute(const IDynLibrary::Ref &library, const std::map<std::string, TestModule::Ref> &testModules) {
     static std::vector<SubProcess *> subProcesses;
     auto tmpModule = (*testModules.begin()).second;
@@ -227,6 +246,7 @@ bool TestModuleExecutorFork::Execute(const IDynLibrary::Ref &library, const std:
     pLogger = gnilk::Logger::GetLogger("TestModExeFork");
     pLogger->Debug("Forking module tests");
 
+    auto tStart = pclock::now();
     int threadCounter = 0;
 
     for (auto &[name, module] : testModules) {
@@ -237,14 +257,18 @@ bool TestModuleExecutorFork::Execute(const IDynLibrary::Ref &library, const std:
 
         // Note: CAN'T USE REFERENCES - they will change before capture actually takes place..
         auto thread = std::thread([&library, tmpModule, process]() {
+            process->state = SubProcessState::kRunning;
+
             process->proc = new Process("trun");
             process->proc->SetCallback(&process->dataHandler);
             process->name = tmpModule->name;
             process->proc->AddArgument("-m");
             process->proc->AddArgument(tmpModule->name);
             process->proc->AddArgument(library->Name());
+            process->tStart = pclock::now();
+            process->processedOk = process->proc->ExecuteAndWait();
 
-            process->result = process->proc->ExecuteAndWait();
+            process->state = SubProcessState::kFinished;
         });
         process->thread = std::move(thread);
         subProcesses.push_back(process);
@@ -252,8 +276,31 @@ bool TestModuleExecutorFork::Execute(const IDynLibrary::Ref &library, const std:
 
     pLogger->Debug("Waiting for completition - %zu fork threads", subProcesses.size());
     int threadDeadCounter = 0;
+
+    while(threadCounter > 0) {
+        for(auto &p : subProcesses) {
+            if (p->state == SubProcessState::kFinished) {
+                p->thread.join();
+                threadCounter--;
+                threadDeadCounter++;
+                printf("'%s' - Completed (%d/%zu)\n", p->name.c_str(), threadDeadCounter, subProcesses.size());
+            }
+        }
+    }
+
     for(auto &p : subProcesses) {
         printf("Waiting for '%s'",p->name.c_str());
+        fflush(stdout);
+        long tLastDuration = 0;
+        while(p->state != SubProcessState::kFinished) {
+            auto duration = std::chrono::duration_cast<std::chrono::seconds>(pclock::now() - p->tStart).count();
+            if (duration != tLastDuration) {
+                printf("\rWaiting for '%s' - %d sec",p->name.c_str(), (int)duration);
+                fflush(stdout);
+                tLastDuration = duration;
+            }
+            std::this_thread::yield();
+        }
         p->thread.join();
         pLogger->Debug("%d/%zu - completed", threadDeadCounter, subProcesses.size());
         printf(" - Completed (%d/%zu)\n", threadDeadCounter, subProcesses.size());
@@ -266,7 +313,7 @@ bool TestModuleExecutorFork::Execute(const IDynLibrary::Ref &library, const std:
     // Starting to think the forking was the easy part...
     pLogger->Debug("Dumping output");
     for(auto &p : subProcesses) {
-        if (!p->result) {
+        if (!p->processedOk) {
             continue;
         }
         auto strings = p->dataHandler.Data();
@@ -274,6 +321,11 @@ bool TestModuleExecutorFork::Execute(const IDynLibrary::Ref &library, const std:
             printf("%s", s.c_str());
         }
     }
+
+    auto total_duration = std::chrono::duration_cast<std::chrono::seconds>(pclock::now() - tStart).count();
+    printf("Total Duration: %d sec\n", (int)total_duration);
+
+
     return true;
 }
 #endif
