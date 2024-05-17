@@ -224,6 +224,7 @@ enum class SubProcessState {
     kFinished,
 };
 
+// FIXME: Probably implement as a proper class - we need more features on this object than just holding some data
 struct SubProcess {
 
 
@@ -298,6 +299,12 @@ bool TestModuleExecutorFork::Execute(const IDynLibrary::Ref &library, const std:
                 printf("\rWaiting for '%s' - %d sec",p->name.c_str(), (int)duration);
                 fflush(stdout);
                 tLastDuration = duration;
+
+                // FIXME: Timeout here...
+                if (duration > 5) {
+                    printf("\nTimeout reached - stopping '%s'\n", p->name.c_str());
+                    p->proc->Kill();
+                }
             }
             std::this_thread::yield();
         }
