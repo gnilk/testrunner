@@ -242,7 +242,6 @@ struct SubProcess {
 
 bool TestModuleExecutorFork::Execute(const IDynLibrary::Ref &library, const std::map<std::string, TestModule::Ref> &testModules) {
     static std::vector<SubProcess *> subProcesses;
-    auto tmpModule = (*testModules.begin()).second;
 
     pLogger = gnilk::Logger::GetLogger("TestModExeFork");
     pLogger->Debug("Forking module tests");
@@ -300,8 +299,8 @@ bool TestModuleExecutorFork::Execute(const IDynLibrary::Ref &library, const std:
                 fflush(stdout);
                 tLastDuration = duration;
 
-                // FIXME: Timeout here...
-                if (duration > 5) {
+                // Stop process if it reaches timeout - specify 0 as 'infinity'
+                if ((Config::Instance().forkModuleExecTimeoutSec > 0) && (duration > Config::Instance().forkModuleExecTimeoutSec)) {
                     printf("\nTimeout reached - stopping '%s'\n", p->name.c_str());
                     p->proc->Kill();
                 }
