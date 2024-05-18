@@ -65,7 +65,10 @@
 using namespace trun;
 gnilk::ILogger *pLogger = nullptr;
 
+
+
 static bool isLibraryFound = false;
+static std::optional<uint64_t> ParseNumber(const std::string_view &line);
 
 static void Help() {
 
@@ -107,6 +110,10 @@ static void Help() {
     printf("      Disable threaded execution of tests\n");
     printf("  --parallel\n");
     printf("      Enable parallel execution of modules\n");
+    printf("  --fork-modules\n");
+    printf("      Use fork for parallel module execution\n");
+    printf("  --fork-timeout <sec>\n");
+    printf("      Set timeout (in seconds) for forked execution, 0 - infinity (default: 30)\n");
 #ifdef WIN32
     printf("  --use-winthreads\n");
     printf("      Use Win32 Native threads\n");
@@ -226,6 +233,18 @@ static bool ParseArguments(int argc, char **argv) {
                                 goto next_argument;
                             } else if (longArgument == "use-winthreads") {
                                 Config::Instance().allowThreadTermination = true;
+                                goto next_argument;
+                            } else if (longArgument == "fork-modules") {
+                                Config::Instance().useForkForModuleParallelExec = true;
+                                goto next_argument;
+                            } else if (longArgument == "fork-timeout") {
+                                auto optNum = ParseNumber(argv[++i]);
+                                if (!optNum.has_value()) {
+                                    fmt::println(stderr, "fork-timeout, '{}' not a number", argv[i]);
+                                    Help();
+                                    exit(1);
+                                }
+                                Config::Instance().forkModuleExecTimeoutSec = optNum.value();
                                 goto next_argument;
                             }
                             printf("Unknown long argument: %s\n", longArgument.c_str());
@@ -430,4 +449,87 @@ int main(int argc, char **argv) {
     // Would not have been required if the App would have been contained in a class...  anyway...
     librariesToTest.clear();
     return 0;
+}
+
+
+// Helper
+static std::optional<uint64_t> ParseNumber(const std::string_view &line) {
+
+    std::string num;
+    auto it = line.begin();
+
+    std::function<bool(const int chr)> isnumber = [](const int chr) -> bool {
+        return std::isdigit(chr);
+    };
+
+    //
+    // We could enhance this with more features normally found in assemblers
+    // $<hex> - for address
+    // #$<hex> - alt. syntax for hex numbers
+    // #<dec>  - alt. syntax for dec numbers
+    //
+    // '#' is a common denominator for numerical values
+    if (*it == '#') {
+        ++it;
+    }
+
+    enum class TNum {
+        Number,
+        NumberHex,
+        NumberBinary,
+        NumberOctal,
+    };
+
+    auto numberType = TNum::Number;
+    if (*it == '0') {
+        num += *it;
+        it++;
+        // Convert number here or during parsing???
+        switch(tolower(*it)) {
+            case 'x' : // hex
+                num += *it;
+                ++it;
+                numberType = TNum::NumberHex;
+                isnumber = [](const int chr) -> bool {
+                    static std::string hexnum = {"abcdef"};
+                    return (std::isdigit(chr) || (hexnum.find(tolower(chr)) != std::string::npos));
+                };
+                break;
+            case 'b' : // binary
+                num += *it;
+                ++it;
+                numberType = TNum::NumberBinary;
+                isnumber = [](const int chr) -> bool {
+                    return (chr=='1' || chr=='0');
+                };
+
+                break;
+            case 'o' : // octal
+                num += *it;
+                ++it;
+                numberType = TNum::NumberOctal;
+                isnumber = [](const int chr) -> bool {
+                    static std::string hexnum = {"01234567"};
+                    return (hexnum.find(tolower(chr)) != std::string::npos);
+                };
+                break;
+            default :
+                if (std::isdigit(*it)) {
+                    fprintf(stderr,"WARNING: Numerical tokens shouldn't start with zero!");
+                }
+                break;
+        }
+    }
+
+    while(it != line.end() && isnumber(*it)) {
+        num += *it;
+        ++it;
+    }
+    if (numberType == TNum::Number) {
+        return {trun::to_int32(num)};
+    } else if (numberType == TNum::NumberHex) {
+        return {uint64_t(trun::hex2dec(num))};
+    }
+
+    return {};
 }
