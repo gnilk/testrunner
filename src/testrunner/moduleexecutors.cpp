@@ -277,17 +277,6 @@ bool TestModuleExecutorFork::Execute(const IDynLibrary::Ref &library, const std:
     pLogger->Debug("Waiting for completition - %zu fork threads", subProcesses.size());
     int threadDeadCounter = 0;
 
-    while(threadCounter > 0) {
-        for(auto &p : subProcesses) {
-            if (p->state == SubProcessState::kFinished) {
-                p->thread.join();
-                threadCounter--;
-                threadDeadCounter++;
-                printf("'%s' - Completed (%d/%zu)\n", p->name.c_str(), threadDeadCounter, subProcesses.size());
-            }
-        }
-    }
-
     for(auto &p : subProcesses) {
         printf("Waiting for '%s'",p->name.c_str());
         fflush(stdout);
