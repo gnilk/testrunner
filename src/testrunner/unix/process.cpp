@@ -56,6 +56,7 @@ public:
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <poll.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <stdarg.h>
 
