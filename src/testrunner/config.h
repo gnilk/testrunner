@@ -45,6 +45,7 @@ namespace trun {
         bool enableParallelTestExecution;   // This is different, this allows tests to run in parallell
         bool allowThreadTermination;    // On Windows and Linux (with pthread) we can terminate threads from within the thread itself - this allows certain macros and other call's to terminate from whereever...
         bool useForkForModuleParallelExec;
+        uint16_t forkModuleExecTimeoutSec;
 
 
         int useITestingVersion;

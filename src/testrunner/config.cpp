@@ -64,7 +64,7 @@ Config::Config() {
     enableParallelTestExecution = false;
     allowThreadTermination = false;
     useForkForModuleParallelExec = true;    // FIXME: Change to false when/if done...
-
+    forkModuleExecTimeoutSec = 30;           // Timeout in seconds for fork-based
     useITestingVersion = 1; // tmp tmp
     //
     // Setup logger
