@@ -266,6 +266,13 @@ bool TestModuleExecutorFork::Execute(const IDynLibrary::Ref &library, const std:
             std::this_thread::yield();
         }
         p->Wait();
+        if (p->WasProcessExecOk()) {
+            pLogger->Debug("Dumping output");
+            for(auto &s : p->Strings()) {
+                printf("%s", s.c_str());
+            }
+        }
+
         pLogger->Debug("%d/%zu - completed", threadDeadCounter, subProcesses.size());
         printf(" - Completed (%d/%zu)\n", threadDeadCounter, subProcesses.size());
         threadDeadCounter++;
@@ -275,15 +282,15 @@ bool TestModuleExecutorFork::Execute(const IDynLibrary::Ref &library, const std:
     // FIXME: Consolidate output!
     // Also - I need to derive test-result structures for all tests
     // Starting to think the forking was the easy part...
-    pLogger->Debug("Dumping output");
-    for(auto &p : subProcesses) {
-        if (!p->WasProcessExecOk()) {
-            continue;
-        }
-        for(auto &s : p->Strings()) {
-            printf("%s", s.c_str());
-        }
-    }
+//    pLogger->Debug("Dumping output");
+//    for(auto &p : subProcesses) {
+//        if (!p->WasProcessExecOk()) {
+//            continue;
+//        }
+//        for(auto &s : p->Strings()) {
+//            printf("%s", s.c_str());
+//        }
+//    }
 
     auto total_duration = std::chrono::duration_cast<std::chrono::seconds>(pclock::now() - tStart).count();
     printf("Total Duration: %d sec\n", (int)total_duration);

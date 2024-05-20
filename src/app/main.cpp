@@ -425,19 +425,23 @@ int main(int argc, char **argv) {
     // Try to flush the logger...
     gnilk::Logger::Consume();
 
-    // Reporting
     ResultSummary::Instance().durationSec = timer.Sample();
-    if (Config::Instance().executeTests) {
-        // This should probably go away - as we want full reporting in headless mode...
-        if (ResultSummary::Instance().testsExecuted > 0) {
-            ResultSummary::Instance().PrintSummary();
-        } else {
-            // This should be made available in the report - in case we are running headless we want this in the JSON
-            // output...
-            if (!isLibraryFound) {
-                printf("No dynamic library with testable modules/functions found!\n");
+
+    // Reporting - don't do if we are a sub-process...
+    if (!Config::Instance().isSubProcess) {
+        // FIXME: Put this in a separate function?
+        if (Config::Instance().executeTests) {
+            // This should probably go away - as we want full reporting in headless mode...
+            if (ResultSummary::Instance().testsExecuted > 0) {
+                ResultSummary::Instance().PrintSummary();
             } else {
-                printf("Testable modules/functions found but no tests executed (check filters)\n");
+                // This should be made available in the report - in case we are running headless we want this in the JSON
+                // output...
+                if (!isLibraryFound) {
+                    printf("No dynamic library with testable modules/functions found!\n");
+                } else {
+                    printf("Testable modules/functions found but no tests executed (check filters)\n");
+                }
             }
         }
     }
