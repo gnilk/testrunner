@@ -115,6 +115,8 @@ if (UNIX)
     list(APPEND execsrcfiles src/testrunner/unix/dirscanner_unix.cpp)
     list(APPEND execsrcfiles src/testrunner/unix/dynlib_unix.cpp)
     list(APPEND execsrcfiles src/testrunner/unix/process.cpp)
+    list(APPEND execsrcfiles src/testrunner/unix/subprocess.cpp src/testrunner/unix/subprocess.h)
+    list(APPEND execsrcfiles src/testrunner/unix/IPCFifoUnix.cpp src/testrunner/unix/IPCFifoUnix.h)
 
     # add mac specific unit test src
     list(APPEND testsrc src/testrunner/tests/test_module_nix.cpp)

@@ -106,21 +106,17 @@ static void Help() {
     printf("  -O  <file> Report final result to this file, use '-' for stdout (default: -)\n");
     printf("  -m  <list> List of modules to test (default: '-' (all))\n");
     printf("  -t  <list> List of test cases to test (default: '-' (all))\n");
-    printf("  --no-threads\n");
-    printf("      Disable threaded execution of tests\n");
-    printf("  --parallel\n");
-    printf("      Enable parallel execution of modules\n");
-    printf("  --fork-modules\n");
-    printf("      Use fork for parallel module execution\n");
-    printf("  --fork-timeout <sec>\n");
+    printf("  --sequential\n");
+    printf("      Disable any parallel execution of modules and test cases\n");
+    printf("  --module-timeout <sec>\n");
     printf("      Set timeout (in seconds) for forked execution, 0 - infinity (default: 30)\n");
+    printf("  --allow-thread-exit\n");
 #ifdef WIN32
-    printf("  --use-winthreads\n");
-    printf("      Use Win32 Native threads\n");
+    printf("      Allow test-threads to exit, this will switch to native win32 threads\n");
 #else
-    printf("  --use-pthreads\n");
-    printf("      Use pthread implementation\n");
+    printf("      Allow test-threads to exit, this will switch ot using pthreads\n");
 #endif
+
     printf("\n");
     printf("Input should be a directory or list of dylib's to be tested, default is current directory ('.')\n");
     printf("Module and test case list can use wild cards, like: -m encode -t json*\n");
@@ -158,6 +154,8 @@ static bool ParseArguments(int argc, char **argv) {
 
     bool firstInput = true;
     bool dumpConfig = false;
+
+    Config::Instance().appName = argv[0];
 
     for (int i=1;i<argc;i++) {
         if (argv[i][0]=='-') {
@@ -221,30 +219,29 @@ static bool ParseArguments(int argc, char **argv) {
                         // Long argument
                         {
                             std::string longArgument = std::string(&argv[i][++j]);
-                            if (longArgument == "no-threads") {
-                                Config::Instance().enableThreadTestExecution = false;
+                            if (longArgument == "sequential") {
+                                Config::Instance().moduleExecuteType = trun::ModuleExecutionType::kSequential;
+                                Config::Instance().testExecutionType = trun::TestExecutiontype::kSequential;
                                 goto next_argument;
-                            } else if (longArgument == "parallel") {
-                                Config::Instance().enableParallelTestExecution = true;
-                                printf("WARNING - enabling parallel execution - ONLY for development!!!\n");
+                            } else if (longArgument == "allow-thread-exit") {
+                                Config::Instance().testExecutionType = trun::TestExecutiontype::kThreadedWithExit;
                                 goto next_argument;
-                            } else if (longArgument == "use-pthreads") {
-                                Config::Instance().allowThreadTermination = true;
-                                goto next_argument;
-                            } else if (longArgument == "use-winthreads") {
-                                Config::Instance().allowThreadTermination = true;
-                                goto next_argument;
-                            } else if (longArgument == "fork-modules") {
-                                Config::Instance().useForkForModuleParallelExec = true;
-                                goto next_argument;
-                            } else if (longArgument == "fork-timeout") {
+                            } else if (longArgument == "module-timeout") {
                                 auto optNum = ParseNumber(argv[++i]);
                                 if (!optNum.has_value()) {
-                                    fmt::println(stderr, "fork-timeout, '{}' not a number", argv[i]);
+                                    fmt::println(stderr, "module-timeout, '{}' not a number", argv[i]);
                                     Help();
                                     exit(1);
                                 }
-                                Config::Instance().forkModuleExecTimeoutSec = optNum.value();
+                                Config::Instance().moduleExecTimeoutSec = optNum.value();
+                                goto next_argument;
+                            } else if (longArgument == "subprocess") {
+                                // HIDDEN (only used internally) - We are started by another trun process
+                                Config::Instance().isSubProcess = true;
+                                goto next_argument;
+                            } else if (longArgument == "ipc-name") {
+                                // HIDDEN (only used internally) - this is the IPC name we should when in a subprocess
+                                Config::Instance().ipcName = argv[++i];
                                 goto next_argument;
                             }
                             printf("Unknown long argument: %s\n", longArgument.c_str());

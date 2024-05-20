@@ -30,6 +30,8 @@
 #endif
 #ifdef TRUN_HAVE_FORK
 #include "unix/process.h"
+#include "unix/subprocess.h"
+#include "unix/IPCFifoUnix.h"
 #endif
 
 
@@ -37,19 +39,21 @@ using namespace trun;
 
 TestModuleExecutorBase &TestModuleExecutorFactory::Create() {
     static TestModuleExecutorSequential sequentialExecutor;
-
-#ifdef TRUN_HAVE_THREADS
-    if (Config::Instance().enableParallelTestExecution && !Config::Instance().useForkForModuleParallelExec) {
-        static TestModuleExecutorParallel parallelExecutor;
-        return parallelExecutor;
-    }
-#endif
+    static TestModuleExecutorParallel parallelExecutor;     // threaded - that's not good for modules!
 #ifdef TRUN_HAVE_FORK
-if (Config::Instance().enableParallelTestExecution && Config::Instance().useForkForModuleParallelExec) {
-        static TestModuleExecutorFork forkExecutor;
-        return forkExecutor;
-    }
+    static TestModuleExecutorFork forkExecutor;
 #endif
+
+    switch(Config::Instance().moduleExecuteType) {
+        case ModuleExecutionType::kSequential :
+            return sequentialExecutor;
+#ifdef TRUN_HAVE_FORK
+        case ModuleExecutionType::kParallel :
+            return forkExecutor;
+#endif
+        default:
+            printf("Unknown or unsupported execution protocol, using default\n");
+    }
     return sequentialExecutor;
 }
 
@@ -196,48 +200,20 @@ bool TestModuleExecutorParallel::Execute(const IDynLibrary::Ref &library, const 
 #endif
 
 #ifdef TRUN_HAVE_FORK
-class ForkProcDataHandler : public ProcessCallbackBase {
-public:
-    ForkProcDataHandler() = default;
-    virtual ~ForkProcDataHandler() = default;
-    void OnStdOutData(std::string data) {
-        strings.push_back(data);
-        //printf("%s", data.c_str());
-    }
-    void OnStdErrData(std::string data) {
-        strings.push_back(data);
-    }
-    const std::vector<std::string> &Data() {
-        return strings;
-    }
-protected:
-    std::vector<std::string> strings;
 
-};
 
-// shortcut for process clock
-using pclock = std::chrono::system_clock;
-
-enum class SubProcessState {
-    kIdle,
-    kRunning,
-    kFinished,
-};
 
 // FIXME: Probably implement as a proper class - we need more features on this object than just holding some data
-struct SubProcess {
+// To-Do
+// + Fix IPC between forked TRUN and other
+//   !Transmission solution (i.e. pipe/fifo/shm/other?)
+//      ! FIFO; has name
+//   - Serialization, do we need it? => YES
+//   - one pipe per fork or multiplex (how to pass the FD?)
+// ! Make Forking the main module-parallel technique
+// ! in Config, remove the various booleans and create enums for module/test execution selection
 
 
-    Process *proc = {};
-    std::string name = {};
-    ForkProcDataHandler dataHandler;
-    std::thread thread;
-
-    pclock::time_point tStart;
-    SubProcessState state = SubProcessState::kIdle;
-
-    bool processedOk = false;
-};
 
 
 bool TestModuleExecutorFork::Execute(const IDynLibrary::Ref &library, const std::map<std::string, TestModule::Ref> &testModules) {
@@ -249,28 +225,21 @@ bool TestModuleExecutorFork::Execute(const IDynLibrary::Ref &library, const std:
     auto tStart = pclock::now();
     int threadCounter = 0;
 
+    gnilk::IPCFifoUnix ipcServer;
+
+    if (!ipcServer.Open()) {
+        pLogger->Error("Unable to create IPC server!");
+        return false;
+    }
+    printf("IPC FIFO running @ %s\n", ipcServer.FifoName().c_str());
+
     for (auto &[name, module] : testModules) {
         // Need to allocate outside, if passing reference the references is renewed before the capture picks it up..
         SubProcess *process = new SubProcess();
-        auto tmpModule = module;
         printf("Starting module tests '%s' (%d / %zu)\n", module->name.c_str(), threadCounter, testModules.size());
 
-        // Note: CAN'T USE REFERENCES - they will change before capture actually takes place..
-        auto thread = std::thread([&library, tmpModule, process]() {
-            process->state = SubProcessState::kRunning;
+        process->Start(library, module, ipcServer.FifoName());
 
-            process->proc = new Process("trun");
-            process->proc->SetCallback(&process->dataHandler);
-            process->name = tmpModule->name;
-            process->proc->AddArgument("-m");
-            process->proc->AddArgument(tmpModule->name);
-            process->proc->AddArgument(library->Name());
-            process->tStart = pclock::now();
-            process->processedOk = process->proc->ExecuteAndWait();
-
-            process->state = SubProcessState::kFinished;
-        });
-        process->thread = std::move(thread);
         subProcesses.push_back(process);
     }
 
@@ -278,25 +247,25 @@ bool TestModuleExecutorFork::Execute(const IDynLibrary::Ref &library, const std:
     int threadDeadCounter = 0;
 
     for(auto &p : subProcesses) {
-        printf("Waiting for '%s'",p->name.c_str());
+        printf("Waiting for '%s'",p->Name().c_str());
         fflush(stdout);
         long tLastDuration = 0;
-        while(p->state != SubProcessState::kFinished) {
-            auto duration = std::chrono::duration_cast<std::chrono::seconds>(pclock::now() - p->tStart).count();
+        while(p->State() != SubProcessState::kFinished) {
+            auto duration = std::chrono::duration_cast<std::chrono::seconds>(pclock::now() - p->StartTime()).count();
             if (duration != tLastDuration) {
-                printf("\rWaiting for '%s' - %d sec",p->name.c_str(), (int)duration);
+                printf("\rWaiting for '%s' - %d sec",p->Name().c_str(), (int)duration);
                 fflush(stdout);
                 tLastDuration = duration;
 
                 // Stop process if it reaches timeout - specify 0 as 'infinity'
-                if ((Config::Instance().forkModuleExecTimeoutSec > 0) && (duration > Config::Instance().forkModuleExecTimeoutSec)) {
-                    printf("\nTimeout reached - stopping '%s'\n", p->name.c_str());
-                    p->proc->Kill();
+                if ((Config::Instance().moduleExecTimeoutSec > 0) && (duration > Config::Instance().moduleExecTimeoutSec)) {
+                    printf("\nTimeout reached - stopping '%s'\n", p->Name().c_str());
+                    p->Kill();
                 }
             }
             std::this_thread::yield();
         }
-        p->thread.join();
+        p->Wait();
         pLogger->Debug("%d/%zu - completed", threadDeadCounter, subProcesses.size());
         printf(" - Completed (%d/%zu)\n", threadDeadCounter, subProcesses.size());
         threadDeadCounter++;
@@ -308,18 +277,26 @@ bool TestModuleExecutorFork::Execute(const IDynLibrary::Ref &library, const std:
     // Starting to think the forking was the easy part...
     pLogger->Debug("Dumping output");
     for(auto &p : subProcesses) {
-        if (!p->processedOk) {
+        if (!p->WasProcessExecOk()) {
             continue;
         }
-        auto strings = p->dataHandler.Data();
-        for(auto &s : strings) {
+        for(auto &s : p->Strings()) {
             printf("%s", s.c_str());
         }
     }
 
     auto total_duration = std::chrono::duration_cast<std::chrono::seconds>(pclock::now() - tStart).count();
     printf("Total Duration: %d sec\n", (int)total_duration);
-
+    while(ipcServer.Available()) {
+        char buffer[128];
+        auto nRead = ipcServer.Read(buffer,128);
+        if (nRead < 0) {
+            printf("IPC Read Error\n");
+            break;
+        }
+        printf("%s\n", buffer);
+    }
+    ipcServer.Close();
 
     return true;
 }

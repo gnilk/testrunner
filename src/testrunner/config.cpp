@@ -33,7 +33,6 @@ Config &Config::Instance() {
 
 Config::Config() {
     // set default
-    verbose = 0;        // Not verbose
     inputs.push_back(".");    // Search current directory
     modules.push_back("-");
     testcases.push_back("-");
@@ -43,29 +42,9 @@ Config::Config() {
     version = "<unknown>";
 #endif
     description = "C/C++ Unit Test Runner";
-    mainFuncName = "main";
-    exitFuncName = "exit";
-    reportingModule = "console";
-    reportFile = "-";
-    reportIndent = 8;
-    executeTests = true;
-    listTests = false;
-    printPassSummary = false;
-    testModuleGlobals = true;
-    testGlobalMain = true;
-    testLogFilter = false;
-    skipOnModuleFail = true;
-    stopOnAllFail = true;
-    suppressProgressMsg = false;
-    discardTestReturnCode = false;
-    linuxUseDeepBinding = true;
-    responseMsgByteLimit = 1024 * 8;
-    enableThreadTestExecution = true;
-    enableParallelTestExecution = false;
-    allowThreadTermination = false;
-    useForkForModuleParallelExec = true;    // FIXME: Change to false when/if done...
-    forkModuleExecTimeoutSec = 30;           // Timeout in seconds for fork-based
-    useITestingVersion = 1; // tmp tmp
+    testExecutionType = TestExecutiontype::kThreaded;
+    moduleExecuteType = ModuleExecutionType::kParallel;
+
     //
     // Setup logger
     //
@@ -99,8 +78,8 @@ void Config::Dump() {
     printf("  Discard test return code: %s\n", discardTestReturnCode?"yes":"no");
     printf("  Reporting module: %s\n", reportingModule.c_str());
     printf("  Reporting indent size: %d\n", reportIndent);
-    printf("  Threaded Test Execution: %s\n", enableThreadTestExecution?"yes":"no");
-    printf("  Parallel Test Execution: %s\n", enableParallelTestExecution?"yes":"no");
+//    printf("  Threaded Test Execution: %s\n", enableThreadTestExecution?"yes":"no");
+//    printf("  Parallel Test Execution: %s\n", enableParallelTestExecution?"yes":"no");
     printf("  Modules:\n");
     for(auto x:modules) {
         printf("    %s\n", x.c_str());

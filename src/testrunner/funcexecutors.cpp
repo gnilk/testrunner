@@ -40,24 +40,31 @@ using namespace trun;
 //
 TestFuncExecutorBase &TestFuncExecutorFactory::Create(IDynLibrary::Ref library) {
     static TestFuncExecutorSequential sequentialExecutor;
-    // Threaded versions not available on embedded libraray
 #ifdef TRUN_HAVE_THREADS
-    if (Config::Instance().enableThreadTestExecution == true) {
-        static TestFuncExecutorParallel parallelExecutor;
-        static TestFuncExecutorParallelPThread parallelExecutorPThread;
-
-        // If we allow this - we MUST use the pthread version...
-        if (Config::Instance().allowThreadTermination == true) {
-            parallelExecutorPThread.SetLibrary(library);
-            return parallelExecutorPThread;
-        }
-
-        parallelExecutor.SetLibrary(library);
-        return parallelExecutor;
-
-    }
+    static TestFuncExecutorParallel parallelExecutor;
+    static TestFuncExecutorParallelPThread parallelExecutorPThread;
 #endif
-    sequentialExecutor.SetLibrary(library);
+
+    switch(Config::Instance().testExecutionType) {
+        case TestExecutiontype::kSequential :
+            // In case we are a sub-process, we run in threads anyway  <- should we?
+#ifdef TRUN_HAVE_THREADS
+            if (Config::Instance().isSubProcess) {
+                return parallelExecutor;
+            }
+#endif
+            return sequentialExecutor;
+#ifdef TRUN_HAVE_THREADS
+        case TestExecutiontype::kThreaded :
+            return parallelExecutor;
+        case TestExecutiontype::kThreadedWithExit :
+            return parallelExecutorPThread;
+#endif
+        default:
+            printf("Unknown or unsupported test execution model, using default\n");
+            break;
+    }
+    // Always available
     return sequentialExecutor;
 }
 

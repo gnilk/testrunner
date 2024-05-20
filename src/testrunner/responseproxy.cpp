@@ -202,9 +202,8 @@ void TestResponseProxy::AssertError(const char *exp, const char *file, const int
 void TestResponseProxy::TerminateThreadIfNeeded() {
 
     // FIXME: In case of V1 we should have this enabled - but we don't know the library at this point
-
 #ifdef TRUN_HAVE_THREADS
-    if ((Config::Instance().enableThreadTestExecution) && (Config::Instance().allowThreadTermination)) {
+    if (Config::Instance().testExecutionType == TestExecutiontype::kThreadedWithExit) {
         #ifdef WIN32
             TerminateThread(GetCurrentThread(), 0);
         #else
@@ -449,14 +448,6 @@ static TRUN_ConfigItem *get_config_items(size_t *nItems) {
             },
             {
                     .isValid = true,
-                    .name = "enableThreadTestExecution",
-                    .value_type = kTRCfgType_Bool,
-                    .value {
-                            .boolean = Config::Instance().enableThreadTestExecution,
-                    }
-            },
-            {
-                    .isValid = true,
                     .name = "item5",
                     .value_type = kTRCfgType_Num,
                     .value {
@@ -502,5 +493,6 @@ static void int_tcfg_get(const char *key, TRUN_ConfigItem *outValue) {
     outValue->isValid = true;
     strncpy(outValue->name,  "enableThreadTestExecution", TR_CFG_ITEM_NAME_LEN-1);
     outValue->value_type = kTRCfgType_Bool;
-    outValue->value.boolean = Config::Instance().enableThreadTestExecution;
+//    outValue->value.boolean = Config::Instance().enableThreadTestExecution;
+    outValue->value.boolean = true;
 }

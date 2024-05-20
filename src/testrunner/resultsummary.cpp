@@ -26,6 +26,9 @@
 #include "config.h"
 #include "resultsummary.h"
 #include "reporting/reportingbase.h"
+#ifndef WIN32
+#include "unix/IPCFifoUnix.h"
+#endif
 
 // Include any reporting library we have
 #include "reporting/reportconsole.h"
@@ -85,6 +88,21 @@ void ResultSummary::ListReportingModules() {
 
 void ResultSummary::AddResult(const TestFunc::Ref tfunc) {
     auto result = tfunc->Result();
+
+    // FIXME: Once done - move to support function and hide behind some compile directive
+    if(Config::Instance().isSubProcess) {
+        // FIXME: Send to other party!
+        gnilk::IPCFifoUnix ipc;
+        printf("Trying IPC: %s\n", Config::Instance().ipcName.c_str());
+        if (!ipc.ConnectTo(Config::Instance().ipcName)) {
+            return;
+        }
+        char buffer[128];
+        snprintf(buffer, 128, "[%s] - RESULT!", tfunc->CaseName().c_str());
+        ipc.Write(buffer, strlen(buffer));
+        ipc.Close();
+    }
+
 
 #ifdef TRUN_HAVE_THREADS
     std::lock_guard<std::mutex> guard(lock);
