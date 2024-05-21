@@ -131,7 +131,6 @@ void ResultSummary::SendResultToParentProc() {
     gnilk::IPCFifoUnix ipc;
 
     // Now, try to connect to the other side...
-    printf("Trying IPC: %s\n", Config::Instance().ipcName.c_str());
     if (!ipc.ConnectTo(Config::Instance().ipcName)) {
         return;
     }

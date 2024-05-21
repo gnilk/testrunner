@@ -235,7 +235,6 @@ bool TestModuleExecutorFork::Execute(const IDynLibrary::Ref &library, const std:
         pLogger->Error("Unable to create IPC server!");
         return false;
     }
-    printf("IPC FIFO running @ %s\n", ipcServer.FifoName().c_str());
 
     for (auto &[name, module] : testModules) {
         if (!module->ShouldExecute()) {
@@ -260,9 +259,8 @@ bool TestModuleExecutorFork::Execute(const IDynLibrary::Ref &library, const std:
     pLogger->Debug("Waiting for completition - %zu fork threads", subProcesses.size());
     int threadDeadCounter = 0;
 
+    // This works - perhaps not the best way, but still...
     for(auto &p : subProcesses) {
-        printf("Waiting for '%s'",p->Name().c_str());
-        fflush(stdout);
         long tLastDuration = 0;
         while(p->State() != SubProcessState::kFinished) {
             auto duration = std::chrono::duration_cast<std::chrono::seconds>(pclock::now() - p->StartTime()).count();
@@ -288,16 +286,12 @@ bool TestModuleExecutorFork::Execute(const IDynLibrary::Ref &library, const std:
         }
 
         pLogger->Debug("%d/%zu - completed", threadDeadCounter, subProcesses.size());
-        printf(" - Completed (%d/%zu)\n", threadDeadCounter, subProcesses.size());
+        printf("\n");
         threadDeadCounter++;
 
     }
 
-
     // Ok, this works - but needs to be formalized...
-
-    auto total_duration = std::chrono::duration_cast<std::chrono::seconds>(pclock::now() - tStart).count();
-    printf("Total Duration: %d sec\n", (int)total_duration);
     while(ipcServer.Available()) {
 
         gnilk::IPCResultSummary summary;
