@@ -31,6 +31,7 @@ namespace trun {
         static void SetCurrentTestRunner(TestRunner *currentTestRunner);
         static TestModule::Ref GetCurrentTestModule();
         static TestRunner *GetCurrentRunner();
+        static TestFunc::Ref CreateTestFunc(const std::string &sym);
 
     private:
         enum class kRunResultAction {
@@ -46,7 +47,6 @@ namespace trun {
         bool ExecuteMain();
         bool ExecuteMainExit();
         bool ExecuteModuleTests();
-        TestFunc::Ref CreateTestFunc(const std::string &sym);
         TestModule::Ref GetOrAddModule(const std::string &module);
         TestModule::Ref ModuleFromName(const std::string &moduleName);
     private:

@@ -105,7 +105,9 @@ void TestRunner::ExecuteTests() {
     pLogger->Info("Starting library test for: %s", library->Name().c_str());
     t.Reset();
 
-    printf("---> Start Module  \t%s\n", library->Name().c_str());
+    if (!Config::Instance().isSubProcess) {
+        printf("---> Start Module  \t%s\n", library->Name().c_str());
+    }
 
     // Update the thread context with ourselves, we do this directly as it won't change
     SetCurrentTestRunner(this);
@@ -116,8 +118,10 @@ void TestRunner::ExecuteTests() {
         ExecuteMainExit();
     }
 
-    printf("<--- End Module  \t%s\n", library->Name().c_str());
-    pLogger->Info("Module done (%.3f sec)", t.Sample());
+    if (!Config::Instance().isSubProcess) {
+        printf("<--- End Module  \t%s\n", library->Name().c_str());
+        pLogger->Info("Module done (%.3f sec)", t.Sample());
+    }
 }
 
 //
@@ -313,7 +317,7 @@ TestFunc::Ref TestRunner::CreateTestFunc(const std::string &symbol) {
     trun::split(funcparts, symbol.c_str(), '_');
 
     if (funcparts.size() == 1) {
-        pLogger->Warning("Bare test function: '%s' (skipping), consider renaming: (test_<library>_<case>)", symbol.c_str());
+        gnilk::Logger::GetLogger("TestRunner")->Warning("Bare test function: '%s' (skipping), consider renaming: (test_<library>_<case>)", symbol.c_str());
         return nullptr;
     } else if (funcparts.size() == 2) {
         func = TestFunc::Create(symbol,"-", funcparts[1]);
