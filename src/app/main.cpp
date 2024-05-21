@@ -408,9 +408,17 @@ int main(int argc, char **argv) {
         DumpTestsForAllLibraries();
     }
 
-    printf("--> Start Global\n");
+
+    // Remove this in 'headless' mode...
+    if (!Config::Instance().isSubProcess) {
+        printf("--> Start Global\n");
+    }
+
     RunTestsForAllLibraries();
-    printf("<-- End Global\n");
+
+    if (!Config::Instance().isSubProcess) {
+        printf("<-- End Global\n");
+    }
 
     // Restore stdout - in order for reporting to work...
     if (Config::Instance().suppressProgressMsg) {
