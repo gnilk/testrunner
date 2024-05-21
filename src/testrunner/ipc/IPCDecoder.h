@@ -17,12 +17,13 @@ namespace gnilk {
 
     class IPCBinaryDecoder : public IPCDecoderBase {
     public:
+        IPCBinaryDecoder() = delete;
         IPCBinaryDecoder(IPCReader &useReader, IPCDeserializer &useDeserializer) : reader(useReader), deserializer(useDeserializer) {
 
         }
         virtual ~IPCBinaryDecoder() = default;
 
-        bool Process();
+        bool Process() override;
 
         // Signed
         __inline int32_t ReadI8(int8_t &outValue) override { return Read(&outValue, sizeof(outValue)); };
@@ -53,7 +54,6 @@ namespace gnilk {
         }
 
     private:
-        IPCBinaryDecoder() = default;
         IPCReader &reader;
         IPCDeserializer &deserializer;
     };

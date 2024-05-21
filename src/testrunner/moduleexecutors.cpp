@@ -226,7 +226,6 @@ bool TestModuleExecutorFork::Execute(const IDynLibrary::Ref &library, const std:
     pLogger = gnilk::Logger::GetLogger("TestModExeFork");
     pLogger->Debug("Forking module tests");
 
-    auto tStart = pclock::now();
     int threadCounter = 0;
 
     gnilk::IPCFifoUnix ipcServer;

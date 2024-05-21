@@ -14,18 +14,20 @@ namespace gnilk {
     public:
         static constexpr size_t START_SIZE = 1024;      // should be enough
     public:
-        IPCBufferedWriter(IPCWriter &useWriter);
+        IPCBufferedWriter() = delete;
+        explicit IPCBufferedWriter(IPCWriter &useWriter);
         virtual ~IPCBufferedWriter() = default;
+
         int32_t Write(const void *src, size_t nBytes) override;
+
         size_t Size() {
             return data.size();
         }
+
         size_t Left() {
             return data.capacity() - data.size();
         }
         int32_t Flush();
-    private:
-        IPCBufferedWriter() = default;
     protected:
         IPCWriter &writer;
         std::vector<uint8_t> data;  // FIXME: I'm bloody lazy right now...
