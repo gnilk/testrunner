@@ -33,6 +33,7 @@
 #include "unix/subprocess.h"
 #include "unix/IPCFifoUnix.h"
 #include "ipc/IPCMessages.h"
+#include "ipc/IPCDecoder.h"
 #endif
 
 
@@ -287,35 +288,16 @@ bool TestModuleExecutorFork::Execute(const IDynLibrary::Ref &library, const std:
     printf("Total Duration: %d sec\n", (int)total_duration);
     while(ipcServer.Available()) {
 
-        gnilk::IPCMsgHeader header;
-        auto nRead = ipcServer.Read(&header, sizeof(header));
-        if (nRead != sizeof(header)) {
-            printf("IPC Read Error, nRead=%d\n", nRead);
-            break;
+        gnilk::IPCResultSummary summary;
+        gnilk::IPCBinaryDecoder decoder(ipcServer, summary);
+        if (!decoder.Process()) {
+            continue;
         }
-        printf("header");
-        printf("  version: %d\n", header.msgHeaderVersion);
-        printf("  type...: %d (0x%.2x)\n", header.msgId, header.msgId);
-        printf("  size...: %d\n", header.msgSize);
-
-        if (header.msgHeaderVersion != gnilk::IPCMessageVersion::kMsgVer_Current) {
-            printf("Unsupported msg version; %d\n",header.msgHeaderVersion);
-            // I really need to skip here..
-        }
-
-        gnilk::IPCResultMessage msgResult;
-
-        nRead = ipcServer.Read(&msgResult, header.msgSize - sizeof(header));
-        if (nRead < 0) {
-            printf("IPC Read Error\n");
-            break;
-        }
-        // Process message..
+        // Process message
         printf("message\n");
-        printf("  version: %d\n", msgResult.msgVersion);
-        printf("  executed: %d\n", msgResult.summary.testsExecuted);
-        printf("  failed: %d\n", msgResult.summary.testsFailed);
-        printf("  duration: %f\n", msgResult.summary.durationSec);
+        printf("  executed: %d\n", summary.testsExecuted);
+        printf("  failed: %d\n", summary.testsFailed);
+        printf("  duration: %f\n", summary.durationSec);
     }
     ipcServer.Close();
 

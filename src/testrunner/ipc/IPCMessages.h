@@ -9,22 +9,61 @@
 #include <string.h>
 #include <memory>
 #include <utility>
+#include <vector>
+#include <string>
 
 #include "IPCSerializer.h"
 
 namespace gnilk {
 
-
-
     #pragma pack(push,1)
     typedef enum : uint8_t {
-        kMsgType_ResultSummary = 0x80,
+        kMsgType_ResultSummary = 0x80,  // = ModuleResults [0..N]
+        kMsgType_ModuleResults = 0x81,  // = TestResults [0..N]
+        kMsgType_TestResults = 0x82,
     } IPCMessageType;
 
     typedef enum : uint8_t {
         kMsgVer_Current = 0x01,
     } IPCMessageVersion;
 
+    // And implicit message header used by encoder/decoder to determine what is coming..
+    struct IPCMsgHeader {
+        uint8_t msgHeaderVersion = 1;
+        uint8_t msgId = 0;
+        uint16_t reserved = 0;
+        uint32_t msgSize = 0;
+    };
+    struct IPCArrayHeader {
+        uint8_t headerVersion = 1;
+        uint8_t reserved = 0;
+        uint16_t num = 0;
+    };
+
+    class IPCTestResults : public IPCSerializer, public IPCDeserializer {
+    public:
+        IPCTestResults() = default;
+        virtual ~IPCTestResults() = default;
+
+        bool Marshal(IPCEncoderBase &encoder) const override;
+        bool Unmarshal(IPCDecoderBase &decoder) override;
+        IPCDeserializer *GetDeserializerForObject(uint8_t idObject) override;
+    public:
+        std::string caseName;
+    };
+
+    class IPCModuleResults : public IPCSerializer, public IPCDeserializer {
+    public:
+        IPCModuleResults() = default;
+        virtual ~IPCModuleResults() = default;
+
+        bool Marshal(IPCEncoderBase &encoder) const override;
+        bool Unmarshal(IPCDecoderBase &decoder) override;
+        IPCDeserializer *GetDeserializerForObject(uint8_t idObject) override;
+    public:
+        std::string moduleName;
+        std::vector<IPCTestResults *> testResults;
+    };
 
     class IPCResultSummary : public IPCSerializer, public IPCDeserializer {
     public:
@@ -33,59 +72,27 @@ namespace gnilk {
 
         bool Marshal(IPCEncoderBase &encoder) const override;
         bool Unmarshal(IPCDecoderBase &decoder) override;
+        IPCDeserializer *GetDeserializerForObject(uint8_t idObject) override;
     public:
         int32_t testsExecuted = {};
         int32_t testsFailed = {};
         double durationSec = {};
+        std::string libraryName;
+        std::vector<IPCModuleResults *> moduleResults;
     };
 
-    struct IPCMsgHeader {
-        uint8_t msgHeaderVersion = 1;
-        uint8_t msgId = 0;
-        uint16_t reserved = 0;
-        uint32_t msgSize = 0;
-    };
 
-    struct IPCResultTestResult {
 
-    };
 
-    // Utility to allocate a block - with custom deallocation and return it as a shared ptr...
-    template<typename T>
-    std::shared_ptr<T> IPCAllocateRef(size_t nBytes) {
-        auto ptr = malloc(nBytes);
-        memset(ptr,0,nBytes);
-        // Create the memory block with a custom deleter as we are allocating more than needed
-        return std::shared_ptr<T>(static_cast<T *>(ptr), [](auto p) { free(p); });
-    }
+//    // Utility to allocate a block - with custom deallocation and return it as a shared ptr...
+//    template<typename T>
+//    std::shared_ptr<T> IPCAllocateRef(size_t nBytes) {
+//        auto ptr = malloc(nBytes);
+//        memset(ptr,0,nBytes);
+//        // Create the memory block with a custom deleter as we are allocating more than needed
+//        return std::shared_ptr<T>(static_cast<T *>(ptr), [](auto p) { free(p); });
+//    }
 
-    struct IPCString {
-        using Ref = std::shared_ptr<IPCString>;
-        static Ref Create(const std::string &str) {
-            size_t nBytes = sizeof(IPCString::len) + str.size() + 1;    // need terminating zero..
-            auto instance = IPCAllocateRef<IPCString>(nBytes);
-
-            // Now, assign..
-            instance->len = str.length();
-            memcpy(instance->data, str.data(), str.size());
-            return instance;
-        }
-        std::string_view String() {
-            return {(char *)data};
-        }
-
-        // The actual data members...
-        uint16_t len;       // 64k for module names should be enough for everyone
-        uint8_t data[];     // toss a warning for your witcher...
-    };
-
-    struct IPCResultMessage {
-        uint8_t msgVersion = 1;     // Let's add this - so I don't run into problems later on (been there done that)
-        IPCResultSummary summary;
-        uint32_t numResults;
-        IPCString moduleName;
-        //IPCResultTestResult testResults[];  // I want this...
-    };
     #pragma pack(pop)
 
 }

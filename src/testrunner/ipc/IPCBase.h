@@ -7,12 +7,13 @@
 
 #include <stdint.h>
 #include <string>
+#include "IPCCore.h"
 
 namespace gnilk {
 
 
 
-    class IPCBase {
+    class IPCBase : public IPCWriter, public IPCReader {
     public:
         using Ref = std::shared_ptr<IPCBase>;
     public:

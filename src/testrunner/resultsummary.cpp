@@ -43,6 +43,9 @@
 #endif
 #include "ipc/IPCBase.h"
 #include "ipc/IPCMessages.h"
+#include "ipc/IPCCore.h"
+#include "ipc/IPCBufferedWriter.h"
+#include "ipc/IPCEncoder.h"
 #endif
 
 using namespace trun;
@@ -127,38 +130,23 @@ void ResultSummary::SendResultToParentProc() {
 #ifdef TRUN_HAVE_THREADS
     gnilk::IPCFifoUnix ipc;
 
-    size_t nBytesTotal = sizeof(gnilk::IPCMsgHeader) + sizeof(gnilk::IPCResultMessage);
-
-    // This is the buffer holding the serialized event + message
-    auto ptrBuffer = alloca(nBytesTotal);
-    if (ptrBuffer == nullptr) {
-        return;
-    }
-    // Reset the buffer
-    memset(ptrBuffer, 0, nBytesTotal);
-    auto header = static_cast<gnilk::IPCMsgHeader *>(ptrBuffer);
-
     // Now, try to connect to the other side...
     printf("Trying IPC: %s\n", Config::Instance().ipcName.c_str());
     if (!ipc.ConnectTo(Config::Instance().ipcName)) {
         return;
     }
 
-    header->msgId = gnilk::IPCMessageType::kMsgType_ResultSummary;
-    header->reserved = 0;
-    header->msgHeaderVersion = gnilk::IPCMessageVersion::kMsgVer_Current;
-    header->msgSize = nBytesTotal;   // size incl. header...
+    gnilk::IPCResultSummary summary;
+    summary.testsExecuted = testsExecuted;
+    summary.testsFailed = testsFailed;
+    summary.durationSec = durationSec;
 
-    auto ptrResult = PtrAdvanceFromTo<gnilk::IPCResultMessage, gnilk::IPCMsgHeader>(ptrBuffer);
-    printf("ptrBuffer=%p, ptrResult=%p\n",ptrBuffer, (void *)ptrResult);
+    gnilk::IPCBufferedWriter bufferedWriter(ipc);
+    gnilk::IPCBinaryEncoder encoder(bufferedWriter);
 
-    ptrResult->summary.testsExecuted = testsExecuted;
-    ptrResult->summary.testsFailed = testsFailed;
-    ptrResult->summary.durationSec = durationSec;
-    ptrResult->numResults = 0;
-
-    // Send all data in one go...
-    ipc.Write(ptrBuffer, nBytesTotal);
+    summary.Marshal(encoder);
+    // Flush and send...
+    bufferedWriter.Flush();
     ipc.Close();
 #endif
 }

@@ -5,7 +5,8 @@
 #ifndef TESTRUNNER_IPCSERIALIZER_H
 #define TESTRUNNER_IPCSERIALIZER_H
 
-#include "IPCEncoder.h"
+#include "IPCEncoderBase.h"
+#include "IPCDecoderBase.h"
 
 namespace gnilk {
     class IPCSerializer {
@@ -20,6 +21,7 @@ namespace gnilk {
         IPCDeserializer() = default;
         virtual ~IPCDeserializer() = default;
 
+        virtual IPCDeserializer *GetDeserializerForObject(uint8_t idObject) = 0;
         virtual bool Unmarshal(IPCDecoderBase &decoder) = 0;
     };
 }
