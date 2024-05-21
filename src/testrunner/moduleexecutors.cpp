@@ -21,6 +21,8 @@
 #include "testrunner.h"
 #include "strutil.h"
 #include "moduleexecutors.h"
+#include "resultsummary.h"
+#include "testfunc.h"
 #include <assert.h>
 #include <vector>
 #include <chrono>
@@ -241,7 +243,6 @@ bool TestModuleExecutorFork::Execute(const IDynLibrary::Ref &library, const std:
         printf("Starting module tests '%s' (%d / %zu)\n", module->name.c_str(), threadCounter, testModules.size());
 
         process->Start(library, module, ipcServer.FifoName());
-
         subProcesses.push_back(process);
     }
 
@@ -298,6 +299,14 @@ bool TestModuleExecutorFork::Execute(const IDynLibrary::Ref &library, const std:
         printf("  executed: %d\n", summary.testsExecuted);
         printf("  failed: %d\n", summary.testsFailed);
         printf("  duration: %f\n", summary.durationSec);
+        for(auto tr : summary.testResults) {
+            printf("    %s\n", tr->symbolName.c_str());
+            // We need to create a fake test-func here..
+            auto tfuncWrapper = TestRunner::CreateTestFunc(tr->symbolName);
+            tfuncWrapper->SetResultFromSubProcess(tr->testResult);
+
+            ResultSummary::Instance().AddResult(tfuncWrapper);
+        }
     }
     ipcServer.Close();
 
