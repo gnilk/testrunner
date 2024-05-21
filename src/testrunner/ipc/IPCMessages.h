@@ -12,6 +12,7 @@
 #include <vector>
 #include <string>
 
+#include "testresult.h"
 #include "IPCSerializer.h"
 
 namespace gnilk {
@@ -40,16 +41,20 @@ namespace gnilk {
         uint16_t num = 0;
     };
 
+    // FIXME: need 'IPCAssertError'
+
     class IPCTestResults : public IPCSerializer, public IPCDeserializer {
     public:
         IPCTestResults() = default;
+        IPCTestResults(const trun::TestResult::Ref &useTestResult) : testResult(useTestResult) {}
         virtual ~IPCTestResults() = default;
 
         bool Marshal(IPCEncoderBase &encoder) const override;
         bool Unmarshal(IPCDecoderBase &decoder) override;
         IPCDeserializer *GetDeserializerForObject(uint8_t idObject) override;
     public:
-        std::string caseName;
+        std::string symbolName = {};
+        trun::TestResult::Ref testResult = {};
     };
 
     class IPCModuleResults : public IPCSerializer, public IPCDeserializer {
@@ -77,8 +82,7 @@ namespace gnilk {
         int32_t testsExecuted = {};
         int32_t testsFailed = {};
         double durationSec = {};
-        std::string libraryName;
-        std::vector<IPCModuleResults *> moduleResults;
+        std::vector<IPCTestResults *> testResults;
     };
 
 

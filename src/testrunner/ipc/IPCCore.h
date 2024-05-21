@@ -10,10 +10,18 @@
 
 namespace gnilk {
 
+    // Dummy - avoiding circular references..
+    class IPCObject {
+    public:
+        IPCObject() = default;
+        virtual ~IPCObject() = default;
+    };
+
     class IPCWriter {
     public:
         virtual int32_t Write(const void *src, size_t nBytes) = 0;
     };
+
     class IPCReader {
     public:
         virtual int32_t Read(void *dst, size_t nBytes) = 0;

@@ -9,6 +9,7 @@
 #include "IPCDecoderBase.h"
 
 namespace gnilk {
+    // All serializable objects must inherit from this one
     class IPCSerializer {
     public:
         IPCSerializer() = default;
@@ -16,7 +17,9 @@ namespace gnilk {
 
         virtual bool Marshal(IPCEncoderBase &encoder) const = 0;
     };
-    class IPCDeserializer {
+
+    // All deserializable objects must inherit from this one
+    class IPCDeserializer : public IPCObject {
     public:
         IPCDeserializer() = default;
         virtual ~IPCDeserializer() = default;

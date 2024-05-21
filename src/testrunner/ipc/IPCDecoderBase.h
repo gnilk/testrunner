@@ -12,10 +12,12 @@
 
 #include "IPCCore.h"
 
+
 namespace gnilk {
     class IPCDecoderBase : public IPCReader {
     public:
-        using CBOnArrayItemRead = std::function<void(void *)>;
+        using CBOnArrayItemRead = std::function<void(IPCObject *)>;
+
     public:
         IPCDecoderBase() = default;
         virtual ~IPCDecoderBase() = default;

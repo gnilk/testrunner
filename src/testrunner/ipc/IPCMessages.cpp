@@ -12,10 +12,9 @@ bool IPCResultSummary::Marshal(gnilk::IPCEncoderBase &encoder) const {
     encoder.WriteI32(testsExecuted);
     encoder.WriteI32(testsFailed);
     encoder.WriteDouble(durationSec);
-    encoder.WriteStr(libraryName);
-    encoder.BeginArray(moduleResults.size());
-    for (auto &mr : moduleResults) {
-        mr->Marshal(encoder);
+    encoder.BeginArray(testResults.size());
+    for (auto &tr : testResults) {
+        tr->Marshal(encoder);
     }
     encoder.EndArray();
     encoder.EndObject();
@@ -26,9 +25,9 @@ IPCDeserializer *IPCResultSummary::GetDeserializerForObject(uint8_t idObject) {
     switch(idObject) {
         case kMsgType_ResultSummary :
             return this;
-        case kMsgType_ModuleResults :
+        case kMsgType_TestResults :
             // Create object...
-            return (new IPCModuleResults());
+            return (new IPCTestResults());
     }
     return nullptr;
 }
@@ -36,9 +35,9 @@ bool IPCResultSummary::Unmarshal(IPCDecoderBase &decoder) {
     decoder.ReadI32(testsExecuted);
     decoder.ReadI32(testsFailed);
     decoder.ReadDouble(durationSec);
-    decoder.ReadStr(libraryName);
-    decoder.ReadArray([this](void *ptrObject) {
-       moduleResults.push_back(static_cast<IPCModuleResults *>(ptrObject));
+    decoder.ReadArray([this](IPCObject *ptrObject) {
+       auto tr = dynamic_cast<IPCTestResults *>(ptrObject);
+       testResults.push_back(tr);
     });
 
     return true;
@@ -82,12 +81,20 @@ IPCDeserializer *IPCModuleResults::GetDeserializerForObject(uint8_t idObject) {
 //
 bool IPCTestResults::Marshal(IPCEncoderBase &encoder) const {
     encoder.BeginObject(kMsgType_TestResults);
-    encoder.WriteStr(caseName);
+    encoder.WriteStr(symbolName);
+    encoder.WriteI8(testResult->Result());
     encoder.EndObject();
     return true;
 }
 bool IPCTestResults::Unmarshal(IPCDecoderBase &decoder) {
-    decoder.ReadStr(caseName);
+    decoder.ReadStr(symbolName);
+    testResult = trun::TestResult::Create(symbolName);
+    uint8_t resultCode;
+    decoder.ReadU8(resultCode);
+    testResult->SetResult(static_cast<trun::kTestResult>(resultCode));
+
+
+
     return true;
 }
 IPCDeserializer *IPCTestResults::GetDeserializerForObject(uint8_t idObject) {

@@ -15,7 +15,8 @@ DLL_EXPORT int test_ipcmsg(ITesting *t);
 DLL_EXPORT int test_ipcmsg_resultsummary(ITesting *t);
 DLL_EXPORT int test_ipcmsg_moduleresults(ITesting *t);
 DLL_EXPORT int test_ipcmsg_testresults(ITesting *t);
-DLL_EXPORT int test_ipcmsg_module_with_testres(ITesting *t);
+//DLL_EXPORT int test_ipcmsg_module_with_testres(ITesting *t);
+DLL_EXPORT int test_ipcmsg_summary_with_testres(ITesting *t);
 }
 
 DLL_EXPORT int test_ipcmsg(ITesting *t) {
@@ -27,7 +28,6 @@ DLL_EXPORT int test_ipcmsg_resultsummary(ITesting *t) {
     resultSummaryOut.testsExecuted = 1;
     resultSummaryOut.testsFailed = 2;
     resultSummaryOut.durationSec = 3.0;
-    resultSummaryOut.libraryName = "my_library.so";
 
     UTest_IPC_VectorWriter vectorWriter;
     gnilk::IPCBufferedWriter bufferedWriter(vectorWriter);
@@ -53,7 +53,6 @@ DLL_EXPORT int test_ipcmsg_resultsummary(ITesting *t) {
     TR_ASSERT(t, resultSummaryIn.testsExecuted == resultSummaryOut.testsExecuted);
     TR_ASSERT(t, resultSummaryIn.testsFailed == resultSummaryOut.testsFailed);
     TR_ASSERT(t, resultSummaryIn.durationSec == resultSummaryOut.durationSec);
-    TR_ASSERT(t, resultSummaryIn.libraryName == resultSummaryOut.libraryName);
 
 
     return kTR_Pass;
@@ -86,8 +85,12 @@ DLL_EXPORT int test_ipcmsg_moduleresults(ITesting *t) {
     return kTR_Pass;
 }
 DLL_EXPORT int test_ipcmsg_testresults(ITesting *t) {
-    gnilk::IPCTestResults testResultsOut;
-    testResultsOut.caseName = "my_module";
+
+    auto tr = trun::TestResult::Create("test_module_case");
+    tr->SetResult(trun::kTestResult::kTestResult_Pass);
+
+    gnilk::IPCTestResults testResultsOut(tr);
+    testResultsOut.symbolName = "test_module_case";
 
     UTest_IPC_VectorWriter vectorWriter;
     gnilk::IPCBufferedWriter bufferedWriter(vectorWriter);
@@ -106,36 +109,52 @@ DLL_EXPORT int test_ipcmsg_testresults(ITesting *t) {
 
     TR_ASSERT(t, decoder.Process());
 
-    TR_ASSERT(t, testResultsIn.caseName == testResultsOut.caseName);
+    TR_ASSERT(t, testResultsIn.symbolName == testResultsOut.symbolName);
 
     return kTR_Pass;
 }
-DLL_EXPORT int test_ipcmsg_module_with_testres(ITesting *t) {
-    gnilk::IPCModuleResults moduleResultsOut;
-    moduleResultsOut.moduleName = "my_module";
 
-    auto testResultsOut = new gnilk::IPCTestResults();
-    testResultsOut->caseName = "my_test_case";
-    moduleResultsOut.testResults.push_back(testResultsOut);
+DLL_EXPORT int test_ipcmsg_summary_with_testres(ITesting *t) {
+    gnilk::IPCResultSummary resultSummaryOut;
+    resultSummaryOut.testsExecuted = 1;
+    resultSummaryOut.testsFailed = 2;
+    resultSummaryOut.durationSec = 3.0;
+
+    auto tr = trun::TestResult::Create("my_test_case");
+    tr->SetResult(trun::kTestResult::kTestResult_Pass);
+    auto testResultsOut = new gnilk::IPCTestResults(tr);
+    testResultsOut->symbolName = "my_test_case";
+    resultSummaryOut.testResults.push_back(testResultsOut);
+
+
 
     UTest_IPC_VectorWriter vectorWriter;
     gnilk::IPCBufferedWriter bufferedWriter(vectorWriter);
     gnilk::IPCBinaryEncoder encoder(bufferedWriter);
 
     // Serialize
-    TR_ASSERT(t, moduleResultsOut.Marshal(encoder));
+    TR_ASSERT(t, resultSummaryOut.Marshal(encoder));
 
+    // Flush data - this will do the actual writing to the underlying writer
     bufferedWriter.Flush();
     TR_ASSERT(t, !vectorWriter.Data().empty());
 
     // Deserialize again
     UTest_IPC_VectorReader vectorReader(vectorWriter.Data());
-    gnilk::IPCModuleResults moduleResultsIn;
-    gnilk::IPCBinaryDecoder decoder(vectorReader, moduleResultsIn);
+    gnilk::IPCResultSummary resultSummaryIn;
+    gnilk::IPCBinaryDecoder decoder(vectorReader, resultSummaryIn);
 
+    // Deserialize
     TR_ASSERT(t, decoder.Process());
+    TR_ASSERT(t, decoder.Available() == false);
 
-    TR_ASSERT(t, moduleResultsIn.moduleName == moduleResultsOut.moduleName);
+    // Make sure we have everything
+    TR_ASSERT(t, resultSummaryIn.testsExecuted == resultSummaryOut.testsExecuted);
+    TR_ASSERT(t, resultSummaryIn.testsFailed == resultSummaryOut.testsFailed);
+    TR_ASSERT(t, resultSummaryIn.durationSec == resultSummaryOut.durationSec);
+    TR_ASSERT(t, resultSummaryIn.testResults.size() == resultSummaryOut.testResults.size());
+    auto first = resultSummaryIn.testResults[0];
+    TR_ASSERT(t, first->symbolName == testResultsOut->symbolName);
 
 
     return kTR_Pass;
