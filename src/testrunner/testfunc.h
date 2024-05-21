@@ -83,7 +83,7 @@ namespace trun {
         kExecState ExecState() { return execState; }
 
         // I use this in the unit test in order to create a mock-up result...
-        void UTEST_SetMockResultPtr(TestResult::Ref pMockResult) { testResult = pMockResult; }
+        void SetResultFromSubProcess(TestResult::Ref pMockResult) { testResult = pMockResult; }
 
     protected:
         void CreateTestResult(TestResponseProxy &proxy);
