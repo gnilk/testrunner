@@ -238,9 +238,20 @@ bool TestModuleExecutorFork::Execute(const IDynLibrary::Ref &library, const std:
     printf("IPC FIFO running @ %s\n", ipcServer.FifoName().c_str());
 
     for (auto &[name, module] : testModules) {
+        if (!module->ShouldExecute()) {
+            // Skip, this is not part of the configured filtered..
+            continue;
+        }
+        // Already executed?
+        if (!module->IsIdle()) {
+            //pLogger->Debug("Tests for '%s' already executed, skipping",testModule->name.c_str());
+            continue;
+        }
+
         // Need to allocate outside, if passing reference the references is renewed before the capture picks it up..
         SubProcess *process = new SubProcess();
         printf("Starting module tests '%s' (%d / %zu)\n", module->name.c_str(), threadCounter, testModules.size());
+
 
         process->Start(library, module, ipcServer.FifoName());
         subProcesses.push_back(process);
@@ -293,17 +304,13 @@ bool TestModuleExecutorFork::Execute(const IDynLibrary::Ref &library, const std:
         gnilk::IPCBinaryDecoder decoder(ipcServer, summary);
         if (!decoder.Process()) {
             continue;
+
         }
         // Process message
-        printf("message\n");
-        printf("  executed: %d\n", summary.testsExecuted);
-        printf("  failed: %d\n", summary.testsFailed);
-        printf("  duration: %f\n", summary.durationSec);
-        for(auto tr : summary.testResults) {
-            printf("    %s\n", tr->symbolName.c_str());
+        for(auto ipcTestResult : summary.testResults) {
             // We need to create a fake test-func here..
-            auto tfuncWrapper = TestRunner::CreateTestFunc(tr->symbolName);
-            tfuncWrapper->SetResultFromSubProcess(tr->testResult);
+            auto tfuncWrapper = TestRunner::CreateTestFunc(ipcTestResult->symbolName);
+            tfuncWrapper->SetResultFromSubProcess(ipcTestResult->testResult);
 
             ResultSummary::Instance().AddResult(tfuncWrapper);
         }

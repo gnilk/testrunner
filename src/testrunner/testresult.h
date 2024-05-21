@@ -42,17 +42,17 @@ namespace trun {
     class TestResult {
     public:
         using Ref = std::shared_ptr<TestResult>;
-        enum class kFailState {
+        typedef enum : uint8_t  {
             None,
             PreHook,
             Main,
             PostHook,
-        };
-        enum class kRunResultAction {
+        }  kFailState;
+        typedef enum  : uint8_t {
             kContinue,
             kAbortModule,
             kAbortAll,
-        };
+        } kRunResultAction;
 
     public:
         static TestResult::Ref Create(const std::string &symbolName);

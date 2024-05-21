@@ -43,6 +43,7 @@ namespace gnilk {
         // Other
         int32_t ReadStr(std::string &outValue) override;
         int32_t ReadArray(CBOnArrayItemRead onArrayItemRead) override;
+        IPCObject *ReadObject(uint8_t expectedMsgId) override;
 
         int32_t Read(void *out, size_t nBytes) override {
             return reader.Read(out, nBytes);

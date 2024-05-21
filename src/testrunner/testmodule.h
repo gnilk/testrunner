@@ -21,6 +21,12 @@ namespace trun {
     class TestModule {
     public:
         using Ref = std::shared_ptr<TestModule>;
+        enum class kState {
+            Idle,
+            Executing,
+            Finished,
+        };
+
     public:
         static TestModule::Ref Create(const std::string &moduleName);
         TestModule(const std::string &moduleName);
@@ -49,21 +55,19 @@ namespace trun {
 
         void AddDependencyForCase(const std::string &caseName, const std::string &dependencyList) const;
 
+        // Public since we might need to call this when using external execution (fork)
+        void ChangeState(kState newState) {
+            state = newState;
+        }
+
+
     protected:
-        enum class kState {
-            Idle,
-            Executing,
-            Finished,
-        };
         kState state = kState::Idle;
 
         kState State() const {
             return state;
         }
 
-        void ChangeState(kState newState) {
-            state = newState;
-        }
 
         void ExecuteDependencies(const IDynLibrary::Ref &dynlib);
 

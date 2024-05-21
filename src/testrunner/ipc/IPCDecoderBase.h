@@ -17,7 +17,6 @@ namespace gnilk {
     class IPCDecoderBase : public IPCReader {
     public:
         using CBOnArrayItemRead = std::function<void(IPCObject *)>;
-
     public:
         IPCDecoderBase() = default;
         virtual ~IPCDecoderBase() = default;
@@ -44,6 +43,7 @@ namespace gnilk {
         virtual int32_t ReadStr(std::string &outValue) = 0;
 
         virtual int32_t ReadArray(CBOnArrayItemRead onArrayItemRead) = 0;
+        virtual IPCObject *ReadObject(uint8_t expectedMsgId) = 0;
     };
 }
 #endif //TESTRUNNER_IPCDECODERBASE_H

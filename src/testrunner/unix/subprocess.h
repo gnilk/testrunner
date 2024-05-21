@@ -51,7 +51,7 @@ namespace trun {
         SubProcess() = default;
         virtual ~SubProcess() = default;
 
-        void Start(const IDynLibrary::Ref &library, TestModule::Ref module, const std::string &ipcName);
+        void Start(const IDynLibrary::Ref &library, TestModule::Ref useModule, const std::string &ipcName);
         void Wait();
         void Kill();
 
@@ -75,6 +75,7 @@ namespace trun {
         std::string name = {};
         SubProcessDataHandler dataHandler;
         std::thread thread;
+        TestModule::Ref module;
 
         pclock::time_point tStart;
         SubProcessState state = SubProcessState::kIdle;

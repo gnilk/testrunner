@@ -22,6 +22,7 @@ namespace gnilk {
         kMsgType_ResultSummary = 0x80,  // = ModuleResults [0..N]
         kMsgType_ModuleResults = 0x81,  // = TestResults [0..N]
         kMsgType_TestResults = 0x82,
+        kMsgType_AssertError = 0x83,
     } IPCMessageType;
 
     typedef enum : uint8_t {
@@ -41,7 +42,21 @@ namespace gnilk {
         uint16_t num = 0;
     };
 
+
     // FIXME: need 'IPCAssertError'
+    class IPCAssertError : public IPCSerializer, public IPCDeserializer {
+    public:
+        IPCAssertError() = default;
+        IPCAssertError(const trun::AssertError &useAssertError) : assertError(useAssertError) {}
+        virtual ~IPCAssertError() = default;
+
+        bool Marshal(IPCEncoderBase &encoder) const override;
+        bool Unmarshal(IPCDecoderBase &decoder) override;
+        IPCDeserializer *GetDeserializerForObject(uint8_t idObject) override;
+
+    public:
+        class trun::AssertError assertError;
+    };
 
     class IPCTestResults : public IPCSerializer, public IPCDeserializer {
     public:
@@ -55,19 +70,7 @@ namespace gnilk {
     public:
         std::string symbolName = {};
         trun::TestResult::Ref testResult = {};
-    };
-
-    class IPCModuleResults : public IPCSerializer, public IPCDeserializer {
-    public:
-        IPCModuleResults() = default;
-        virtual ~IPCModuleResults() = default;
-
-        bool Marshal(IPCEncoderBase &encoder) const override;
-        bool Unmarshal(IPCDecoderBase &decoder) override;
-        IPCDeserializer *GetDeserializerForObject(uint8_t idObject) override;
-    public:
-        std::string moduleName;
-        std::vector<IPCTestResults *> testResults;
+        trun::AssertError assertError;      // Only valid in case we have an assert
     };
 
     class IPCResultSummary : public IPCSerializer, public IPCDeserializer {

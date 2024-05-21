@@ -9,7 +9,7 @@
 namespace trun {
     class AssertError {
     public:
-        typedef enum {
+        typedef enum : uint8_t {
             kAssert_Error,
             kAssert_Abort,
             kAssert_Fatal,

@@ -5,10 +5,19 @@
 
 using namespace trun;
 
-void SubProcess::Start(const IDynLibrary::Ref &library, TestModule::Ref module, const std::string &ipcName) {
+void SubProcess::Start(const IDynLibrary::Ref &library, TestModule::Ref useModule, const std::string &ipcName) {
+    // Save this locally, we need to update the state
+    module = std::move(useModule);
+
+    // Need to do this before spinning up the thread...
+    tStart = pclock::now();
+
+    module->ChangeState(TestModule::kState::Executing);
+
     // Note: CAN'T USE REFERENCES - they will change before capture actually takes place..
-    thread = std::thread([this, library, module, ipcName]() {
+    thread = std::thread([this, library, ipcName]() {
         state = SubProcessState::kRunning;
+
 
         proc = new Process(Config::Instance().appName);
         proc->SetCallback(&dataHandler);
@@ -20,7 +29,6 @@ void SubProcess::Start(const IDynLibrary::Ref &library, TestModule::Ref module, 
         proc->AddArgument("-m");
         proc->AddArgument(module->name);
         proc->AddArgument(library->Name());
-        tStart = pclock::now();
         wasProcessExecOk = proc->ExecuteAndWait();
         state = SubProcessState::kFinished;
     });
@@ -28,10 +36,12 @@ void SubProcess::Start(const IDynLibrary::Ref &library, TestModule::Ref module, 
 }
 void SubProcess::Wait() {
     thread.join();
+    module->ChangeState(TestModule::kState::Finished);
 }
 void SubProcess::Kill() {
     if (proc == nullptr) {
         return;
     }
     proc->Kill();
+    module->ChangeState(TestModule::kState::Finished);
 }

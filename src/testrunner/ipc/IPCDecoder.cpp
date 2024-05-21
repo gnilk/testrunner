@@ -59,3 +59,18 @@ int32_t IPCBinaryDecoder::ReadArray(CBOnArrayItemRead onArrayItemRead) {
     }
     return count;
 }
+
+IPCObject *IPCBinaryDecoder::ReadObject(uint8_t expectedMsgId) {
+    IPCMsgHeader header;
+    if (Read(&header, sizeof(header)) < 0) {
+        return nullptr;
+    }
+    if (header.msgId != expectedMsgId) {
+        return nullptr;
+    }
+    auto handler = deserializer.GetDeserializerForObject(header.msgId);
+    if (!handler->Unmarshal(*this)) {
+        return nullptr;
+    }
+    return handler;
+}

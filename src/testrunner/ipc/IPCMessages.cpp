@@ -26,8 +26,9 @@ IPCDeserializer *IPCResultSummary::GetDeserializerForObject(uint8_t idObject) {
         case kMsgType_ResultSummary :
             return this;
         case kMsgType_TestResults :
-            // Create object...
             return (new IPCTestResults());
+        case kMsgType_AssertError :
+            return new IPCAssertError();
     }
     return nullptr;
 }
@@ -43,38 +44,6 @@ bool IPCResultSummary::Unmarshal(IPCDecoderBase &decoder) {
     return true;
 }
 
-//
-// Module results
-//
-bool IPCModuleResults::Marshal(IPCEncoderBase &encoder) const {
-    encoder.BeginObject(kMsgType_ModuleResults);
-    encoder.WriteStr(moduleName);
-    // this is the easy way...
-    encoder.BeginArray(testResults.size());
-    for(auto &tr : testResults) {
-        tr->Marshal(encoder);
-    }
-    encoder.EndObject();
-    return true;
-}
-
-bool IPCModuleResults::Unmarshal(IPCDecoderBase &decoder) {
-    decoder.ReadStr(moduleName);
-    decoder.ReadArray([this](void *ptrItem) {
-       testResults.push_back(static_cast<IPCTestResults *>(ptrItem));
-    });
-    return true;
-}
-
-IPCDeserializer *IPCModuleResults::GetDeserializerForObject(uint8_t idObject) {
-    switch(idObject) {
-        case kMsgType_TestResults :
-            return (new IPCTestResults());
-        case kMsgType_ModuleResults :
-            return this;
-    }
-    return nullptr;
-}
 
 //
 // Test case results
@@ -83,21 +52,81 @@ bool IPCTestResults::Marshal(IPCEncoderBase &encoder) const {
     encoder.BeginObject(kMsgType_TestResults);
     encoder.WriteStr(symbolName);
     encoder.WriteI8(testResult->Result());
+    encoder.WriteU8(testResult->FailState());
+    encoder.WriteI32(testResult->Asserts());
+    if (testResult->Asserts() > 0) {
+        IPCAssertError ipcAssertError(testResult->AssertError());
+        ipcAssertError.Marshal(encoder);
+    }
     encoder.EndObject();
     return true;
 }
+
 bool IPCTestResults::Unmarshal(IPCDecoderBase &decoder) {
     decoder.ReadStr(symbolName);
     testResult = trun::TestResult::Create(symbolName);
+
+    // Result code
     uint8_t resultCode;
     decoder.ReadU8(resultCode);
     testResult->SetResult(static_cast<trun::kTestResult>(resultCode));
 
+    // FailState
+    uint8_t failState;
+    decoder.ReadU8(failState);
+    testResult->SetFailState(static_cast<trun::TestResult::kFailState>(failState));
 
+    // Asserts
+    int32_t nAsserts;
+    decoder.ReadI32(nAsserts);
+    testResult->SetNumberOfAsserts(nAsserts);
+
+
+    // Now, deserialize the actual assert error
+    if (nAsserts > 0) {
+        auto obj = decoder.ReadObject(kMsgType_AssertError);
+        auto ptrIPCAssertError = dynamic_cast<IPCAssertError *>(obj);
+        testResult->SetAssertError(ptrIPCAssertError->assertError);
+        delete obj;
+    }
 
     return true;
 }
+
 IPCDeserializer *IPCTestResults::GetDeserializerForObject(uint8_t idObject) {
+    if (idObject == kMsgType_TestResults) {
+        return this;
+    }
+    if (idObject == kMsgType_AssertError) {
+        return new IPCAssertError();
+    }
+    return nullptr;
+}
+
+bool IPCAssertError::Marshal(IPCEncoderBase &encoder) const {
+    encoder.BeginObject(kMsgType_AssertError);
+    encoder.WriteU8(assertError.assertClass);
+    encoder.WriteStr(assertError.file);
+    encoder.WriteI32(assertError.line);
+    encoder.WriteStr(assertError.message);
+    encoder.EndObject();
+    return true;
+}
+bool IPCAssertError::Unmarshal(IPCDecoderBase &decoder) {
+    uint8_t assertClass;
+    decoder.ReadU8(assertClass);
+    assertError.assertClass = static_cast<trun::AssertError::kAssertClass>(assertClass);
+
+    decoder.ReadStr(assertError.file);
+    decoder.ReadI32(assertError.line);
+    decoder.ReadStr(assertError.message);
+
+    // If here, it is valid - we simply just don't serialize this one..
+    assertError.isValid = true;
+
+    return true;
+}
+IPCDeserializer *IPCAssertError::GetDeserializerForObject(uint8_t idObject) {
     if (idObject == kMsgType_TestResults) {
         return this;
     }
