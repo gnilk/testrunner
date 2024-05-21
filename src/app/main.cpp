@@ -60,6 +60,7 @@
 #include <string>
 #include <regex>
 #include <functional>
+#include <optional>
 
 
 using namespace trun;
