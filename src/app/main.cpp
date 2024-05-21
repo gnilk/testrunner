@@ -114,11 +114,6 @@ static void Help() {
     printf("      Set timeout (in seconds) for forked execution, 0 - infinity (default: 30)\n");
     printf("  --allow-thread-exit\n");
     printf("      Test cases execution thread will self-terminate on assert/error/fatal\n");
-#ifdef WIN32
-    printf("      Allow test-threads to exit, this will switch to native win32 threads\n");
-#else
-    printf("      Allow test-threads to exit, this will switch ot using pthreads\n");
-#endif
 
     printf("\n");
     printf("Input should be a directory or list of dylib's to be tested, default is current directory ('.')\n");
