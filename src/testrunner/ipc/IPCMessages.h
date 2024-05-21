@@ -10,9 +10,13 @@
 #include <memory>
 #include <utility>
 
-namespace gnilk {
-    #pragma pack(push,1)
+#include "IPCSerializer.h"
 
+namespace gnilk {
+
+
+
+    #pragma pack(push,1)
     typedef enum : uint8_t {
         kMsgType_ResultSummary = 0x80,
     } IPCMessageType;
@@ -22,17 +26,24 @@ namespace gnilk {
     } IPCMessageVersion;
 
 
+    class IPCResultSummary : public IPCSerializer, public IPCDeserializer {
+    public:
+        IPCResultSummary() = default;
+        virtual ~IPCResultSummary() = default;
+
+        bool Marshal(IPCEncoderBase &encoder) const override;
+        bool Unmarshal(IPCDecoderBase &decoder) override;
+    public:
+        int32_t testsExecuted = {};
+        int32_t testsFailed = {};
+        double durationSec = {};
+    };
 
     struct IPCMsgHeader {
         uint8_t msgHeaderVersion = 1;
         uint8_t msgId = 0;
         uint16_t reserved = 0;
         uint32_t msgSize = 0;
-    };
-    struct IPCResultSummary {
-        int32_t testsExecuted;
-        int32_t testsFailed;
-        double durationSec;
     };
 
     struct IPCResultTestResult {

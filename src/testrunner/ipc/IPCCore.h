@@ -17,6 +17,7 @@ namespace gnilk {
     class IPCReader {
     public:
         virtual int32_t Read(void *dst, size_t nBytes) = 0;
+        virtual bool Available() = 0;
     };
 }
 

@@ -17,34 +17,6 @@ Note: Remove any "Logger" references if you just want to use this...
  
  ---------------------------------------------------------------------------*/
 
-/*
-Example:
-	// Without callbacks - will just execute without feedback
-	Process proc("ping");
-	proc.AddArgument("-c %",5);
-	proc.AddArgument("www.google.com");
-	proc.ExecuteAndWait();
-
-
-
-	// Consuming callbacks
-	MyProcCallbacks cb;
-	Process proc("ping");
-	proc.SetCallback(&cb);
-	proc.AddArgument("-c %",5);
-	proc.AddArgument("www.google.com");
-	proc.ExecuteAndWait();
-
-class MyProcCallbacks : public ProcessCallbackBase {
-public:
-	virtual void OnStdOutData(std::string _data) {
-		cout << _data;
-	}
-};
-
-*/
-
-
 #include <stdio.h>
 #include <iostream>
 #include <string.h>

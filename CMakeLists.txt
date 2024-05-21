@@ -94,10 +94,11 @@ list(APPEND ipcsrcfiles src/testrunner/ipc/IPCBase.h)
 list(APPEND ipcsrcfiles src/testrunner/ipc/IPCBufferedWriter.cpp src/testrunner/ipc/IPCBufferedWriter.h)
 list(APPEND ipcsrcfiles src/testrunner/ipc/IPCCore.h)
 list(APPEND ipcsrcfiles src/testrunner/ipc/IPCEncoder.cpp src/testrunner/ipc/IPCEncoder.h)
-list(APPEND ipcsrcfiles src/testrunner/ipc/IPCMessages.h)
+list(APPEND ipcsrcfiles src/testrunner/ipc/IPCMessages.cpp src/testrunner/ipc/IPCMessages.h)
 list(APPEND ipcsrcfiles src/testrunner/ipc/IPCSerializer.cpp src/testrunner/ipc/IPCSerializer.h)
 
 # ipc testing
+list(APPEND testsrc src/testrunner/ipc/tests/test_ipc_common.h)
 list(APPEND testsrc src/testrunner/ipc/tests/test_ipc_messages.cpp)
 list(APPEND testsrc src/testrunner/ipc/tests/test_ipc_bufferedwriter.cpp)
 

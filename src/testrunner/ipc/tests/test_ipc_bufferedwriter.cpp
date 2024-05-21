@@ -2,6 +2,8 @@
 // Created by gnilk on 21.05.24.
 //
 
+#include "test_ipc_common.h"
+
 #include "../IPCBufferedWriter.h"
 #include "ext_testinterface/testinterface.h"
 #include <string>
@@ -15,22 +17,7 @@ DLL_EXPORT int test_ipcbufwriter(ITesting *t) {
     return kTR_Pass;
 }
 
-// Need this in order for the data to end up somewhere..
-class UTest_IPC_VectorWriter : public gnilk::IPCWriter {
-public:
-    UTest_IPC_VectorWriter() = default;
-    virtual ~UTest_IPC_VectorWriter() = default;
-    int32_t Write(const void *src, size_t nBytes) override {
-        auto ptrBytes = static_cast<const uint8_t *>(src);
-        for(size_t i=0;i<nBytes;i++) {
-            data.push_back(ptrBytes[i]);
-        }
-        return nBytes;
-    }
-    const std::vector<uint8_t> &Data() { return data; }
-private:
-    std::vector<uint8_t> data;
-};
+
 
 DLL_EXPORT int test_ipcbufwriter_write(ITesting *t) {
     UTest_IPC_VectorWriter vWriter;
