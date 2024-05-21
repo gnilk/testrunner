@@ -136,10 +136,18 @@ void ResultSummary::SendResultToParentProc() {
         return;
     }
 
+
     gnilk::IPCResultSummary summary;
     summary.testsExecuted = testsExecuted;
     summary.testsFailed = testsFailed;
     summary.durationSec = durationSec;
+    // Create the test results objects
+    for(auto res : results) {
+        auto tr = new gnilk::IPCTestResults(res);
+        tr->symbolName = res->SymbolName();
+        // add to the ipc summary
+        summary.testResults.push_back(tr);
+    }
 
     gnilk::IPCBufferedWriter bufferedWriter(ipc);
     gnilk::IPCBinaryEncoder encoder(bufferedWriter);
