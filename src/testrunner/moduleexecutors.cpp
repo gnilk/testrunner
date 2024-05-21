@@ -32,6 +32,7 @@
 #include "unix/process.h"
 #include "unix/subprocess.h"
 #include "unix/IPCFifoUnix.h"
+#include "ipc/IPCMessages.h"
 #endif
 
 
@@ -286,18 +287,25 @@ bool TestModuleExecutorFork::Execute(const IDynLibrary::Ref &library, const std:
     printf("Total Duration: %d sec\n", (int)total_duration);
     while(ipcServer.Available()) {
 
-        gnilk::IPCResultMessage msgResult;
-        auto nRead = ipcServer.Read(&msgResult.header, sizeof(msgResult.header));
-        if (nRead != sizeof(msgResult.header)) {
+        gnilk::IPCMsgHeader header;
+        auto nRead = ipcServer.Read(&header, sizeof(header));
+        if (nRead != sizeof(header)) {
             printf("IPC Read Error, nRead=%d\n", nRead);
             break;
         }
-        printf("header\n");
-        printf("  version: %d\n", msgResult.header.msgHeaderVersion);
-        printf("  type...: %d (0x%.2x)\n", msgResult.header.msgId, msgResult.header.msgId);
-        printf("  size...: %d\n", msgResult.header.msgSize);
+        printf("header");
+        printf("  version: %d\n", header.msgHeaderVersion);
+        printf("  type...: %d (0x%.2x)\n", header.msgId, header.msgId);
+        printf("  size...: %d\n", header.msgSize);
 
-        nRead = ipcServer.Read(&msgResult.msgVersion, msgResult.header.msgSize - sizeof(msgResult.header));
+        if (header.msgHeaderVersion != gnilk::IPCMessageVersion::kMsgVer_Current) {
+            printf("Unsupported msg version; %d\n",header.msgHeaderVersion);
+            // I really need to skip here..
+        }
+
+        gnilk::IPCResultMessage msgResult;
+
+        nRead = ipcServer.Read(&msgResult, header.msgSize - sizeof(header));
         if (nRead < 0) {
             printf("IPC Read Error\n");
             break;

@@ -6,7 +6,7 @@
 #define GNKLOG_LOGIPCFIFOUNIX_H
 
 //#include "LogInternal.h"
-#include "IPCBase.h"
+#include "ipc/IPCBase.h"
 namespace gnilk {
     class IPCFifoUnix : public IPCBase {
     public:

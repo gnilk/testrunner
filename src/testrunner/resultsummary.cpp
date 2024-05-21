@@ -26,9 +26,6 @@
 #include "config.h"
 #include "resultsummary.h"
 #include "reporting/reportingbase.h"
-#ifndef WIN32
-#include "unix/IPCFifoUnix.h"
-#endif
 
 // Include any reporting library we have
 #include "reporting/reportconsole.h"
@@ -41,7 +38,11 @@
 
 
 #ifdef TRUN_HAVE_THREADS
-#include "IPCBase.h"
+#ifndef WIN32
+    #include "unix/IPCFifoUnix.h"
+#endif
+#include "ipc/IPCBase.h"
+#include "ipc/IPCMessages.h"
 #endif
 
 using namespace trun;
@@ -101,7 +102,6 @@ void ResultSummary::ListReportingModules() {
 void ResultSummary::AddResult(const TestFunc::Ref tfunc) {
     auto result = tfunc->Result();
 
-
 #ifdef TRUN_HAVE_THREADS
     std::lock_guard<std::mutex> guard(lock);
 #endif
@@ -115,27 +115,52 @@ void ResultSummary::AddResult(const TestFunc::Ref tfunc) {
     }
 }
 
+// Really dislike CPP for 'simple' stuff (add <value>, esi)
+//
+template<typename TTo, typename TFrom>
+TTo *PtrAdvanceFromTo(void *base) {
+    auto toVoid = static_cast<void *>(static_cast<uint8_t *>(base) + sizeof(TFrom));
+    return static_cast<TTo *>(toVoid);
+}
+
 void ResultSummary::SendResultToParentProc() {
+#ifdef TRUN_HAVE_THREADS
     gnilk::IPCFifoUnix ipc;
+
+    size_t nBytesTotal = sizeof(gnilk::IPCMsgHeader) + sizeof(gnilk::IPCResultMessage);
+
+    // This is the buffer holding the serialized event + message
+    auto ptrBuffer = alloca(nBytesTotal);
+    if (ptrBuffer == nullptr) {
+        return;
+    }
+    // Reset the buffer
+    memset(ptrBuffer, 0, nBytesTotal);
+    auto header = static_cast<gnilk::IPCMsgHeader *>(ptrBuffer);
+
+    // Now, try to connect to the other side...
     printf("Trying IPC: %s\n", Config::Instance().ipcName.c_str());
     if (!ipc.ConnectTo(Config::Instance().ipcName)) {
         return;
     }
 
-    gnilk::IPCResultMessage msg;
-    msg.header.msgId = gnilk::IPCMessageType::kMsgType_ResultSummary;
-    msg.header.reserved = 0;
-    msg.header.msgHeaderVersion = gnilk::IPCMessageVersion::kMsgVer_Current;
-    msg.header.msgSize = sizeof(msg);   // size incl. header...
+    header->msgId = gnilk::IPCMessageType::kMsgType_ResultSummary;
+    header->reserved = 0;
+    header->msgHeaderVersion = gnilk::IPCMessageVersion::kMsgVer_Current;
+    header->msgSize = nBytesTotal;   // size incl. header...
 
+    auto ptrResult = PtrAdvanceFromTo<gnilk::IPCResultMessage, gnilk::IPCMsgHeader>(ptrBuffer);
+    printf("ptrBuffer=%p, ptrResult=%p\n",ptrBuffer, (void *)ptrResult);
 
-    msg.summary.testsExecuted = testsExecuted;
-    msg.summary.testsFailed = testsFailed;
-    msg.summary.durationSec = durationSec;
-    msg.numResults = 0;
+    ptrResult->summary.testsExecuted = testsExecuted;
+    ptrResult->summary.testsFailed = testsFailed;
+    ptrResult->summary.durationSec = durationSec;
+    ptrResult->numResults = 0;
 
-    ipc.Write(&msg, sizeof(msg));
+    // Send all data in one go...
+    ipc.Write(ptrBuffer, nBytesTotal);
     ipc.Close();
+#endif
 }
 
 

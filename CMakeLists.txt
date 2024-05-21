@@ -89,6 +89,18 @@ list(APPEND srcfiles src/testrunner/reporting/reportconsole.h src/testrunner/rep
 list(APPEND rprtsrcfiles src/testrunner/reporting/reportjsonext.h src/testrunner/reporting/reportjsonext.cpp)
 list(APPEND rprtsrcfiles src/testrunner/reporting/reportjson.h src/testrunner/reporting/reportjson.cpp)
 
+# ipc
+list(APPEND ipcsrcfiles src/testrunner/ipc/IPCBase.h)
+list(APPEND ipcsrcfiles src/testrunner/ipc/IPCBufferedWriter.cpp src/testrunner/ipc/IPCBufferedWriter.h)
+list(APPEND ipcsrcfiles src/testrunner/ipc/IPCCore.h)
+list(APPEND ipcsrcfiles src/testrunner/ipc/IPCEncoder.cpp src/testrunner/ipc/IPCEncoder.h)
+list(APPEND ipcsrcfiles src/testrunner/ipc/IPCMessages.h)
+list(APPEND ipcsrcfiles src/testrunner/ipc/IPCSerializer.cpp src/testrunner/ipc/IPCSerializer.h)
+
+# ipc testing
+list(APPEND testsrc src/testrunner/ipc/tests/test_ipc_messages.cpp)
+list(APPEND testsrc src/testrunner/ipc/tests/test_ipc_bufferedwriter.cpp)
+
 # embedded
 list(APPEND embedsrc src/testrunner/embedded/dynlib_embedded.cpp src/testrunner/embedded/dynlib_embedded.h)
 list(APPEND embedsrc src/testrunner/embedded/logger.cpp)
@@ -138,7 +150,7 @@ endif()
 message(STATUS source: ${CMAKE_SOURCE_DIR})
 
 # Create executeable
-add_executable(trun src/app/main.cpp ${srcfiles} ${execsrcfiles} ${rprtsrcfiles})
+add_executable(trun src/app/main.cpp ${srcfiles} ${execsrcfiles} ${rprtsrcfiles} ${ipcsrcfiles})
 target_compile_definitions(trun PUBLIC TRUN_HAVE_EXT_REPORTING)
 target_compile_definitions(trun PUBLIC TRUN_HAVE_THREADS)
 target_compile_definitions(trun PUBLIC TRUN_HAVE_FORK)
@@ -149,7 +161,7 @@ target_include_directories(trun PUBLIC ${CMAKE_SOURCE_DIR}/ext/gnklog/src)
 set_property(TARGET trun PROPERTY CXX_STANDARD 20)
 
 # Create unit-test library
-add_library(trun_utests SHARED ${srcfiles} ${testsrc} ${rprtsrcfiles} ${execsrcfiles})
+add_library(trun_utests SHARED ${srcfiles} ${testsrc} ${rprtsrcfiles} ${execsrcfiles} ${ipcsrcfiles})
 target_compile_options(trun_utests PUBLIC -Wno-multichar)
 target_compile_definitions(trun_utests PUBLIC TRUN_HAVE_EXT_REPORTING)
 target_compile_definitions(trun_utests PUBLIC TRUN_HAVE_THREADS)
