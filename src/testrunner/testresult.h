@@ -30,7 +30,7 @@
 
 namespace trun {
 
-    typedef enum {
+    typedef enum : uint8_t {
         kTestResult_Pass = 0,
         kTestResult_TestFail = 1,
         kTestResult_ModuleFail = 2,
