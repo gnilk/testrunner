@@ -109,10 +109,11 @@ static void Help() {
     printf("  -m  <list> List of modules to test (default: '-' (all))\n");
     printf("  -t  <list> List of test cases to test (default: '-' (all))\n");
     printf("  --sequential\n");
-    printf("      Disable any parallel execution of modules and test cases\n");
+    printf("      Disable any parallel execution of modules\n");
     printf("  --module-timeout <sec>\n");
     printf("      Set timeout (in seconds) for forked execution, 0 - infinity (default: 30)\n");
     printf("  --allow-thread-exit\n");
+    printf("      Test cases execution thread will self-terminate on assert/error/fatal\n");
 #ifdef WIN32
     printf("      Allow test-threads to exit, this will switch to native win32 threads\n");
 #else
@@ -223,7 +224,6 @@ static bool ParseArguments(int argc, char **argv) {
                             std::string longArgument = std::string(&argv[i][++j]);
                             if (longArgument == "sequential") {
                                 Config::Instance().moduleExecuteType = trun::ModuleExecutionType::kSequential;
-                                Config::Instance().testExecutionType = trun::TestExecutiontype::kSequential;
                                 goto next_argument;
                             } else if (longArgument == "allow-thread-exit") {
                                 Config::Instance().testExecutionType = trun::TestExecutiontype::kThreadedWithExit;
