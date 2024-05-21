@@ -39,6 +39,11 @@
 #include "reporting/reportjsonext.h"
 #endif
 
+
+#ifdef TRUN_HAVE_THREADS
+#include "IPCBase.h"
+#endif
+
 using namespace trun;
 
 using ReportFactory = std::function<ResultsReportPinterBase *()>;
@@ -55,6 +60,13 @@ static std::map<std::string_view, ReportFactory > reportFactories = {
 };
 
 void ResultSummary::PrintSummary() {
+
+    if (Config::Instance().isSubProcess) {
+        SendResultToParentProc();
+        return;
+    }
+
+
     // strutil mutates the incoming string - let's not do that in this instance...
     auto reportingModule = std::string(Config::Instance().reportingModule);
     trun::to_lower(reportingModule);
@@ -89,20 +101,6 @@ void ResultSummary::ListReportingModules() {
 void ResultSummary::AddResult(const TestFunc::Ref tfunc) {
     auto result = tfunc->Result();
 
-    // FIXME: Once done - move to support function and hide behind some compile directive
-    if(Config::Instance().isSubProcess) {
-        // FIXME: Send to other party!
-        gnilk::IPCFifoUnix ipc;
-        printf("Trying IPC: %s\n", Config::Instance().ipcName.c_str());
-        if (!ipc.ConnectTo(Config::Instance().ipcName)) {
-            return;
-        }
-        char buffer[128];
-        snprintf(buffer, 128, "[%s] - RESULT!", tfunc->CaseName().c_str());
-        ipc.Write(buffer, strlen(buffer));
-        ipc.Close();
-    }
-
 
 #ifdef TRUN_HAVE_THREADS
     std::lock_guard<std::mutex> guard(lock);
@@ -115,8 +113,31 @@ void ResultSummary::AddResult(const TestFunc::Ref tfunc) {
     if (result->Result() != kTestResult_Pass) {
         testsFailed++;
     }
-
 }
+
+void ResultSummary::SendResultToParentProc() {
+    gnilk::IPCFifoUnix ipc;
+    printf("Trying IPC: %s\n", Config::Instance().ipcName.c_str());
+    if (!ipc.ConnectTo(Config::Instance().ipcName)) {
+        return;
+    }
+
+    gnilk::IPCResultMessage msg;
+    msg.header.msgId = gnilk::IPCMessageType::kMsgType_ResultSummary;
+    msg.header.reserved = 0;
+    msg.header.msgHeaderVersion = gnilk::IPCMessageVersion::kMsgVer_Current;
+    msg.header.msgSize = sizeof(msg);   // size incl. header...
+
+
+    msg.summary.testsExecuted = testsExecuted;
+    msg.summary.testsFailed = testsFailed;
+    msg.summary.durationSec = durationSec;
+    msg.numResults = 0;
+
+    ipc.Write(&msg, sizeof(msg));
+    ipc.Close();
+}
+
 
 ResultSummary &ResultSummary::Instance() {
     static ResultSummary glbInstance;

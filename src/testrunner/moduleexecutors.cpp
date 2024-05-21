@@ -279,29 +279,35 @@ bool TestModuleExecutorFork::Execute(const IDynLibrary::Ref &library, const std:
 
     }
 
-    // FIXME: Consolidate output!
-    // Also - I need to derive test-result structures for all tests
-    // Starting to think the forking was the easy part...
-//    pLogger->Debug("Dumping output");
-//    for(auto &p : subProcesses) {
-//        if (!p->WasProcessExecOk()) {
-//            continue;
-//        }
-//        for(auto &s : p->Strings()) {
-//            printf("%s", s.c_str());
-//        }
-//    }
+
+    // Ok, this works - but needs to be formalized...
 
     auto total_duration = std::chrono::duration_cast<std::chrono::seconds>(pclock::now() - tStart).count();
     printf("Total Duration: %d sec\n", (int)total_duration);
     while(ipcServer.Available()) {
-        char buffer[128];
-        auto nRead = ipcServer.Read(buffer,128);
+
+        gnilk::IPCResultMessage msgResult;
+        auto nRead = ipcServer.Read(&msgResult.header, sizeof(msgResult.header));
+        if (nRead != sizeof(msgResult.header)) {
+            printf("IPC Read Error, nRead=%d\n", nRead);
+            break;
+        }
+        printf("header\n");
+        printf("  version: %d\n", msgResult.header.msgHeaderVersion);
+        printf("  type...: %d (0x%.2x)\n", msgResult.header.msgId, msgResult.header.msgId);
+        printf("  size...: %d\n", msgResult.header.msgSize);
+
+        nRead = ipcServer.Read(&msgResult.msgVersion, msgResult.header.msgSize - sizeof(msgResult.header));
         if (nRead < 0) {
             printf("IPC Read Error\n");
             break;
         }
-        printf("%s\n", buffer);
+        // Process message..
+        printf("message\n");
+        printf("  version: %d\n", msgResult.msgVersion);
+        printf("  executed: %d\n", msgResult.summary.testsExecuted);
+        printf("  failed: %d\n", msgResult.summary.testsFailed);
+        printf("  duration: %f\n", msgResult.summary.durationSec);
     }
     ipcServer.Close();
 

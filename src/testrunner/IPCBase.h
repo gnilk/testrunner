@@ -10,6 +10,39 @@
 
 namespace gnilk {
 
+#pragma pack(push,1)
+
+    typedef enum : uint8_t {
+        kMsgType_ResultSummary = 0x80,
+    } IPCMessageType;
+    typedef enum : uint8_t {
+        kMsgVer_Current = 0x01,
+    } IPCMessageVersion;
+
+    struct IPCMsgHeader {
+        uint8_t msgHeaderVersion = 1;
+        uint8_t msgId = 0;
+        uint16_t reserved = 0;
+        uint32_t msgSize = 0;
+    };
+    struct IPCResultSummary {
+        int32_t testsExecuted;
+        int32_t testsFailed;
+        double durationSec;
+    };
+    struct IPCResultTestResult {
+
+    };
+    struct IPCResultMessage {
+        IPCMsgHeader header;        // Must be first in every message
+
+        uint8_t msgVersion = 1;     // Let's add this - so I don't run into problems later on (been there done that)
+        IPCResultSummary summary;
+        uint32_t numResults;
+//    IPCResultTestResult testResults[];  // I want this...
+    };
+#pragma pack(pop)
+
     class IPCBase {
     public:
         using Ref = std::shared_ptr<IPCBase>;

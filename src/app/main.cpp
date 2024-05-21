@@ -70,6 +70,7 @@ gnilk::ILogger *pLogger = nullptr;
 
 static bool isLibraryFound = false;
 static std::optional<uint64_t> ParseNumber(const std::string_view &line);
+static void PrintSummaryIfNeeded();
 
 static void Help() {
 
@@ -425,32 +426,36 @@ int main(int argc, char **argv) {
 
     // Try to flush the logger...
     gnilk::Logger::Consume();
-
     ResultSummary::Instance().durationSec = timer.Sample();
 
-    // Reporting - don't do if we are a sub-process...
-    if (!Config::Instance().isSubProcess) {
-        // FIXME: Put this in a separate function?
-        if (Config::Instance().executeTests) {
-            // This should probably go away - as we want full reporting in headless mode...
-            if (ResultSummary::Instance().testsExecuted > 0) {
-                ResultSummary::Instance().PrintSummary();
-            } else {
-                // This should be made available in the report - in case we are running headless we want this in the JSON
-                // output...
-                if (!isLibraryFound) {
-                    printf("No dynamic library with testable modules/functions found!\n");
-                } else {
-                    printf("Testable modules/functions found but no tests executed (check filters)\n");
-                }
-            }
-        }
-    }
+    PrintSummaryIfNeeded();
 
     // Need to clear this in order to invoke DTOR on scanner as an instance is kept from 'scanlibraries'
     // Would not have been required if the App would have been contained in a class...  anyway...
     librariesToTest.clear();
     return 0;
+}
+
+static void PrintSummaryIfNeeded() {
+    // Did we execute?
+    if (!Config::Instance().executeTests) {
+        return;
+    }
+
+    // This should probably go away - as we want full reporting in headless mode...
+    if (ResultSummary::Instance().testsExecuted > 0) {
+        ResultSummary::Instance().PrintSummary();
+    } else {
+        // This should be made available in the report - in case we are running headless we want this in the JSON
+        // output...
+        if (!isLibraryFound) {
+            printf("No dynamic library with testable modules/functions found!\n");
+        } else {
+            printf("Testable modules/functions found but no tests executed (check filters)\n");
+        }
+    }
+
+
 }
 
 
