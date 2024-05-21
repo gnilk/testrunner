@@ -26,7 +26,7 @@ DLL_EXPORT int test_jsonreport_escape(ITesting *t) {
     assertError.Set(trun::AssertError::kAssert_Error, 0, "dummy.cpp", assertErrMsg);
     result->SetAssertError(assertError);
 
-    tfunc->UTEST_SetMockResultPtr(result);
+    tfunc->SetResultFromSubProcess(result);
 
     // Add this to the global result summary instance
     trun::ResultSummary::Instance().AddResult(tfunc);
