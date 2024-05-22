@@ -120,7 +120,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions);WIN32;_CRT_SECURE_NO_WARNINGS;_LIB;WIN32_MEAN_AND_LEAN;TRUN_HAVE_THREADS</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions);WIN32;_CRT_SECURE_NO_WARNINGS;_LIB;WIN32_MEAN_AND_LEAN;TRUN_HAVE_THREADS</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
@@ -185,7 +185,9 @@
   <ItemGroup>
     <ClCompile Include="..\..\src\testrunner\asserterror.cpp" />
     <ClCompile Include="..\..\src\testrunner\config.cpp" />
-    <ClCompile Include="..\..\src\testrunner\funcexecutors.cpp" />
+    <ClCompile Include="..\..\src\testrunner\funcexecutors.cpp">
+      <ShowIncludes Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ShowIncludes>
+    </ClCompile>
     <ClCompile Include="..\..\src\testrunner\glob.cpp" />
     <ClCompile Include="..\..\src\testrunner\moduleexecutors.cpp" />
     <ClCompile Include="..\..\src\testrunner\reporting\reportconsole.cpp" />
