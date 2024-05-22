@@ -8,12 +8,27 @@ NOTE: This is the V2 branch - currently experimental - it builds of 1.6.3.
 Heavy GOLANG inspired unit test framework for C/C++.
 Currently works on macOS(arm/x86)/Linux/Windows (x86/x64)/embedded(ESP32/NRF52)
 
-# Note on version handling
+# Important changes between 1.6.x and V2.0
+
+## Execution
+Default is parallel execution. The testrunner will determine what modules to execute and then internally spin up
+separate test-runners in parallel to execute the tests. This improves performance (_alot_) for larger projects.
+However, it does limit the ability to debug through through the testrunner. As such - if you write your code in a type
+of TDD fashion you should execute the testrunner with `--sequential` and this will disable the parallel execution.
+
+Testrunner ASSERT macro will not terminate threads. Instead it will return. This assumes that the ASSERT macro is only
+called from within the main-body of the testable code (i.e. the body of `test_module_func`). IF you use the ASSERT macro
+elsewhere - you should run tests with `--allow-thread-exit`. 
+
+## Versions
+Version 2.x introduces new features in the test interface, effectively deprecating the old interface. If you don't want
+to upgrade your unit tests you need to compile your tests with `-D TRUN_USE_V1` to revert back to the old V1 interface.
+
+Old code is still supported (i.e. if you have a local fork of the `testinterface.h`) this will still work properly. 
+
 When you install you will always get the latest version of the `testinterface.h` file. This means if you upgrade from V1.x to V2.x there will 
 be API breaking changes to your tests. However, the testrunner itself can handle both new and old test-interface useage. The old testinterface is still
 available under the name `testinterface_v1.h` and if you compile with `TRUN_USE_V1` it will be used instead of the new version.
-
-Ergo, for old versions add the compile flag `-D TRUN_USE_V1` and you can compile as normal.
 
 # Building
 You need CMake and GCC/Clang or Visual Studio (Windows). Tested with Visual Studio 17 and 19. The Windows version can be built in a 32 or 64 bit mode. Do note that the 32 bit don't support 64 bit DLL's and vice verse. 
@@ -150,8 +165,8 @@ struct ITesting {
     void (*Fatal)(int line, const char *file, const char *format, ...); // Current test, stop library and proceed to next
     void (*Abort)(int line, const char *file, const char *format, ...); // Current test, stop execution
     // Hooks
-    void (*SetPreCaseCallback)(int(*)(ITesting *));     // V2 - introducing ability to abort from pre/post - breaks compatibility
-    void (*SetPostCaseCallback)(int(*)(ITesting *));    // V2 - introducing ability to abort from pre/post - breaks compatibility
+    void (*SetPreCaseCallback)(int(*)(ITesting *));     // V2 - return code for callback, introducing ability to abort from pre/post - breaks compatibility
+    void (*SetPostCaseCallback)(int(*)(ITesting *));    // V2 - return code for callback, introducing ability to abort from pre/post - breaks compatibility
     // Dependency handling
     void (*CaseDepends)(const char *caseName, const char *dependencyList);
     void (*ModuleDepends)(const char *moduleName, const char *dependencyList);      // V2 - ability for modules to depend on other modules
@@ -403,15 +418,16 @@ Options:
   -O  <file> Report final result to this file, use '-' for stdout (default: -)
   -m  <list> List of modules to test (default: '-' (all))
   -t  <list> List of test cases to test (default: '-' (all))
-  --no-threads
-      Disable threaded execution of tests
-  --parallel
-      Enable parallel execution of modules
-  --use-pthreads
-      Use pthread implementation
+  --sequential
+      Disable any parallel execution of modules
+  --module-timeout <sec>
+      Set timeout (in seconds) for forked execution, 0 - infinity (default: 30)
+  --allow-thread-exit
+      Test cases execution thread will self-terminate on assert/error/fatal
 
 Input should be a directory or list of dylib's to be tested, default is current directory ('.')
-Module and test case list can use wild cards, like: -m encode -t json*```
+Module and test case list can use wild cards, like: -m encode -t json*
+```
 
 ### Examples
 Be silent (`-s`) and continue even if a library fails `(-c)` or a global case fails (`-C`), test only cases in library `shared`.
@@ -549,8 +565,9 @@ JSON Format (some results omitted):
 ## v2.0-dev
 - Pre/Post now returns test-result (kTR_xyz), this will cause any previous unit-tests to break compile.
 - Extensions are now supported through function `QueryInterface` in ITesting
-- Threads are now always compiled (except for in embedded) but can be disabled (`--no-threads`)
-- Modules are executed in parallel when (`--parallel`) is specified
+- Modules are executed in parallel as default (`--sequential` to disable)
+- You can specify `--module-timeout` (in seconds) to kill long-running/hanging modules (default is 30sec)
+- Threads don't terminate on ASSERT/ERROR/FATAL, specify `--allow-thread-exit` to enable
 - More stringent, no global test functions except `test_main` and `test_exit` (module main are still `test_<module>`)
 ## v1.6.3
 - Dangling reference could lead to seg-fault when finished
