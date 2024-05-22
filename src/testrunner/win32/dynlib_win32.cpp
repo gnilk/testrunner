@@ -42,7 +42,7 @@
 
 using namespace trun;
 
-static void PrintWin32Error(ILogger *pLogger, char *title) {
+static void PrintWin32Error(gnilk::ILogger *pLogger, char *title) {
     char *msg;
     DWORD err = GetLastError();
     FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
@@ -57,7 +57,7 @@ IDynLibrary::Ref DynLibWin::Create() {
 }
 
 DynLibWin::DynLibWin() {
-    this->pLogger = Logger::GetLogger("DynLibWin");
+    this->pLogger = gnilk::Logger::GetLogger("DynLibWin");
 }
 
 DynLibWin::~DynLibWin() {
@@ -190,23 +190,23 @@ bool DynLibWin::Open() {
 	}
 	assert(header->OptionalHeader.NumberOfRvaAndSizes > 0);
 
-    PIMAGE_EXPORT_DIRECTORY exports = (PIMAGE_EXPORT_DIRECTORY)((BYTE *)lib + header->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress);
+    PIMAGE_EXPORT_DIRECTORY dllexports = (PIMAGE_EXPORT_DIRECTORY)((BYTE *)lib + header->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress);
 
-    if (exports->AddressOfNames == NULL) {
+    if (dllexports->AddressOfNames == NULL) {
         return false;
     }
 
     //assert(exports->AddressOfNames != 0);
-    BYTE** names = (BYTE**)(pLibStart + exports->AddressOfNames);
+    BYTE** names = (BYTE**)(pLibStart + dllexports->AddressOfNames);
 
-	pLogger->Debug("Num Exports: %d", exports->NumberOfNames);
+	pLogger->Debug("Num Exports: %d", dllexports->NumberOfNames);
 
-    for (int i = 0; i < exports->NumberOfNames; i++) {
+    for (DWORD i = 0; i < dllexports->NumberOfNames; i++) {
 		char* ptrName = (char *)((BYTE*)lib + ((DWORD*)names)[i]);
         std::string name(ptrName);
         if (IsValidTestFunc(name)) {
 			pLogger->Debug("[OK] '%s' - valid test func", ptrName);
-			this->exports.push_back(name);
+			exports.push_back(name);
 		}
 		else {
 			pLogger->Debug("[NOK] '%s' invalid test func", ptrName);

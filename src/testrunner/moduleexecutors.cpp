@@ -30,12 +30,14 @@
 #ifdef TRUN_HAVE_THREADS
     #include <thread>
 #endif
+#ifndef WIN32
 #ifdef TRUN_HAVE_FORK
 #include "unix/process.h"
 #include "unix/subprocess.h"
 #include "unix/IPCFifoUnix.h"
 #include "ipc/IPCMessages.h"
 #include "ipc/IPCDecoder.h"
+#endif
 #endif
 
 

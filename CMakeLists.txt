@@ -125,6 +125,8 @@ list(APPEND testsrc src/testrunner/tests/test_testmod.cpp)
 list(APPEND testsrc src/testrunner/tests/test_timer.cpp)
 list(APPEND testsrc src/testv1/test_v1module.cpp)
 
+
+
 # Platform specific
 # Unix = Apple and Linux
 if (UNIX)
@@ -137,6 +139,8 @@ if (UNIX)
     # add mac specific unit test src
     list(APPEND testsrc src/testrunner/tests/test_module_nix.cpp)
     list(APPEND testsrc src/testrunner/tests/test_dirscanner_nix.cpp)
+
+    add_definitions(-DTRUN_HAVE_FORK)
 
     if (APPLE)
         add_definitions(-DAPPLE)
@@ -154,10 +158,10 @@ endif()
 message(STATUS source: ${CMAKE_SOURCE_DIR})
 
 # Create executeable
+# need the target before (or use interfaces)
 add_executable(trun src/app/main.cpp ${srcfiles} ${execsrcfiles} ${rprtsrcfiles} ${ipcsrcfiles})
 target_compile_definitions(trun PUBLIC TRUN_HAVE_EXT_REPORTING)
 target_compile_definitions(trun PUBLIC TRUN_HAVE_THREADS)
-target_compile_definitions(trun PUBLIC TRUN_HAVE_FORK)
 target_compile_definitions(trun PUBLIC TRUN_VERSION="${TRUN_VERSION_STR}")
 target_include_directories(trun PUBLIC ${FMT_HOME}/include)
 target_include_directories(trun PUBLIC ${CMAKE_SOURCE_DIR}/src/testrunner)
@@ -169,7 +173,6 @@ add_library(trun_utests SHARED ${srcfiles} ${testsrc} ${rprtsrcfiles} ${execsrcf
 target_compile_options(trun_utests PUBLIC -Wno-multichar)
 target_compile_definitions(trun_utests PUBLIC TRUN_HAVE_EXT_REPORTING)
 target_compile_definitions(trun_utests PUBLIC TRUN_HAVE_THREADS)
-target_compile_definitions(trun_utests PUBLIC TRUN_HAVE_FORK)
 target_include_directories(trun_utests PUBLIC ${FMT_HOME}/include)
 target_include_directories(trun_utests PUBLIC ${CMAKE_SOURCE_DIR}/src/testrunner)
 target_include_directories(trun_utests PUBLIC ${CMAKE_SOURCE_DIR}/ext/gnklog/src)

@@ -127,7 +127,7 @@ TTo *PtrAdvanceFromTo(void *base) {
 }
 
 void ResultSummary::SendResultToParentProc() {
-#ifdef TRUN_HAVE_THREADS
+#ifdef TRUN_HAVE_FORK
     gnilk::IPCFifoUnix ipc;
 
     // Now, try to connect to the other side...
