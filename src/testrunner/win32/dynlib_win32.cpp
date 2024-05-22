@@ -26,7 +26,7 @@
 
 #include "../dynlib.h"
 #include "../strutil.h"
-#include "../logger.h"
+#include "logger.h"
 
 #include "dynlib_win32.h"
 

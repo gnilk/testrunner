@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../logger.h"
+#include "logger.h"
 #include "../testinterface_internal.h"
 #include "../dynlib.h"
 
