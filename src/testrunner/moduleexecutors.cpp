@@ -12,7 +12,7 @@
  ---------------------------------------------------------------------------
  TO-DO: [ -:Not done, +:In progress, !:Completed]
  <pre>
-   - TextExecutor using 'fork' that spawns the test-runner (hope to solve problem with parallel modules execution causing crashes)
+   ! TextExecutor using 'fork' that spawns the test-runner (hope to solve problem with parallel modules execution causing crashes)
  </pre>
 
  \History
