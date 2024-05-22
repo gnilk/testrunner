@@ -30,6 +30,8 @@ When you install you will always get the latest version of the `testinterface.h`
 be API breaking changes to your tests. However, the testrunner itself can handle both new and old test-interface useage. The old testinterface is still
 available under the name `testinterface_v1.h` and if you compile with `TRUN_USE_V1` it will be used instead of the new version.
 
+*NOTE*: Versioning is not supported on Windows. You must compile with `TRUN_USE_V1`.
+
 # Building
 You need CMake and GCC/Clang or Visual Studio (Windows). Tested with Visual Studio 17 and 19. The Windows version can be built in a 32 or 64 bit mode. Do note that the 32 bit don't support 64 bit DLL's and vice verse. 
 
@@ -57,13 +59,15 @@ You can also run `make -j package` to generate a `.deb` package. Which you can i
 
 ## Windows
 
-Note: V2 is currently untested on Windows.
+Note: V2 should compile (`trunwindows` has been updated and tested on VS 2022) but it has not been tested. Also parallel features are not available on Windows.
 
 Launch a 'Developer Command Prompt' from your Visual Studio installation.
 To build release version: `msbuild ALL_BUILD.vcxproj -p:Configuration=Release`.
-The default will build 64bit with Visual Studio 2019 and 32bit with Visual Studio 2017.
+The default will build 64bit with Visual Studio 2019/2022 and 32bit with Visual Studio 2017.
 
 As Windows don't have a default place to store 3rd party include files you need to copy the `testinterface.h` file somewhere common on your environment. You want to include this file in your unit tests (note: It's optional).
+
+Also, `testinterface` versioning does not work on Windows (relies on `weak` symbols) - instead you must use the old version; always compile your test-code with `-DTRUN_USE_V1`  
 
 ## Embedded
 <b>Only tested with PlatformIO as build system</b>
