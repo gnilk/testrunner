@@ -48,7 +48,9 @@ using namespace trun;
 
 TestModuleExecutorBase &TestModuleExecutorFactory::Create() {
     static TestModuleExecutorSequential sequentialExecutor;
+#ifdef TRUN_HAVE_THREADS
     static TestModuleExecutorParallel parallelExecutor;     // threaded - that's not good for modules!
+#endif
 #ifdef TRUN_HAVE_FORK
     static TestModuleExecutorFork forkExecutor;
 #endif
