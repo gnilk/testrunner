@@ -28,9 +28,6 @@
 
 #include <chrono>
 
-#ifdef TRUN_HAVE_THREADS
-    #include <thread>
-#endif
 #ifndef WIN32
     #ifdef TRUN_HAVE_FORK
         #include "unix/process.h"
@@ -43,6 +40,10 @@
 
 #ifdef WIN32
     #include <process.h>
+#endif
+
+#ifdef TRUN_HAVE_THREADS
+#include <thread>
 #endif
 
 using namespace trun;

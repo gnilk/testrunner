@@ -22,13 +22,9 @@
 #include "responseproxy.h"
 #include "testinterface_internal.h"
 
-#ifdef TRUN_HAVE_THREADS
-    #ifdef WIN32
 
-        #include <Windows.h>
-        #include <crtdefs.h>
-        #include <process.h>
-    #else
+#ifdef TRUN_HAVE_THREADS
+    #ifndef WIN32
         #include <pthread.h>
     #endif
     #include <thread>
@@ -157,6 +153,10 @@ struct ThreadArg {
     TestFuncExecutorParallelPThread *executor;
 };
 
+static void dummy() {
+
+}
+
 int TestFuncExecutorParallel::Execute(TestFunc *testFunc, const CBPrePostHook &cbPreHook, const CBPrePostHook &cbPostHook) {
 
     auto threadArg = ThreadArg {
@@ -168,6 +168,8 @@ int TestFuncExecutorParallel::Execute(TestFunc *testFunc, const CBPrePostHook &c
             .returnValue = -1,
             .executor = nullptr,
     };
+
+    auto mThread = std::thread(dummy);
 
     auto thread = std::thread([this, &threadArg]() {
 
