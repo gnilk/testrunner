@@ -26,7 +26,7 @@ DLL_EXPORT int test_ipcbufwriter_write(ITesting *t) {
 
     auto world = std::string("hello world");
     auto nWritten = bufWriter.Write(world.data(), world.size());
-    TR_ASSERT(t, nWritten == world.size());
+    TR_ASSERT(t, nWritten == (int32_t)world.size());
     printf("Left: %zu\n",bufWriter.Left());
     bufWriter.Flush();
 
