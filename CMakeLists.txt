@@ -144,8 +144,6 @@ if (UNIX)
     list(APPEND testsrc src/testrunner/tests/test_module_nix.cpp)
     list(APPEND testsrc src/testrunner/tests/test_dirscanner_nix.cpp)
 
-    add_definitions(-DTRUN_HAVE_FORK)
-
     if (APPLE)
         add_definitions(-DAPPLE)
     else()
@@ -233,6 +231,8 @@ if (APPLE)
     target_compile_options(trun PUBLIC -Wall -Wpedantic -Wextra -Wno-multichar)
     target_compile_options(trun_utests PUBLIC -Wno-multichar)
 
+    target_compile_definitions(trun PUBLIC -DTRUN_HAVE_FORK)
+
     set(CMAKE_INSTALL_PREFIX /usr/local)
     set(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH} /usr/local/lib /usr/lib/system)
     find_library(COCOA_FRAMEWORK Cocoa)
@@ -264,6 +264,9 @@ elseif (UNIX)
     target_compile_options(trun_utests PUBLIC -Wno-multichar)
     #target_link_libraries(trun dl pthread)
     target_compile_options(trun PUBLIC -Wall -Wpedantic -Wextra -Wno-multichar)
+
+    target_compile_definitions(trun PUBLIC -DTRUN_HAVE_FORK)
+
     list(APPEND platformlibs dl pthread)
 
     include(GNUInstallDirs)

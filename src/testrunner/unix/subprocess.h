@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 #include <chrono>
+#include <thread>
 
 #include "dynlib.h"
 #include "testmodule.h"
