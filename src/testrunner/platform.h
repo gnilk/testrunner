@@ -16,13 +16,14 @@
 //
 
 #if defined(WIN32)
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#include <Windows.h>
-#define DLL_EXPORT __declspec(dllexport)
+	#ifndef WIN32_LEAN_AND_MEAN
+		#define WIN32_LEAN_AND_MEAN
+	#endif
+	#include <Windows.h>
+	#define DLL_EXPORT __declspec(dllexport)
+	#include <process.h>
 #else
-#define DLL_EXPORT
+	#define DLL_EXPORT
 #endif
 
 #endif //TESTRUNNER_PLATFORM_H
