@@ -9,6 +9,7 @@ cmake_minimum_required(VERSION 3.16)
 
 if(WIN32)
 	#set (CMAKE_GENERATOR_PLATFORM  "Visual Studio 15 2017 Win64")
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endif()
 
 project(testrunner)
@@ -52,7 +53,10 @@ set(LOG_HAVE_FMT ON)
 set(LOG_FMT_DIR ${CMAKE_SOURCE_DIR}/ext/fmt)
 
 add_subdirectory(${CMAKE_SOURCE_DIR}/ext/gnklog ${CMAKE_BINARY_DIR}/gnklog)
-target_compile_options(gnklog PUBLIC -fPIC -Wno-unused-parameter)
+# FIXME: this should go into the logger library itself
+if(UNIX)
+    target_compile_options(gnklog PUBLIC -fPIC -Wno-unused-parameter)
+endif()
 
 set_target_properties(gnklog_utest PROPERTIES EXCLUDE_FROM_ALL true)
 list(APPEND extlibs gnklog)
@@ -170,7 +174,6 @@ set_property(TARGET trun PROPERTY CXX_STANDARD 20)
 
 # Create unit-test library
 add_library(trun_utests SHARED ${srcfiles} ${testsrc} ${rprtsrcfiles} ${execsrcfiles} ${ipcsrcfiles})
-target_compile_options(trun_utests PUBLIC -Wno-multichar)
 target_compile_definitions(trun_utests PUBLIC TRUN_HAVE_EXT_REPORTING)
 target_compile_definitions(trun_utests PUBLIC TRUN_HAVE_THREADS)
 target_include_directories(trun_utests PUBLIC ${FMT_HOME}/include)
@@ -228,6 +231,7 @@ include(GNUInstallDirs)
 if (APPLE)
 
     target_compile_options(trun PUBLIC -Wall -Wpedantic -Wextra -Wno-multichar)
+    target_compile_options(trun_utests PUBLIC -Wno-multichar)
 
     set(CMAKE_INSTALL_PREFIX /usr/local)
     set(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH} /usr/local/lib /usr/lib/system)
@@ -257,6 +261,7 @@ elseif (WIN32)
     target_link_libraries(trun)
     target_compile_definitions(trun PUBLIC _CRT_SECURE_NO_WARNINGS)
 elseif (UNIX)
+    target_compile_options(trun_utests PUBLIC -Wno-multichar)
     #target_link_libraries(trun dl pthread)
     target_compile_options(trun PUBLIC -Wall -Wpedantic -Wextra -Wno-multichar)
     list(APPEND platformlibs dl pthread)

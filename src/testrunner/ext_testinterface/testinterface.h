@@ -133,12 +133,14 @@ struct ITestingConfig {
 
 //
 // This symbol is used to determine the version of the header file - DO NOT redefine this!
-// FIXME: Solve for windows...
+// No clue how to achieve this with MSVC
 //
+#ifndef _MSC_VER 
 #ifdef __cplusplus
 extern "C" const uint64_t TRUN_MAGICAL_IF_VERSION  __attribute__ ((weak))  = STR_TO_VER("GNK_0200");
 #else
 const uint64_t TRUN_MAGICAL_IF_VERSION  __attribute__ ((weak))  = STR_TO_VER("GNK_0200");
+#endif
 #endif
 
 

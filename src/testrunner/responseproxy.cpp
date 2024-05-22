@@ -268,6 +268,8 @@ void TestResponseProxy::QueryInterface(uint32_t interface_id, void **outPtr) {
 
 // the ITestingVx inherits from empty ITestingVersioned to allow type checking on various places (alt. would be 'void *)
 // however, while ITestingVersioned is an empty structure I get complaints about anonymous fields not being initialized..
+
+// FIXME: Add ifdef guard to pragma here...
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
 // static private helpers

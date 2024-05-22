@@ -23,12 +23,15 @@
 #include "testinterface_internal.h"
 
 #ifdef TRUN_HAVE_THREADS
-    #include <thread>
     #ifdef WIN32
+
         #include <Windows.h>
+        #include <crtdefs.h>
+        #include <process.h>
     #else
         #include <pthread.h>
     #endif
+    #include <thread>
 #endif
 
 
@@ -166,14 +169,14 @@ int TestFuncExecutorParallel::Execute(TestFunc *testFunc, const CBPrePostHook &c
             .executor = nullptr,
     };
 
-    auto thread = std::thread([this, &threadArg] {
+    auto thread = std::thread([this, &threadArg]() {
 
         TestRunner::SetCurrentTestModule(threadArg.testModule);
         TestRunner::SetCurrentTestRunner(threadArg.testRunner);
 
         threadArg.returnValue = TestFuncExecutorSequential::Execute(threadArg.testFunc, threadArg.cbPreHook, threadArg.cbPostHook);
     });
-
+    
     thread.join();
     return threadArg.returnValue;
 

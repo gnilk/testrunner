@@ -31,15 +31,18 @@
     #include <thread>
 #endif
 #ifndef WIN32
-#ifdef TRUN_HAVE_FORK
-#include "unix/process.h"
-#include "unix/subprocess.h"
-#include "unix/IPCFifoUnix.h"
-#include "ipc/IPCMessages.h"
-#include "ipc/IPCDecoder.h"
-#endif
+    #ifdef TRUN_HAVE_FORK
+        #include "unix/process.h"
+        #include "unix/subprocess.h"
+        #include "unix/IPCFifoUnix.h"
+        #include "ipc/IPCMessages.h"
+        #include "ipc/IPCDecoder.h"
+    #endif
 #endif
 
+#ifdef WIN32
+    #include <process.h>
+#endif
 
 using namespace trun;
 
@@ -187,7 +190,7 @@ bool TestModuleExecutorParallel::Execute(const IDynLibrary::Ref &library, const 
         //       and there we are allowed to use the structured binding...  and I am not versed enough to understand
         //       the exact problem why this is prohibited...
         //
-        auto thread = std::thread([&library, &currentTestRunner, &tmpModule = testModule] {
+        auto thread = std::thread([&library, &currentTestRunner, &tmpModule = testModule] () {
             TestRunner::SetCurrentTestRunner(currentTestRunner);
             TestRunner::SetCurrentTestModule(tmpModule);
             auto result = tmpModule->Execute(library);
