@@ -60,7 +60,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 #include <time.h>
-
+#include <winsock.h>    // struct timeval
 #define strdup _strdup	// bla,bla
 
 #if defined(_MSC_VER) || defined(_MSC_EXTENSIONS)
