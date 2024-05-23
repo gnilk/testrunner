@@ -25,7 +25,7 @@
 #include "testfunc.h"
 #include <assert.h>
 #include <vector>
-
+#include <algorithm>
 #include <chrono>
 
 #ifndef WIN32
