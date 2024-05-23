@@ -2,9 +2,9 @@ name: Build
 
 on:
   push:
-    branches: [ master ]
+    branches: [ trun_v1_main ]
   pull_request:
-    branches: [ master ]
+    branches: [ trun_v1_main ]
 
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
