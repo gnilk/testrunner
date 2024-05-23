@@ -60,6 +60,13 @@ On Linux and macOS you need 'nm' installed - and the development headers - this 
 sudo apt install binutils binutils-dev
 ```
 
+The following libraries are fetched when running cmake:
+* fmtlib (https://github.com/fmtlib/fmt) - fetching version 10.1.1
+* gnklog (https://github.com/gnilk/gnklog) - new logging library which is interface compatible on embedded
+
+<b>Note:</b>
+<b>fmtlib</b> is Copyright (c) 2012 - present, Victor Zverovich and {fmt} contributors. (see: https://github.com/fmtlib/fmt for more details).
+
 ## Apple macOS
 Just run `make; sudo make install`. The binary (trun) will be installed in /usr/local/bin and the testinterface.h in /usr/local/include.
 <b>Note:</b> The macOs version depends on 'nm' (from binutils) when scanning a library for test functions.
@@ -618,6 +625,10 @@ Example output:
 
 # Version history
 ## v2.0-beta
+- Two external dependencies
+  - `gnklog` has replaced the old debug logging library - this is interface compatible with embedded
+  - `fmtlib` is being used, as this is a requirement for `gnklog`
+  - Both libraries are fetched and added to the local source directory by the build script (cmake)
 - Pre/Post now returns test-result (kTR_xyz), this will cause any previous unit-tests to break compile.
 - Extensions are now supported through function `QueryInterface` in ITesting
 - Modules are executed in parallel as default (`--sequential` to disable)
