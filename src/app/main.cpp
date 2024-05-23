@@ -37,9 +37,9 @@
 #include <unistd.h>
 #endif
 
-#include "src/testrunner/logger.h"
-#include "src/testrunner/testrunner.h"
-#include "src/testrunner/dynlib.h"
+#include "logger.h"
+#include "testrunner.h"
+#include "dynlib.h"
 
 
 
@@ -60,12 +60,17 @@
 #include <string>
 #include <regex>
 #include <functional>
+#include <optional>
 
 
 using namespace trun;
-ILogger *pLogger = NULL;
+gnilk::ILogger *pLogger = nullptr;
+
+
 
 static bool isLibraryFound = false;
+static std::optional<uint64_t> ParseNumber(const std::string_view &line);
+static void PrintSummaryIfNeeded();
 
 static void Help() {
 
@@ -93,17 +98,23 @@ static void Help() {
     printf("  -d  Dump configuration before starting\n");
     printf("  -S  Include success pass in summary when done (default: off)\n");
     printf("  -D  Linux Only - disable RTLD_DEEPBIND\n");
-    printf("  -g  Skip library globals (default: off)\n");
     printf("  -G  Skip global main (default: off)\n");
     printf("  -s  Silent, surpress messages from test cases (default: off)\n");
     printf("  -r  Discard return from test case (default: off)\n");
-    printf("  -c  Continue on library failure (default: off)\n");
-    printf("  -C  Continue on total failure (default: off)\n");
+    printf("  -c  Continue on module failure - kTR_FailModule - (default: off)\n");
+    printf("  -C  Continue on total failure - kTR_FailAll -  (default: off)\n");
     printf("  -x  Don't execute tests (default: off)\n");
     printf("  -R  <name> Use reporting library (default: console)\n");
     printf("  -O  <file> Report final result to this file, use '-' for stdout (default: -)\n");
-    printf("  -m <list> List of modules to test (default: '-' (all))\n");
-    printf("  -t <list> List of test cases to test (default: '-' (all))\n");
+    printf("  -m  <list> List of modules to test (default: '-' (all))\n");
+    printf("  -t  <list> List of test cases to test (default: '-' (all))\n");
+    printf("  --sequential\n");
+    printf("      Disable any parallel execution of modules\n");
+    printf("  --module-timeout <sec>\n");
+    printf("      Set timeout (in seconds) for forked execution, 0 - infinity (default: 30)\n");
+    printf("  --allow-thread-exit\n");
+    printf("      Test cases execution thread will self-terminate on assert/error/fatal\n");
+
     printf("\n");
     printf("Input should be a directory or list of dylib's to be tested, default is current directory ('.')\n");
     printf("Module and test case list can use wild cards, like: -m encode -t json*\n");
@@ -127,11 +138,11 @@ static void ParseTestCaseFilters(char *filterstring) {
 
 static void ConfigureLogger() {
     // Setup up logger according to verbose flags
-    Logger::SetAllSinkDebugLevel(Logger::kMCError);
+    gnilk::Logger::SetAllSinkDebugLevel(gnilk::LogLevel::kError);
     if (Config::Instance().verbose > 0) {
-        Logger::SetAllSinkDebugLevel(Logger::kMCInfo);
+        gnilk::Logger::SetAllSinkDebugLevel(gnilk::LogLevel::kInfo);
         if (Config::Instance().verbose > 1) {
-            Logger::SetAllSinkDebugLevel(Logger::kMCDebug);
+            gnilk::Logger::SetAllSinkDebugLevel(gnilk::LogLevel::kDebug);
         }
     }
 }
@@ -141,6 +152,8 @@ static bool ParseArguments(int argc, char **argv) {
 
     bool firstInput = true;
     bool dumpConfig = false;
+
+    Config::Instance().appName = argv[0];
 
     for (int i=1;i<argc;i++) {
         if (argv[i][0]=='-') {
@@ -199,6 +212,39 @@ static bool ParseArguments(int argc, char **argv) {
                     case 'O' :
                         Config::Instance().reportFile = std::string(argv[++i]);
                         goto next_argument;
+                        break;
+                    case '-' :
+                        // Long argument
+                        {
+                            std::string longArgument = std::string(&argv[i][++j]);
+                            if (longArgument == "sequential") {
+                                Config::Instance().moduleExecuteType = trun::ModuleExecutionType::kSequential;
+                                goto next_argument;
+                            } else if (longArgument == "allow-thread-exit") {
+                                Config::Instance().testExecutionType = trun::TestExecutiontype::kThreadedWithExit;
+                                goto next_argument;
+                            } else if (longArgument == "module-timeout") {
+                                auto optNum = ParseNumber(argv[++i]);
+                                if (!optNum.has_value()) {
+                                    fmt::println(stderr, "module-timeout, '{}' not a number", argv[i]);
+                                    Help();
+                                    exit(1);
+                                }
+                                Config::Instance().moduleExecTimeoutSec = optNum.value();
+                                goto next_argument;
+                            } else if (longArgument == "subprocess") {
+                                // HIDDEN (only used internally) - We are started by another trun process
+                                Config::Instance().isSubProcess = true;
+                                goto next_argument;
+                            } else if (longArgument == "ipc-name") {
+                                // HIDDEN (only used internally) - this is the IPC name we should when in a subprocess
+                                Config::Instance().ipcName = argv[++i];
+                                goto next_argument;
+                            }
+                            printf("Unknown long argument: %s\n", longArgument.c_str());
+                            Help();
+                            exit(1);
+                        }
                         break;
                     case '?' :
                     case 'h' :
@@ -293,12 +339,16 @@ static void RunTestsForAllLibraries() {
     for(auto lib : librariesToTest) {
         RunTestsForLibrary(lib);
     }
+    // Once done - let the logger catch up...
+    gnilk::Logger::Consume();
 }
 
 static void RunTestsForLibrary(IDynLibrary::Ref library) {
     TestRunner testRunner(library);
     testRunner.PrepareTests();
-
+    // Since we might be running threads from here - I just want the logger to catch up (flushing it's outgoing queue)
+    // this makes logging and printf statements somewhat aligned...
+    gnilk::Logger::Consume();
     if (Config::Instance().executeTests) {
         pLogger->Debug("Running tests for: %s", library->Name().c_str());
         testRunner.ExecuteTests();
@@ -307,7 +357,7 @@ static void RunTestsForLibrary(IDynLibrary::Ref library) {
 static void DumpTestsForLibrary(IDynLibrary::Ref library) {
     TestRunner testRunner(library);
     testRunner.PrepareTests();
-        printf("=== Library: %s\n", library->Name().c_str());
+        printf("=== Library: %s (%s)\n", library->Name().c_str(), library->GetVersion().AsString().c_str());
     testRunner.DumpTestsToRun();
 }
 
@@ -353,9 +403,17 @@ int main(int argc, char **argv) {
         DumpTestsForAllLibraries();
     }
 
-    printf("--> Start Global\n");
+
+    // Remove this in 'headless' mode...
+    if (!Config::Instance().isSubProcess) {
+        printf("--> Start Global\n");
+    }
+
     RunTestsForAllLibraries();
-    printf("<-- End Global\n");
+
+    if (!Config::Instance().isSubProcess) {
+        printf("<-- End Global\n");
+    }
 
     // Restore stdout - in order for reporting to work...
     if (Config::Instance().suppressProgressMsg) {
@@ -369,25 +427,119 @@ int main(int argc, char **argv) {
         }
     }
 
-    // Reporting
+    // Try to flush the logger...
+    gnilk::Logger::Consume();
     ResultSummary::Instance().durationSec = timer.Sample();
-    if (Config::Instance().executeTests) {
-        // This should probably go away - as we want full reporting in headless mode...
-        if (ResultSummary::Instance().testsExecuted > 0) {
-            ResultSummary::Instance().PrintSummary();
-        } else {
-            // This should be made available in the report - in case we are running headless we want this in the JSON
-            // output...
-            if (!isLibraryFound) {
-                printf("No dynamic library with testable modules/functions found!\n");
-            } else {
-                printf("Testable modules/functions found but no tests executed (check filters)\n");
-            }
-        }
-    }
+
+    PrintSummaryIfNeeded();
 
     // Need to clear this in order to invoke DTOR on scanner as an instance is kept from 'scanlibraries'
     // Would not have been required if the App would have been contained in a class...  anyway...
     librariesToTest.clear();
     return 0;
+}
+
+static void PrintSummaryIfNeeded() {
+    // Did we execute?
+    if (!Config::Instance().executeTests) {
+        return;
+    }
+
+    // This should probably go away - as we want full reporting in headless mode...
+    if (ResultSummary::Instance().testsExecuted > 0) {
+        ResultSummary::Instance().PrintSummary();
+    } else {
+        // This should be made available in the report - in case we are running headless we want this in the JSON
+        // output...
+        if (!isLibraryFound) {
+            printf("No dynamic library with testable modules/functions found!\n");
+        } else {
+            printf("Testable modules/functions found but no tests executed (check filters)\n");
+        }
+    }
+
+
+}
+
+
+// Helper
+static std::optional<uint64_t> ParseNumber(const std::string_view &line) {
+
+    std::string num;
+    auto it = line.begin();
+
+    std::function<bool(const int chr)> isnumber = [](const int chr) -> bool {
+        return std::isdigit(chr);
+    };
+
+    //
+    // We could enhance this with more features normally found in assemblers
+    // $<hex> - for address
+    // #$<hex> - alt. syntax for hex numbers
+    // #<dec>  - alt. syntax for dec numbers
+    //
+    // '#' is a common denominator for numerical values
+    if (*it == '#') {
+        ++it;
+    }
+
+    enum class TNum {
+        Number,
+        NumberHex,
+        NumberBinary,
+        NumberOctal,
+    };
+
+    auto numberType = TNum::Number;
+    if (*it == '0') {
+        num += *it;
+        it++;
+        // Convert number here or during parsing???
+        switch(tolower(*it)) {
+            case 'x' : // hex
+                num += *it;
+                ++it;
+                numberType = TNum::NumberHex;
+                isnumber = [](const int chr) -> bool {
+                    static std::string hexnum = {"abcdef"};
+                    return (std::isdigit(chr) || (hexnum.find(tolower(chr)) != std::string::npos));
+                };
+                break;
+            case 'b' : // binary
+                num += *it;
+                ++it;
+                numberType = TNum::NumberBinary;
+                isnumber = [](const int chr) -> bool {
+                    return (chr=='1' || chr=='0');
+                };
+
+                break;
+            case 'o' : // octal
+                num += *it;
+                ++it;
+                numberType = TNum::NumberOctal;
+                isnumber = [](const int chr) -> bool {
+                    static std::string hexnum = {"01234567"};
+                    return (hexnum.find(tolower(chr)) != std::string::npos);
+                };
+                break;
+            default :
+                if (std::isdigit(*it)) {
+                    fprintf(stderr,"WARNING: Numerical tokens shouldn't start with zero!");
+                }
+                break;
+        }
+    }
+
+    while(it != line.end() && isnumber(*it)) {
+        num += *it;
+        ++it;
+    }
+    if (numberType == TNum::Number) {
+        return {trun::to_int32(num)};
+    } else if (numberType == TNum::NumberHex) {
+        return {uint64_t(trun::hex2dec(num))};
+    }
+
+    return {};
 }

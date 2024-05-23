@@ -7,7 +7,6 @@
 #include "testfunc.h"
 #include "testmodule.h"
 #include "testresult.h"
-#include "testhooks.h"
 #include <string>
 #include <vector>
 #include <map>
@@ -23,7 +22,16 @@ namespace trun {
         void PrepareTests();
         void ExecuteTests();
         void DumpTestsToRun();
-        static TestModule::Ref HACK_GetCurrentTestModule();
+
+        // ITesting can call-us (any time) to set this...
+        void AddDependenciesForModule(const std::string &moduleName, const std::string &dependencyList);
+
+        // These fetch from either thread_local Context or just Context - depending on IF we are compiled with threads or not
+        static void SetCurrentTestModule(TestModule::Ref currentTestModule);
+        static void SetCurrentTestRunner(TestRunner *currentTestRunner);
+        static TestModule::Ref GetCurrentTestModule();
+        static TestRunner *GetCurrentRunner();
+        static TestFunc::Ref CreateTestFunc(const std::string &sym);
 
     private:
         enum class kRunResultAction {
@@ -31,28 +39,25 @@ namespace trun {
             kAbortModule,
             kAbortAll,
         };
+        enum class kRunPrePostHook {
+            kRunPreHook,
+            kRunPostHook,
+        };
 
         bool ExecuteMain();
         bool ExecuteMainExit();
-        bool ExecuteGlobalTests();
         bool ExecuteModuleTests();
-        bool ExecuteModuleTestFuncs(TestModule::Ref testModule);
-        TestResult::Ref ExecuteModuleMain(const TestModule::Ref &testModule);
-        void ExecuteModuleExit(TestModule::Ref testModule);
-        TestResult::Ref ExecuteTest(const TestModule::Ref &testModule, const TestFunc::Ref &testCase);
-        void HandleTestResult(TestResult::Ref result);
-        TestFunc::Ref CreateTestFunc(std::string sym);
-
-
-        kRunResultAction CheckResultIfContinue(const TestResult::Ref &result) const;
-        TestModule::Ref GetOrAddModule(std::string &module);
+        TestModule::Ref GetOrAddModule(const std::string &module);
+        TestModule::Ref ModuleFromName(const std::string &moduleName);
     private:
         kRunResultAction ExecuteTestWithDependencies(const TestModule::Ref &testModule, TestFunc::Ref testCase, std::vector<TestFunc::Ref> &deps);
 
     private:
-        ILogger *pLogger = nullptr;
+        gnilk::ILogger *pLogger = nullptr;
         IDynLibrary::Ref library = nullptr;
         std::map<std::string, TestModule::Ref> testModules;
-        std::vector<TestFunc::Ref> globals;
+        //std::vector<TestFunc::Ref> globals;
+        TestFunc::Ref globalMain = nullptr;
+        TestFunc::Ref globalExit = nullptr;
     };
 }

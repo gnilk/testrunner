@@ -3,23 +3,23 @@
 
 
 #include <string>
-#include "testinterface.h"
+#include "testlibversion.h"
+#include "testinterface_internal.h"
 #include "timer.h"
 #include "logger.h"
 #include "testresult.h"
-#include "testhooks.h"
 #include "asserterror.h"
 
 namespace trun {
 
     class TestResponseProxy {
     public:
-        static TestResponseProxy &Instance();
+        TestResponseProxy() = default;
+        virtual ~TestResponseProxy() = default;
 
-        ITesting *Proxy() { return trp; }
-
-        void Begin(std::string symbolName, std::string moduleName);
+        void Begin(const std::string &symbolName, const std::string &moduleName);
         void End();
+
         double ElapsedTimeInSec();
         int Errors();
         int Asserts();
@@ -38,13 +38,25 @@ namespace trun {
 
         void AssertError(const char *exp, const char *file, const int line);
 
-        void SetPreCaseCallback(TRUN_PRE_POST_HOOK_DELEGATE cbPreCase);
-        void SetPostCaseCallback(TRUN_PRE_POST_HOOK_DELEGATE cbPostCase);
+        void SetPreCaseCallback(const CBPrePostHook &cbPreCase);
+        void SetPostCaseCallback(const CBPrePostHook &cbPostCase);
 
         void CaseDepends(const char *caseName, const char *dependencyList);
+        void ModuleDepends(const char *moduleName, const char *dependencyList);
 
+        void QueryInterface(uint32_t interface_id, void **outPtr);
+
+        // Returns
+        //  ITestingVn  - where V depends on version which is resolved by looking for the TRUN_MAGICAL_IF_VERSION in the shared library...
+        static ITestingVersioned *GetTRTestInterface(const Version &version);
     private:
-        TestResponseProxy();
+        static ITestingConfig *GetTRConfigInterface();
+        void TerminateThreadIfNeeded();
+
+        // Helpers to fetch interface of the correct version
+        static ITestingV1 *GetTRTestInterfaceV1();
+        static ITestingV2 *GetTRTestInterfaceV2();
+
     private:
         Timer timer;
         double tElapsed;
@@ -57,9 +69,7 @@ namespace trun {
 
         std::string symbolName; // current symbol under test
         std::string moduleName; // current library under test
-        ILogger *pLogger;
 
-
-        ITesting *trp;
+        gnilk::ILogger *pLogger = nullptr;
     };
 }

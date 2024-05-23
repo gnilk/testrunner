@@ -5,7 +5,7 @@
 #ifndef TESTRUNNER_TRUNEMBEDDED_H
 #define TESTRUNNER_TRUNEMBEDDED_H
 
-#include "testinterface.h"
+#include "testrunner/testinterface_internal.h"
 #include <string>
 
 namespace trun {

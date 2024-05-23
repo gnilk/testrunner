@@ -17,34 +17,6 @@ Note: Remove any "Logger" references if you just want to use this...
  
  ---------------------------------------------------------------------------*/
 
-/*
-Example:
-	// Without callbacks - will just execute without feedback
-	Process proc("ping");
-	proc.AddArgument("-c %",5);
-	proc.AddArgument("www.google.com");
-	proc.ExecuteAndWait();
-
-
-
-	// Consuming callbacks
-	MyProcCallbacks cb;
-	Process proc("ping");
-	proc.SetCallback(&cb);
-	proc.AddArgument("-c %",5);
-	proc.AddArgument("www.google.com");
-	proc.ExecuteAndWait();
-
-class MyProcCallbacks : public ProcessCallbackBase {
-public:
-	virtual void OnStdOutData(std::string _data) {
-		cout << _data;
-	}
-};
-
-*/
-
-
 #include <stdio.h>
 #include <iostream>
 #include <string.h>
@@ -56,18 +28,19 @@ public:
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <poll.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <stdarg.h>
 
-#include "../logger.h"
+#include "logger.h"
 #include "process.h"
 
 
 using namespace trun;
 
-Process::Process(std::string command) {
-	this->command = command;
-	this->callback = NULL;
+Process::Process(std::string use_command) {
+	command = use_command;
+	callback = nullptr;
 }
 
 Process::~Process() {
@@ -94,7 +67,7 @@ void Process::AddArgument(const char *format, ...) {
 	if (res >= 0) {
 		arguments.push_back(newstr);
 	} else {
-		Logger::GetLogger("Process")->Error("Buffer overflow in AddArgument detected");
+        gnilk::Logger::GetLogger("Process")->Error("Buffer overflow in AddArgument detected");
 	}
 }
 
@@ -104,6 +77,10 @@ bool Process::ExecuteAndWait() {
 	if (!process.SetNonBlocking()) return false;
 	if (!process.Duplicate()) return false;
 	return process.SpawnAndLoop(command, arguments, dynamic_cast<ProcessCallbackBase *>(this));
+}
+
+bool Process::Kill() {
+    return process.Kill();
 }
 
 void Process::OnProcessStarted() {
@@ -128,6 +105,10 @@ void Process::OnStdErrData(std::string data) {
 	}
 }
 
+ProcessExitStatus Process::GetExitStatus() {
+    return process.exitStatus;
+}
+
 //////// -- Unix implementation using 'spawn'
 
 extern char **environ;
@@ -142,7 +123,7 @@ Process_Unix::~Process_Unix() {
 bool Process_Unix::PrepareFileDescriptors() {
 	int status = posix_spawn_file_actions_init(&child_fd_actions);
 	if (status != 0) {
-		Logger::GetLogger("Process_Unix")->Error("posix_spawn_file_actions_init %d, %s", status, strerror(status));
+        gnilk::Logger::GetLogger("Process_Unix")->Error("posix_spawn_file_actions_init %d, %s", status, strerror(status));
 		return false;
 	}
 	return true;
@@ -166,16 +147,24 @@ bool Process_Unix::Duplicate() {
 	// stdout
 	status = posix_spawn_file_actions_adddup2(&child_fd_actions, pipe_stdout[1], 1);
 	if (status) {
-		Logger::GetLogger("Process_Unix")->Error("posix_spawn_file_actions_adddup2 %d, %s", status, strerror(status));
+        gnilk::Logger::GetLogger("Process_Unix")->Error("posix_spawn_file_actions_adddup2 %d, %s", status, strerror(status));
 		return false;
 	}
 	// stderr
 	status = posix_spawn_file_actions_adddup2(&child_fd_actions, pipe_stderr[1], 2);
 	if (status) {
-		Logger::GetLogger("Process_Unix")->Error("posix_spawn_file_actions_adddup2 %d, %s", status, strerror(status));
+        gnilk::Logger::GetLogger("Process_Unix")->Error("posix_spawn_file_actions_adddup2 %d, %s", status, strerror(status));
 		return false;					
 	}
 	return true;
+}
+
+bool Process_Unix::Kill() {
+    int err = kill(pid, SIGKILL);
+    if (err) {
+        return false;
+    }
+    return true;
 }
 
 bool Process_Unix::SpawnAndLoop(std::string command, std::list<std::string> &arguments, ProcessCallbackBase *callback) {
@@ -195,22 +184,22 @@ bool Process_Unix::SpawnAndLoop(std::string command, std::list<std::string> &arg
 
 	int status = posix_spawnp(&pid, command.c_str(), &child_fd_actions, NULL, param, environ);
 	if (status == 0) {
-		Logger::GetLogger("Process_Unix")->Debug("Spawn ok, entering monitoring loop");
+        gnilk::Logger::GetLogger("Process_Unix")->Debug("Spawn ok, entering monitoring loop");
 		callback->OnProcessStarted();
 		while (!IsFinished()) {
 			ConsumePipes(callback);
 		}			
 		// Consume what ever is left after the process exited, perhaps this is enough...
-		while(ConsumePipes(callback)>0);
-		
+		while(ConsumePipes(callback)>0) {}
 
-		Logger::GetLogger("Process_Unix")->Debug("Process loop finished");				
+
+        gnilk::Logger::GetLogger("Process_Unix")->Debug("Process loop finished");
 		callback->OnProcessExit();
 
 		ClosePipe(pipe_stdout);
 		ClosePipe(pipe_stderr);
 	} else {
-		Logger::GetLogger("Process_Unix")->Error("spawn: %d, %s", status, strerror(status));
+        gnilk::Logger::GetLogger("Process_Unix")->Error("spawn: %d, %s", status, strerror(status));
 		return false;
 	}
 	posix_spawn_file_actions_destroy(&child_fd_actions);
@@ -219,15 +208,21 @@ bool Process_Unix::SpawnAndLoop(std::string command, std::list<std::string> &arg
 
 bool Process_Unix::IsFinished() {
 	int status;
-	pid_t result = waitpid(pid, &status, WNOHANG);
+	pid_t result = waitpid(pid, &status, WNOHANG | WUNTRACED);
 	if (result == 0) {
 	  // Child still alive
 	} else if (result == -1) {
 	  // Error 
-		Logger::GetLogger("Process_Unix")->Error("Process error");				
+        gnilk::Logger::GetLogger("Process_Unix")->Error("Process error");
 	} else {
-	  // Child exited
-		Logger::GetLogger("Process_Unix")->Debug("Process exit");				
+	    // Child exited
+        gnilk::Logger::GetLogger("Process_Unix")->Debug("Process exit");
+        if (WIFEXITED(status)) {
+            exitStatus = ProcessExitStatus::kNormal;
+        } else {
+            exitStatus = ProcessExitStatus::kAbnormal;
+        }
+        //int exitCode = WEXITSTATUS(status);
 		return true;
 	}		
 	return false;
@@ -260,7 +255,7 @@ int Process_Unix::ConsumePipes(ProcessCallbackBase *callback) {
 bool Process_Unix::CreatePipe(int *filedes) {
 	int status = pipe(filedes);
 	if (status == -1) {
-		Logger::GetLogger("Process_Unix")->Error("stdout pipe %d, %s", status, strerror(status));
+        gnilk::Logger::GetLogger("Process_Unix")->Error("stdout pipe %d, %s", status, strerror(status));
 		return false;
 	}
 	return true;
@@ -274,12 +269,12 @@ void Process_Unix::ClosePipe(int *filedes) {
 bool Process_Unix::SetNonBlockingPipe(int *filedes) {
 	int status = fcntl(filedes[0], O_NONBLOCK);
 	if (status == -1) {
-		Logger::GetLogger("Process_Unix")->Error("fcntl %d", errno);
+        gnilk::Logger::GetLogger("Process_Unix")->Error("fcntl %d", errno);
 		return false;
 	}
 	status = fcntl(filedes[1], O_NONBLOCK);
 	if (status == -1) {
-		Logger::GetLogger("conapp")->Error("fcntl %d", errno);
+        gnilk::Logger::GetLogger("conapp")->Error("fcntl %d", errno);
 		return false;			
 	}
 	return true;

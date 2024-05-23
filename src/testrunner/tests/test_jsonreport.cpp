@@ -4,7 +4,7 @@
 #include <memory>
 
 #include "../config.h"
-#include "../testinterface.h"
+#include "../testinterface_internal.h"
 #include "../testresult.h"
 #include "../resultsummary.h"
 #include "../reporting/reportjson.h"
@@ -26,7 +26,7 @@ DLL_EXPORT int test_jsonreport_escape(ITesting *t) {
     assertError.Set(trun::AssertError::kAssert_Error, 0, "dummy.cpp", assertErrMsg);
     result->SetAssertError(assertError);
 
-    tfunc->UTEST_SetMockResultPtr(result);
+    tfunc->SetResultFromSubProcess(result);
 
     // Add this to the global result summary instance
     trun::ResultSummary::Instance().AddResult(tfunc);

@@ -16,4 +16,11 @@ namespace trun {
     bool match(const char *string, const char *pattern);
 
     bool caseMatch(const std::string &caseName, const std::vector<std::string> &caseList);
+
+    uint32_t hex2dec(const char *s);
+    uint32_t hex2dec(const std::string &str);
+
+
+    int32_t to_int32(const std::string &str);
+    int32_t to_int32(const char *str);
 }

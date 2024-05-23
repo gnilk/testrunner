@@ -49,7 +49,7 @@ DirScanner::DirScanner() {
 #else
     extensions.push_back(".so");
 #endif
-    pLogger = Logger::GetLogger("DirScanner");
+    pLogger = gnilk::Logger::GetLogger("DirScanner");
 }
 
 

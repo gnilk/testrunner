@@ -10,7 +10,7 @@
 #include <thread>
 #include "../timer.h"
 // using dev-version, instead of install version... self-hosting..
-#include "../testinterface.h"
+#include "ext_testinterface/testinterface.h"
 
 using namespace trun;
 

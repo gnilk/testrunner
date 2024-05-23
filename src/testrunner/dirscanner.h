@@ -9,8 +9,8 @@ namespace trun {
     class DirScanner {
     public:
         DirScanner();
-        std::vector<std::string> &Scan(std::string fromdir, bool recurse) {
-            this->recurse = recurse;
+        std::vector<std::string> &Scan(std::string fromdir, bool use_recurse) {
+            this->recurse = use_recurse;
             DoScan(fromdir);
             return filenames;
         }
@@ -41,7 +41,7 @@ namespace trun {
         }
     private:
         bool recurse;
-        ILogger *pLogger;
+        gnilk::ILogger *pLogger;
         std::vector<std::string> extensions;    // library extensions
         std::vector<std::string> filenames;
     };

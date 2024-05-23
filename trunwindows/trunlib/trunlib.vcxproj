@@ -29,26 +29,26 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>NotSet</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
@@ -120,11 +120,12 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions);WIN32;_CRT_SECURE_NO_WARNINGS;_LIB;WIN32_MEAN_AND_LEAN</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions);WIN32;_CRT_SECURE_NO_WARNINGS;_LIB;WIN32_MEAN_AND_LEAN;TRUN_HAVE_THREADS</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\ext\fmt\include;$(SolutionDir)..\ext\gnklog\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>
@@ -156,8 +157,11 @@
     <ClInclude Include="..\..\src\testrunner\config.h" />
     <ClInclude Include="..\..\src\testrunner\dirscanner.h" />
     <ClInclude Include="..\..\src\testrunner\dynlib_win32.h" />
-    <ClInclude Include="..\..\src\testrunner\logger.h" />
-    <ClInclude Include="..\..\src\testrunner\logger_internal.h" />
+    <ClInclude Include="..\..\src\testrunner\ext_testinterface\testinterface.h" />
+    <ClInclude Include="..\..\src\testrunner\ext_testinterface\testinterface_v1.h" />
+    <ClInclude Include="..\..\src\testrunner\funcexecutors.h" />
+    <ClInclude Include="..\..\src\testrunner\glob.h" />
+    <ClInclude Include="..\..\src\testrunner\moduleexecutors.h" />
     <ClInclude Include="..\..\src\testrunner\platform.h" />
     <ClInclude Include="..\..\src\testrunner\reporting\reportconsole.h" />
     <ClInclude Include="..\..\src\testrunner\reporting\reportingbase.h" />
@@ -168,18 +172,24 @@
     <ClInclude Include="..\..\src\testrunner\strutil.h" />
     <ClInclude Include="..\..\src\testrunner\testfunc.h" />
     <ClInclude Include="..\..\src\testrunner\testinterface.h" />
+    <ClInclude Include="..\..\src\testrunner\testinterface_internal.h" />
+    <ClInclude Include="..\..\src\testrunner\testlibversion.h" />
+    <ClInclude Include="..\..\src\testrunner\testmodule.h" />
     <ClInclude Include="..\..\src\testrunner\testresult.h" />
     <ClInclude Include="..\..\src\testrunner\testrunner.h" />
     <ClInclude Include="..\..\src\testrunner\timer.h" />
+    <ClInclude Include="..\..\src\testrunner\win32\dynlib_win32.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="pch.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\testrunner\asserterror.cpp" />
     <ClCompile Include="..\..\src\testrunner\config.cpp" />
-    <ClCompile Include="..\..\src\testrunner\dirscanner_win32.cpp" />
-    <ClCompile Include="..\..\src\testrunner\dynlib_win32.cpp" />
-    <ClCompile Include="..\..\src\testrunner\logger.cpp" />
+    <ClCompile Include="..\..\src\testrunner\funcexecutors.cpp">
+      <ShowIncludes Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ShowIncludes>
+    </ClCompile>
+    <ClCompile Include="..\..\src\testrunner\glob.cpp" />
+    <ClCompile Include="..\..\src\testrunner\moduleexecutors.cpp" />
     <ClCompile Include="..\..\src\testrunner\reporting\reportconsole.cpp" />
     <ClCompile Include="..\..\src\testrunner\reporting\reportingbase.cpp" />
     <ClCompile Include="..\..\src\testrunner\reporting\reportjson.cpp" />
@@ -188,9 +198,13 @@
     <ClCompile Include="..\..\src\testrunner\resultsummary.cpp" />
     <ClCompile Include="..\..\src\testrunner\strutil.cpp" />
     <ClCompile Include="..\..\src\testrunner\testfunc.cpp" />
+    <ClCompile Include="..\..\src\testrunner\testlibversion.cpp" />
+    <ClCompile Include="..\..\src\testrunner\testmodule.cpp" />
     <ClCompile Include="..\..\src\testrunner\testresult.cpp" />
     <ClCompile Include="..\..\src\testrunner\testrunner.cpp" />
     <ClCompile Include="..\..\src\testrunner\timer.cpp" />
+    <ClCompile Include="..\..\src\testrunner\win32\dirscanner_win32.cpp" />
+    <ClCompile Include="..\..\src\testrunner\win32\dynlib_win32.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
@@ -198,6 +212,11 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="trunlib.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\gnklog\gnklog.vcxproj">
+      <Project>{51a23834-d7c8-4716-9503-a60a2fbcfdab}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

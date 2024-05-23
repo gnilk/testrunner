@@ -3,8 +3,9 @@
 // These tests are specifically for verifying the Rust port of the test-runner
 // they don't test anything internally - they are compiled in and added to the rust project as a binary so..
 //
-#include "../testinterface.h"
-#include "../logger.h"
+#define GNILK_TRUN_CLIENT_IMPL
+#include "ext_testinterface/testinterface.h"
+#include "logger.h"
 #include <functional>
 #include <string.h>
 
@@ -12,6 +13,7 @@ extern "C" {
     DLL_EXPORT int test_rust(ITesting *t);
     DLL_EXPORT int test_rust_exit(ITesting *t);
 
+    DLL_EXPORT int test_rust_assert(ITesting *t);
     DLL_EXPORT int test_rust_fatal(ITesting *t);
     DLL_EXPORT int test_rust_dummy(ITesting *t);
     DLL_EXPORT int test_rust_fail(ITesting *t);
@@ -19,17 +21,17 @@ extern "C" {
     DLL_EXPORT int test_rust_intarg(int value);
 }
 
-using namespace trun;
-
 static void HexDumpWrite(std::function<void(const char *str)> printer, const uint8_t *pData, const size_t szData);
 static void HexDumpToConsole(const void *pData, const size_t szData);
 
 extern "C" {
-    static void rust_pre_case(ITesting *t) {
+    static int rust_pre_case(ITesting *t) {
         printf("\n** rust-pre-case**\n\n");
+        return kTR_Pass;
     }
-    static void rust_post_case(ITesting *t) {
+    static int rust_post_case(ITesting *t) {
         printf("\n**rust-post-case**\n\n");
+        return kTR_Pass;
     }
 }
 
@@ -53,13 +55,17 @@ DLL_EXPORT int test_rust_fatal(ITesting *t) {
 DLL_EXPORT int test_rust_dummy(ITesting *t) {
     printf("test_rust_dummy - Hello from C\n");
     printf("ITesting size=%zu\n",sizeof(ITesting));
-    printf("t = %p\n", t);
-    printf("t->Debug = %p\n", t->Debug);
-    printf("AssertError: =  %p\n", t->AssertError);
+    printf("t = %p\n", (void *)t);
+    printf("t->Debug = %p\n", (void *)t->Debug);
+    printf("AssertError: =  %p\n", (void *)t->AssertError);
     HexDumpToConsole(t, sizeof(ITesting));
-
-    t->AssertError("msg", __FILE__, __LINE__);
-    return 4711;
+    return kTR_Pass;
+}
+DLL_EXPORT int test_rust_assert(ITesting *t) {
+    printf("  test_rust_assert, this should be seen (nothing else)");
+    TR_ASSERT(t, false);
+    printf("  test_rust_assert, this should not be seen\n");
+    return kTR_Pass;
 }
 
 DLL_EXPORT int test_rust_fail(ITesting *t) {

@@ -1,6 +1,22 @@
-//
-// Created by Fredrik Kling on 17.08.22.
-//
+/*-------------------------------------------------------------------------
+ File    : resultsummary.cpp
+ Author  : FKling
+ Version : -
+ Orginal : 2022-08-17
+ Descr   : Result summary and report execution
+
+ Part of testrunner
+ BSD3 License!
+
+ Modified: $Date: $ by $Author: $
+ ---------------------------------------------------------------------------
+ TO-DO: [ -:Not done, +:In progress, !:Completed]
+ <pre>
+ </pre>
+
+ \History
+ - 2022.08.17, FKling, Implementation
+ ---------------------------------------------------------------------------*/
 #include <map>
 #include <functional>
 #include <stdio.h>
@@ -20,10 +36,19 @@
 #include "reporting/reportjsonext.h"
 #endif
 
-using namespace trun;
 
-// Only one instance...
-static ResultSummary *glb_Instance = nullptr;
+#ifdef TRUN_HAVE_THREADS
+#ifndef WIN32
+    #include "unix/IPCFifoUnix.h"
+#endif
+#include "ipc/IPCBase.h"
+#include "ipc/IPCMessages.h"
+#include "ipc/IPCCore.h"
+#include "ipc/IPCBufferedWriter.h"
+#include "ipc/IPCEncoder.h"
+#endif
+
+using namespace trun;
 
 using ReportFactory = std::function<ResultsReportPinterBase *()>;
 
@@ -39,6 +64,12 @@ static std::map<std::string_view, ReportFactory > reportFactories = {
 };
 
 void ResultSummary::PrintSummary() {
+
+    if (Config::Instance().isSubProcess) {
+        SendResultToParentProc();
+        return;
+    }
+
 
     // strutil mutates the incoming string - let's not do that in this instance...
     auto reportingModule = std::string(Config::Instance().reportingModule);
@@ -73,21 +104,62 @@ void ResultSummary::ListReportingModules() {
 
 void ResultSummary::AddResult(const TestFunc::Ref tfunc) {
     auto result = tfunc->Result();
+
+#ifdef TRUN_HAVE_THREADS
+    std::lock_guard<std::mutex> guard(lock);
+#endif
+
     testFunctions.push_back(tfunc);
     results.push_back(result);
 
-    //results.push_back(tfunc->);
-
-    ResultSummary::Instance().testsExecuted++;
+    testsExecuted++;
     if (result->Result() != kTestResult_Pass) {
-        ResultSummary::Instance().testsFailed++;
+        testsFailed++;
     }
-
 }
 
-ResultSummary &ResultSummary::Instance() {
-    if (glb_Instance == nullptr) {
-        glb_Instance = new ResultSummary;
+// Really dislike CPP for 'simple' stuff (add <value>, esi)
+//
+template<typename TTo, typename TFrom>
+TTo *PtrAdvanceFromTo(void *base) {
+    auto toVoid = static_cast<void *>(static_cast<uint8_t *>(base) + sizeof(TFrom));
+    return static_cast<TTo *>(toVoid);
+}
+
+void ResultSummary::SendResultToParentProc() {
+#ifdef TRUN_HAVE_FORK
+    gnilk::IPCFifoUnix ipc;
+
+    // Now, try to connect to the other side...
+    if (!ipc.ConnectTo(Config::Instance().ipcName)) {
+        return;
     }
-    return *glb_Instance;
+
+
+    gnilk::IPCResultSummary summary;
+    summary.testsExecuted = testsExecuted;
+    summary.testsFailed = testsFailed;
+    summary.durationSec = durationSec;
+    // Create the test results objects
+    for(auto res : results) {
+        auto tr = new gnilk::IPCTestResults(res);
+        tr->symbolName = res->SymbolName();
+        // add to the ipc summary
+        summary.testResults.push_back(tr);
+    }
+
+    gnilk::IPCBufferedWriter bufferedWriter(ipc);
+    gnilk::IPCBinaryEncoder encoder(bufferedWriter);
+
+    summary.Marshal(encoder);
+    // Flush and send...
+    bufferedWriter.Flush();
+    ipc.Close();
+#endif
+}
+
+
+ResultSummary &ResultSummary::Instance() {
+    static ResultSummary glbInstance;
+    return glbInstance;
 }

@@ -8,7 +8,7 @@
 #include <string>
 #include "testmodule.h"
 
-#include "../testinterface.h"
+#include "../testinterface_internal.h"
 #include "../strutil.h"
 
 extern "C" {

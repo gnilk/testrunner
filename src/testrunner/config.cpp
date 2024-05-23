@@ -10,16 +10,13 @@
  
  Modified: $Date: $ by $Author: $
  ---------------------------------------------------------------------------
- TODO: [ -:Not done, +:In progress, !:Completed]
+ TO-DO: [ -:Not done, +:In progress, !:Completed]
  <pre>
-
  </pre>
- 
- 
+
  \History
  - 2018.12.21, FKling, Support for test case specification and skipping test_main
  - 2018.10.18, FKling, Implementation
- 
  ---------------------------------------------------------------------------*/
 #include "config.h"
 #include "logger.h"
@@ -36,7 +33,6 @@ Config &Config::Instance() {
 
 Config::Config() {
     // set default
-    verbose = 0;        // Not verbose
     inputs.push_back(".");    // Search current directory
     modules.push_back("-");
     testcases.push_back("-");
@@ -46,34 +42,22 @@ Config::Config() {
     version = "<unknown>";
 #endif
     description = "C/C++ Unit Test Runner";
-    mainFuncName = "main";
-    exitFuncName = "exit";
-    reportingModule = "console";
-    reportFile = "-";
-    reportIndent = 8;
-    executeTests = true;
-    listTests = false;
-    printPassSummary = false;
-    testModuleGlobals = true;
-    testGlobalMain = true;
-    testLogFilter = false;
-    skipOnModuleFail = true;
-    stopOnAllFail = true;
-    suppressProgressMsg = false;
-    discardTestReturnCode = false;
-    linuxUseDeepBinding = true;
-    responseMsgByteLimit = 1024 * 8;
-    
+    testExecutionType = TestExecutiontype::kThreaded;
+    moduleExecuteType = ModuleExecutionType::kParallel;
+
     //
     // Setup logger
     //
-    int logLevel = Logger::kMCDebug;
-	Logger::Initialize();
-	if (logLevel != Logger::kMCNone) {
-		Logger::AddSink(Logger::CreateSink("LogConsoleSink"), "console", 0, NULL);
-	}
-	Logger::SetAllSinkDebugLevel(logLevel);
-    pLogger = Logger::GetLogger("main");
+    auto logLevel = gnilk::LogLevel::kDebug;
+	gnilk::Logger::Initialize();
+	//if (logLevel != gnilk::LogLevel::kNone) {
+        // Note: Console already added
+        //auto consoleSink = gnilk::LogConsoleSink::Create();
+        //gnilk::Logger::AddSink(consoleSink, "Console");
+		//gnilk::Logger::AddSink(gnilk::Logger::CreateSink("LogConsoleSink"), "console", 0, NULL);
+	//}
+	gnilk::Logger::SetAllSinkDebugLevel(logLevel);
+    pLogger = gnilk::Logger::GetLogger("main");
 }
 
 void Config::Dump() {
@@ -94,6 +78,8 @@ void Config::Dump() {
     printf("  Discard test return code: %s\n", discardTestReturnCode?"yes":"no");
     printf("  Reporting module: %s\n", reportingModule.c_str());
     printf("  Reporting indent size: %d\n", reportIndent);
+    printf("  Module execution policy: %s\n", ModuleExecutionTypeToStr(moduleExecuteType).c_str());
+    printf("  Testcase execution policy: %s\n", TestExecutionTypeToStr(testExecutionType).c_str());
     printf("  Modules:\n");
     for(auto x:modules) {
         printf("    %s\n", x.c_str());

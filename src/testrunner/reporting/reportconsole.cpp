@@ -44,12 +44,15 @@ void ResultsReportConsole::PrintFailures(const std::vector<TestResult::Ref> &res
                 fprintf(fout, "Failed:\n");
                 haveHeader = true;
             }
-            printf("  [%c%c%c]: %s",
+            printf("  [%c%c%c]: ",
                    r->Result() == kTestResult_TestFail?'T':'t',
                    r->Result() == kTestResult_ModuleFail?'M':'m',
-                   r->Result() == kTestResult_AllFail?'A':'a',
-                   r->SymbolName().c_str());
+                   r->Result() == kTestResult_AllFail?'A':'a');
 
+            printf("%s", r->SymbolName().c_str());
+            if (r->FailState() != TestResult::kFailState::Main) {
+                printf(" (%s)", r->FailStateName().c_str());
+            }
             if (r->AssertError().isValid) {
                 fprintf(fout, ", %s:%d, %s", r->AssertError().file.c_str(), r->AssertError().line, r->AssertError().message.c_str());
             }

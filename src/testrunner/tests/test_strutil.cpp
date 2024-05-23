@@ -5,7 +5,7 @@
 // using dev-version, instead of install version... self-hosting..
 #include <vector>
 #include <string>
-#include "../testinterface.h"
+#include "ext_testinterface/testinterface.h"
 #include "../strutil.h"
 
 extern "C" {

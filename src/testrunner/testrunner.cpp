@@ -5,30 +5,39 @@
  Orginal : 2018-10-18
  Descr   : Core for running all test cases found within a library (shared library)
 
- 
  Part of testrunner
  BSD3 License!
  
  Modified: $Date: $ by $Author: $
  ---------------------------------------------------------------------------
- TODO: [ -:Not done, +:In progress, !:Completed]
+ TO-DO: [ -:Not done, +:In progress, !:Completed]
  <pre>
-
  </pre>
- 
- 
+
  \History
+ - 2024.04.25, FKling, Huge refactoring, support for parallel module testing
  - 2018.12.21, FKling, Support for test cases and skipping of test_main
  - 2018.10.18, FKling, Implementation
-
- 
  ---------------------------------------------------------------------------*/
+
+/*
+ * To-Do V2
+ * - Module and Func execution according to cmd line lists
+ *   - Sort first => Gives same order per run
+ *   - Filter out the ones to test in the correct order!
+ *   - Note: Modules are currently a hash-map, we need to flatten and sort this before filtering
+ *
+ */
+
+
 #ifdef WIN32
 #include <Windows.h>
 #endif
 
 #include <stdint.h>
 #include <string>
+#include <thread>
+#include <iostream>
 
 #include "dynlib.h"
 #include "strutil.h"
@@ -38,30 +47,44 @@
 #include "resultsummary.h"
 #include "testresult.h"
 #include "timer.h"
-
-//
-// TODO: REFACTOR THIS!!!!!!!!!!!
-// I want access to the current group of function under test from the test-response proxy in order to
-// allow pre/post hooks to be set on a per-library level...   problem is that the modules were implicitly defined
-// in previous version and I really don't have time to properly refactor the code so that modules (lousy name)
-// become a prime citizen...
-
+#include "moduleexecutors.h"
 
 using namespace trun;
 
+// ThreadContext - is initialized per thread context (module/test-case execution)
+struct ThreadContext {
+    TestModule::Ref currentTestModule = nullptr;
+    TestRunner *currentTestRunner = nullptr;
+};
 
-static TestModule::Ref hack_glbCurrentTestModule = NULL;
+#ifdef TRUN_HAVE_THREADS
+static thread_local ThreadContext threadContext;
+#else
+static ThreadContext threadContext;
+#endif
 
-TestModule::Ref TestRunner::HACK_GetCurrentTestModule() {
-    return hack_glbCurrentTestModule;
+//
+// Static helper for accessing the ThreadContext
+//
+TestRunner *TestRunner::GetCurrentRunner() {
+    return threadContext.currentTestRunner;
+}
+TestModule::Ref TestRunner::GetCurrentTestModule() {
+    return threadContext.currentTestModule;
+}
+void TestRunner::SetCurrentTestModule(TestModule::Ref currentTestModule) {
+    threadContext.currentTestModule = currentTestModule;
+}
+void TestRunner::SetCurrentTestRunner(TestRunner *currentTestRunner) {
+    threadContext.currentTestRunner = currentTestRunner;
 }
 
-
-//////--- Ok, let's go...
-
-TestRunner::TestRunner(IDynLibrary::Ref library) {
-    this->library = library;
-    this->pLogger = Logger::GetLogger("TestRunner");
+//
+// Impl. starts here
+//
+TestRunner::TestRunner(IDynLibrary::Ref useLibrary) {
+    library = useLibrary;
+    pLogger = gnilk::Logger::GetLogger("TestRunner");
 }
 
 
@@ -77,31 +100,32 @@ TestRunner::TestRunner(IDynLibrary::Ref library) {
 //  Case  : 'case_a_with_parrot'
 //
 void TestRunner::ExecuteTests() {
-
     // Create and sort tests according to naming convention
-
     Timer t;
     pLogger->Info("Starting library test for: %s", library->Name().c_str());
     t.Reset();
 
-    printf("---> Start Module  \t%s\n", library->Name().c_str());
+    if (!Config::Instance().isSubProcess) {
+        printf("---> Start Module  \t%s\n", library->Name().c_str());
+    }
 
-    // 1) Execute main
+    // Update the thread context with ourselves, we do this directly as it won't change
+    SetCurrentTestRunner(this);
+
+    // Execute...
     if (ExecuteMain()) {
-        // 2) Execute global
-        if (ExecuteGlobalTests()) {
-            // 3) Execute modules
-            ExecuteModuleTests();
-        }
+        ExecuteModuleTests();
         ExecuteMainExit();
     }
 
-    printf("<--- End Module  \t%s\n", library->Name().c_str());
-    pLogger->Info("Module done (%.3f sec)", t.Sample());
+    if (!Config::Instance().isSubProcess) {
+        printf("<--- End Module  \t%s\n", library->Name().c_str());
+        pLogger->Info("Module done (%.3f sec)", t.Sample());
+    }
 }
 
 //
-// Execute main test, false if fail (i.e. return code is 'AllFail')
+// Execute main test for library, false if fail (i.e. return code is 'AllFail')
 //
 bool TestRunner::ExecuteMain() {
     // 1) call test_main which is used to initalized anything shared between tests
@@ -109,292 +133,83 @@ bool TestRunner::ExecuteMain() {
     if (!Config::Instance().testGlobalMain) {
         return bRes;
     }
+    if (globalMain == nullptr) {
+        return bRes;
+    }
 
-    pLogger->Info("Executing Main");
+    pLogger->Info("Executing Global Main");
 
-    for (auto f:globals) {
-        if (f->IsGlobalMain()) {
-            TestResult::Ref result = ExecuteTest(nullptr, f);
-            HandleTestResult(result);
-            if ((result->Result() == kTestResult_AllFail) || (result->Result() == kTestResult_TestFail)) {
-                if (Config::Instance().stopOnAllFail) {
-                    pLogger->Info("Total test failure, aborting");
-                    bRes = false;
-                }
-            }
+    //
+    // Create a dummy test-module here, this is because we treat everything as a test-case and all other cases
+    // belong to a module - so we make that assumption. A module CAN NOT start with '_'...
+    //
+    auto dummy = TestModule::Create("_dummy-main_");
+    SetCurrentTestModule(dummy);
+    TestResult::Ref result = globalMain->Execute(library, {}, {});
+    ResultSummary::Instance().AddResult(globalMain);
+    if ((result->Result() == kTestResult_AllFail) || (result->Result() == kTestResult_TestFail)) {
+        if (Config::Instance().stopOnAllFail) {
+            pLogger->Info("Total test failure, aborting");
+            bRes = false;
         }
     }
+
     pLogger->Info("Done: test main\n\n");
     return bRes;
 }
 
+//
+// Execute exit test for shared library; 'test_exit'
+//
 bool TestRunner::ExecuteMainExit() {
-    // 1) call test_main which is used to initalized anything shared between tests
+
     bool bRes = true;
     if (!Config::Instance().testGlobalMain) {
         return bRes;
     }
+    if (globalExit == nullptr) {
+        return bRes;
+    }
 
-    pLogger->Info("Executing MainExit");
+    pLogger->Info("Executing Global Exit");
 
-    for (auto f:globals) {
-        if (f->IsGlobalExit()) {
-            TestResult::Ref result = ExecuteTest(nullptr, f);
-            HandleTestResult(result);
-            if ((result->Result() == kTestResult_AllFail) || (result->Result() == kTestResult_TestFail)) {
-                if (Config::Instance().stopOnAllFail) {
-                    pLogger->Info("Total test failure, aborting");
-                    bRes = false;
-                }
-            }
+    // Create dummy module (see: ExecuteMain for expl.)
+    auto dummy = TestModule::Create("_dummy-main_");
+    SetCurrentTestModule(dummy);
+
+    TestResult::Ref result = globalExit->Execute(library, {}, {});
+    ResultSummary::Instance().AddResult(globalExit);
+
+    if ((result->Result() == kTestResult_AllFail) || (result->Result() == kTestResult_TestFail)) {
+        if (Config::Instance().stopOnAllFail) {
+            pLogger->Info("Total test failure, aborting");
+            bRes = false;
         }
     }
+
     pLogger->Info("Done: test main exit\n\n");
     return bRes;
 
 }
 
 //
-// Execute any global test but main, returns false on test-fail (ModuleFail/AllFail)
-//
-bool TestRunner::ExecuteGlobalTests() {
-    // 2) all other global scope tests
-    // Filtering in global tests is a bit different as the test func has no library.
-    bool bRes = true;
-    if (!Config::Instance().testModuleGlobals) {
-        return bRes;
-    }
-    pLogger->Info("Executing global tests");
-
-    for (auto f:globals) {
-        if (f->Executed()) {
-            continue;
-        }
-    }
-
-    pLogger->Info("Done: global tests\n\n");
-    return bRes;
-}
-
-//
-// Execute library test
+// Execute all tests in a module
 //
 bool TestRunner::ExecuteModuleTests() {
-    //
-    // 3) all modules, executing according to cmd line library specification
-    //
-    bool bRes = true;
+    SetCurrentTestRunner(this);
     pLogger->Info("Executing library tests");
-
-
-    for (auto &[name, testModule] : testModules) {
-
-        if (!testModule->ShouldExecute()) {
-            // Skip, this is not part of the configured filtered..
-            continue;
-        }
-        // Already executed?
-        if (testModule->Executed()) {
-            pLogger->Debug("Tests for '%s' already executed, skipping",testModule->name.c_str());
-            continue;
-        }
-        // Execute global or if we match the library name
-        pLogger->Info("Executing tests for library: %s", testModule->name.c_str());
-
-        // The library-main should execute here..
-
-        hack_glbCurrentTestModule = testModule;
-        ExecuteModuleTestFuncs(testModule);
-        testModule->bExecuted = true;
-        hack_glbCurrentTestModule = NULL;
-    } // modules
+    auto &executor = TestModuleExecutorFactory::Create();
+    auto res = executor.Execute(library, testModules);
     pLogger->Info("Done: library tests\n\n");
-    return bRes;
-}
-
-bool TestRunner::ExecuteModuleTestFuncs(TestModule::Ref testModule) {
-    bool bRes = true;
-
-    if (Config::Instance().testModuleGlobals) {
-        auto mainResult = ExecuteModuleMain(testModule);
-        if ((mainResult != nullptr) && (mainResult->Result() != kTestResult_Pass)) {
-            return false;
-        }
-    }
-
-    // Resolve dependencies, this is after 'main' has run and they are now configured...
-    testModule->ResolveDependencies();
-
-
-    // Execute dependencies
-    for(auto depFunc : testModule->Dependencies()) {
-        std::vector<TestFunc::Ref> deps = {};
-        auto runResult = ExecuteTestWithDependencies(testModule, depFunc, deps);
-        if (runResult != kRunResultAction::kContinue) {
-            if (runResult == kRunResultAction::kAbortAll) {
-                bRes = false;
-            }
-            goto leave;
-        }
-    }
-
-    // Execute test functions
-    for (auto testFunc: testModule->testFuncs) {
-        if (!testFunc->ShouldExecuteNoDeps()) {
-            continue;
-        }
-
-        std::vector<TestFunc::Ref> deps = {};
-        auto runResult = ExecuteTestWithDependencies(testModule, testFunc, deps);
-        if (runResult != kRunResultAction::kContinue) {
-            if (runResult == kRunResultAction::kAbortAll) {
-                bRes = false;
-            }
-            goto leave;
-        }
-    }
-
-leave:
-    if (Config::Instance().testModuleGlobals) {
-        ExecuteModuleExit(testModule);
-    }
-
-    return bRes;
-}
-
-// Recursive call...
-TestRunner::kRunResultAction TestRunner::ExecuteTestWithDependencies(const TestModule::Ref &testModule, TestFunc::Ref testCase, std::vector<TestFunc::Ref> &deps) {
-
-    if (testCase->Executed()) {
-        return kRunResultAction::kContinue;
-    }
-
-    pLogger->Debug("ExecuteTestWithDependencies: %s", testCase->SymbolName().c_str());
-
-    if (testModule->ResolveDependenciesForTest(deps, testCase)) {
-        for(const auto &depTestCase : deps) {
-            // Is this dependency already executed?
-            if (depTestCase->Executed()) continue;
-
-            // Call ourselves recursively...
-            auto runResultAction = ExecuteTestWithDependencies(testModule, depTestCase, deps);
-            if (runResultAction != kRunResultAction::kContinue) {
-                return runResultAction;
-            }
-        }
-    }
-
-    // Was this test already executed somewhere due to dependency resolution - skip any further execution...
-    if (testCase->Executed()) {
-        return CheckResultIfContinue(testCase->Result());
-    }
-
-    auto testResult = ExecuteTest(testModule, testCase);
-    HandleTestResult(testResult);
-    return CheckResultIfContinue(testResult);
-}
-
-TestRunner::kRunResultAction TestRunner::CheckResultIfContinue(const TestResult::Ref &result) const {
-    if (result->Result() == kTestResult_ModuleFail) {
-        if (Config::Instance().skipOnModuleFail) {
-            pLogger->Info("Module test failure, skipping remaining test cases in library");
-            return kRunResultAction::kAbortModule;
-        } else {
-            pLogger->Info("Module test failure, continue anyway (configuration)");
-        }
-    } else if (result->Result() == kTestResult_AllFail) {
-        if (Config::Instance().stopOnAllFail) {
-            pLogger->Fatal("Total test failure, aborting");
-            return kRunResultAction::kAbortAll;
-        } else {
-            pLogger->Info("Total test failure, continue anyway (configuration)");
-        }
-    }
-    return kRunResultAction::kContinue;
-
-}
-
-// Returns true if testing is to continue false otherwise..
-TestResult::Ref TestRunner::ExecuteModuleMain(const TestModule::Ref &testModule) {
-    if (testModule->mainFunc == nullptr) return nullptr;
-
-    TestResult::Ref result = ExecuteTest(testModule, testModule->mainFunc);
-    if (result == nullptr) {
-        pLogger->Error("Test result for main is NULL!!!");
-        return nullptr;
-    }
-    HandleTestResult(result);
-    return result;
-}
-
-void TestRunner::ExecuteModuleExit(TestModule::Ref testModule) {
-    if (testModule->exitFunc == nullptr) return;
-    // Try call exit function on leave...
-    TestResult::Ref result = ExecuteTest(testModule, testModule->exitFunc);
-    if (result == nullptr) {
-        pLogger->Error("Test result for exit is NULL!!!");
-        return;
-    }
-
-    HandleTestResult(result);
-    if (result->Result() != kTestResult_Pass) {
-        pLogger->Error("Module exit failed");
-    }
-}
-
-
-
-
-//
-// Execute a test function and decorate it
-//
-TestResult::Ref TestRunner::ExecuteTest(const TestModule::Ref &testModule, const TestFunc::Ref &testCase) {
-    printf("=== RUN  \t%s\n",testCase->SymbolName().c_str());
-
-    // Invoke pre-test hook, if set - this is usually done during test_main for a specific library
-    if ((testModule != nullptr) && (testModule->cbPreHook != nullptr)) {
-        testModule->cbPreHook(TestResponseProxy::Instance().Proxy());
-    }
-
-    // Execute the test...
-    TestResult::Ref result = testCase->Execute(library);
-
-    // Invoke post-test hook, if set - this is usually done during test_main for a specific library
-    if ((testModule != nullptr) && (testModule->cbPostHook != nullptr)) {
-        testModule->cbPostHook(TestResponseProxy::Instance().Proxy());
-    }
-
-    ResultSummary::Instance().AddResult(testCase);
-    return result;
+    return res;
 }
 
 //
-// Handle the test result and print decoration
-//
-void TestRunner::HandleTestResult(TestResult::Ref result) {
-    double tElapsedSec = result->ElapsedTimeSec();
-    if (result->Result() != kTestResult_Pass) {
-        if (result->Result() == kTestResult_InvalidReturnCode) {
-            printf("=== INVALID RETURN CODE (%d) for %s", result->Result(), result->SymbolName().c_str());
-        } else {
-            printf("=== FAIL:\t%s, %.3f sec, %d, %d, %d\n",result->SymbolName().c_str(), tElapsedSec, result->Result(), result->Errors(), result->Asserts());
-        }
-    } else {
-        if ((result->Errors() != 0) || (result->Asserts() != 0)) {
-            printf("=== FAIL:\t%s, %.3f sec, %d, %d, %d\n",result->SymbolName().c_str(), tElapsedSec, result->Result(), result->Errors(), result->Asserts());
-        } else {
-            printf("=== PASS:\t%s, %.3f sec, %d\n",result->SymbolName().c_str(),tElapsedSec, result->Result());
-        }
-    }
-    printf("\n");
-}
-
-//
-// PrepareTests, creates test functions and sorts the tests into global and/or library based tests
+// PrepareTests, creates test functions and sorts the tests into global and/or module based tests
 //
 void TestRunner::PrepareTests() {
 
-    pLogger->Info("Prepare tests in library: %s", library->Name().c_str());
+    pLogger->Info("Prepare tests in library: %s (%s)", library->Name().c_str(), library->GetVersion().AsString().c_str());
     for(auto x:library->Exports()) {
 
         TestFunc::Ref func = CreateTestFunc(x);
@@ -416,12 +231,13 @@ void TestRunner::PrepareTests() {
         // The 'TestScope' is a simplification for later
         if (func->IsGlobalMain()) {
             func->SetTestScope(TestFunc::kTestScope::kGlobal);
-            globals.push_back(func);
+            globalMain = func;
         } else if (func->IsGlobalExit()) {
             func->SetTestScope(TestFunc::kTestScope::kGlobal);
-            globals.push_back(func);
+            globalExit = func;
         } else {
-            // These are library functions - and handled differently and with lower priority
+            // These are module functions - and handled differently and with lower priority
+            // Note: the 'GetOrAdd' module will create a module if not found...
             auto tModule = GetOrAddModule(moduleName);
             if (func->IsGlobal()) {
                 func->SetTestScope(TestFunc::kTestScope::kModuleMain);
@@ -432,25 +248,51 @@ void TestRunner::PrepareTests() {
             } else {
                 tModule = GetOrAddModule(moduleName);
                 func->SetTestScope(TestFunc::kTestScope::kModuleCase);
-                tModule->testFuncs.push_back(func);
+                tModule->AddTestFunc(func);
             }
-            // Link them togehter...
-//            if (tModule != nullptr) {
-//                func->SetTestModule(tModule);
-//            }
         }
     }
-
-    // Note: We can't resolve dependencies here as they are configured during library main
-
+    // Note: We can't resolve dependencies here as they are configured during module main
 }
 
-TestModule::Ref TestRunner::GetOrAddModule(std::string &moduleName) {
+//
+// Add dependencies for a module
+// Dependencies are a comma separated list of module names..
+//
+void TestRunner::AddDependenciesForModule(const std::string &moduleName, const std::string &dependencyList) {
+    std::vector<std::string> deplist;
+    trun::split(deplist, dependencyList.c_str(), ',');
+
+    auto tm = ModuleFromName(moduleName);
+    if (tm == nullptr) {
+        pLogger->Error("Module not found; '%s'", moduleName.c_str());
+        return;
+    }
+    for(auto &dep : deplist) {
+        auto mod_dep = ModuleFromName(dep);
+        if (mod_dep == nullptr) {
+            pLogger->Error("Module Dependency not found; '%s'", dep.c_str());
+            continue;
+        }
+        tm->AddDependency(mod_dep);
+    }
+}
+
+TestModule::Ref TestRunner::ModuleFromName(const std::string &moduleName) {
+    if (testModules.find(moduleName) == testModules.end()) {
+        return nullptr;
+    }
+    return testModules[moduleName];
+}
+
+// Returns an existing module or create one, add to the list and returns it...
+TestModule::Ref TestRunner::GetOrAddModule(const std::string &moduleName) {
     TestModule::Ref tModule = nullptr;
-    // Have library with this name????
+
     auto it = testModules.find(moduleName);
     if (it == testModules.end()) {
         tModule = TestModule::Create(moduleName);
+        // Note: Don't filter modules here - as we use this list during 'dry-run'..
         testModules.insert(std::pair<std::string, TestModule::Ref>(moduleName, tModule));
     } else {
         tModule = it->second;
@@ -468,14 +310,14 @@ TestModule::Ref TestRunner::GetOrAddModule(std::string &moduleName) {
 // 'library' - this is the code library you are testing, this can be used to filter out tests from cmd line
 // 'case'   - this is the test case
 //
-TestFunc::Ref TestRunner::CreateTestFunc(std::string symbol) {
+TestFunc::Ref TestRunner::CreateTestFunc(const std::string &symbol) {
     TestFunc::Ref func = nullptr;
 
     std::vector<std::string> funcparts;
     trun::split(funcparts, symbol.c_str(), '_');
 
     if (funcparts.size() == 1) {
-        pLogger->Warning("Bare test function: '%s' (skipping), consider renaming: (test_<library>_<case>)", symbol.c_str());
+        gnilk::Logger::GetLogger("TestRunner")->Warning("Bare test function: '%s' (skipping), consider renaming: (test_<library>_<case>)", symbol.c_str());
         return nullptr;
     } else if (funcparts.size() == 2) {
         func = TestFunc::Create(symbol,"-", funcparts[1]);
@@ -495,6 +337,7 @@ TestFunc::Ref TestRunner::CreateTestFunc(std::string symbol) {
 
     return func;
 }
+
 /*
  This will dump the test in a specific dynamic library
 
@@ -525,18 +368,22 @@ Module 'mod' will  be executed and all of it's functions (main,exit and regular 
 Module 'pure' will be skipped
 
  */
-
 void TestRunner::DumpTestsToRun() {
     int nModules = 0;
     int nTestCases = 0;
 
-    if (!globals.empty()) {
+    // Dump 'test_main' / 'test_exit' (i.e. global main/exit)
+    if ((globalMain != nullptr) || (globalExit != nullptr)){
         printf("%c Globals:\n", Config::Instance().testGlobalMain?'*':'-');
-        for (auto t: globals) {
-            printf("    ::%s (%s)\n", t->CaseName().c_str(), t->SymbolName().c_str());
-            nTestCases++;
+        if (globalMain != nullptr) {
+            printf("    ::%s (%s)\n", globalMain->CaseName().c_str(), globalMain->SymbolName().c_str());
+        }
+        if (globalExit != nullptr) {
+            printf("    ::%s (%s)\n", globalExit->CaseName().c_str(), globalExit->SymbolName().c_str());
         }
     }
+
+    // Dump info for each module...
     for(auto &[moduleName, module] : testModules) {
         bool bExec = module->ShouldExecute();
         printf("%c Module: %s\n",bExec?'*':'-',moduleName.c_str());

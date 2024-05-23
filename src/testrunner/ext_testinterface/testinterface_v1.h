@@ -1,5 +1,5 @@
-#ifndef __GNILK_TEST_INTERFACE_H__
-#define __GNILK_TEST_INTERFACE_H__
+#ifndef TRUN_TEST_INTERFACE_H
+#define TRUN_TEST_INTERFACE_H
 
 #ifdef WIN32
     #ifndef WIN32_LEAN_AND_MEAN
@@ -64,4 +64,4 @@ struct ITesting {
 }
 #endif
 
-#endif // __GNILK_TEST_INTERFACE_H__
+#endif // TRUN_TEST_INTERFACE_H

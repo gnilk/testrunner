@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../logger.h"
-#include "../testinterface.h"
+#include "logger.h"
+#include "../testinterface_internal.h"
 #include "../dynlib.h"
 
 #ifdef WIN32
@@ -41,7 +41,7 @@ namespace trun {
 
         std::string pathName;
         HMODULE hLibrary = NULL;
-        ILogger *pLogger = nullptr;
+        gnilk::ILogger *pLogger = nullptr;
 
         // Set this global variable - for now, so we can resolve relative offsets
         std::vector<std::string> exports;

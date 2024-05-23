@@ -15,7 +15,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\src\testrunner\main.cpp">
+    <ClCompile Include="..\src\app\main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

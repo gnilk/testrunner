@@ -1,11 +1,35 @@
-//
-// Created by gnilk on 11/21/2022.
-//
+/*-------------------------------------------------------------------------
+ File    : timer.cpp
+ Author  : FKling
+ Version : -
+ Orginal : 2022-11-21
+ Descr   : Embedded front end for testrunner..
 
+ Part of testrunner
+ BSD3 License!
+
+ Modified: $Date: $ by $Author: $
+ ---------------------------------------------------------------------------
+ TO-DO: [ -:Not done, +:In progress, !:Completed]
+ <pre>
+ </pre>
+
+ \History
+ - 2022.11.21, FKling, Implementation
+ ---------------------------------------------------------------------------*/
 #include "trunembedded.h"
 #include "testrunner.h"
 #include "embedded/dynlib_embedded.h"
 #include "resultsummary.h"
+/*
+ * TO-DO before releasing V2
+ * ! Remove or at least simplify the logger if using embedded version (need to consider this as I replaced the logger with the new fancy logger)
+ * ! Maybe rewrite a few things - we don't need all bells and whistles from the big test-runner in embedded
+ * - Keep an eye on memory allocations
+ * - Parsing of modules/cases can be simplified (no need to use globbing?)
+ * - Any handling due to multi-threading can go away (this takes away quite a few things)
+ */
+using namespace gnilk;
 
 namespace trun {
     static DynLibEmbedded::Ref dynlib = nullptr;

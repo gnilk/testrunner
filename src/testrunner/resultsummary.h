@@ -3,6 +3,7 @@
 
 #include <map>
 #include <vector>
+#include <mutex>
 #include "testfunc.h"
 #include "testresult.h"
 
@@ -25,7 +26,13 @@ namespace trun {
         int testsExecuted = 0;
         int testsFailed = 0;
         double durationSec = 0.0;
+    protected:
+        void SendResultToParentProc();
+
     private:
+#ifdef TRUN_HAVE_THREADS
+        std::mutex lock;
+#endif
         std::vector<TestResult::Ref> results;
         std::vector<TestFunc::Ref > testFunctions;
         ResultSummary() = default;

@@ -4,7 +4,7 @@
 
 // using dev-version, instead of install version... self-hosting..
 #include "../config.h"
-#include "../testinterface.h"
+#include "../testinterface_internal.h"
 #include "../dynlib.h"
 #include "../unix/dynlib_unix.h"
 
@@ -21,7 +21,7 @@ DLL_EXPORT int test_module(ITesting *t) {
     // Since we are testing the internals we will be linking against
     // the runner configuration instance and affect the global logger etc..
     Config::Instance();
-    Logger::SetAllSinkDebugLevel(Logger::kMCError);
+    gnilk::Logger::SetAllSinkDebugLevel(gnilk::LogLevel::kError);
 
     return kTR_Pass;
 }

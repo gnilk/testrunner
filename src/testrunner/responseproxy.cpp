@@ -15,13 +15,10 @@
  ---------------------------------------------------------------------------
  TO-DO: [ -:Not done, +:In progress, !:Completed]
  <pre>
-
  </pre>
- 
- 
+
  \History
  - 2018.10.18, FKling, Implementation
- 
  ---------------------------------------------------------------------------*/
 #ifdef WIN32
 #include <Windows.h>
@@ -31,7 +28,8 @@
 #include <stdarg.h>
 #endif
 
-#include "testinterface.h"
+#include <string.h>
+#include "testinterface_internal.h"
 #include "responseproxy.h"
 #include "logger.h"
 #include "config.h"
@@ -53,82 +51,77 @@ static void int_trp_error(int line, const char *file, const char *format, ...);
 static void int_trp_fatal(int line, const char *file, const char *format, ...);
 static void int_trp_abort(int line, const char *file, const char *format, ...);
 static void int_trp_assert_error(const char *exp, const char *file, int line);
-static void int_trp_hook_precase(TRUN_PRE_POST_HOOK_DELEGATE cbPreCase);
-static void int_trp_hook_postcase(TRUN_PRE_POST_HOOK_DELEGATE cbPostCase);
+static void int_trp_assert_error_v2(int line, const char *file, const char *exp);
+static void int_trp_hook_precase_v2(TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPreCase);
+static void int_trp_hook_postcase_v2(TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPostCase);
 static void int_trp_casedepend(const char *caseName, const char *dependencyList);
+static void int_trp_moduledepend(const char *moduleName, const char *dependencyList);
+static void int_trp_query_interface(uint32_t interface_id, void **ouPtr);
 
-// Holds a calling proxy per thread
-#ifdef WIN32
-static std::map<DWORD, TestResponseProxy*> trpLookup;
-#else
-static std::map<pthread_t, TestResponseProxy *> trpLookup;
-#endif
+// V1
+static void int_trp_hook_precase_v1(TRUN_PRE_POST_HOOK_DELEGATE_V1 cbPreCase);
+static void int_trp_hook_postcase_v1(TRUN_PRE_POST_HOOK_DELEGATE_V1 cbPostCase);
 
-//
-// GetInstance - returns a test proxy, if one does not exists for the thread one will be allocated
-//
-TestResponseProxy &TestResponseProxy::Instance() {
-    // NOTE: Figure out how this should work
-    //       Where is threading occuring and who owns this
-    //       Currently this function is called from the 'testfunc.cpp' where also threading
-    //       is happening. But that's not quite right. Instead a library should have this in order
-    //       to allow parallell testing of modules but not within modules!
-    //
-    //       [gnilk, 2024-02-27] - Each TestFunc could have an instance of the TestResponseProxy as it is designed today
-    //                             That would allow all (except dependencies) to be executed in parallell..
-    //                             However - that would probably blow up memusage on embedded quite a bit..
-    //
 
-    static TestResponseProxy glbResponseProxy;
-    return glbResponseProxy;
-}
+
+
+// Config interface
+static size_t int_tcfg_list(size_t maxItems, TRUN_ConfigItem *outArray);
+static void int_tcfg_get(const char *key, TRUN_ConfigItem *outValue);
 
 
 //
-TestResponseProxy::TestResponseProxy() {
-    // FIXME: Refactor this once we know how the TestResponseProxy will fit in the whole testing library
-    this->trp = (ITesting *)malloc(sizeof(ITesting));
-    this->trp->Debug = int_trp_debug;
-    this->trp->Info = int_trp_info;
-    this->trp->Warning = int_trp_warning;
-    this->trp->Error = int_trp_error;
-    this->trp->Fatal = int_trp_fatal;
-    this->trp->Abort = int_trp_abort;
-    this->trp->AssertError = int_trp_assert_error;
-    this->trp->SetPreCaseCallback = int_trp_hook_precase;
-    this->trp->SetPostCaseCallback = int_trp_hook_postcase;
-    this->trp->CaseDepends = int_trp_casedepend;
-}
-
-void TestResponseProxy::Begin(std::string symbolName, std::string moduleName) {
-    this->symbolName = symbolName;
-    this->moduleName = moduleName;
+// Setup the test response proxy before a test is invoked
+//
+void TestResponseProxy::Begin(const std::string &use_symbolName, const std::string &use_moduleName) {
+    symbolName = use_symbolName;
+    moduleName = use_moduleName;
     errorCount = 0;
     assertCount = 0;
     testResult = kTestResult_Pass;
-    pLogger = Logger::GetLogger(moduleName.c_str());
+    pLogger = gnilk::Logger::GetLogger("TestResponseProxy");
 
-    // Apply verbose filtering to log output from test cases or not??
-    if (!Config::Instance().testLogFilter) {
-        pLogger->Enable(Logger::kFlags_PassThrough);
-    } else {
-        pLogger->Enable(Logger::kFlags_BlockAll);
-    } 
-    
-
+    // Reset the timer
     timer.Reset();
     assertError.Reset();
 }
 
-double TestResponseProxy::ElapsedTimeInSec() {
-    return tElapsed;
-}
-
+//
+//
+//
 void TestResponseProxy::End() {
     tElapsed = timer.Sample();
-    symbolName.clear();    
-    moduleName.clear();
     pLogger = nullptr;
+}
+
+
+// Consider moving this out of here
+
+ITestingVersioned *TestResponseProxy::GetTRTestInterface(const Version &version) {
+    // First distinguish from major - then if needed we can check minor..
+    switch(version.Major()) {
+        case 1 :
+            return GetTRTestInterfaceV1();
+        case 2 :
+            return GetTRTestInterfaceV2();
+        default:
+            fprintf(stderr, "Critical error, unsupported version: %s\n", version.AsString().c_str());
+            exit(1);
+    }
+    // Never reach...
+}
+
+// Move to other file
+ITestingConfig *TestResponseProxy::GetTRConfigInterface() {
+    static ITestingConfig trp_config_bridge = {
+            .List = int_tcfg_list,
+            .Get = int_tcfg_get,
+    };
+    return &trp_config_bridge;
+}
+
+double TestResponseProxy::ElapsedTimeInSec() {
+    return tElapsed;
 }
 
 int TestResponseProxy::Errors() {
@@ -155,97 +148,169 @@ void TestResponseProxy::Warning(int line, const char *file, std::string message)
 }
 
 //
-// All error functions will abort the running test!!!
+// Note: These function may abort the running thread if threads are enabled (default = yes) and we are using
+// pthreads (--pthreads) or on Windows..
 //
 void TestResponseProxy::Error(int line, const char *file, std::string message) {
-    pLogger->Error("%s:%d:%s", file, line, message.c_str());
+    pLogger->Error("%s:%d\t'%s'", file, line, message.c_str());
+
+    printf("*** GENERAL ERROR: %s:%d\t'%s'\n", file, line, message.c_str());
     this->errorCount++;
     if (testResult < kTestResult_TestFail) {
         testResult = kTestResult_TestFail;
     }
-#ifdef TRUN_HAVE_THREADS
-    #ifdef WIN32
-        TerminateThread(GetCurrentThread(),0);
-    #else
-        pthread_exit(NULL);
-    #endif
-#endif
+    TerminateThreadIfNeeded();
 }
 
 void TestResponseProxy::Fatal(int line, const char *file, std::string message) {
-    pLogger->Critical("%s:%d: %s", file, line, message.c_str());
+    pLogger->Debug("%s:%d:\t'%s'", file, line, message.c_str());
+
+    printf("*** FATAL ERROR: %s:%d\t'%s'\n", file, line, message.c_str());
     this->errorCount++;
     if (testResult < kTestResult_ModuleFail) {
         testResult = kTestResult_ModuleFail;
     }
     assertError.Set(AssertError::kAssert_Fatal, line, file, message);
-
-#ifdef TRUN_HAVE_THREADS
-    #ifdef WIN32
-        TerminateThread(GetCurrentThread(), 0);
-    #else
-        pthread_exit(NULL);
-    #endif
-#endif
+    TerminateThreadIfNeeded();
 }
 
 void TestResponseProxy::Abort(int line, const char *file, std::string message) {
-    pLogger->Fatal("%s:%d: %s", file, line, message.c_str());
+    pLogger->Debug("Abort Error: %s:%d\t'%s'", file, line, message.c_str());
+
+    printf("*** ABORT ERROR: %s:%d\t'%s'\n", file, line, message.c_str());
     this->errorCount++;
     if (testResult < kTestResult_AllFail) {
         testResult = kTestResult_AllFail;
     }
     assertError.Set(AssertError::kAssert_Abort, line, file, message);
-#ifdef TRUN_HAVE_THREADS
-    #ifdef WIN32
-        if (!TerminateThread(GetCurrentThread(), 0)) {
-            pLogger->Error("Terminating thread...\n");
-        }
-    #else
-        pthread_exit(NULL);
-    #endif
-#endif
+    TerminateThreadIfNeeded();
 }
 
 //void (*AssertError)(const char *exp, const char *file, const int line);
 void TestResponseProxy::AssertError(const char *exp, const char *file, const int line) {
-    pLogger->Error("Assert Error: %s:%d\t'%s'", file, line, exp);
+    pLogger->Debug("Assert Error: %s:%d\t'%s'", file, line, exp);
+    printf("*** ASSERT ERROR: %s:%d\t'%s'\n", file, line, exp);
+
     this->assertCount++;
     if (testResult < kTestResult_TestFail) {
         testResult = kTestResult_TestFail;
     }
     assertError.Set(AssertError::kAssert_Error, line, file, exp);
+    TerminateThreadIfNeeded();
+}
+
+// Terminates the running thread if allowed - i.e. you must have 'allowThreadTermination' enabled...
+void TestResponseProxy::TerminateThreadIfNeeded() {
+
+    // FIXME: In case of V1 we should have this enabled - but we don't know the library at this point
 #ifdef TRUN_HAVE_THREADS
-    #ifdef WIN32
-        TerminateThread(GetCurrentThread(), 0);
-    #else
-        pthread_exit(NULL);
-    #endif
+    if (Config::Instance().testExecutionType == TestExecutiontype::kThreadedWithExit) {
+        #ifdef WIN32
+            TerminateThread(GetCurrentThread(), 0);
+        #else
+            pthread_exit(NULL);
+        #endif
+    }
 #endif
+
 }
 
 
-void TestResponseProxy::SetPreCaseCallback(TRUN_PRE_POST_HOOK_DELEGATE cbPreCase) {
-    auto testModule = TestRunner::HACK_GetCurrentTestModule();
+void TestResponseProxy::SetPreCaseCallback(const CBPrePostHook &cbPreCase) {
+    auto testModule = TestRunner::GetCurrentTestModule();
     if (testModule != nullptr) {
         testModule->cbPreHook = cbPreCase;
     }
 }
 
-void TestResponseProxy::SetPostCaseCallback(TRUN_PRE_POST_HOOK_DELEGATE cbPostCase) {
-    auto testModule = TestRunner::HACK_GetCurrentTestModule();
+void TestResponseProxy::SetPostCaseCallback(const CBPrePostHook &cbPostCase) {
+    auto testModule = TestRunner::GetCurrentTestModule();
     if (testModule != nullptr) {
         testModule->cbPostHook = cbPostCase;
     }
 }
 
 void TestResponseProxy::CaseDepends(const char *caseName, const char *dependencyList) {
-    auto testModule = TestRunner::HACK_GetCurrentTestModule();
+    auto testModule = TestRunner::GetCurrentTestModule();
     if (testModule != nullptr) {
-        testModule->SetDependencyForCase(caseName, dependencyList);
+        testModule->AddDependencyForCase(caseName, dependencyList);
     }
 }
 
+// FIXME: Implement
+void TestResponseProxy::ModuleDepends(const char *modName, const char *dependencyList) {
+    auto ptrRunner = TestRunner::GetCurrentRunner();
+
+
+    if (ptrRunner == nullptr) {
+        pLogger->Error("No test runner!");
+        return;
+    }
+    ptrRunner->AddDependenciesForModule(modName, dependencyList);
+}
+
+void TestResponseProxy::QueryInterface(uint32_t interface_id, void **outPtr) {
+    if (outPtr == nullptr) {
+        pLogger->Error("QueryInterface, outPtr is null");
+    }
+
+    switch(interface_id) {
+        case ITestingConfig_IFace_ID :
+            pLogger->Debug("QueryInterface, interface_id = %d, returning TRUN_IConfig", interface_id);
+            *outPtr = (void *)GetTRConfigInterface();
+            break;
+        default :
+            *outPtr = nullptr;
+            pLogger->Debug("QueryInterface, invalid interface id (%d)", interface_id);
+            break;
+    }
+
+}
+
+// the ITestingVx inherits from empty ITestingVersioned to allow type checking on various places (alt. would be 'void *)
+// however, while ITestingVersioned is an empty structure I get complaints about anonymous fields not being initialized..
+
+// FIXME: Add ifdef guard to pragma here...
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
+// static private helpers
+ITestingV1 *TestResponseProxy::GetTRTestInterfaceV1() {
+    static ITestingV1 trp_bridge_v1 = {
+            .Debug = int_trp_debug,
+            .Info = int_trp_info,
+            .Warning = int_trp_warning,
+            .Error = int_trp_error,
+            .Fatal = int_trp_fatal,
+            .Abort = int_trp_abort,
+            .AssertError = int_trp_assert_error,
+            .SetPreCaseCallback = int_trp_hook_precase_v1,
+            .SetPostCaseCallback = int_trp_hook_postcase_v1,
+            .CaseDepends = int_trp_casedepend,
+    };
+    return &trp_bridge_v1;
+}
+ITestingV2 *TestResponseProxy::GetTRTestInterfaceV2() {
+    static ITestingV2 trp_bridge_v2 = {
+            .Debug = int_trp_debug,
+            .Info = int_trp_info,
+            .Warning = int_trp_warning,
+            .Error = int_trp_error,
+            .Fatal = int_trp_fatal,
+            .Abort = int_trp_abort,
+            .AssertError = int_trp_assert_error_v2,
+            .SetPreCaseCallback = int_trp_hook_precase_v2,
+            .SetPostCaseCallback = int_trp_hook_postcase_v2,
+            .CaseDepends = int_trp_casedepend,
+            .ModuleDepends = int_trp_moduledepend,
+            .QueryInterface = int_trp_query_interface,
+    };
+    return &trp_bridge_v2;
+}
+#pragma GCC diagnostic pop
+
+//
+// Trampoline stuff below this point
+//
 
 //
 // wrappers for pure C call's (no this) - only one call per thread allowed.
@@ -280,7 +345,7 @@ void TestResponseProxy::CaseDepends(const char *caseName, const char *dependency
 
 static bool IsMsgSizeOk(uint32_t szbuf) {
     if (szbuf > Config::Instance().responseMsgByteLimit) {
-        auto pLogger = Logger::GetLogger("TestResponseProxy");
+        auto pLogger = gnilk::Logger::GetLogger("TestResponseProxy");
         pLogger->Error("Message buffer exceeds limit (%d bytes), truncating..");
         return false;
     }
@@ -289,46 +354,154 @@ static bool IsMsgSizeOk(uint32_t szbuf) {
 
 static void int_trp_debug(int line, const char *file, const char *format, ...) {
     CREATE_REPORT_STRING()
-    TestResponseProxy::Instance().Debug(line, file, std::string(newstr));
+    TestRunner::GetCurrentTestModule()->GetTestResponseProxy().Debug(line, file, std::string(newstr));
 }
 static void int_trp_info(int line, const char *file, const char *format, ...) {
     CREATE_REPORT_STRING()
-    TestResponseProxy::Instance().Info(line, file, std::string(newstr));
+    TestRunner::GetCurrentTestModule()->GetTestResponseProxy().Info(line, file, std::string(newstr));
 }
 static void int_trp_warning(int line, const char *file, const char *format, ...) {
     CREATE_REPORT_STRING()
-    TestResponseProxy::Instance().Warning(line, file, std::string(newstr));
+    TestRunner::GetCurrentTestModule()->GetTestResponseProxy().Warning(line, file, std::string(newstr));
 }
 static void int_trp_error(int line, const char *file, const char *format, ...) {
     CREATE_REPORT_STRING()
-    TestResponseProxy::Instance().Error(line, file, std::string(newstr));
+    TestRunner::GetCurrentTestModule()->GetTestResponseProxy().Error(line, file, std::string(newstr));
 }
-
 static void int_trp_fatal(int line, const char *file, const char *format, ...) {
     CREATE_REPORT_STRING()
-    TestResponseProxy::Instance().Fatal(line, file, std::string(newstr));
+    TestRunner::GetCurrentTestModule()->GetTestResponseProxy().Fatal(line, file, std::string(newstr));
 }
-
 static void int_trp_abort(int line, const char *file, const char *format, ...) {
     CREATE_REPORT_STRING()
-    TestResponseProxy::Instance().Abort(line,file, std::string(newstr));
+    TestRunner::GetCurrentTestModule()->GetTestResponseProxy().Abort(line, file, std::string(newstr));
+}
+static void int_trp_assert_error(const char *exp, const char *file, int line) {
+    TestRunner::GetCurrentTestModule()->GetTestResponseProxy().AssertError(exp, file, line);
 }
 
-static void int_trp_assert_error(const char *exp, const char *file, int line) {
-    TestResponseProxy::Instance().AssertError(exp, file, line);
+static void int_trp_assert_error_v2(int line, const char *file, const char *exp) {
+    // Just swizzle the arguments back to the old interface..
+    TestRunner::GetCurrentTestModule()->GetTestResponseProxy().AssertError(exp, file, line);
 }
+
 
 #undef CREATE_REPORT_STRING
 
-static void int_trp_hook_precase(TRUN_PRE_POST_HOOK_DELEGATE cbPreCase) {
-    TestResponseProxy::Instance().SetPreCaseCallback(cbPreCase);
+static void int_trp_hook_precase_v2(TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPreCase) {
+    CBPrePostHook hook;
+    hook.cbHookV2 = cbPreCase;
+    TestRunner::GetCurrentTestModule()->GetTestResponseProxy().SetPreCaseCallback(hook);
 }
-
-static void int_trp_hook_postcase(TRUN_PRE_POST_HOOK_DELEGATE cbPostCase) {
-    TestResponseProxy::Instance().SetPostCaseCallback(cbPostCase);
+static void int_trp_hook_postcase_v2(TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPostCase) {
+    CBPrePostHook hook;
+    hook.cbHookV2 = cbPostCase;
+    TestRunner::GetCurrentTestModule()->GetTestResponseProxy().SetPostCaseCallback(hook);
 }
 
 static void int_trp_casedepend(const char *caseName, const char *dependencyList) {
-    TestResponseProxy::Instance().CaseDepends(caseName, dependencyList);
+    TestRunner::GetCurrentTestModule()->GetTestResponseProxy().CaseDepends(caseName, dependencyList);
+}
+static void int_trp_moduledepend(const char *moduleName, const char *dependencyList) {
+    TestRunner::GetCurrentTestModule()->GetTestResponseProxy().ModuleDepends(moduleName, dependencyList);
+}
+static void int_trp_query_interface(uint32_t interface_id, void **outPtr) {
+    TestRunner::GetCurrentTestModule()->GetTestResponseProxy().QueryInterface(interface_id, outPtr);
 }
 
+//
+// V1 trampoline versions
+//
+static void int_trp_hook_precase_v1(TRUN_PRE_POST_HOOK_DELEGATE_V1 cbPreCase) {
+    CBPrePostHook hook;
+    hook.cbHookV1 = cbPreCase;
+    TestRunner::GetCurrentTestModule()->GetTestResponseProxy().SetPreCaseCallback(hook);
+}
+static void int_trp_hook_postcase_v1(TRUN_PRE_POST_HOOK_DELEGATE_V1 cbPostCase) {
+    CBPrePostHook hook;
+    hook.cbHookV1 = cbPostCase;
+    TestRunner::GetCurrentTestModule()->GetTestResponseProxy().SetPostCaseCallback(hook);
+}
+
+
+
+// Taken from another project...
+#define TRUN_ARRAY_LENGTH(x) ((sizeof(x)/sizeof(0[x])) / ((size_t)(!(sizeof(x) % sizeof(0[x])))))
+
+static TRUN_ConfigItem *get_config_items(size_t *nItems) {
+    // This should wrap into the Config::instance instead...
+    static TRUN_ConfigItem glb_Config[] {
+            {
+                    .isValid = true,
+                    .name = "item1",
+                    .value_type = kTRCfgType_Num,
+                    .value {
+                            .num = 1,
+                    }
+            },
+            {
+                    .isValid = true,
+                    .name = "item2",
+                    .value_type = kTRCfgType_Bool,
+                    .value {
+                            .boolean = false,
+                    }
+            },
+            {
+                    .isValid = true,
+                    .name = "discardTestReturnCode",
+                    .value_type = kTRCfgType_Bool,
+                    .value {
+                            .boolean = Config::Instance().discardTestReturnCode,
+                    }
+            },
+            {
+                    .isValid = true,
+                    .name = "item5",
+                    .value_type = kTRCfgType_Num,
+                    .value {
+                            .num = 4711,
+                    }
+            },
+    };
+    if (nItems != NULL) {
+        *nItems = TRUN_ARRAY_LENGTH(glb_Config);
+    }
+    return glb_Config;
+}
+
+////
+static size_t int_tcfg_list(size_t maxItems, TRUN_ConfigItem *outArray) {
+    // Return number of items available
+
+    size_t nGlbItems = 0;
+    auto glb_config = get_config_items(&nGlbItems);
+
+    if (outArray == nullptr) {
+        return nGlbItems;
+    }
+
+    size_t nToCopy = (maxItems<nGlbItems)?maxItems:nGlbItems;
+    for(size_t i=0;i<nToCopy;i++) {
+        outArray[i] = glb_config[i];
+    }
+    return nToCopy;
+}
+
+static void int_tcfg_get(const char *key, TRUN_ConfigItem *outValue) {
+    if (key == nullptr) {
+        return;
+    }
+    if (outValue == nullptr) {
+        return;
+    }
+    // TODO: Implement properly...
+    if (key != std::string("enableThreadTestExecution")) {
+        return;
+    }
+    outValue->isValid = true;
+    strncpy(outValue->name,  "enableThreadTestExecution", TR_CFG_ITEM_NAME_LEN-1);
+    outValue->value_type = kTRCfgType_Bool;
+//    outValue->value.boolean = Config::Instance().enableThreadTestExecution;
+    outValue->value.boolean = true;
+}
