@@ -18,19 +18,34 @@ void SubProcess::Start(const IDynLibrary::Ref &library, TestModule::Ref useModul
     thread = std::thread([this, library, ipcName]() {
         state = SubProcessState::kRunning;
 
+        //
+        // TO-DO
+        //  - Forward certain config settings (like; -G/-D/-r/-c/-C
+        //
+        std::string optionals = {};
+        if (!Config::Instance().testGlobalMain) optionals += "G";
+        if (!Config::Instance().linuxUseDeepBinding) optionals += "D";
+        if (!Config::Instance().skipOnModuleFail) optionals += "c";
+        if (!Config::Instance().stopOnAllFail) optionals += "C";
 
         proc = new Process(Config::Instance().appName);
         proc->SetCallback(&dataHandler);
         name = module->name;
-        proc->AddArgument("--sequential");
-        proc->AddArgument("--subprocess");
-        proc->AddArgument("--ipc-name");
+        if(!optionals.empty()) {
+            optionals = "-" + optionals;
+            proc->AddArgument(optionals);
+        }
+
+        proc->AddArgument("--sequential");  // otherwise we would fork ourselves
+        proc->AddArgument("--subprocess");  // hidden; telling trun it's running as a sub-process
+        proc->AddArgument("--ipc-name");    // hidden; telling trun which IPC FIFO file name it should use
         proc->AddArgument(ipcName);
-        proc->AddArgument("-m");
+        proc->AddArgument("-m");            // Append the module
         proc->AddArgument(module->name);
         proc->AddArgument(library->Name());
         wasProcessExecOk = proc->ExecuteAndWait();
         state = SubProcessState::kFinished;
+        exitStatus = proc->GetExitStatus();
     });
 
 }

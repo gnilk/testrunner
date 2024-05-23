@@ -52,38 +52,48 @@ namespace trun
 		virtual void OnStdErrData([[maybe_unused]] std::string data) {}
 	};
 
-	class Process;
+    enum class ProcessExitStatus {
+        kUnknown,
+        kNormal,
+        kAbnormal,
+    };
 
-	class Process_Unix {
-		friend Process;
-	public:
-		Process_Unix();
-		virtual ~Process_Unix();
-	private:
-		// To be called in this exact order
-		bool PrepareFileDescriptors();
-		bool CreatePipes();
-		bool SetNonBlocking();
-		bool Duplicate();
-		bool SpawnAndLoop(std::string command, std::list<std::string> &arguments, ProcessCallbackBase *callback);
-		int ConsumePipes(ProcessCallbackBase *callback);
-		bool IsFinished();
+    class Process;
 
-		bool Kill();
-		bool CreatePipe(int *pipe);
-		bool SetNonBlockingPipe(int *pipe);
-		void ClosePipe(int *pipe);
-		
-	private:
-		int pipe_stdout[2] = {};
-		int pipe_stderr[2] = {};
-		pid_t pid = {};
-		posix_spawn_file_actions_t child_fd_actions = {};
-		//char **argv;
-	};
+    // Don't use this directly, use 'Process' instead..
+    class Process_Unix {
+        friend Process;
+    public:
+        Process_Unix();
+        virtual ~Process_Unix();
+    private:
+        // To be called in this exact order
+        bool PrepareFileDescriptors();
+        bool CreatePipes();
+        bool SetNonBlocking();
+        bool Duplicate();
+        bool SpawnAndLoop(std::string command, std::list<std::string> &arguments, ProcessCallbackBase *callback);
+        int ConsumePipes(ProcessCallbackBase *callback);
+        bool IsFinished();
+
+        bool Kill();
+        bool CreatePipe(int *pipe);
+        bool SetNonBlockingPipe(int *pipe);
+        void ClosePipe(int *pipe);
+
+    protected:
+        int pipe_stdout[2] = {};
+        int pipe_stderr[2] = {};
+
+        ProcessExitStatus exitStatus = ProcessExitStatus::kUnknown;
+
+        pid_t pid = {};
+        posix_spawn_file_actions_t child_fd_actions = {};
+        //char **argv;
+    };
 
 
-	class Process : ProcessCallbackBase {
+    class Process : ProcessCallbackBase {
 		friend Process_Unix;
 	public:
 		Process(std::string command);
@@ -94,6 +104,7 @@ namespace trun
 		void AddArgument(const char *format, ...);
 		bool ExecuteAndWait();
         bool Kill();
+        ProcessExitStatus GetExitStatus();
 	public:
 		virtual void OnProcessStarted();
 		virtual void OnProcessExit();

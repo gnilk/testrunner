@@ -65,8 +65,8 @@ namespace trun {
         const pclock::time_point StartTime() const {
             return tStart;
         }
-        bool WasProcessExecOk() const {
-            return wasProcessExecOk;
+        ProcessExitStatus GetExitStatus() const {
+            return exitStatus;
         }
         const std::vector<std::string> &Strings() {
             return dataHandler.Data();
@@ -80,7 +80,7 @@ namespace trun {
 
         pclock::time_point tStart;
         SubProcessState state = SubProcessState::kIdle;
-
+        ProcessExitStatus exitStatus;
         bool wasProcessExecOk = false;
     };
 

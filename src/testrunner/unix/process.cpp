@@ -78,6 +78,7 @@ bool Process::ExecuteAndWait() {
 	if (!process.Duplicate()) return false;
 	return process.SpawnAndLoop(command, arguments, dynamic_cast<ProcessCallbackBase *>(this));
 }
+
 bool Process::Kill() {
     return process.Kill();
 }
@@ -102,6 +103,10 @@ void Process::OnStdErrData(std::string data) {
 	if (callback != NULL) {
 		callback->OnStdErrData(data);
 	}
+}
+
+ProcessExitStatus Process::GetExitStatus() {
+    return process.exitStatus;
 }
 
 //////// -- Unix implementation using 'spawn'
@@ -203,15 +208,21 @@ bool Process_Unix::SpawnAndLoop(std::string command, std::list<std::string> &arg
 
 bool Process_Unix::IsFinished() {
 	int status;
-	pid_t result = waitpid(pid, &status, WNOHANG);
+	pid_t result = waitpid(pid, &status, WNOHANG | WUNTRACED);
 	if (result == 0) {
 	  // Child still alive
 	} else if (result == -1) {
 	  // Error 
         gnilk::Logger::GetLogger("Process_Unix")->Error("Process error");
 	} else {
-	  // Child exited
+	    // Child exited
         gnilk::Logger::GetLogger("Process_Unix")->Debug("Process exit");
+        if (WIFEXITED(status)) {
+            exitStatus = ProcessExitStatus::kNormal;
+        } else {
+            exitStatus = ProcessExitStatus::kAbnormal;
+        }
+        //int exitCode = WEXITSTATUS(status);
 		return true;
 	}		
 	return false;
