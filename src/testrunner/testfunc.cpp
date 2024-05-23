@@ -155,6 +155,7 @@ void TestFunc::CreateTestResult(TestResponseProxy &proxy) {
             break;
         default :
             // Unknown
+            testResult->SetFailState(TestResult::kFailState::None);
             break;
     }
     // Should be done last..
