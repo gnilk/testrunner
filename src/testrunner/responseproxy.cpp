@@ -51,6 +51,7 @@ static void int_trp_error(int line, const char *file, const char *format, ...);
 static void int_trp_fatal(int line, const char *file, const char *format, ...);
 static void int_trp_abort(int line, const char *file, const char *format, ...);
 static void int_trp_assert_error(const char *exp, const char *file, int line);
+static void int_trp_assert_error_v2(int line, const char *file, const char *exp);
 static void int_trp_hook_precase_v2(TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPreCase);
 static void int_trp_hook_postcase_v2(TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPostCase);
 static void int_trp_casedepend(const char *caseName, const char *dependencyList);
@@ -296,7 +297,7 @@ ITestingV2 *TestResponseProxy::GetTRTestInterfaceV2() {
             .Error = int_trp_error,
             .Fatal = int_trp_fatal,
             .Abort = int_trp_abort,
-            .AssertError = int_trp_assert_error,
+            .AssertError = int_trp_assert_error_v2,
             .SetPreCaseCallback = int_trp_hook_precase_v2,
             .SetPostCaseCallback = int_trp_hook_postcase_v2,
             .CaseDepends = int_trp_casedepend,
@@ -378,6 +379,12 @@ static void int_trp_abort(int line, const char *file, const char *format, ...) {
 static void int_trp_assert_error(const char *exp, const char *file, int line) {
     TestRunner::GetCurrentTestModule()->GetTestResponseProxy().AssertError(exp, file, line);
 }
+
+static void int_trp_assert_error_v2(int line, const char *file, const char *exp) {
+    // Just swizzle the arguments back to the old interface..
+    TestRunner::GetCurrentTestModule()->GetTestResponseProxy().AssertError(exp, file, line);
+}
+
 
 #undef CREATE_REPORT_STRING
 

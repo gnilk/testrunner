@@ -47,7 +47,7 @@ extern "C" {
 // Note: comparing magic here is quite ok - we can't have a difference!
 #define TR_ASSERT(t, _exp_) \
     if (!(_exp_)) {                                                    \
-        ((ITesting *)t)->AssertError(#_exp_,__FILE__, __LINE__);   \
+        ((ITesting *)t)->AssertError(__LINE__, __FILE__, #_exp_);   \
         return kTR_Fail; \
     }
 
@@ -62,7 +62,7 @@ struct ITesting {
     void (*Fatal)(int line, const char *file, const char *format, ...); // Current test, stop library and proceed to next
     void (*Abort)(int line, const char *file, const char *format, ...); // Current test, stop execution
     // Asserts
-    void (*AssertError)(const char *exp, const char *file, const int line);
+    void (*AssertError)(const int line, const char *file, const char *exp);
     // Hooks - this change leads to compile errors for old unit-tests - is that ok?
     void (*SetPreCaseCallback)(int(*)(ITesting *));         // v2 - must return int - same as test function 'kTR_xxx'
     void (*SetPostCaseCallback)(int(*)(ITesting *));        // v2 - must return int - same as test function 'kTR_xxx'
