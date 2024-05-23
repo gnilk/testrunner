@@ -78,14 +78,14 @@ Just run `make -j; sudo make install`. The binary (trun) will be installed in `/
 You can also run `make -j package` to generate a `.deb` package. Which you can install with `sudo apt install ./testrunner-<version>-Linux.deb`.
 
 ## Windows
-
 <b>Note:</b> V2 should compile (`trunwindows` has been updated and tested on VS 2022) but it has not been tested. Also parallel features are not available on Windows.
 
 Launch a 'Developer Command Prompt' from your Visual Studio installation.
 To build release version: `msbuild ALL_BUILD.vcxproj -p:Configuration=Release`.
 The default will build 64bit with Visual Studio 2019/2022 and 32bit with Visual Studio 2017.
 
-As Windows don't have a default place to store 3rd party include files you need to copy the `testinterface.h` file somewhere common on your environment. You want to include this file in your unit tests (note: It's optional).
+As Windows don't have a default place to store 3rd party include files you need to copy the `testinterface.h` file somewhere common on your environment. 
+You want to include this file in your unit tests (note: It's optional).
 
 Also, `testinterface` versioning does not work on Windows (relies on `weak` symbols) - instead you must use the old version; always compile your test-code with `-DTRUN_USE_V1`  
 
