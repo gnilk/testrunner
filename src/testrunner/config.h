@@ -4,6 +4,7 @@
 #include "logger.h"
 #include <string>
 #include <vector>
+#include <unordered_map>
 //
 //
 //
@@ -19,6 +20,8 @@ namespace trun {
         kThreaded,
         kThreadedWithExit,
     };
+
+
     class Config {
     public:
         static Config &Instance();
@@ -69,5 +72,30 @@ namespace trun {
         gnilk::ILogger *pLogger = nullptr;
     private:
         Config();
+
+        static const std::string &ModuleExecutionTypeToStr(ModuleExecutionType type) {
+            static std::unordered_map<ModuleExecutionType, std::string> type2str = {
+                    {ModuleExecutionType::kSequential, "Sequential"},
+                    {ModuleExecutionType::kParallel, "Parallel"},
+            };
+            static std::string unknown = "unknown";
+            if (type2str.find(type) == type2str.end()) {
+                return unknown;
+            }
+            return type2str[type];
+        }
+        static const std::string &TestExecutionTypeToStr(TestExecutiontype type) {
+            static std::unordered_map<TestExecutiontype, std::string> type2str = {
+                    {TestExecutiontype::kSequential, "Sequential"},
+                    {TestExecutiontype::kThreaded, "Threaded"},
+                    {TestExecutiontype::kThreadedWithExit, "Threaded w. exit allowed"},
+            };
+            static std::string unknown = "unknown";
+            if (type2str.find(type) == type2str.end()) {
+                return unknown;
+            }
+            return type2str[type];
+        }
+
     };
 }

@@ -78,8 +78,8 @@ void Config::Dump() {
     printf("  Discard test return code: %s\n", discardTestReturnCode?"yes":"no");
     printf("  Reporting module: %s\n", reportingModule.c_str());
     printf("  Reporting indent size: %d\n", reportIndent);
-//    printf("  Threaded Test Execution: %s\n", enableThreadTestExecution?"yes":"no");
-//    printf("  Parallel Test Execution: %s\n", enableParallelTestExecution?"yes":"no");
+    printf("  Module execution policy: %s\n", ModuleExecutionTypeToStr(moduleExecuteType).c_str());
+    printf("  Testcase execution policy: %s\n", TestExecutionTypeToStr(testExecutionType).c_str());
     printf("  Modules:\n");
     for(auto x:modules) {
         printf("    %s\n", x.c_str());
