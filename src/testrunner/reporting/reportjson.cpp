@@ -115,7 +115,7 @@ void ResultsReportJSON::PrintTestResult(const TestResult::Ref result) {
     WriteLine(R"("Symbol" : "%s",)", result->SymbolName().c_str());
     WriteLine(R"("DurationSec" : %f,)", result->ElapsedTimeSec());
     if (result->Result() != kTestResult_Pass) {
-        WriteLine(R"("ExecutionState": "%s")", result->FailStateName().c_str());
+        WriteLine(R"("ExecutionState": "%s",)", result->FailStateName().c_str());
     }
 
     if (result->AssertError().isValid) {
