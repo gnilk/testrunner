@@ -3,6 +3,8 @@
 
 C/C++ Unit Test 'Framework'.
 
+Note: This is V1 of the testrunner!
+
 Heavy GOLANG inspired unit test framework for C/C++.
 Currently works on macOS(arm/x86)/Linux/Windows (x86/x64)/embedded(ESP32/NRF52)
 
