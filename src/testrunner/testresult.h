@@ -72,10 +72,13 @@ namespace trun {
             if (failState == kFailState::PreHook) {
                 static const std::string strPreHook = "pre-hook";
                 return strPreHook;
+            } else if (failState == kFailState::PostHook) {
+                static const std::string strPostHook = "post-hook";
+                return strPostHook;
             }
-            // Just call if outside of main
-            static const std::string strPostHook = "post-hook";
-            return strPostHook;
+            static const std::string strMain = "main";
+            return strMain;
+
         }
 
         const class AssertError &AssertError() const { return assertError; };
