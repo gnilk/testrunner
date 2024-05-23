@@ -153,10 +153,6 @@ struct ThreadArg {
     TestFuncExecutorParallelPThread *executor;
 };
 
-static void dummy() {
-
-}
-
 int TestFuncExecutorParallel::Execute(TestFunc *testFunc, const CBPrePostHook &cbPreHook, const CBPrePostHook &cbPostHook) {
 
     auto threadArg = ThreadArg {
@@ -168,8 +164,6 @@ int TestFuncExecutorParallel::Execute(TestFunc *testFunc, const CBPrePostHook &c
             .returnValue = -1,
             .executor = nullptr,
     };
-
-    auto mThread = std::thread(dummy);
 
     auto thread = std::thread([this, &threadArg]() {
 
