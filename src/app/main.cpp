@@ -26,6 +26,8 @@
  
  ---------------------------------------------------------------------------*/
 #ifdef WIN32
+// Disable warning of POSIX deprecated stuff - level 3 => error, and we don't want this..
+#pragma warning(disable : 4996)
 #include <Windows.h>
 #include <io.h>
 // ok, the windows console handling is quite horrible if compared to macOS/Linux...
@@ -230,7 +232,7 @@ static bool ParseArguments(int argc, char **argv) {
                                     Help();
                                     exit(1);
                                 }
-                                Config::Instance().moduleExecTimeoutSec = optNum.value();
+                                Config::Instance().moduleExecTimeoutSec = (uint16_t)optNum.value();
                                 goto next_argument;
                             } else if (longArgument == "subprocess") {
                                 // HIDDEN (only used internally) - We are started by another trun process
