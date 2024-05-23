@@ -286,11 +286,14 @@ bool TestModuleExecutorFork::Execute(const IDynLibrary::Ref &library, const std:
             std::this_thread::yield();
         }
         p->Wait();
-        if (p->WasProcessExecOk()) {
+        if (p->GetExitStatus() == ProcessExitStatus::kNormal) {
             pLogger->Debug("Dumping output");
             for(auto &s : p->Strings()) {
                 printf("%s", s.c_str());
             }
+        } else {
+            pLogger->Error("Process was abnormally terminated!");
+            printf("\nAbnormal termination for '%s'!\n", p->Name().c_str());
         }
 
         pLogger->Debug("%d/%zu - completed", threadDeadCounter, subProcesses.size());
