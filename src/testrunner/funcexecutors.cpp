@@ -49,14 +49,18 @@ TestFuncExecutorBase &TestFuncExecutorFactory::Create(IDynLibrary::Ref library) 
             // In case we are a sub-process, we run in threads anyway  <- should we?
 #ifdef TRUN_HAVE_THREADS
             if (Config::Instance().isSubProcess) {
+                parallelExecutor.SetLibrary(library);
                 return parallelExecutor;
             }
 #endif
+            sequentialExecutor.SetLibrary(library);
             return sequentialExecutor;
 #ifdef TRUN_HAVE_THREADS
         case TestExecutiontype::kThreaded :
+            parallelExecutor.SetLibrary(library);
             return parallelExecutor;
         case TestExecutiontype::kThreadedWithExit :
+            parallelExecutorPThread.SetLibrary(library);
             return parallelExecutorPThread;
 #endif
         default:
@@ -64,6 +68,7 @@ TestFuncExecutorBase &TestFuncExecutorFactory::Create(IDynLibrary::Ref library) 
             break;
     }
     // Always available
+    sequentialExecutor.SetLibrary(library);
     return sequentialExecutor;
 }
 
@@ -99,8 +104,7 @@ int TestFuncExecutorSequential::Execute(TestFunc *testFunc, const CBPrePostHook 
 
     auto &proxy = currentModule->GetTestResponseProxy();
 
-    // Test-case pre function
-    // FIXME: this can be done better
+    // Test-case pre function, note: cbPreHook is a union of funcptrs - doesn't matter which one I check against!
     if (cbPreHook.cbHookV1 != nullptr) {
         // Note: in case of threaded test execution, we this will terminate on error - we need to disable thread here OR we need to actually thread pre/post as well
         testFunc->ChangeExecState(TestFunc::kExecState::PreCallback);
@@ -118,16 +122,20 @@ int TestFuncExecutorSequential::Execute(TestFunc *testFunc, const CBPrePostHook 
     int testReturnCode = testFunc->InvokeTestCase(proxy);
 
 
-    // Test-case post function
-
-    // FIXME: this can be done better
+    // Test-case post function, note cbPostHook is a union of funcptrs - doesn't matter which one we check
     if (cbPostHook.cbHookV1 != nullptr) {
         testFunc->ChangeExecState(TestFunc::kExecState::PostCallback);
         int postHookReturnCode = InvokeHook(cbPostHook);
         //int postHookReturnCode = cbPostHook((ITestingV2 *)TestResponseProxy::GetTRTestInterface());
         if (postHookReturnCode != kTR_Pass) {
-            testReturnCode = postHookReturnCode;
+            return postHookReturnCode;
         }
+    }
+
+    // IF the thread is terminated - this won't matter - we will be in the correct state
+    // However, IF post-hook is successful - but main function failed - we have changed the state and should change it back..
+    if (testReturnCode != kTR_Pass) {
+        testFunc->ChangeExecState(TestFunc::kExecState::Main);
     }
 
     return testReturnCode;
