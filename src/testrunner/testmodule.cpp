@@ -89,9 +89,7 @@ static kMatchResult TestCaseMatch(std::vector<TestFunc::Ref> &outMatches, const 
     for (auto &testFunc: caseList) {
         if (tcPattern == "-") {
             outMatches.push_back(testFunc);
-            continue;
-        }
-        if (tcPattern[0]=='!') {
+        } else if (tcPattern[0]=='!') {
             auto negTC = tcPattern.substr(1);
             auto isMatch = trun::match(testFunc->CaseName(), negTC);
             if (isMatch) {
@@ -99,18 +97,16 @@ static kMatchResult TestCaseMatch(std::vector<TestFunc::Ref> &outMatches, const 
                 //executeFlag = 0;
                 outMatches.push_back(testFunc);
                 result = kMatchResult::NegativeSingle;
-                goto leave;
             }
         } else {
             auto isMatch = trun::match(testFunc->CaseName(), tcPattern);
             if (isMatch) {
                 outMatches.push_back(testFunc);
                 result = kMatchResult::Single;
-                goto leave;
             }
         }
     }
-    leave:
+
     return result;
 }
 
