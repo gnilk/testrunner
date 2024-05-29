@@ -50,7 +50,7 @@ void SubProcess::Start(const IDynLibrary::Ref &library, TestModule::Ref useModul
 
 }
 void SubProcess::Wait() {
-    if (state != SubProcessState::kFinished) {
+    if ((state == SubProcessState::kRunning) && thread.joinable()) {
         thread.join();
     }
     module->ChangeState(TestModule::kState::Finished);
