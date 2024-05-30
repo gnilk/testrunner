@@ -6,6 +6,8 @@
 #define TESTRUNNER_ASSERTERROR_H
 
 #include <string>
+#include <stdint.h>
+
 namespace trun {
     class AssertError {
     public:
