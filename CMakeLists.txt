@@ -253,9 +253,11 @@ if (APPLE)
     # add the old interfaces here..
     install(FILES "src/testrunner/ext_testinterface/testinterface_v1.h" TYPE INCLUDE)
 
-    file(ARCHIVE_CREATE OUTPUT trun.1.gz PATHS "${PROJECT_SOURCE_DIR}/docs/trun.manpage" FORMAT raw COMPRESSION GZip)
-    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/trun.1.gz TYPE MAN RENAME "man1/trun.1.gz")
-
+    if (${CMAKE_VERSION} VERSION_LESS "3.18.0")
+    else ()
+        file(ARCHIVE_CREATE OUTPUT trun.1.gz PATHS "${PROJECT_SOURCE_DIR}/docs/trun.manpage" FORMAT raw COMPRESSION GZip)
+        install(FILES ${CMAKE_CURRENT_BINARY_DIR}/trun.1.gz TYPE MAN RENAME "man1/trun.1.gz")
+    endif()
 
 elseif (WIN32)
     target_link_libraries(trun)
@@ -278,7 +280,6 @@ elseif (UNIX)
 
     #message(STATUS ${PROJECT_SOURCE_DIR})
     # generate .gz version of our manfile - this must be done specifically as the 'install' command won't do it for you
-    file(ARCHIVE_CREATE OUTPUT trun.1.gz PATHS "${PROJECT_SOURCE_DIR}/docs/trun.manpage" FORMAT raw COMPRESSION GZip)
 
     install(TARGETS trun RUNTIME DESTINATION bin)
     install(TARGETS trunlib LIBRARY)
@@ -289,7 +290,11 @@ elseif (UNIX)
     # let's install this - as type 'MAN' (/usr/share/man) and rename it to the correct director (/usr/share/man/man1/trun.1.gz)
     # not sure if this is the same across all distros - but without it - it will be placed in the 'man' root..
     # documentation about this is more than a little sparse - funny - as in principle - every bloody thing should come with a man-page...
-    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/trun.1.gz TYPE MAN RENAME "man1/trun.1.gz")
+    if (${CMAKE_VERSION} VERSION_LESS "3.18.0")
+    else ()
+        file(ARCHIVE_CREATE OUTPUT trun.1.gz PATHS "${PROJECT_SOURCE_DIR}/docs/trun.manpage" FORMAT raw COMPRESSION GZip)
+        install(FILES ${CMAKE_CURRENT_BINARY_DIR}/trun.1.gz TYPE MAN RENAME "man1/trun.1.gz")
+    endif()
 
     message(STATUS "Linux target - setting up CPACK")
 
