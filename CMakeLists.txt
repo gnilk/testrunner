@@ -40,7 +40,7 @@ endif ()
 
 if (NOT EXISTS ${CMAKE_SOURCE_DIR}/ext/fmt)
     message(WARNING "Installing fmt library")
-    execute_process(COMMAND git clone --depth 1 --branch 10.1.1 https://github.com/fmtlib/fmt ${CMAKE_SOURCE_DIR}/ext/fmt)
+    execute_process(COMMAND git clone --depth 1 --branch 10.2.1 https://github.com/fmtlib/fmt ${CMAKE_SOURCE_DIR}/ext/fmt)
 endif()
 
 set(FMT_HOME ${CMAKE_SOURCE_DIR}/ext/fmt)
