@@ -104,25 +104,26 @@ IPCDeserializer *IPCTestResults::GetDeserializerForObject(uint8_t idObject) {
 }
 
 bool IPCAssertError::Marshal(IPCEncoderBase &encoder) const {
+    auto &aerr = assertError.Errors().front();
     encoder.BeginObject(kMsgType_AssertError);
-    encoder.WriteU8(assertError.assertClass);
-    encoder.WriteStr(assertError.file);
-    encoder.WriteI32(assertError.line);
-    encoder.WriteStr(assertError.message);
+    encoder.WriteU8(aerr.assertClass);
+    encoder.WriteStr(aerr.file);
+    encoder.WriteI32(aerr.line);
+    encoder.WriteStr(aerr.message);
     encoder.EndObject();
     return true;
 }
 bool IPCAssertError::Unmarshal(IPCDecoderBase &decoder) {
+    trun::AssertError::AssertErrorItem item;
     uint8_t assertClass;
     decoder.ReadU8(assertClass);
-    assertError.assertClass = static_cast<trun::AssertError::kAssertClass>(assertClass);
+    item.assertClass = static_cast<trun::AssertError::kAssertClass>(assertClass);
 
-    decoder.ReadStr(assertError.file);
-    decoder.ReadI32(assertError.line);
-    decoder.ReadStr(assertError.message);
+    decoder.ReadStr(item.file);
+    decoder.ReadI32(item.line);
+    decoder.ReadStr(item.message);
 
-    // If here, it is valid - we simply just don't serialize this one..
-    assertError.isValid = true;
+    assertError.Add(item);
 
     return true;
 }

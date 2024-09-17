@@ -59,6 +59,7 @@ namespace trun {
         bool suppressProgressMsg = false;
         bool discardTestReturnCode = false;
         bool linuxUseDeepBinding = true;       // Causes dlopen to use RTLD_DEEPBIND
+        bool continueOnAssert = false;
 
         // Default is parallel for v2
         TestExecutiontype testExecutionType = TestExecutiontype::kThreaded;

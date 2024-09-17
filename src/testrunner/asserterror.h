@@ -7,6 +7,7 @@
 
 #include <string>
 #include <stdint.h>
+#include <vector>
 
 namespace trun {
     class AssertError {
@@ -17,27 +18,51 @@ namespace trun {
             kAssert_Fatal,
         } kAssertClass;
 
+        struct AssertErrorItem {
+            kAssertClass assertClass;
+            int line = 0;
+            std::string file;
+            std::string message;
+        };
+    public:
         AssertError() = default;
         virtual ~AssertError() = default;
 
-        void Set(kAssertClass aClass, int pLine, std::string pFile, std::string pMessage) {
-            isValid = true;
-            assertClass = aClass;
-            line = pLine;
-            file = pFile;
-            message = pMessage;
+        void Add(kAssertClass aClass, int pLine, std::string pFile, std::string pMessage) {
+            auto item = AssertErrorItem {
+                .assertClass = aClass,
+                .line = pLine,
+                .file = pFile,
+                .message = pMessage
+            };
+            assertErrors.push_back(item);
+        }
+        void Add(const struct AssertErrorItem &item) {
+            assertErrors.push_back(item);
         }
 
         void Reset() {
-            isValid = false;
+            assertErrors.clear();
+        }
+        size_t NumErrors() const {
+            return assertErrors.size();
+        }
+        const std::vector<AssertErrorItem> &Errors() const {
+            return assertErrors;
+        }
+
+        bool IsValid() const {
+            return !assertErrors.empty();
         }
 
     public:
-        bool isValid = false;
-        kAssertClass assertClass;
-        int line = 0;
-        std::string file;
-        std::string message;
+//        bool isValid = false;
+//        kAssertClass assertClass;
+//        int line = 0;
+//        std::string file;
+//        std::string message;
+    private:
+        std::vector<AssertErrorItem> assertErrors;
     };
 }
 

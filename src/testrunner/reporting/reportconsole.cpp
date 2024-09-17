@@ -37,6 +37,7 @@ void ResultsReportConsole::PrintSummary() {
 
 void ResultsReportConsole::PrintFailures(const std::vector<TestResult::Ref> &results) {
     bool haveHeader = false;
+    static char lineHeader[64];
     for(auto r : results) {
         if (r->Result() != kTestResult_Pass) {
             // Only print this the first time if we have any...
@@ -44,19 +45,31 @@ void ResultsReportConsole::PrintFailures(const std::vector<TestResult::Ref> &res
                 fprintf(fout, "Failed:\n");
                 haveHeader = true;
             }
-            printf("  [%c%c%c]: ",
-                   r->Result() == kTestResult_TestFail?'T':'t',
-                   r->Result() == kTestResult_ModuleFail?'M':'m',
-                   r->Result() == kTestResult_AllFail?'A':'a');
+            auto nChars = snprintf(lineHeader, sizeof(lineHeader),"  [%c%c%c]: %s",
+                     r->Result() == kTestResult_TestFail?'T':'t',
+                     r->Result() == kTestResult_ModuleFail?'M':'m',
+                     r->Result() == kTestResult_AllFail?'A':'a',
+                     r->SymbolName().c_str());
 
-            printf("%s", r->SymbolName().c_str());
-            if (r->FailState() != TestResult::kFailState::Main) {
-                printf(" (%s)", r->FailStateName().c_str());
+            if (nChars < 0) {
+                continue;
             }
-            if (r->AssertError().isValid) {
-                fprintf(fout, ", %s:%d, %s", r->AssertError().file.c_str(), r->AssertError().line, r->AssertError().message.c_str());
+            // Append if there is room left...
+            if ((nChars < sizeof(lineHeader)) && (r->FailState() != TestResult::kFailState::Main)) {
+                //fprintf(fout, " (%s)", r->FailStateName().c_str());
+                snprintf(&lineHeader[nChars], sizeof(lineHeader) - nChars, " (%s)", r->FailStateName().c_str());
             }
-            fprintf(fout, "\n");
+
+            if (r->AssertError().NumErrors() > 0) {
+                for(auto aerr : r->AssertError().Errors()) {
+                    fprintf(fout, "%s, %s:%d, %s\n", lineHeader,
+                            aerr.file.c_str(),
+                            aerr.line,
+                            aerr.message.c_str());
+                }
+            } else {
+                fprintf(fout, "%s\n", lineHeader);
+            }
         }
     }
 }

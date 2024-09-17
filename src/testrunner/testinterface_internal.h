@@ -73,6 +73,10 @@ union CBPrePostHook {
     TRUN_PRE_POST_HOOK_DELEGATE_V2 *cbHookV2;
 };
 
+typedef enum {
+    kTRLeave,
+    kTRContinue,
+} kTRContinueMode;
 
 //
 // Callback Version V1 - same as in ext_testinterface/testinterface_v1.h
@@ -109,7 +113,7 @@ struct ITestingV2 : public ITestingVersioned {
     void (*Fatal)(int line, const char *file, const char *format, ...); // Current test, stop library and proceed to next
     void (*Abort)(int line, const char *file, const char *format, ...); // Current test, stop execution
     // Asserts
-    void (*AssertError)(const int line, const char *file, const char *exp);
+    kTRContinueMode (*AssertError)(const int line, const char *file, const char *exp);
     // Hooks - this change leads to compile errors for old unit-tests - is that ok?
     void (*SetPreCaseCallback)(int(*)(ITestingV2 *));         // v2 - must return int - same as test function 'kTR_xxx'
     void (*SetPostCaseCallback)(int(*)(ITestingV2 *));        // v2 - must return int - same as test function 'kTR_xxx'
@@ -159,7 +163,7 @@ struct ITestingConfig {
 };
 
 
-
+/*
 static bool TRUN_ContinueOnAssert(ITesting *t) {
     ITestingConfig *trConfig = {};
     t->QueryInterface(ITestingConfig_IFace_ID, (void **)&trConfig);
@@ -173,13 +177,14 @@ static bool TRUN_ContinueOnAssert(ITesting *t) {
     }
     return false;
 }
+ */
 
 // Assert macro, checks version and casts to right (hopefully) interface...
 // Note: comparing magic here is quite ok - we can't have a difference!
 #define TR_ASSERT(t, _exp_) \
     if (!(_exp_)) {                                                    \
-        ((ITesting *)t)->AssertError(__LINE__, __FILE__, #_exp_);   \
-        if (!TRUN_ContinueOnAssert(t)) return kTR_Fail; \
+        auto res = ((ITesting *)t)->AssertError(__LINE__, __FILE__, #_exp_);   \
+        if (res == kTRContinueMode::kTRLeave) return kTR_Fail; \
     }
 
 #define TR_REQUIRE(t, _exp_, _msg_) \

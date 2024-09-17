@@ -64,7 +64,7 @@ namespace trun {
         // Property access, getters
         kTestResult Result() const { return testResult; }
         int Errors() const { return numError; }
-        int Asserts() const { return numAssert; }
+        int Asserts() const { return assertError.NumErrors(); }
         double ElapsedTimeSec() const { return tElapsedSec; }
         const std::string &SymbolName() const { return symbolName; }
         kFailState FailState() { return failState; }

@@ -118,13 +118,16 @@ void ResultsReportJSON::PrintTestResult(const TestResult::Ref result) {
         WriteLine(R"("ExecutionState": "%s",)", result->FailStateName().c_str());
     }
 
-    if (result->AssertError().isValid) {
+    if (result->AssertError().IsValid()) {
+        // FIXME: Need to handle array
+        auto &aerr = result->AssertError().Errors().front();
+
         WriteLine(R"("IsAssertValid" : true,)");
         WriteLine(R"("Assert" : {)");
         PushIndent();
-        WriteLine(R"("File" : "%s",)", result->AssertError().file.c_str());
-        WriteLine(R"("Line" : %d,)", result->AssertError().line);
-        WriteLine(R"("Message" : "%s")", EscapeString(result->AssertError().message).c_str());
+        WriteLine(R"("File" : "%s",)", aerr.file.c_str());
+        WriteLine(R"("Line" : %d,)", aerr.line);
+        WriteLine(R"("Message" : "%s")", EscapeString(aerr.message).c_str());
         PopIndent();
         WriteLine("}");
     } else {

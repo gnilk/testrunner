@@ -23,7 +23,7 @@ DLL_EXPORT int test_jsonreport_escape(ITesting *t) {
     result->SetResult(trun::kTestResult_TestFail);
     trun::AssertError assertError;
     auto assertErrMsg = std::string("fopen(\"filename.txt\",\"r\");");
-    assertError.Set(trun::AssertError::kAssert_Error, 0, "dummy.cpp", assertErrMsg);
+    assertError.Add(trun::AssertError::kAssert_Error, 0, "dummy.cpp", assertErrMsg);
     result->SetAssertError(assertError);
 
     tfunc->SetResultFromSubProcess(result);

@@ -24,7 +24,7 @@ namespace trun {
         int Errors();
         int Asserts();
         kTestResult Result();
-        bool IsAssertValid() const { return assertError.isValid; }
+        bool IsAssertValid() const { return assertError.IsValid(); }
         class AssertError &GetAssertError() { return assertError; }
 
 
@@ -36,7 +36,7 @@ namespace trun {
         void Fatal(int line, const char *file, std::string message);
         void Abort(int line, const char *file, std::string message);
 
-        void AssertError(const char *exp, const char *file, const int line);
+        kTRContinueMode AssertError(const char *exp, const char *file, const int line);
 
         void SetPreCaseCallback(const CBPrePostHook &cbPreCase);
         void SetPostCaseCallback(const CBPrePostHook &cbPostCase);
