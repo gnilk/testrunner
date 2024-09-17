@@ -25,13 +25,6 @@
 #define DLL_EXPORT
 #endif
 
-// Assert macro, checks version and casts to right (hopefully) interface...
-// Note: comparing magic here is quite ok - we can't have a difference!
-#define TR_ASSERT(t, _exp_) \
-    if (!(_exp_)) {                                                    \
-        ((ITesting *)t)->AssertError(__LINE__, __FILE__, #_exp_);   \
-        return kTR_Fail; \
-    }
 
 //#define STR_TO_VER(ver) ((ver[0]<<24) | (ver[1]<<16) | (ver[2] << 8) | (ver[3]))
 #define STR_TO_VER(ver) (((uint64_t)ver[0]<<56) | ((uint64_t)ver[1]<<48) | ((uint64_t)ver[2] << 40) | ((uint64_t)ver[3] << 32) | ((uint64_t)ver[4] << 24) | ((uint64_t)ver[5] << 16) | ((uint64_t)ver[6] << 8) | ((uint64_t)ver[7]))
@@ -130,6 +123,9 @@ struct ITestingV2 : public ITestingVersioned {
     void (*QueryInterface)(uint32_t interface_id, void **outPtr);                 // V2 - Optional, query an interface from the runner...
 };
 
+
+
+
 //
 // V2 extensions
 //
@@ -163,6 +159,34 @@ struct ITestingConfig {
 };
 
 
+
+static bool TRUN_ContinueOnAssert(ITesting *t) {
+    ITestingConfig *trConfig = {};
+    t->QueryInterface(ITestingConfig_IFace_ID, (void **)&trConfig);
+    if (trConfig == nullptr) {
+        return false;   // default
+    }
+    TRUN_ConfigItem continueOnAssert = {};
+    trConfig->Get("continue_on_assert", &continueOnAssert);
+    if ((continueOnAssert.isValid) && (continueOnAssert.value_type == kTRCfgType_Bool)) {
+        return continueOnAssert.value.boolean;
+    }
+    return false;
+}
+
+// Assert macro, checks version and casts to right (hopefully) interface...
+// Note: comparing magic here is quite ok - we can't have a difference!
+#define TR_ASSERT(t, _exp_) \
+    if (!(_exp_)) {                                                    \
+        ((ITesting *)t)->AssertError(__LINE__, __FILE__, #_exp_);   \
+        if (!TRUN_ContinueOnAssert(t)) return kTR_Fail; \
+    }
+
+#define TR_REQUIRE(t, _exp_, _msg_) \
+    if (!(_exp_)) {                 \
+        ((ITesting *)t)->Error(__LINE__, __FILE__, #_msg_); \
+        return kTR_Fail;                            \
+    }
 
 #ifdef __cplusplus
 }

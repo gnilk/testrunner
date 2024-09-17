@@ -495,6 +495,16 @@ static void int_tcfg_get(const char *key, TRUN_ConfigItem *outValue) {
     if (outValue == nullptr) {
         return;
     }
+    // test test
+    if (key == std::string("continue_on_assert")) {
+        outValue->isValid = true;
+        strncpy(outValue->name, key, TR_CFG_ITEM_NAME_LEN-1);
+        outValue->value_type = kTRCfgType_Bool;
+        outValue->value.boolean = false;
+        return;
+    }
+
+
     // TODO: Implement properly...
     if (key != std::string("enableThreadTestExecution")) {
         return;
