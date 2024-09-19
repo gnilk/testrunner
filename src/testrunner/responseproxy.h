@@ -27,7 +27,13 @@ namespace trun {
         bool IsAssertValid() const { return assertError.IsValid(); }
         class AssertError &GetAssertError() { return assertError; }
 
-
+        void SetExceptionError(const std::string &exception);
+        bool WasExceptionThrown() const {
+            return exceptionThrown;
+        }
+        const std::string &GetExceptionString() const {
+            return exceptionString;
+        }
     public: // ITesting mirroring
         void Debug(int line, const char *file, std::string message);
         void Info(int line, const char *file, std::string message);
@@ -63,9 +69,11 @@ namespace trun {
 
         class AssertError assertError;
 
-        kTestResult testResult;
-        int assertCount;
-        int errorCount;
+        bool exceptionThrown = false;
+        std::string exceptionString = {};
+        kTestResult testResult = {};
+        int assertCount = 0;
+        int errorCount = 0;
 
         std::string symbolName; // current symbol under test
         std::string moduleName; // current library under test

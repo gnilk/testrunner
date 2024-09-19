@@ -136,6 +136,11 @@ kTestResult TestResponseProxy::Result() {
     return testResult;
 }
 
+void TestResponseProxy::SetExceptionError(const std::string &exception) {
+    exceptionThrown = true;
+    exceptionString = exception;
+}
+
 // ITesting mirror
 void TestResponseProxy::Debug(int line, const char *file, std::string message) {
     pLogger->Debug("%s:%d:%s", file, line, message.c_str());

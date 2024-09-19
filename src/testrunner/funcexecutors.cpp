@@ -94,6 +94,16 @@ int TestFuncExecutorBase::InvokeHook(const CBPrePostHook &hook) {
     return returnCode;
 }
 
+// Enhance this with more types...
+static std::string HandleException(const std::exception_ptr &eptr = std::current_exception()) {
+    if (!eptr) { throw std::bad_exception(); }
+
+    try { std::rethrow_exception(eptr); }
+    catch (const std::exception &e) { return e.what()   ; }
+    catch (const std::string    &e) { return e          ; }
+    catch (const char           *e) { return e          ; }
+    catch (...)                     { return "unknown or unhandled exception type"; }
+}
 
 //
 // Sequential execution
@@ -128,7 +138,11 @@ int TestFuncExecutorSequential::Execute(TestFunc *testFunc, const CBPrePostHook 
     try {
         testReturnCode = testFunc->InvokeTestCase(proxy);
     } catch(...) {
-        printf(" ** EXCEPTION **\n");
+        auto exceptionString = HandleException();
+        // Normally this would be printed in the Response Proxy
+        // But exceptions are caught by the runner - thus, we print it here...
+        printf(" *** EXCEPTION ERROR: %s\n", exceptionString.c_str());
+        proxy.SetExceptionError(exceptionString);
         testReturnCode = kTR_Fail;
     }
 

@@ -68,7 +68,7 @@ void ResultsReportConsole::PrintFailures(const std::vector<TestResult::Ref> &res
                             aerr.message.c_str());
                 }
             } else {
-                fprintf(fout, "%s\n", lineHeader);
+                fprintf(fout, "%s, %s\n", lineHeader, r->ErrorString().c_str());
             }
         }
     }

@@ -624,7 +624,11 @@ Example output:
 <b>Note:</b> Passes are only reported IF you include it in the summary (`-S`).
 
 # Version history
-## v2.0-beta
+## v2.1
+- Support for exceptions, i.e. won't crash
+- Support for continue on assert error (--continue_on_assert)
+- Added new 'TR_REQUIRES' which will always break a test-case 
+## v2.0
 - Two external dependencies
    - `gnklog` has replaced the old debug logging library - this is interface compatible with embedded
    - `fmtlib` is being used, as this is a requirement for `gnklog`

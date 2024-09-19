@@ -1,9 +1,6 @@
 //
 // Created by gnilk on 19.09.2024.
 //
-//
-// Created by gnilk on 17.09.2024.
-//
 #include "../testinterface_internal.h"
 #include <vector>
 #include <string>

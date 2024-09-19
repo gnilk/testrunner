@@ -38,6 +38,9 @@ TestResult::TestResult(const std::string &use_symbolName) {
 void TestResult::SetAssertError(class AssertError &other) {
     assertError = other;
 }
+void TestResult::SetErrorString(const std::string &error) {
+    errorString = error;
+}
 void TestResult::SetTestResultFromReturnCode(int testReturnCode) {
     // Discard return code???
     auto pLogger = gnilk::Logger::GetLogger("TestResult");
@@ -57,7 +60,6 @@ void TestResult::SetTestResultFromReturnCode(int testReturnCode) {
             }
             break;
         case kTR_Fail :
-            // FIXME: Mark exception here!
             SetResult(kTestResult_TestFail);
             break;
         case kTR_FailModule :

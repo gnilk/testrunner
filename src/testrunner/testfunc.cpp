@@ -159,7 +159,16 @@ void TestFunc::CreateTestResult(TestResponseProxy &proxy) {
             break;
     }
     // Should be done last..
-    testResult->SetTestResultFromReturnCode(testReturnCode);
+    if (!proxy.WasExceptionThrown()) {
+        testResult->SetTestResultFromReturnCode(testReturnCode);
+    } else {
+        // This is treated quite differently, as we don't have a return code...
+        testResult->SetResult(kTestResult_TestFail);
+        // FIXME: Need data from the exception...
+        testResult->SetNumberOfErrors(1);
+        testResult->SetErrorString(proxy.GetExceptionString());
+
+    }
 }
 
 void TestFunc::PrintTestResult() {

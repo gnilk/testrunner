@@ -37,6 +37,7 @@ namespace trun {
         kTestResult_AllFail = 3,
         kTestResult_NotExecuted = 4,
         kTestResult_InvalidReturnCode = 5,
+        //kTestResult_ExceptionThrown = 6,        // FIXME: Remove this!!!
     } kTestResult;
 
     class TestResult {
@@ -64,6 +65,7 @@ namespace trun {
         // Property access, getters
         kTestResult Result() const { return testResult; }
         int Errors() const { return numError; }
+        const std::string ErrorString() const { return errorString; }
         int Asserts() const { return assertError.NumErrors(); }
         double ElapsedTimeSec() const { return tElapsedSec; }
         const std::string &SymbolName() const { return symbolName; }
@@ -92,8 +94,10 @@ namespace trun {
         void SetNumberOfErrors(int count) { numError = count; }
         void SetNumberOfAsserts(int count) { numAssert = count; }
         void SetAssertError(class AssertError &other);
+        void SetErrorString(const std::string &error);
     private:
         class AssertError assertError;
+        std::string errorString;
         kFailState failState = kFailState::None;
         kTestResult testResult = kTestResult_NotExecuted;
         double tElapsedSec = 0;
