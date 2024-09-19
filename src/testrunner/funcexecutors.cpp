@@ -81,10 +81,15 @@ int TestFuncExecutorBase::InvokeHook(const CBPrePostHook &hook) {
     // Fetch version..
     auto rawVersion = library->GetRawVersion();
     // Hook signatures have changed so we need to do this - a bit convoluted..
-    if (rawVersion == TRUN_MAGICAL_IF_VERSION1) {
-        hook.cbHookV1((ITestingV1 *)TestResponseProxy::GetTRTestInterface(library->GetVersion()));
-    } else {
-        returnCode = hook.cbHookV2((ITestingV2 *)TestResponseProxy::GetTRTestInterface(library->GetVersion()));
+    try {
+        if (rawVersion == TRUN_MAGICAL_IF_VERSION1) {
+            hook.cbHookV1((ITestingV1 *) TestResponseProxy::GetTRTestInterface(library->GetVersion()));
+        } else {
+            returnCode = hook.cbHookV2((ITestingV2 *) TestResponseProxy::GetTRTestInterface(library->GetVersion()));
+        }
+    } catch(...) {
+        printf(" ** Exception during pre/post hook call **\n");
+        returnCode = kTR_Fail;
     }
     return returnCode;
 }
@@ -118,9 +123,14 @@ int TestFuncExecutorSequential::Execute(TestFunc *testFunc, const CBPrePostHook 
     }
 
     // Main (the actual test case)
+    int testReturnCode = {};
     testFunc->ChangeExecState(TestFunc::kExecState::Main);
-    int testReturnCode = testFunc->InvokeTestCase(proxy);
-
+    try {
+        testReturnCode = testFunc->InvokeTestCase(proxy);
+    } catch(...) {
+        printf(" ** EXCEPTION **\n");
+        testReturnCode = kTR_Fail;
+    }
 
     // Test-case post function, note cbPostHook is a union of funcptrs - doesn't matter which one we check
     if (cbPostHook.cbHookV1 != nullptr) {

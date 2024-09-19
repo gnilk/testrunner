@@ -11,7 +11,7 @@
 #include "asserterror.h"
 
 namespace trun {
-
+    // FIXME: Support for exceptions
     class TestResponseProxy {
     public:
         TestResponseProxy() = default;

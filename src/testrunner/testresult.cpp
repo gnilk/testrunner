@@ -57,6 +57,7 @@ void TestResult::SetTestResultFromReturnCode(int testReturnCode) {
             }
             break;
         case kTR_Fail :
+            // FIXME: Mark exception here!
             SetResult(kTestResult_TestFail);
             break;
         case kTR_FailModule :

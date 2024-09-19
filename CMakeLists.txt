@@ -120,6 +120,7 @@ list(APPEND testsrc src/testrunner/tests/test_assert.cpp)
 list(APPEND testsrc src/testrunner/tests/test_cdepends.cpp)
 list(APPEND testsrc src/testrunner/tests/test_depends.cpp)
 list(APPEND testsrc src/testrunner/tests/test_execorder.cpp)
+list(APPEND testsrc src/testrunner/tests/test_exception.cpp)
 list(APPEND testsrc src/testrunner/tests/test_jsonreport.cpp)
 list(APPEND testsrc src/testrunner/tests/test_main.cpp)
 list(APPEND testsrc src/testrunner/tests/test_mdepends.cpp)
@@ -229,10 +230,12 @@ include(GNUInstallDirs)
 
 if (APPLE)
 
-    target_compile_options(trun PUBLIC -Wall -Wpedantic -Wextra -Wno-multichar)
+    target_compile_options(trun PUBLIC -Wall -Wpedantic -Wextra -Wno-multichar -fsanitize=address)
     target_compile_options(trun_utests PUBLIC -Wno-multichar)
 
     target_compile_definitions(trun PUBLIC -DTRUN_HAVE_FORK)
+
+    target_link_options(trun PUBLIC -fsanitize=address)
 
     set(CMAKE_INSTALL_PREFIX /usr/local)
     set(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH} /usr/local/lib /usr/lib/system)
