@@ -183,8 +183,8 @@ static bool TRUN_ContinueOnAssert(ITesting *t) {
 // Note: comparing magic here is quite ok - we can't have a difference!
 #define TR_ASSERT(t, _exp_) \
     if (!(_exp_)) {                                                    \
-        auto res = ((ITesting *)t)->AssertError(__LINE__, __FILE__, #_exp_);   \
-        if (res == kTRContinueMode::kTRLeave) return kTR_Fail; \
+        auto tr_temp_res = ((ITesting *)t)->AssertError(__LINE__, __FILE__, #_exp_);   \
+        if (tr_temp_res == kTRContinueMode::kTRLeave) return kTR_Fail; \
     }
 
 #define TR_REQUIRE(t, _exp_, _msg_) \
