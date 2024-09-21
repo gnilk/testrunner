@@ -21,6 +21,8 @@
 #include "funcexecutors.h"
 #include "responseproxy.h"
 #include "testinterface_internal.h"
+#include <filesystem>
+#include <iostream>
 #include <cpptrace/from_current.hpp>
 
 #ifdef TRUN_HAVE_THREADS
@@ -169,7 +171,14 @@ int TestFuncExecutorSequential::Execute(TestFunc *testFunc, const CBPrePostHook 
         // Consider declaring an 'ExceptionError' in the Result class
         auto exceptionString = HandleException();
         auto &frame = exception_stacktrace.frames.at(idxTargetFrame);
-        printf("*** EXCEPTION ERROR: %s:%d\t''\n", frame.filename.c_str(),frame.line, exceptionString.c_str());
+        if (frame.line.has_value()) {
+            printf("*** EXCEPTION ERROR: %s\t'%s'\n", frame.filename.c_str(), exceptionString.c_str());
+        } else {
+            printf("*** EXCEPTION ERROR: %s:%d\t'%s'\n",
+                   frame.filename.c_str(), frame.line.value(),
+                   exceptionString.c_str());
+        }
+
 
         // Normally this would be printed in the Response Proxy
         // But exceptions are caught by the runner - thus, we print it here...
