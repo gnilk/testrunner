@@ -2,7 +2,9 @@
 # CMAKE file for TestRunner
 #
 
-set(CMAKE_OSX_ARCHITECTURES "x86_64;arm64" CACHE STRING "")
+#set(CMAKE_OSX_ARCHITECTURES "x86_64;arm64" CACHE STRING "")
+set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "")
+#set(CMAKE_OSX_ARCHITECTURES "arm64" CACHE STRING "")
 #set(CMAKE_OSX_ARCHITECTURES arm64)
 set(CMAKE_OSX_SYSROOT /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk)
 cmake_minimum_required(VERSION 3.16)
@@ -45,6 +47,7 @@ endif()
 
 set(FMT_HOME ${CMAKE_SOURCE_DIR}/ext/fmt)
 set(GNKLOG_HOME ${CMAKE_SOURCE_DIR}/ext/gnklog)
+
 
 #
 # include gnklog
@@ -194,6 +197,22 @@ set_property(TARGET trv1_utest PROPERTY CXX_STANDARD 20)
 add_library(trv2_utest SHARED src/testv2/test_v2module.cpp)
 set_property(TARGET trv2_utest PROPERTY CXX_STANDARD 20)
 
+
+
+#
+# test - test - test - using fetch content
+#
+include(FetchContent)
+FetchContent_Declare(
+        cpptrace
+        GIT_REPOSITORY https://github.com/jeremy-rifkin/cpptrace.git
+        GIT_TAG        v0.7.1 # <HASH or TAG>
+)
+FetchContent_MakeAvailable(cpptrace)
+target_link_libraries(trun cpptrace::cpptrace)
+target_link_libraries(trun_utests cpptrace::cpptrace)
+# if only this was documented TOGETHER with the examples...
+include_directories(${cpptrace_SOURCE_DIR}/include)
 
 
 #
