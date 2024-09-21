@@ -119,23 +119,54 @@ void ResultsReportJSON::PrintTestResult(const TestResult::Ref result) {
     }
 
     if (result->AssertError().IsValid()) {
-        // FIXME: Need to handle array
-        auto &aerr = result->AssertError().Errors().front();
-
-        WriteLine(R"("IsAssertValid" : true,)");
-        WriteLine(R"("Assert" : {)");
-        PushIndent();
-        WriteLine(R"("File" : "%s",)", aerr.file.c_str());
-        WriteLine(R"("Line" : %d,)", aerr.line);
-        WriteLine(R"("Message" : "%s")", EscapeString(aerr.message).c_str());
-        PopIndent();
-        WriteLine("}");
+        PrintAssertError(result);
     } else {
         WriteLine(R"("IsAssertValid" : false)");
     }
     PopIndent();
     Write("}");
 
+}
+void ResultsReportJSON::PrintAssertError(const TestResult::Ref result) {
+    auto &aerr = result->AssertError().Errors().front();
+
+    WriteLine(R"("IsAssertValid" : true,)");
+    // Up to v2.0.0 we only had this
+    WriteLine(R"("Assert" : {)");
+    PrintAssert(aerr);
+    // This array is new from v2.1.0
+    if (result->AssertError().NumErrors() > 1) {
+        WriteLine("},");
+        // NOTE: this is assumed to be last item in the parent object...
+        PrintAssertArray(result);
+    } else {
+        WriteLine("}");
+    }
+}
+
+void ResultsReportJSON::PrintAssertArray(const TestResult::Ref result) {
+    WriteLine(R"("Asserts" : [)");
+    PushIndent();
+    for(const auto &ass : result->AssertError().Errors()) {
+        WriteLine("{");
+        PrintAssert(ass);
+        // This must be the worst in a long while...
+        if (&ass != &result->AssertError().Errors().back()) {
+            WriteLine("},");
+        } else {
+            WriteLine("}");
+        }
+    }
+    PopIndent();
+    WriteLine("]");
+}
+
+void ResultsReportJSON::PrintAssert(const AssertError::AssertErrorItem &aerr) {
+    PushIndent();
+    WriteLine(R"("File" : "%s",)", aerr.file.c_str());
+    WriteLine(R"("Line" : %d,)", aerr.line);
+    WriteLine(R"("Message" : "%s")", EscapeString(aerr.message).c_str());
+    PopIndent();
 }
 
 // Quick and dirty escaping special json chars..
