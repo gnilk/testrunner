@@ -21,7 +21,7 @@
 #include "funcexecutors.h"
 #include "responseproxy.h"
 #include "testinterface_internal.h"
-
+#include <cpptrace/from_current.hpp>
 
 #ifdef TRUN_HAVE_THREADS
     #ifndef WIN32
@@ -104,7 +104,15 @@ static std::string HandleException(const std::exception_ptr &eptr = std::current
     catch (const char           *e) { return e          ; }
     catch (...)                     { return "unknown or unhandled exception type"; }
 }
-
+namespace cpptrace {
+    void print_frame(
+            std::ostream& stream,
+            bool color,
+            unsigned frame_number_width,
+            std::size_t counter,
+            const stacktrace_frame& frame
+    );
+}
 //
 // Sequential execution
 //
@@ -135,13 +143,36 @@ int TestFuncExecutorSequential::Execute(TestFunc *testFunc, const CBPrePostHook 
     // Main (the actual test case)
     int testReturnCode = {};
     testFunc->ChangeExecState(TestFunc::kExecState::Main);
-    try {
+
+    // Trying 'cpptrace' to get a nice stack frame from an exception...
+    // CPPTrace requires 'special' try/catch - there is some magic here
+    CPPTRACE_TRY {
         testReturnCode = testFunc->InvokeTestCase(proxy);
-    } catch(...) {
+    } CPPTRACE_CATCH(...) {
+        auto &exception_stacktrace = cpptrace::from_current_exception();
+
+        // Ok, trying to print up to the test-runner code...
+        // stop when the stack frame leaves the code under test
+        int idxTargetFrame = 0;
+        for(const auto& frame : exception_stacktrace.frames) {
+            auto pathname = std::filesystem::path(frame.filename);
+            if (pathname.filename() == "testfunc.h") {
+                idxTargetFrame -= 1;
+                break;
+            }
+            // FIXME: store this in conjunction with the result??
+            cpptrace::print_frame(std::cout, true, 2, idxTargetFrame, frame);
+            std::cout << "\n";
+            idxTargetFrame++;
+        }
+
+        // Consider declaring an 'ExceptionError' in the Result class
         auto exceptionString = HandleException();
+        auto &frame = exception_stacktrace.frames.at(idxTargetFrame);
+        printf("*** EXCEPTION ERROR: %s:%d\t''\n", frame.filename.c_str(),frame.line, exceptionString.c_str());
+
         // Normally this would be printed in the Response Proxy
         // But exceptions are caught by the runner - thus, we print it here...
-        printf(" *** EXCEPTION ERROR: %s\n", exceptionString.c_str());
         proxy.SetExceptionError(exceptionString);
         testReturnCode = kTR_Fail;
     }
