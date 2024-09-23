@@ -445,7 +445,7 @@ See *exshared* library for an example.
 <b>Note:</b> TestRunner default input is the current directory. It will search recursively for any testable functions.
 
 ```
-TestRunner v2.0.0 - macOS - C/C++ Unit Test Runner
+TestRunner v2.1.0 - Linux - C/C++ Unit Test Runner
 Usage: trun [options] input
 Options: 
   -v  Verbose, increase for more!
