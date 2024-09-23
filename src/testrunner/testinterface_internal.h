@@ -78,6 +78,21 @@ typedef enum {
     kTRContinue,
 } kTRContinueMode;
 
+// Assert macro, checks version and casts to right (hopefully) interface...
+// Note: comparing magic here is quite ok - we can't have a difference!
+#define TR_ASSERT(t, _exp_) \
+    if (!(_exp_)) {                                                    \
+        auto tr_temp_res = ((ITesting *)t)->AssertError(__LINE__, __FILE__, #_exp_);   \
+        if (tr_temp_res == kTRContinueMode::kTRLeave) return kTR_Fail; \
+    }
+
+#define TR_REQUIRE(t, _exp_, _msg_) \
+    if (!(_exp_)) {                 \
+        ((ITesting *)t)->Error(__LINE__, __FILE__, #_msg_); \
+        return kTR_Fail;                            \
+    }
+
+
 //
 // Callback Version V1 - same as in ext_testinterface/testinterface_v1.h
 //
@@ -179,19 +194,6 @@ static bool TRUN_ContinueOnAssert(ITesting *t) {
 }
  */
 
-// Assert macro, checks version and casts to right (hopefully) interface...
-// Note: comparing magic here is quite ok - we can't have a difference!
-#define TR_ASSERT(t, _exp_) \
-    if (!(_exp_)) {                                                    \
-        auto tr_temp_res = ((ITesting *)t)->AssertError(__LINE__, __FILE__, #_exp_);   \
-        if (tr_temp_res == kTRContinueMode::kTRLeave) return kTR_Fail; \
-    }
-
-#define TR_REQUIRE(t, _exp_, _msg_) \
-    if (!(_exp_)) {                 \
-        ((ITesting *)t)->Error(__LINE__, __FILE__, #_msg_); \
-        return kTR_Fail;                            \
-    }
 
 #ifdef __cplusplus
 }
