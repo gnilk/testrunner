@@ -42,14 +42,25 @@ extern "C" {
 // By default, the trunembbeded library is built with without threading support...
 //
 
+typedef enum {
+    kTRLeave,
+    kTRContinue,
+} kTRContinueMode;
 
 // Assert macro, checks version and casts to right (hopefully) interface...
 // Note: comparing magic here is quite ok - we can't have a difference!
 #define TR_ASSERT(t, _exp_) \
     if (!(_exp_)) {                                                    \
-        ((ITesting *)t)->AssertError(__LINE__, __FILE__, #_exp_);   \
-        return kTR_Fail; \
+        auto tr_temp_res = ((ITesting *)t)->AssertError(__LINE__, __FILE__, #_exp_);   \
+        if (tr_temp_res == kTRContinueMode::kTRLeave) return kTR_Fail; \
     }
+
+#define TR_REQUIRE(t, _exp_, _msg_) \
+    if (!(_exp_)) {                 \
+        ((ITesting *)t)->Error(__LINE__, __FILE__, #_msg_); \
+        return kTR_Fail;                            \
+    }
+
 
 typedef struct ITesting ITesting;
 struct ITesting {
@@ -61,8 +72,9 @@ struct ITesting {
     void (*Error)(int line, const char *file, const char *format, ...); // Current test, proceed to next
     void (*Fatal)(int line, const char *file, const char *format, ...); // Current test, stop library and proceed to next
     void (*Abort)(int line, const char *file, const char *format, ...); // Current test, stop execution
+
     // Asserts
-    void (*AssertError)(const int line, const char *file, const char *exp);
+    kTRContinueMode (*AssertError)(const int line, const char *file, const char *exp);
     // Hooks - this change leads to compile errors for old unit-tests - is that ok?
     void (*SetPreCaseCallback)(int(*)(ITesting *));         // v2 - must return int - same as test function 'kTR_xxx'
     void (*SetPostCaseCallback)(int(*)(ITesting *));        // v2 - must return int - same as test function 'kTR_xxx'
