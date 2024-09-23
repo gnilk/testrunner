@@ -23,7 +23,9 @@
 #include "testinterface_internal.h"
 #include <filesystem>
 #include <iostream>
+#ifdef TRUN_HAVE_EXCEPTIONS
 #include <cpptrace/from_current.hpp>
+#endif
 
 #ifdef TRUN_HAVE_THREADS
     #ifndef WIN32
@@ -95,6 +97,7 @@ int TestFuncExecutorBase::InvokeHook(const CBPrePostHook &hook) {
     }
     return returnCode;
 }
+#ifdef TRUN_HAVE_EXCEPTIONS
 
 // Enhance this with more types...
 static std::string HandleException(const std::exception_ptr &eptr = std::current_exception()) {
@@ -115,6 +118,7 @@ namespace cpptrace {
             const stacktrace_frame& frame
     );
 }
+#endif
 //
 // Sequential execution
 //
@@ -148,6 +152,7 @@ int TestFuncExecutorSequential::Execute(TestFunc *testFunc, const CBPrePostHook 
 
     // Trying 'cpptrace' to get a nice stack frame from an exception...
     // CPPTrace requires 'special' try/catch - there is some magic here
+#ifdef TRUN_HAVE_EXCEPTIONS
     CPPTRACE_TRY {
         testReturnCode = testFunc->InvokeTestCase(proxy);
     } CPPTRACE_CATCH(...) {
@@ -185,7 +190,9 @@ int TestFuncExecutorSequential::Execute(TestFunc *testFunc, const CBPrePostHook 
         proxy.SetExceptionError(exceptionString);
         testReturnCode = kTR_Fail;
     }
-
+#else
+    testReturnCode = testFunc->InvokeTestCase(proxy);
+#endif
     // Test-case post function, note cbPostHook is a union of funcptrs - doesn't matter which one we check
     if (cbPostHook.cbHookV1 != nullptr) {
         testFunc->ChangeExecState(TestFunc::kExecState::PostCallback);
