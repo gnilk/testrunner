@@ -61,6 +61,7 @@ sudo apt install binutils binutils-dev
 ```
 
 The following libraries are fetched when running cmake:
+* cpptrace (https://github.com/jeremy-rifkin/cpptrace.git) - v0.7.1
 * fmtlib (https://github.com/fmtlib/fmt) - fetching version 10.1.1
 * gnklog (https://github.com/gnilk/gnklog) - new logging library which is interface compatible on embedded
 
