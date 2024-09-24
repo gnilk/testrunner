@@ -446,7 +446,7 @@ See *exshared* library for an example.
 <b>Note:</b> TestRunner default input is the current directory. It will search recursively for any testable functions.
 
 ```
-TestRunner v2.1.0 - Linux - C/C++ Unit Test Runner
+TestRunner v2.1.0 - macOS - C/C++ Unit Test Runner
 Usage: trun [options] input
 Options: 
   -v  Verbose, increase for more!
@@ -466,6 +466,8 @@ Options:
   -t  <list> List of test cases to test (default: '-' (all))
   --sequential
       Disable any parallel execution of modules
+  --continue_on_assert
+      Continue test execution on assert errors (default: off)
   --module-timeout <sec>
       Set timeout (in seconds) for forked execution, 0 - infinity (default: 30)
   --allow-thread-exit
