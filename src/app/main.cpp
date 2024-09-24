@@ -112,6 +112,8 @@ static void Help() {
     printf("  -t  <list> List of test cases to test (default: '-' (all))\n");
     printf("  --sequential\n");
     printf("      Disable any parallel execution of modules\n");
+    printf("  --continue_on_assert\n");
+    printf("      Continue test execution on assert errors (default: off)\n");
     printf("  --module-timeout <sec>\n");
     printf("      Set timeout (in seconds) for forked execution, 0 - infinity (default: 30)\n");
     printf("  --allow-thread-exit\n");
