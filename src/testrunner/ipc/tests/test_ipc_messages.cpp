@@ -94,10 +94,8 @@ DLL_EXPORT int test_ipcmsg_summary_with_testres(ITesting *t) {
 
     // Create a fake assert error
     trun::AssertError assertError;
-    assertError.assertClass = trun::AssertError::kAssert_Error;
-    assertError.line = 4711;
-    assertError.message = "your hamster is a cat";
-    assertError.file = "my_fine_file.cpp";
+
+    assertError.Add(trun::AssertError::kAssert_Error, 4711, "your hamster is a cat", "my_fine_file.cpp");
 
     auto tr = trun::TestResult::Create("my_test_case");
     tr->SetResult(trun::kTestResult::kTestResult_Pass);
@@ -138,11 +136,13 @@ DLL_EXPORT int test_ipcmsg_summary_with_testres(ITesting *t) {
     TR_ASSERT(t, first->symbolName == testResultsOut->symbolName);
     auto testResultIn = first->testResult;
     TR_ASSERT(t, testResultIn->Asserts() == 1);
-    auto &assertErrorIn = testResultIn->AssertError();
-    TR_ASSERT(t, assertErrorIn.line == assertError.line);
-    TR_ASSERT(t, assertErrorIn.file == assertError.file);
-    TR_ASSERT(t, assertErrorIn.message == assertError.message);
-    TR_ASSERT(t, assertErrorIn.assertClass == assertError.assertClass);
+    // Verify the propagation of the assert error from above
+    auto &assertErrorIn = testResultIn->AssertError().Errors().front();
+    auto &assertErrorRef = assertError.Errors().front();
+    TR_ASSERT(t, assertErrorIn.line == assertErrorRef.line);
+    TR_ASSERT(t, assertErrorIn.file == assertErrorRef.file);
+    TR_ASSERT(t, assertErrorIn.message == assertErrorRef.message);
+    TR_ASSERT(t, assertErrorIn.assertClass == assertErrorRef.assertClass);
 
 
     return kTR_Pass;

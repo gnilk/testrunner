@@ -2,7 +2,9 @@
 # CMAKE file for TestRunner
 #
 
-set(CMAKE_OSX_ARCHITECTURES "x86_64;arm64" CACHE STRING "")
+#set(CMAKE_OSX_ARCHITECTURES "x86_64;arm64" CACHE STRING "")
+set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "")
+#set(CMAKE_OSX_ARCHITECTURES "arm64" CACHE STRING "")
 #set(CMAKE_OSX_ARCHITECTURES arm64)
 set(CMAKE_OSX_SYSROOT /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk)
 cmake_minimum_required(VERSION 3.16)
@@ -18,7 +20,7 @@ project(testrunner)
 set(LIBRARY_OUTPUT_PATH ./lib)
 
 SET(TRUN_VERSION_MAJOR 2)
-SET(TRUN_VERSION_MINOR 0)
+SET(TRUN_VERSION_MINOR 1)
 SET(TRUN_VERSION_PATCH 0)
 
 SET(TRUN_VERSION_STR "${TRUN_VERSION_MAJOR}.${TRUN_VERSION_MINOR}.${TRUN_VERSION_PATCH}")
@@ -45,6 +47,7 @@ endif()
 
 set(FMT_HOME ${CMAKE_SOURCE_DIR}/ext/fmt)
 set(GNKLOG_HOME ${CMAKE_SOURCE_DIR}/ext/gnklog)
+
 
 #
 # include gnklog
@@ -116,9 +119,11 @@ list(APPEND embedsrc src/testrunner/trunembedded.cpp src/testrunner/trunembedded
 
 
 # add unit tests
+list(APPEND testsrc src/testrunner/tests/test_assert.cpp)
 list(APPEND testsrc src/testrunner/tests/test_cdepends.cpp)
 list(APPEND testsrc src/testrunner/tests/test_depends.cpp)
 list(APPEND testsrc src/testrunner/tests/test_execorder.cpp)
+list(APPEND testsrc src/testrunner/tests/test_exception.cpp)
 list(APPEND testsrc src/testrunner/tests/test_jsonreport.cpp)
 list(APPEND testsrc src/testrunner/tests/test_main.cpp)
 list(APPEND testsrc src/testrunner/tests/test_mdepends.cpp)
@@ -165,6 +170,7 @@ add_executable(trun src/app/main.cpp ${srcfiles} ${execsrcfiles} ${rprtsrcfiles}
 target_compile_definitions(trun PUBLIC TRUN_HAVE_EXT_REPORTING)
 target_compile_definitions(trun PUBLIC TRUN_HAVE_THREADS)
 target_compile_definitions(trun PUBLIC TRUN_VERSION="${TRUN_VERSION_STR}")
+target_compile_definitions(trun PUBLIC TRUN_HAVE_EXCEPTIONS)
 target_include_directories(trun PUBLIC ${FMT_HOME}/include)
 target_include_directories(trun PUBLIC ${CMAKE_SOURCE_DIR}/src/testrunner)
 target_include_directories(trun PUBLIC ${CMAKE_SOURCE_DIR}/ext/gnklog/src)
@@ -174,6 +180,7 @@ set_property(TARGET trun PROPERTY CXX_STANDARD 20)
 add_library(trun_utests SHARED ${srcfiles} ${testsrc} ${rprtsrcfiles} ${execsrcfiles} ${ipcsrcfiles})
 target_compile_definitions(trun_utests PUBLIC TRUN_HAVE_EXT_REPORTING)
 target_compile_definitions(trun_utests PUBLIC TRUN_HAVE_THREADS)
+target_compile_definitions(trun_utests PUBLIC TRUN_HAVE_EXCEPTIONS)
 target_include_directories(trun_utests PUBLIC ${FMT_HOME}/include)
 target_include_directories(trun_utests PUBLIC ${CMAKE_SOURCE_DIR}/src/testrunner)
 target_include_directories(trun_utests PUBLIC ${CMAKE_SOURCE_DIR}/ext/gnklog/src)
@@ -192,6 +199,22 @@ set_property(TARGET trv1_utest PROPERTY CXX_STANDARD 20)
 add_library(trv2_utest SHARED src/testv2/test_v2module.cpp)
 set_property(TARGET trv2_utest PROPERTY CXX_STANDARD 20)
 
+
+
+#
+# test - test - test - using fetch content
+#
+include(FetchContent)
+FetchContent_Declare(
+        cpptrace
+        GIT_REPOSITORY https://github.com/jeremy-rifkin/cpptrace.git
+        GIT_TAG        v0.7.1
+)
+FetchContent_MakeAvailable(cpptrace)
+target_link_libraries(trun cpptrace::cpptrace)
+target_link_libraries(trun_utests cpptrace::cpptrace)
+# if only this was documented TOGETHER with the examples...
+include_directories(${cpptrace_SOURCE_DIR}/include)
 
 
 #
@@ -228,10 +251,12 @@ include(GNUInstallDirs)
 
 if (APPLE)
 
-    target_compile_options(trun PUBLIC -Wall -Wpedantic -Wextra -Wno-multichar)
+    target_compile_options(trun PUBLIC -Wall -Wpedantic -Wextra -Wno-multichar -fsanitize=address)
     target_compile_options(trun_utests PUBLIC -Wno-multichar)
 
     target_compile_definitions(trun PUBLIC -DTRUN_HAVE_FORK)
+
+    target_link_options(trun PUBLIC -fsanitize=address)
 
     set(CMAKE_INSTALL_PREFIX /usr/local)
     set(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH} /usr/local/lib /usr/lib/system)

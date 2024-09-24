@@ -21,7 +21,11 @@
 #include "funcexecutors.h"
 #include "responseproxy.h"
 #include "testinterface_internal.h"
-
+#include <filesystem>
+#include <iostream>
+#ifdef TRUN_HAVE_EXCEPTIONS
+#include <cpptrace/from_current.hpp>
+#endif
 
 #ifdef TRUN_HAVE_THREADS
     #ifndef WIN32
@@ -81,15 +85,40 @@ int TestFuncExecutorBase::InvokeHook(const CBPrePostHook &hook) {
     // Fetch version..
     auto rawVersion = library->GetRawVersion();
     // Hook signatures have changed so we need to do this - a bit convoluted..
-    if (rawVersion == TRUN_MAGICAL_IF_VERSION1) {
-        hook.cbHookV1((ITestingV1 *)TestResponseProxy::GetTRTestInterface(library->GetVersion()));
-    } else {
-        returnCode = hook.cbHookV2((ITestingV2 *)TestResponseProxy::GetTRTestInterface(library->GetVersion()));
+    try {
+        if (rawVersion == TRUN_MAGICAL_IF_VERSION1) {
+            hook.cbHookV1((ITestingV1 *) TestResponseProxy::GetTRTestInterface(library->GetVersion()));
+        } else {
+            returnCode = hook.cbHookV2((ITestingV2 *) TestResponseProxy::GetTRTestInterface(library->GetVersion()));
+        }
+    } catch(...) {
+        printf(" ** Exception during pre/post hook call **\n");
+        returnCode = kTR_Fail;
     }
     return returnCode;
 }
+#ifdef TRUN_HAVE_EXCEPTIONS
 
+// Enhance this with more types...
+static std::string HandleException(const std::exception_ptr &eptr = std::current_exception()) {
+    if (!eptr) { throw std::bad_exception(); }
 
+    try { std::rethrow_exception(eptr); }
+    catch (const std::exception &e) { return e.what()   ; }
+    catch (const std::string    &e) { return e          ; }
+    catch (const char           *e) { return e          ; }
+    catch (...)                     { return "unknown or unhandled exception type"; }
+}
+namespace cpptrace {
+    void print_frame(
+            std::ostream& stream,
+            bool color,
+            unsigned frame_number_width,
+            std::size_t counter,
+            const stacktrace_frame& frame
+    );
+}
+#endif
 //
 // Sequential execution
 //
@@ -118,10 +147,52 @@ int TestFuncExecutorSequential::Execute(TestFunc *testFunc, const CBPrePostHook 
     }
 
     // Main (the actual test case)
+    int testReturnCode = {};
     testFunc->ChangeExecState(TestFunc::kExecState::Main);
-    int testReturnCode = testFunc->InvokeTestCase(proxy);
+
+    // Trying 'cpptrace' to get a nice stack frame from an exception...
+    // CPPTrace requires 'special' try/catch - there is some magic here
+#ifdef TRUN_HAVE_EXCEPTIONS
+    CPPTRACE_TRY {
+        testReturnCode = testFunc->InvokeTestCase(proxy);
+    } CPPTRACE_CATCH(...) {
+        auto &exception_stacktrace = cpptrace::from_current_exception();
+
+        // Ok, trying to print up to the test-runner code...
+        // stop when the stack frame leaves the code under test
+        int idxTargetFrame = 0;
+        for(const auto& frame : exception_stacktrace.frames) {
+            auto pathname = std::filesystem::path(frame.filename);
+            if (pathname.filename() == "testfunc.h") {
+                idxTargetFrame -= 1;
+                break;
+            }
+            // FIXME: store this in conjunction with the result??
+            cpptrace::print_frame(std::cout, true, 2, idxTargetFrame, frame);
+            std::cout << "\n";
+            idxTargetFrame++;
+        }
+
+        // Consider declaring an 'ExceptionError' in the Result class
+        auto exceptionString = HandleException();
+        auto &frame = exception_stacktrace.frames.at(idxTargetFrame);
+        if (frame.line.has_value()) {
+            printf("*** EXCEPTION ERROR: %s\t'%s'\n", frame.filename.c_str(), exceptionString.c_str());
+        } else {
+            printf("*** EXCEPTION ERROR: %s:%d\t'%s'\n",
+                   frame.filename.c_str(), frame.line.value(),
+                   exceptionString.c_str());
+        }
 
 
+        // Normally this would be printed in the Response Proxy
+        // But exceptions are caught by the runner - thus, we print it here...
+        proxy.SetExceptionError(exceptionString);
+        testReturnCode = kTR_Fail;
+    }
+#else
+    testReturnCode = testFunc->InvokeTestCase(proxy);
+#endif
     // Test-case post function, note cbPostHook is a union of funcptrs - doesn't matter which one we check
     if (cbPostHook.cbHookV1 != nullptr) {
         testFunc->ChangeExecState(TestFunc::kExecState::PostCallback);

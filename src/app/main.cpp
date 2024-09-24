@@ -219,7 +219,10 @@ static bool ParseArguments(int argc, char **argv) {
                         // Long argument
                         {
                             std::string longArgument = std::string(&argv[i][++j]);
-                            if (longArgument == "sequential") {
+                            if (longArgument == "continue_on_assert") {
+                                Config::Instance().continueOnAssert = true;                            
+                                goto next_argument;
+                            } else if (longArgument == "sequential") {
                                 Config::Instance().moduleExecuteType = trun::ModuleExecutionType::kSequential;
                                 goto next_argument;
                             } else if (longArgument == "allow-thread-exit") {

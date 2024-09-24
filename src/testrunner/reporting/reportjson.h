@@ -22,6 +22,9 @@ namespace trun {
         void PrintPasses(const std::vector<TestResult::Ref> &results);
     protected:
         void PrintTestResult(const TestResult::Ref result);
+        void PrintAssertError(const TestResult::Ref result);
+        void PrintAssertArray(const TestResult::Ref result);
+        void PrintAssert(const AssertError::AssertErrorItem &aerr);
         std::string EscapeString(const std::string &str);
     protected:
         bool bHadFailures = false;

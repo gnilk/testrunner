@@ -11,7 +11,7 @@
 #include "asserterror.h"
 
 namespace trun {
-
+    // FIXME: Support for exceptions
     class TestResponseProxy {
     public:
         TestResponseProxy() = default;
@@ -24,10 +24,16 @@ namespace trun {
         int Errors();
         int Asserts();
         kTestResult Result();
-        bool IsAssertValid() const { return assertError.isValid; }
+        bool IsAssertValid() const { return assertError.IsValid(); }
         class AssertError &GetAssertError() { return assertError; }
 
-
+        void SetExceptionError(const std::string &exception);
+        bool WasExceptionThrown() const {
+            return exceptionThrown;
+        }
+        const std::string &GetExceptionString() const {
+            return exceptionString;
+        }
     public: // ITesting mirroring
         void Debug(int line, const char *file, std::string message);
         void Info(int line, const char *file, std::string message);
@@ -36,7 +42,7 @@ namespace trun {
         void Fatal(int line, const char *file, std::string message);
         void Abort(int line, const char *file, std::string message);
 
-        void AssertError(const char *exp, const char *file, const int line);
+        kTRContinueMode AssertError(const char *exp, const char *file, const int line);
 
         void SetPreCaseCallback(const CBPrePostHook &cbPreCase);
         void SetPostCaseCallback(const CBPrePostHook &cbPostCase);
@@ -63,9 +69,11 @@ namespace trun {
 
         class AssertError assertError;
 
-        kTestResult testResult;
-        int assertCount;
-        int errorCount;
+        bool exceptionThrown = false;
+        std::string exceptionString = {};
+        kTestResult testResult = {};
+        int assertCount = 0;
+        int errorCount = 0;
 
         std::string symbolName; // current symbol under test
         std::string moduleName; // current library under test

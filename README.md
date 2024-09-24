@@ -445,7 +445,7 @@ See *exshared* library for an example.
 <b>Note:</b> TestRunner default input is the current directory. It will search recursively for any testable functions.
 
 ```
-TestRunner v2.0.0 - macOS - C/C++ Unit Test Runner
+TestRunner v2.1.0 - Linux - C/C++ Unit Test Runner
 Usage: trun [options] input
 Options: 
   -v  Verbose, increase for more!
@@ -624,7 +624,11 @@ Example output:
 <b>Note:</b> Passes are only reported IF you include it in the summary (`-S`).
 
 # Version history
-## v2.0-beta
+## v2.1
+- Support for exceptions, i.e. won't crash
+- Support for continue on assert error (--continue_on_assert)
+- Added new 'TR_REQUIRES' which will always break a test-case 
+## v2.0
 - Two external dependencies
    - `gnklog` has replaced the old debug logging library - this is interface compatible with embedded
    - `fmtlib` is being used, as this is a requirement for `gnklog`

@@ -51,7 +51,7 @@ static void int_trp_error(int line, const char *file, const char *format, ...);
 static void int_trp_fatal(int line, const char *file, const char *format, ...);
 static void int_trp_abort(int line, const char *file, const char *format, ...);
 static void int_trp_assert_error(const char *exp, const char *file, int line);
-static void int_trp_assert_error_v2(int line, const char *file, const char *exp);
+static kTRContinueMode int_trp_assert_error_v2(int line, const char *file, const char *exp);
 static void int_trp_hook_precase_v2(TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPreCase);
 static void int_trp_hook_postcase_v2(TRUN_PRE_POST_HOOK_DELEGATE_V2 cbPostCase);
 static void int_trp_casedepend(const char *caseName, const char *dependencyList);
@@ -136,6 +136,11 @@ kTestResult TestResponseProxy::Result() {
     return testResult;
 }
 
+void TestResponseProxy::SetExceptionError(const std::string &exception) {
+    exceptionThrown = true;
+    exceptionString = exception;
+}
+
 // ITesting mirror
 void TestResponseProxy::Debug(int line, const char *file, std::string message) {
     pLogger->Debug("%s:%d:%s", file, line, message.c_str());
@@ -170,7 +175,7 @@ void TestResponseProxy::Fatal(int line, const char *file, std::string message) {
     if (testResult < kTestResult_ModuleFail) {
         testResult = kTestResult_ModuleFail;
     }
-    assertError.Set(AssertError::kAssert_Fatal, line, file, message);
+    assertError.Add(AssertError::kAssert_Fatal, line, file, message);
     TerminateThreadIfNeeded();
 }
 
@@ -182,12 +187,11 @@ void TestResponseProxy::Abort(int line, const char *file, std::string message) {
     if (testResult < kTestResult_AllFail) {
         testResult = kTestResult_AllFail;
     }
-    assertError.Set(AssertError::kAssert_Abort, line, file, message);
+    assertError.Add(AssertError::kAssert_Abort, line, file, message);
     TerminateThreadIfNeeded();
 }
 
-//void (*AssertError)(const char *exp, const char *file, const int line);
-void TestResponseProxy::AssertError(const char *exp, const char *file, const int line) {
+kTRContinueMode TestResponseProxy::AssertError(const char *exp, const char *file, const int line) {
     pLogger->Debug("Assert Error: %s:%d\t'%s'", file, line, exp);
     printf("*** ASSERT ERROR: %s:%d\t'%s'\n", file, line, exp);
 
@@ -195,8 +199,13 @@ void TestResponseProxy::AssertError(const char *exp, const char *file, const int
     if (testResult < kTestResult_TestFail) {
         testResult = kTestResult_TestFail;
     }
-    assertError.Set(AssertError::kAssert_Error, line, file, exp);
+    assertError.Add(AssertError::kAssert_Error, line, file, exp);
     TerminateThreadIfNeeded();
+
+    if (Config::Instance().continueOnAssert) {
+        return kTRContinueMode::kTRContinue;
+    }
+    return kTRContinueMode::kTRLeave;
 }
 
 // Terminates the running thread if allowed - i.e. you must have 'allowThreadTermination' enabled...
@@ -380,9 +389,9 @@ static void int_trp_assert_error(const char *exp, const char *file, int line) {
     TestRunner::GetCurrentTestModule()->GetTestResponseProxy().AssertError(exp, file, line);
 }
 
-static void int_trp_assert_error_v2(int line, const char *file, const char *exp) {
+static kTRContinueMode int_trp_assert_error_v2(int line, const char *file, const char *exp) {
     // Just swizzle the arguments back to the old interface..
-    TestRunner::GetCurrentTestModule()->GetTestResponseProxy().AssertError(exp, file, line);
+    return TestRunner::GetCurrentTestModule()->GetTestResponseProxy().AssertError(exp, file, line);
 }
 
 
@@ -495,6 +504,16 @@ static void int_tcfg_get(const char *key, TRUN_ConfigItem *outValue) {
     if (outValue == nullptr) {
         return;
     }
+    // test test
+    if (key == std::string("continue_on_assert")) {
+        outValue->isValid = true;
+        strncpy(outValue->name, key, TR_CFG_ITEM_NAME_LEN-1);
+        outValue->value_type = kTRCfgType_Bool;
+        outValue->value.boolean = Config::Instance().continueOnAssert;
+        return;
+    }
+
+
     // TODO: Implement properly...
     if (key != std::string("enableThreadTestExecution")) {
         return;

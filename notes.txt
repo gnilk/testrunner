@@ -1,0 +1,19 @@
+Notes from CPPCon24
+- Checkout catch2
+    - Consider adding support for declarative names
+    - Extend TR_ASSERT to 'TR_CATCH' to catch std::XYZ exceptions
+    - Verify if we can continue executing the test-case after an assert fails (think we can, but we don't use this)
+        -> We can't, but can quite easily be solved...
+
+ TODO (continue on assert):
+ ! ResponseProxy and/or AssertError class must hold a list of assert errors
+ ! Response proxy should add to this list in the 'AssertError'
+ + Reporting should handle multiple AssertErrors
+    ! Console does
+    + JSON not so simple - will break JSON structure
+ ! ITesting::Error is not propagated in the report
+ - Support for exceptions
+    - ResponseProxy should have a function to 'AddException' alt. SetException
+    - TestResult should have new 'kTestResult_Exception'
+    - Reporting and the rest...
+    - Probably need special cmd-line switches to deal with 'continue on exception' etc..

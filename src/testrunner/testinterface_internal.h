@@ -25,13 +25,6 @@
 #define DLL_EXPORT
 #endif
 
-// Assert macro, checks version and casts to right (hopefully) interface...
-// Note: comparing magic here is quite ok - we can't have a difference!
-#define TR_ASSERT(t, _exp_) \
-    if (!(_exp_)) {                                                    \
-        ((ITesting *)t)->AssertError(__LINE__, __FILE__, #_exp_);   \
-        return kTR_Fail; \
-    }
 
 //#define STR_TO_VER(ver) ((ver[0]<<24) | (ver[1]<<16) | (ver[2] << 8) | (ver[3]))
 #define STR_TO_VER(ver) (((uint64_t)ver[0]<<56) | ((uint64_t)ver[1]<<48) | ((uint64_t)ver[2] << 40) | ((uint64_t)ver[3] << 32) | ((uint64_t)ver[4] << 24) | ((uint64_t)ver[5] << 16) | ((uint64_t)ver[6] << 8) | ((uint64_t)ver[7]))
@@ -80,6 +73,25 @@ union CBPrePostHook {
     TRUN_PRE_POST_HOOK_DELEGATE_V2 *cbHookV2;
 };
 
+typedef enum {
+    kTRLeave,
+    kTRContinue,
+} kTRContinueMode;
+
+// Assert macro, checks version and casts to right (hopefully) interface...
+// Note: comparing magic here is quite ok - we can't have a difference!
+#define TR_ASSERT(t, _exp_) \
+    if (!(_exp_)) {                                                    \
+        auto tr_temp_res = ((ITesting *)t)->AssertError(__LINE__, __FILE__, #_exp_);   \
+        if (tr_temp_res == kTRContinueMode::kTRLeave) return kTR_Fail; \
+    }
+
+#define TR_REQUIRE(t, _exp_, _msg_) \
+    if (!(_exp_)) {                 \
+        ((ITesting *)t)->Error(__LINE__, __FILE__, #_msg_); \
+        return kTR_Fail;                            \
+    }
+
 
 //
 // Callback Version V1 - same as in ext_testinterface/testinterface_v1.h
@@ -116,7 +128,7 @@ struct ITestingV2 : public ITestingVersioned {
     void (*Fatal)(int line, const char *file, const char *format, ...); // Current test, stop library and proceed to next
     void (*Abort)(int line, const char *file, const char *format, ...); // Current test, stop execution
     // Asserts
-    void (*AssertError)(const int line, const char *file, const char *exp);
+    kTRContinueMode (*AssertError)(const int line, const char *file, const char *exp);
     // Hooks - this change leads to compile errors for old unit-tests - is that ok?
     void (*SetPreCaseCallback)(int(*)(ITestingV2 *));         // v2 - must return int - same as test function 'kTR_xxx'
     void (*SetPostCaseCallback)(int(*)(ITestingV2 *));        // v2 - must return int - same as test function 'kTR_xxx'
@@ -129,6 +141,9 @@ struct ITestingV2 : public ITestingVersioned {
     // I think the biggest question is WHAT we need...
     void (*QueryInterface)(uint32_t interface_id, void **outPtr);                 // V2 - Optional, query an interface from the runner...
 };
+
+
+
 
 //
 // V2 extensions
@@ -162,6 +177,22 @@ struct ITestingConfig {
     void (*Get)(const char *key, TRUN_ConfigItem *outValue);
 };
 
+
+/*
+static bool TRUN_ContinueOnAssert(ITesting *t) {
+    ITestingConfig *trConfig = {};
+    t->QueryInterface(ITestingConfig_IFace_ID, (void **)&trConfig);
+    if (trConfig == nullptr) {
+        return false;   // default
+    }
+    TRUN_ConfigItem continueOnAssert = {};
+    trConfig->Get("continue_on_assert", &continueOnAssert);
+    if ((continueOnAssert.isValid) && (continueOnAssert.value_type == kTRCfgType_Bool)) {
+        return continueOnAssert.value.boolean;
+    }
+    return false;
+}
+ */
 
 
 #ifdef __cplusplus
