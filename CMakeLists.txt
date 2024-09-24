@@ -211,6 +211,8 @@ FetchContent_Declare(
         GIT_TAG        v0.7.1
 )
 FetchContent_MakeAvailable(cpptrace)
+set(CPPTRACE_BUILD_SHARED OFF)
+set(CPPTRACE_INCLUDES_WITH_SYSTEM OFF)
 target_link_libraries(trun cpptrace::cpptrace)
 target_link_libraries(trun_utests cpptrace::cpptrace)
 # if only this was documented TOGETHER with the examples...
