@@ -23,7 +23,8 @@
     "flags": [
       "-std=c++17",
       "-DTRUN_EMBEDDED_MCU",
-      "-DTRUN_SINGLE_THREAD"
+      "-DTRUN_SINGLE_THREAD",
+      "-Isrc/testrunner/embedded"
     ],
     "unflags" : "-std=gnu++11",
     "libArchive": true,
@@ -31,10 +32,13 @@
     "srcFilter" : [
       "+<*>",
       "-<tests/>",
+      "-<ipc/>",
+      "-<ext_testinterface/>",
       "-<unix/>",
       "-<win32/>",
       "-<main.cpp>"
-    ]
+    ],
+    "includeDir" : "src/"
   },
   "dependencies": [
   ]
