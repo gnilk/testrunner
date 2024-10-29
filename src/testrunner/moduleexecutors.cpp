@@ -27,6 +27,7 @@
 #include <vector>
 #include <algorithm>
 #include <chrono>
+#include "std_backport.h"
 
 #ifndef WIN32
     #ifdef TRUN_HAVE_FORK

@@ -34,6 +34,7 @@
 #include "strutil.h"
 #include "resultsummary.h"
 
+#include "std_backport.h"
 
 using namespace trun;
 
