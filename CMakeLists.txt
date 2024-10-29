@@ -21,7 +21,7 @@ set(LIBRARY_OUTPUT_PATH ./lib)
 
 SET(TRUN_VERSION_MAJOR 2)
 SET(TRUN_VERSION_MINOR 1)
-SET(TRUN_VERSION_PATCH 0)
+SET(TRUN_VERSION_PATCH 1)
 
 SET(TRUN_VERSION_STR "${TRUN_VERSION_MAJOR}.${TRUN_VERSION_MINOR}.${TRUN_VERSION_PATCH}")
 
@@ -204,6 +204,10 @@ set_property(TARGET trv2_utest PROPERTY CXX_STANDARD 20)
 #
 # test - test - test - using fetch content
 #
+set(CPPTRACE_USE_EXTERNAL_ZSTD ON)
+set(CPPTRACE_USE_EXTERNAL_LIBDWARF OFF)
+set(CPPTRACE_BUILD_SHARED OFF)
+
 include(FetchContent)
 FetchContent_Declare(
         cpptrace
@@ -211,8 +215,7 @@ FetchContent_Declare(
         GIT_TAG        v0.7.1
 )
 FetchContent_MakeAvailable(cpptrace)
-set(CPPTRACE_BUILD_SHARED OFF)
-set(CPPTRACE_INCLUDES_WITH_SYSTEM OFF)
+#set(CPPTRACE_INCLUDES_WITH_SYSTEM OFF)
 target_link_libraries(trun cpptrace::cpptrace)
 target_link_libraries(trun_utests cpptrace::cpptrace)
 # if only this was documented TOGETHER with the examples...
