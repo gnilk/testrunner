@@ -13,11 +13,15 @@ void ResultsReportPinterBase::Begin() {
     if (Config::Instance().reportFile == "-") {
         fout = stdout;
     } else {
+#ifndef TRUN_EMBEDDED_MCU
         fout = fopen(Config::Instance().reportFile.c_str(), "w+");
         if (fout == nullptr) {
             fprintf(stderr, "Err: unable to create report file '%s'\n", Config::Instance().reportFile.c_str());
             fout = stdout;
         }
+#else
+        fout = stdout;
+#endif
     }
 }
 void ResultsReportPinterBase::End() {
