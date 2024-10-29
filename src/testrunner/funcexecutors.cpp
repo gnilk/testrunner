@@ -84,6 +84,7 @@ int TestFuncExecutorBase::InvokeHook(const CBPrePostHook &hook) {
 
     // Fetch version..
     auto rawVersion = library->GetRawVersion();
+#ifdef TRUN_HAVE_EXCEPTIONS
     // Hook signatures have changed so we need to do this - a bit convoluted..
     try {
         if (rawVersion == TRUN_MAGICAL_IF_VERSION1) {
@@ -95,6 +96,15 @@ int TestFuncExecutorBase::InvokeHook(const CBPrePostHook &hook) {
         printf(" ** Exception during pre/post hook call **\n");
         returnCode = kTR_Fail;
     }
+#else
+    // Sorry, no protection in this path...
+    if (rawVersion == TRUN_MAGICAL_IF_VERSION1) {
+            hook.cbHookV1((ITestingV1 *) TestResponseProxy::GetTRTestInterface(library->GetVersion()));
+    } else {
+        returnCode = hook.cbHookV2((ITestingV2 *) TestResponseProxy::GetTRTestInterface(library->GetVersion()));
+    }
+#endif
+
     return returnCode;
 }
 #ifdef TRUN_HAVE_EXCEPTIONS
