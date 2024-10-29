@@ -32,11 +32,14 @@
     "srcFilter" : [
       "+<*>",
       "-<tests/>",
+      "-<reporting/>",
       "-<ipc/>",
       "-<ext_testinterface/>",
       "-<unix/>",
       "-<win32/>",
-      "-<main.cpp>"
+      "-<main.cpp>",
+      "+<reporting/reportconsole.cpp>",
+      "+<reporting/reportingbase.cpp>"
     ],
     "includeDir" : "src/"
   },
