@@ -439,7 +439,9 @@ static void int_trp_hook_postcase_v1(TRUN_PRE_POST_HOOK_DELEGATE_V1 cbPostCase) 
 
 static TRUN_ConfigItem *get_config_items(size_t *nItems) {
     // This should wrap into the Config::instance instead...
-    static TRUN_ConfigItem glb_Config[] {
+    static TRUN_ConfigItem glb_Config[1] = {};
+/*
+    static TRUN_ConfigItem glb_Config[] = {
             {
                     .isValid = true,
                     .name = "item1",
@@ -473,6 +475,7 @@ static TRUN_ConfigItem *get_config_items(size_t *nItems) {
                     }
             },
     };
+    */
     if (nItems != NULL) {
         *nItems = TRUN_ARRAY_LENGTH(glb_Config);
     }
