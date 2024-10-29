@@ -7,7 +7,7 @@
 
 
 #include "logger.h"
-#include "testrunner/testinterface_internal.h"
+#include "testinterface_internal.h"
 #include "dynlib.h"
 
 #include <string>
