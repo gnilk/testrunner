@@ -627,6 +627,8 @@ Example output:
 <b>Note:</b> Passes are only reported IF you include it in the summary (`-S`).
 
 # Version history
+## v2.1-Dev
+- Fixed embedded version, was not working 100% in mixed test_interface environments!
 ## v2.1
 - Support for exceptions, i.e. won't crash
 - Support for continue on assert error (--continue_on_assert)

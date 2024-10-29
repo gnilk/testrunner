@@ -23,7 +23,12 @@
 using namespace trun;
 
 DynLibEmbedded::Ref DynLibEmbedded::Create() {
-    return std::make_shared<DynLibEmbedded>();
+    auto ref =  std::make_shared<DynLibEmbedded>();
+#ifdef TRUN_USE_V1
+#else
+    ref->SetVersion(STR_TO_VER("GNK_0200"));
+#endif
+    return ref;
 }
 
 bool DynLibEmbedded::AddTestFunc(std::string name, PTESTFUNC func) {

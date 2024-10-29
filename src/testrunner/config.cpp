@@ -42,8 +42,13 @@ Config::Config() {
     version = "<unknown>";
 #endif
     description = "C/C++ Unit Test Runner";
+#ifdef TRUN_HAVE_FORK
     testExecutionType = TestExecutiontype::kThreaded;
     moduleExecuteType = ModuleExecutionType::kParallel;
+#else
+    testExecutionType = TestExecutiontype::kSequential;
+    moduleExecuteType = ModuleExecutionType::kSequential;
+#endif
 
     //
     // Setup logger

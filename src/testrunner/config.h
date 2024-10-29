@@ -28,7 +28,7 @@ namespace trun {
         static Config &Instance();
         void Dump();
     public:
-        // See CTOR for defaults
+        // **** VERY IMPORTANT TO MYSELF: See CTOR for defaults!!!
         std::vector<std::string> modules = {};
         std::vector<std::string> testcases = {};
         std::vector<std::string> inputs = {};
@@ -62,14 +62,20 @@ namespace trun {
         bool continueOnAssert = false;
 
         // Default is parallel for v2
+#ifdef TRUN_HAVE_THREADS
         TestExecutiontype testExecutionType = TestExecutiontype::kThreaded;
-        ModuleExecutionType moduleExecuteType = ModuleExecutionType::kParallel;
+#else
+        TestExecutiontype testExecutionType = TestExecutiontype::kSequential;
+#endif
 
-        bool isSubProcess = false;
+#ifdef TRUN_HAVE_FORK
+        ModuleExecutionType moduleExecuteType = ModuleExecutionType::kParallel;
         std::string ipcName = {};
         uint16_t moduleExecTimeoutSec = 30;
-
-
+#else
+        ModuleExecutionType moduleExecuteType = ModuleExecutionType::kSequential;
+#endif
+        bool isSubProcess = false;
         int useITestingVersion = 1;
         gnilk::ILogger *pLogger = nullptr;
     private:
