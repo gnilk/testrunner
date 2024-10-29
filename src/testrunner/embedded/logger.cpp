@@ -373,40 +373,47 @@ void Logger::WriteLine(const char *sFormat,...)
 }
 void Logger::Fatal(const char *sFormat,...)
 {
-	if (IsFatalEnabled()) {
-		WRITE_REPORT_STRING(kMCFatal);
+	if (!IsFatalEnabled()) {
+        return;
 	}
+    WRITE_REPORT_STRING(kMCFatal);
 }
 
 void Logger::Critical(const char *sFormat,...)
 {
-	if (IsCriticalEnabled()) {
-		WRITE_REPORT_STRING(kMCCritical);
+	if (!IsCriticalEnabled()) {
+        return;
 	}
+    WRITE_REPORT_STRING(kMCCritical);
 }
 void Logger::Error(const char *sFormat, ...)
 {
-	if (IsErrorEnabled()) {
-		WRITE_REPORT_STRING(kMCError);
+	if (!IsErrorEnabled()) {
+        return;
 	}
+    WRITE_REPORT_STRING(kMCError);
 }
 void Logger::Warning(const char *sFormat, ...)
 {
-	if (IsWarningEnabled()) {
-		WRITE_REPORT_STRING(kMCWarning);
+	if (!IsWarningEnabled()) {
+        return;
 	}
+    WRITE_REPORT_STRING(kMCWarning);
 }
 void Logger::Info(const char *sFormat, ...)
 {
-	if (IsInfoEnabled()) {
-		WRITE_REPORT_STRING(kMCInfo);
-	}
+	if (!IsInfoEnabled()) {
+        return;
+    }
+    WRITE_REPORT_STRING(kMCInfo);
 }
 void Logger::Debug(const char *sFormat, ...)
 {
-	if (IsDebugEnabled()) {
-		WRITE_REPORT_STRING(kMCDebug);
-	}
+	if (!IsDebugEnabled()) {
+        return;
+    }
+
+    WRITE_REPORT_STRING(kMCDebug);
 }
 
 
