@@ -26,7 +26,9 @@ SET(TRUN_VERSION_PATCH 1)
 SET(TRUN_VERSION_STR "${TRUN_VERSION_MAJOR}.${TRUN_VERSION_MINOR}.${TRUN_VERSION_PATCH}")
 
 
-set(CMAKE_BUILD_TYPE Debug)
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Debug)
+endif()
 
 # include_directories("${PROJECT_SOURCE_DIR}")
 
@@ -291,12 +293,17 @@ if (APPLE)
 
 elseif (WIN32)
     target_link_libraries(trun)
+    #set(CMAKE_CXX_FLAGS "/std:c++20 /Zc:__cplusplus /volatile:iso /EHsc")
+    target_compile_options(trun PUBLIC /std:c++20 /Zc:__cplusplus /volatile:iso /EHsc)
     target_compile_definitions(trun PUBLIC _CRT_SECURE_NO_WARNINGS)
     remove_definitions(-D_MBCS)
     add_definitions(-D_SBCS)
     # the above doesn't hit the library - but all other targets.. odd..
-    target_compile_options(trunlib PUBLIC -D _SBCS)
+    target_compile_options(trunlib PUBLIC -D _SBCS /std:c++20 /Zc:__cplusplus /volatile:iso /EHsc)    
     target_compile_definitions(trunlib PUBLIC _CRT_SECURE_NO_WARNINGS)
+    # and now the rest...
+    target_compile_options(trun_utests PUBLIC /std:c++20 /Zc:__cplusplus /volatile:iso /EHsc /Zc:implicitNoexcept)
+    target_compile_definitions(trun PUBLIC _CRT_SECURE_NO_WARNINGS)
 elseif (UNIX)
     target_compile_options(trun_utests PUBLIC -Wno-multichar)
     #target_link_libraries(trun dl pthread)
