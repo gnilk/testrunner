@@ -12,3 +12,4 @@ trunwindows/x64/
 trunwindows/.vs/
 trunwindows/trunwindows.vcxproj.user
 *.obj
+trunwindows/*/x64

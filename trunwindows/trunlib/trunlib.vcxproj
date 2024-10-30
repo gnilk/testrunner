@@ -120,12 +120,13 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions);WIN32;_CRT_SECURE_NO_WARNINGS;_LIB;WIN32_MEAN_AND_LEAN;TRUN_HAVE_THREADS</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions);WIN32;_CRT_SECURE_NO_WARNINGS;_LIB;WIN32_MEAN_AND_LEAN;TRUN_HAVE_THREADS;TRUN_VERSION="2.1.1"</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <AdditionalIncludeDirectories>$(SolutionDir)..\ext\fmt\include;$(SolutionDir)..\ext\gnklog\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>/Zc:__cplusplus %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>
