@@ -180,10 +180,10 @@ void TestFunc::PrintTestResult() {
         } else {
             //std::string failState = testResult->FailState() == TestResult::kFailState::PreHook?"pre-hook"
             if (testResult->FailState() == TestResult::kFailState::Main) {
-                printf("=== FAIL:\t%s, %.3f sec, %d, %d, %d\n", testResult->SymbolName().c_str(), tElapsedSec,
+                printf("=== FAIL:\t%s, %.3f sec, %d, %d, %zu\n", testResult->SymbolName().c_str(), tElapsedSec,
                        testResult->Result(), testResult->Errors(), testResult->Asserts());
             } else {
-                printf("=== FAIL:\t%s (%s), %.3f sec, %d, %d, %d\n",
+                printf("=== FAIL:\t%s (%s), %.3f sec, %d, %d, %zu\n",
                        testResult->SymbolName().c_str(),
                        testResult->FailStateName().c_str(),
                        tElapsedSec,
@@ -192,7 +192,7 @@ void TestFunc::PrintTestResult() {
         }
     } else {
         if ((testResult->Errors() != 0) || (testResult->Asserts() != 0)) {
-            printf("=== FAIL:\t%s, %.3f sec, %d, %d, %d\n",testResult->SymbolName().c_str(), tElapsedSec, testResult->Result(), testResult->Errors(), testResult->Asserts());
+            printf("=== FAIL:\t%s, %.3f sec, %d, %d, %zu\n",testResult->SymbolName().c_str(), tElapsedSec, testResult->Result(), testResult->Errors(), testResult->Asserts());
         } else {
             printf("=== PASS:\t%s, %.3f sec, %d\n",testResult->SymbolName().c_str(),tElapsedSec, testResult->Result());
         }
