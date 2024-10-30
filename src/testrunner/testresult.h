@@ -66,7 +66,7 @@ namespace trun {
         kTestResult Result() const { return testResult; }
         int Errors() const { return numError; }
         const std::string ErrorString() const { return errorString; }
-        int Asserts() const { return assertError.NumErrors(); }
+        size_t Asserts() const { return assertError.NumErrors(); }
         double ElapsedTimeSec() const { return tElapsedSec; }
         const std::string &SymbolName() const { return symbolName; }
         kFailState FailState() { return failState; }
