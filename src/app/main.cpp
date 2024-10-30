@@ -114,8 +114,10 @@ static void Help() {
     printf("      Disable any parallel execution of modules\n");
     printf("  --continue_on_assert\n");
     printf("      Continue test execution on assert errors (default: off)\n");
+#ifdef TRUN_HAVE_FORK    
     printf("  --module-timeout <sec>\n");
     printf("      Set timeout (in seconds) for forked execution, 0 - infinity (default: 30)\n");
+#endif    
     printf("  --allow-thread-exit\n");
     printf("      Test cases execution thread will self-terminate on assert/error/fatal\n");
 
@@ -231,6 +233,7 @@ static bool ParseArguments(int argc, char **argv) {
                                 Config::Instance().testExecutionType = trun::TestExecutiontype::kThreadedWithExit;
                                 goto next_argument;
                             } else if (longArgument == "module-timeout") {
+                #ifdef TRUN_HAVE_FORK
                                 auto optNum = ParseNumber(argv[++i]);
                                 if (!optNum.has_value()) {
                                     fmt::println(stderr, "module-timeout, '{}' not a number", argv[i]);
@@ -238,6 +241,9 @@ static bool ParseArguments(int argc, char **argv) {
                                     exit(1);
                                 }
                                 Config::Instance().moduleExecTimeoutSec = (uint16_t)optNum.value();
+                #else
+                                fmt::println(stderr,"module-timeout only available when compiled with 'TRUN_HAVE_FORK'");
+                #endif
                                 goto next_argument;
                             } else if (longArgument == "subprocess") {
                                 // HIDDEN (only used internally) - We are started by another trun process
@@ -245,7 +251,11 @@ static bool ParseArguments(int argc, char **argv) {
                                 goto next_argument;
                             } else if (longArgument == "ipc-name") {
                                 // HIDDEN (only used internally) - this is the IPC name we should when in a subprocess
+                                #ifdef TRUN_HAVE_FORK
                                 Config::Instance().ipcName = argv[++i];
+                                #else
+                                fmt::println(stderr, "ipc-name only available when compiled with 'TRUN_HAVE_FORK'");
+                                #endif
                                 goto next_argument;
                             }
                             printf("Unknown long argument: %s\n", longArgument.c_str());
