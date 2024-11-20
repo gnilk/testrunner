@@ -627,6 +627,9 @@ Example output:
 <b>Note:</b> Passes are only reported IF you include it in the summary (`-S`).
 
 # Version history
+## v2.1.2
+- Fixed a bug when using V1 causing asserts to continue even if they should exit
+- When dumping config also write out continue on assert setting
 ## v2.1.1
 - Fixed embedded version (exceptions, version handling, pre-c++ 17, etc..)
 ## v2.1
