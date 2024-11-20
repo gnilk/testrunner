@@ -103,20 +103,32 @@ void TestRunner::ExecuteTests() {
     // Create and sort tests according to naming convention
     Timer t;
     pLogger->Info("Starting library test for: %s", library->Name().c_str());
+    pLogger->Info("Library using test-interface version: %s", library->GetVersion().AsString().c_str());
     t.Reset();
 
     if (!Config::Instance().isSubProcess) {
-        printf("---> Start Module  \t%s\n", library->Name().c_str());
+        printf("---> Start Module \t%s\n", library->Name().c_str());
+        printf("---> Mod.Test.Ver \t%s\n",  library->GetVersion().AsString().c_str());
     }
 
     // Update the thread context with ourselves, we do this directly as it won't change
     SetCurrentTestRunner(this);
+
+    // In case of version 1 for this library we should use 'kThreadedWithExit'
+    // Since V1 of the testrunner didn't return a value for the ASSERT
+    auto oldTestExecutionType = Config::Instance().testExecutionType;
+    if ((oldTestExecutionType == TestExecutiontype::kThreaded) && (library->GetVersion().Major() == 1)) {
+        Config::Instance().testExecutionType = TestExecutiontype::kThreadedWithExit;
+    }
 
     // Execute...
     if (ExecuteMain()) {
         ExecuteModuleTests();
         ExecuteMainExit();
     }
+
+    // Restore the test execution type
+    Config::Instance().testExecutionType = oldTestExecutionType;
 
     if (!Config::Instance().isSubProcess) {
         printf("<--- End Module  \t%s\n", library->Name().c_str());
