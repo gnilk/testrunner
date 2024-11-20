@@ -200,11 +200,10 @@ kTRContinueMode TestResponseProxy::AssertError(const char *exp, const char *file
         testResult = kTestResult_TestFail;
     }
     assertError.Add(AssertError::kAssert_Error, line, file, exp);
-    TerminateThreadIfNeeded();
-
     if (Config::Instance().continueOnAssert) {
         return kTRContinueMode::kTRContinue;
     }
+    TerminateThreadIfNeeded();
     return kTRContinueMode::kTRLeave;
 }
 
