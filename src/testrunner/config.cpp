@@ -85,6 +85,7 @@ void Config::Dump() {
     printf("  Reporting indent size: %d\n", reportIndent);
     printf("  Module execution policy: %s\n", ModuleExecutionTypeToStr(moduleExecuteType).c_str());
     printf("  Testcase execution policy: %s\n", TestExecutionTypeToStr(testExecutionType).c_str());
+    printf("  Continue on assert: %s\n", continueOnAssert?"yes":"no");
     printf("  Modules:\n");
     for(auto x:modules) {
         printf("    %s\n", x.c_str());
