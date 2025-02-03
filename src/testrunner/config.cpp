@@ -22,7 +22,6 @@
 #include "logger.h"
 #include <string>
 #include "resultsummary.h"
-#include <inttypes.h>
 
 using namespace trun;
 
@@ -77,7 +76,7 @@ void Config::Dump() {
     printf("  Test Module Globals: %s\n", testModuleGlobals ? "yes" : "no");
     printf("  Test Main Global: %s\n", testGlobalMain?"yes":"no");
     printf("  TestCase Log Filter: %s\n", testLogFilter?"yes":"no");
-    printf("  Response Message Size Limit: %" PRIu32 "\n", responseMsgByteLimit);
+    printf("  Response Message Size Limit: %d\n", responseMsgByteLimit);
     printf("  Skip rest on library failure: %s\n", skipOnModuleFail?"yes":"no");
     printf("  Stop on full failure: %s\n", stopOnAllFail?"yes":"no");
     printf("  Silent mode: %s\n", suppressProgressMsg?"yes":"no");
