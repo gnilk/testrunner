@@ -335,14 +335,14 @@ const char *Logger::MessageClassNameFromInt(int mc)
 //
 void Logger::WriteReportString(int mc, char *string)
 {
-	char sHdr[64];
+	char sHdr[80];
 	char sTime[32];	// saftey, 26 is enough
 	const char *sLevel = MessageClassNameFromInt(mc);
 
 	TimeString(32, sTime);
 	// Format: "time [thread] msglevel library - "
     // MAX string before truncation is 62 chars; 23 + 2 + 8 + 2 + 8 + 1 + 15 + 3 = 23 + 23+20+15+4 = 43+19 = 62
-    snprintf(sHdr, 63, "%-23s [%.8x] %8s %15s - ", sTime, (unsigned int)0, sLevel, name.c_str());
+    snprintf(sHdr, sizeof(sHdr)-1, "%-23s [%.8x] %8s %15s - ", sTime, (unsigned int)0, sLevel, name.c_str());
 
 	int dbgLevel = DBGLEVEL_COMBINE(mc, logFlags);
 	Logger::SendToSinks((int)dbgLevel,sHdr, string);
