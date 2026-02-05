@@ -3,7 +3,7 @@
 //
 #include "test_ipc_common.h"
 
-#include "../IPCMessages.h"
+#include "../../IPCMessages.h"
 #include "../IPCEncoder.h"
 #include "../IPCBufferedWriter.h"
 #include "../IPCDecoder.h"
@@ -22,7 +22,7 @@ DLL_EXPORT int test_ipcmsg(ITesting *t) {
 }
 
 DLL_EXPORT int test_ipcmsg_resultsummary(ITesting *t) {
-    gnilk::IPCResultSummary resultSummaryOut;
+    trun::IPCResultSummary resultSummaryOut;
     resultSummaryOut.testsExecuted = 1;
     resultSummaryOut.testsFailed = 2;
     resultSummaryOut.durationSec = 3.0;
@@ -40,7 +40,7 @@ DLL_EXPORT int test_ipcmsg_resultsummary(ITesting *t) {
 
     // Deserialize again
     UTest_IPC_VectorReader vectorReader(vectorWriter.Data());
-    gnilk::IPCResultSummary resultSummaryIn;
+    trun::IPCResultSummary resultSummaryIn;
     gnilk::IPCBinaryDecoder decoder(vectorReader, resultSummaryIn);
 
     // Deserialize
@@ -61,7 +61,7 @@ DLL_EXPORT int test_ipcmsg_testresults(ITesting *t) {
     auto tr = trun::TestResult::Create("test_module_case");
     tr->SetResult(trun::kTestResult::kTestResult_Pass);
 
-    gnilk::IPCTestResults testResultsOut(tr);
+    trun::IPCTestResults testResultsOut(tr);
     testResultsOut.symbolName = "test_module_case";
 
     UTest_IPC_VectorWriter vectorWriter;
@@ -76,7 +76,7 @@ DLL_EXPORT int test_ipcmsg_testresults(ITesting *t) {
 
     // Deserialize again
     UTest_IPC_VectorReader vectorReader(vectorWriter.Data());
-    gnilk::IPCTestResults testResultsIn;
+    trun::IPCTestResults testResultsIn;
     gnilk::IPCBinaryDecoder decoder(vectorReader, testResultsIn);
 
     TR_ASSERT(t, decoder.Process());
@@ -87,7 +87,7 @@ DLL_EXPORT int test_ipcmsg_testresults(ITesting *t) {
 }
 
 DLL_EXPORT int test_ipcmsg_summary_with_testres(ITesting *t) {
-    gnilk::IPCResultSummary resultSummaryOut;
+    trun::IPCResultSummary resultSummaryOut;
     resultSummaryOut.testsExecuted = 1;
     resultSummaryOut.testsFailed = 2;
     resultSummaryOut.durationSec = 3.0;
@@ -102,7 +102,7 @@ DLL_EXPORT int test_ipcmsg_summary_with_testres(ITesting *t) {
     tr->SetAssertError(assertError);
     tr->SetNumberOfAsserts(1);  // Must be done explicitly..
 
-    auto testResultsOut = new gnilk::IPCTestResults(tr);
+    auto testResultsOut = new trun::IPCTestResults(tr);
     testResultsOut->symbolName = "my_test_case";
     resultSummaryOut.testResults.push_back(testResultsOut);
 
@@ -120,7 +120,7 @@ DLL_EXPORT int test_ipcmsg_summary_with_testres(ITesting *t) {
 
     // Deserialize again
     UTest_IPC_VectorReader vectorReader(vectorWriter.Data());
-    gnilk::IPCResultSummary resultSummaryIn;
+    trun::IPCResultSummary resultSummaryIn;
     gnilk::IPCBinaryDecoder decoder(vectorReader, resultSummaryIn);
 
     // Deserialize

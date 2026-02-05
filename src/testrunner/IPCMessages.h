@@ -13,9 +13,9 @@
 #include <string>
 
 #include "testresult.h"
-#include "IPCSerializer.h"
+#include "ipc/IPCSerializer.h"
 
-namespace gnilk {
+namespace trun {
 
     #pragma pack(push,1)
     typedef enum : uint8_t {
@@ -24,63 +24,47 @@ namespace gnilk {
         kMsgType_TestResults = 0x82,
         kMsgType_AssertError = 0x83,
     } IPCMessageType;
-
-    typedef enum : uint8_t {
-        kMsgVer_Current = 0x01,
-    } IPCMessageVersion;
-
-    // And implicit message header used by encoder/decoder to determine what is coming..
-    struct IPCMsgHeader {
-        uint8_t msgHeaderVersion = 1;
-        uint8_t msgId = 0;
-        uint16_t reserved = 0;
-        uint32_t msgSize = 0;
-    };
-    struct IPCArrayHeader {
-        uint8_t headerVersion = 1;
-        uint8_t reserved = 0;
-        uint16_t num = 0;
-    };
+#pragma pack(pop)
 
 
     // FIXME: need 'IPCAssertError'
-    class IPCAssertError : public IPCSerializer, public IPCDeserializer {
+    class IPCAssertError : public gnilk::IPCSerializer, public gnilk::IPCDeserializer {
     public:
         IPCAssertError() = default;
         IPCAssertError(const trun::AssertError &useAssertError) : assertError(useAssertError) {}
         virtual ~IPCAssertError() = default;
 
-        bool Marshal(IPCEncoderBase &encoder) const override;
-        bool Unmarshal(IPCDecoderBase &decoder) override;
-        IPCDeserializer *GetDeserializerForObject(uint8_t idObject) override;
+        bool Marshal(gnilk::IPCEncoderBase &encoder) const override;
+        bool Unmarshal(gnilk::IPCDecoderBase &decoder) override;
+        gnilk::IPCDeserializer *GetDeserializerForObject(uint8_t idObject) override;
 
     public:
         class trun::AssertError assertError;
     };
 
-    class IPCTestResults : public IPCSerializer, public IPCDeserializer {
+    class IPCTestResults : public gnilk::IPCSerializer, public gnilk::IPCDeserializer {
     public:
         IPCTestResults() = default;
         IPCTestResults(const trun::TestResult::Ref &useTestResult) : testResult(useTestResult) {}
         virtual ~IPCTestResults() = default;
 
-        bool Marshal(IPCEncoderBase &encoder) const override;
-        bool Unmarshal(IPCDecoderBase &decoder) override;
-        IPCDeserializer *GetDeserializerForObject(uint8_t idObject) override;
+        bool Marshal(gnilk::IPCEncoderBase &encoder) const override;
+        bool Unmarshal(gnilk::IPCDecoderBase &decoder) override;
+        gnilk::IPCDeserializer *GetDeserializerForObject(uint8_t idObject) override;
     public:
         std::string symbolName = {};
         trun::TestResult::Ref testResult = {};
         trun::AssertError assertError;      // Only valid in case we have an assert
     };
 
-    class IPCResultSummary : public IPCSerializer, public IPCDeserializer {
+    class IPCResultSummary : public gnilk::IPCSerializer, public gnilk::IPCDeserializer {
     public:
         IPCResultSummary() = default;
         virtual ~IPCResultSummary() = default;
 
-        bool Marshal(IPCEncoderBase &encoder) const override;
-        bool Unmarshal(IPCDecoderBase &decoder) override;
-        IPCDeserializer *GetDeserializerForObject(uint8_t idObject) override;
+        bool Marshal(gnilk::IPCEncoderBase &encoder) const override;
+        bool Unmarshal(gnilk::IPCDecoderBase &decoder) override;
+        gnilk::IPCDeserializer *GetDeserializerForObject(uint8_t idObject) override;
     public:
         int32_t testsExecuted = {};
         int32_t testsFailed = {};
@@ -100,7 +84,6 @@ namespace gnilk {
 //        return std::shared_ptr<T>(static_cast<T *>(ptr), [](auto p) { free(p); });
 //    }
 
-    #pragma pack(pop)
 
 }
 

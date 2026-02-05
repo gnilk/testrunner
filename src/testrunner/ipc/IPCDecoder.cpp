@@ -2,7 +2,7 @@
 // Created by gnilk on 21.05.24.
 //
 #include "IPCDecoder.h"
-#include "IPCMessages.h"
+#include "IPCMessage.h"
 
 using namespace gnilk;
 

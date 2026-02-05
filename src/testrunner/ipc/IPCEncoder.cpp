@@ -3,7 +3,7 @@
 //
 
 #include "IPCEncoder.h"
-#include "IPCMessages.h"
+#include "IPCMessage.h"
 
 using namespace gnilk;
 bool IPCBinaryEncoder::BeginObject(uint8_t objectId) {

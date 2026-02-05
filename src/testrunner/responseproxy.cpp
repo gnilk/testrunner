@@ -20,12 +20,16 @@
  \History
  - 2018.10.18, FKling, Implementation
  ---------------------------------------------------------------------------*/
+#include "ipc/IPCBufferedWriter.h"
+#include "ipc/IPCEncoder.h"
 #ifdef WIN32
 #include <Windows.h>
 #else
 #include <thread>
 #include <pthread.h>
 #include <stdarg.h>
+#include <signal.h>
+#include "unix/IPCFifoUnix.h"
 #endif
 
 #include <string.h>
@@ -34,6 +38,7 @@
 #include "logger.h"
 #include "config.h"
 #include "testrunner.h"
+#include "CoverageIPCMessages.h"
 
 
 #include <stdlib.h> // malloc
@@ -69,6 +74,8 @@ static void int_trp_hook_postcase_v1(TRUN_PRE_POST_HOOK_DELEGATE_V1 cbPostCase);
 static size_t int_tcfg_list(size_t maxItems, TRUN_ConfigItem *outArray);
 static void int_tcfg_get(const char *key, TRUN_ConfigItem *outValue);
 
+// Coverage
+static void int_tcov_begincov(const char *symbol);
 
 //
 // Setup the test response proxy before a test is invoked
@@ -118,6 +125,12 @@ ITestingConfig *TestResponseProxy::GetTRConfigInterface() {
             .Get = int_tcfg_get,
     };
     return &trp_config_bridge;
+}
+ITestingCoverage *TestResponseProxy::GetTRCoverageInterface() {
+    static ITestingCoverage trp_coverage_bridge = {
+        .BeginCoverage =  int_tcov_begincov,
+    };
+    return &trp_coverage_bridge;
 }
 
 double TestResponseProxy::ElapsedTimeInSec() {
@@ -266,6 +279,10 @@ void TestResponseProxy::QueryInterface(uint32_t interface_id, void **outPtr) {
         case ITestingConfig_IFace_ID :
             pLogger->Debug("QueryInterface, interface_id = %d, returning TRUN_IConfig", interface_id);
             *outPtr = (void *)GetTRConfigInterface();
+            break;
+        case ITestingCoverage_IFace_ID :
+            pLogger->Debug("QueryInterface, interface_id = %d, returning TRUN_ICoverage", interface_id);
+            *outPtr = (void *)GetTRCoverageInterface();
             break;
         default :
             *outPtr = nullptr;
@@ -529,4 +546,34 @@ static void int_tcfg_get(const char *key, TRUN_ConfigItem *outValue) {
     outValue->value_type = kTRCfgType_Bool;
 //    outValue->value.boolean = Config::Instance().enableThreadTestExecution;
     outValue->value.boolean = true;
+}
+
+// CITestingCoverage_IFace_ID
+static void int_tcov_begincov(const char *symbol) {
+    printf("BeginCoverage called for '%s'\n", symbol);
+    if (!Config::Instance().isCoverageRunning) {
+        printf("TCOV is not running!");
+        return;
+    }
+    printf("Connecting to TCOV via '%s'\n", Config::Instance().coverageIPCName.c_str());
+    gnilk::IPCFifoUnix ipc;
+    if (!ipc.ConnectTo(Config::Instance().coverageIPCName)) {
+        printf("Failed to connect to IPC using '%s'\n", Config::Instance().coverageIPCName.c_str());
+        return;
+    }
+
+    CovIPCCmdMsg cmdMsg;
+    cmdMsg.symbolName = symbol;
+
+    gnilk::IPCBufferedWriter bufferedWriter(ipc);
+    gnilk::IPCBinaryEncoder encoder(bufferedWriter);
+
+    cmdMsg.Marshal(encoder);
+    auto nFlush = bufferedWriter.Flush();
+    printf("flushed fifo, res=%d\n", nFlush);
+    printf("Sending signal to parent!\n");
+    raise(SIGUSR1);
+    // this should only close my end!
+    ipc.Close();
+    printf("Finished 'int_tcov_begincov'\n");
 }

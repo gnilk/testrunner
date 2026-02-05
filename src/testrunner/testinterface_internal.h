@@ -170,11 +170,17 @@ struct TRUN_ConfigItem {
 };
 
 #define ITestingConfig_IFace_ID (uint32_t)(0xc07f19)
+#define ITestingCoverage_IFace_ID (uint32_t)(0xc07f20)
 
 typedef struct ITestingConfig ITestingConfig;
 struct ITestingConfig {
     size_t (*List)(size_t maxItems, TRUN_ConfigItem *outArray);
     void (*Get)(const char *key, TRUN_ConfigItem *outValue);
+};
+
+typedef struct ITestingCoverage ITestingCoverage;
+struct ITestingCoverage {
+    void (*BeginCoverage)(const char *symbol);
 };
 
 

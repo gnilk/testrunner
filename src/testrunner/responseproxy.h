@@ -57,6 +57,7 @@ namespace trun {
         static ITestingVersioned *GetTRTestInterface(const Version &version);
     private:
         static ITestingConfig *GetTRConfigInterface();
+        static ITestingCoverage *GetTRCoverageInterface();
         void TerminateThreadIfNeeded();
 
         // Helpers to fetch interface of the correct version

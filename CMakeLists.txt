@@ -74,12 +74,30 @@ set_property(TARGET fmt PROPERTY POSITION_INDEPENDENT_CODE ON)
 target_compile_definitions(fmt PUBLIC FMT_EXCEPTIONS=0)
 list(APPEND extlibs fmt)
 
+#
+# setup the LLDB dev and build stuff, needed for tcov
+#
+# FIXME: This is not good - but we need LLVM as a dev-dependency for TCOV
+set(LLVM_ROOT "/Users/gnilk/src/ext/llvm-project")
+set(LLVM_BUILD_ROOT "/Users/gnilk/src/ext/llvm_build")
+set(LLDB_INCLUDE "${LLVM_ROOT}/lldb/include")
+set(LLDB_BUILD_INCLUDE "${LLVM_BUILD_ROOT}/include")
+set(LLDB_LIB "${LLVM_BUILD_ROOT}/lib")
+
+
+# all files from testrunner we reuse in tcov
+list(APPEND tcovsrcfiles src/testrunner/CoverageIPCMessages.cpp src/testrunner/CoverageIPCMessages.h)
+
+
 
 ## all files but the main application file
 list(APPEND srcfiles src/testrunner/asserterror.cpp)
 list(APPEND srcfiles src/testrunner/config.cpp)
+list(APPEND srcfiles src/testrunner/coveragerpcbrige.cpp src/testrunner/coveragerpcbrige.h)
+list(APPEND srcfiles src/testrunner/CoverageIPCMessages.cpp src/testrunner/CoverageIPCMessages.h)
 list(APPEND srcfiles src/testrunner/funcexecutors.cpp src/testrunner/funcexecutors.h)
 list(APPEND srcfiles src/testrunner/glob.cpp src/testrunner/glob.h)
+list(APPEND srcfiles src/testrunner/IPCMessages.cpp src/testrunner/IPCMessages.h)
 list(APPEND srcfiles src/testrunner/moduleexecutors.cpp src/testrunner/moduleexecutors.h)
 list(APPEND srcfiles src/testrunner/responseproxy.cpp)
 list(APPEND srcfiles src/testrunner/resultsummary.cpp)
@@ -106,7 +124,6 @@ list(APPEND ipcsrcfiles src/testrunner/ipc/IPCDecoderBase.h)
 list(APPEND ipcsrcfiles src/testrunner/ipc/IPCDecoder.cpp src/testrunner/ipc/IPCDecoder.h)
 list(APPEND ipcsrcfiles src/testrunner/ipc/IPCEncoderBase.h)
 list(APPEND ipcsrcfiles src/testrunner/ipc/IPCEncoder.cpp src/testrunner/ipc/IPCEncoder.h)
-list(APPEND ipcsrcfiles src/testrunner/ipc/IPCMessages.cpp src/testrunner/ipc/IPCMessages.h)
 list(APPEND ipcsrcfiles src/testrunner/ipc/IPCSerializer.cpp src/testrunner/ipc/IPCSerializer.h)
 
 # ipc testing
@@ -123,6 +140,7 @@ list(APPEND embedsrc src/testrunner/trunembedded.cpp src/testrunner/trunembedded
 # add unit tests
 list(APPEND testsrc src/testrunner/tests/test_assert.cpp)
 list(APPEND testsrc src/testrunner/tests/test_cdepends.cpp)
+list(APPEND testsrc src/testrunner/tests/test_coverage.cpp)
 list(APPEND testsrc src/testrunner/tests/test_depends.cpp)
 list(APPEND testsrc src/testrunner/tests/test_execorder.cpp)
 list(APPEND testsrc src/testrunner/tests/test_exception.cpp)
@@ -138,6 +156,7 @@ list(APPEND testsrc src/testv1/test_v1module.cpp)
 
 
 
+
 # Platform specific
 # Unix = Apple and Linux
 if (UNIX)
@@ -146,6 +165,10 @@ if (UNIX)
     list(APPEND execsrcfiles src/testrunner/unix/process.cpp)
     list(APPEND execsrcfiles src/testrunner/unix/subprocess.cpp src/testrunner/unix/subprocess.h)
     list(APPEND execsrcfiles src/testrunner/unix/IPCFifoUnix.cpp src/testrunner/unix/IPCFifoUnix.h)
+
+    # TCOV only uses the IPC from unix - the other stuff brings in quite a lot from testrunner itself (never written to be separate)
+    list(APPEND tcovsrcfiles src/testrunner/unix/IPCFifoUnix.cpp src/testrunner/unix/IPCFifoUnix.h)
+
 
     # add mac specific unit test src
     list(APPEND testsrc src/testrunner/tests/test_module_nix.cpp)
@@ -168,15 +191,27 @@ message(STATUS source: ${CMAKE_SOURCE_DIR})
 
 # Create executeable
 # need the target before (or use interfaces)
-add_executable(trun src/app/main.cpp ${srcfiles} ${execsrcfiles} ${rprtsrcfiles} ${ipcsrcfiles})
+add_executable(trun src/app/trun.cpp ${srcfiles} ${execsrcfiles} ${rprtsrcfiles} ${ipcsrcfiles})
 target_compile_definitions(trun PUBLIC TRUN_HAVE_EXT_REPORTING)
 target_compile_definitions(trun PUBLIC TRUN_HAVE_THREADS)
 target_compile_definitions(trun PUBLIC TRUN_VERSION="${TRUN_VERSION_STR}")
 target_compile_definitions(trun PUBLIC TRUN_HAVE_EXCEPTIONS)
+# FIXME: Temporary
+target_compile_options(trun PUBLIC -O0 -g)
 target_include_directories(trun PUBLIC ${FMT_HOME}/include)
 target_include_directories(trun PUBLIC ${CMAKE_SOURCE_DIR}/src/testrunner)
 target_include_directories(trun PUBLIC ${CMAKE_SOURCE_DIR}/ext/gnklog/src)
 set_property(TARGET trun PROPERTY CXX_STANDARD 20)
+
+# Test Coverage app
+add_executable(tcov src/app/tcov.cpp ${ipcsrcfiles} ${tcovsrcfiles})
+target_include_directories(tcov PUBLIC ${FMT_HOME}/include)
+target_include_directories(tcov PUBLIC ${CMAKE_SOURCE_DIR}/src/testrunner)
+target_include_directories(tcov PUBLIC ${CMAKE_SOURCE_DIR}/ext/gnklog/src)
+target_include_directories(tcov PUBLIC ${LLDB_INCLUDE} ${LLDB_BUILD_INCLUDE})
+target_link_directories(tcov PUBLIC ${LLDB_LIB})
+set_property(TARGET tcov PROPERTY CXX_STANDARD 20)
+
 
 # Create unit-test library
 add_library(trun_utests SHARED ${srcfiles} ${testsrc} ${rprtsrcfiles} ${execsrcfiles} ${ipcsrcfiles})
@@ -222,6 +257,7 @@ target_link_libraries(trun cpptrace::cpptrace)
 target_link_libraries(trun_utests cpptrace::cpptrace)
 # if only this was documented TOGETHER with the examples...
 include_directories(${cpptrace_SOURCE_DIR}/include)
+
 
 
 #
@@ -271,10 +307,17 @@ if (APPLE)
     find_library(IOKIT_FRAMEWORK IOKit)
     find_library(CORE_FRAMEWORK CoreFoundation)
     find_library(SYSTEM_FRAMEWORK System)
+
+    set(CMAKE_FRAMEWORK_PATH "${LLVM_BUILD_ROOT}/bin" ${CMAKE_FRAMEWORK_PATH})
+    find_library(LLDB_FRAMEWORK Lldb)
+
+
     message(STATUS ${COCOA_FRAMEWORK})
     message(STATUS ${CMAKE_OSX_ARCHITECTURES})
+    message(STATUS "LLDB Framework path: ${LLDB_FRAMEWORK}")
     message(STATUS IncludeDir: "${CMAKE_INSTALL_PREFIX}")
     list(APPEND platformlibs ${COCOA_FRAMEWORK} ${IOKIT_FRAMEWORK} ${CORE_FRAMEWORK} ${SYSTEM_FRAMEWORK})
+    list(APPEND tcovlibs ${LLDB_FRAMEWORK})
 
 
     include(GNUInstallDirs)
@@ -360,6 +403,9 @@ target_link_libraries(trun_utests ${platformlibs} ${extlibs})
 target_link_libraries(trv1_utest ${platformlibs})
 target_link_libraries(trv2_utest ${platformlibs})
 target_link_libraries(trunlib)
+target_link_libraries(tcov ${tcovlibs} ${extlibs})
+
+
 
 # Can't use this for embedded..
 target_link_libraries(trunembedded trunlib ${platformlibs})
@@ -381,4 +427,5 @@ add_custom_target(
 
 if(CMAKE_BUILD_TYPE STREQUAL Debug)
     add_dependencies(trun trun_utests)
+    add_dependencies(tcov trun trun_utests)
 endif()
