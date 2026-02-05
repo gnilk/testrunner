@@ -34,8 +34,8 @@
         #include "unix/process.h"
         #include "unix/subprocess.h"
         #include "unix/IPCFifoUnix.h"
-        #include "ipc/IPCMessages.h"
-        #include "ipc/IPCDecoder.h"
+        #include "IPCMessages.h"
+#include "ipc/IPCDecoder.h"
     #endif
 #endif
 
@@ -306,7 +306,7 @@ bool TestModuleExecutorFork::Execute(const IDynLibrary::Ref &library, const std:
     // Ok, this works - but needs to be formalized...
     while(ipcServer.Available()) {
 
-        gnilk::IPCResultSummary summary;
+        IPCResultSummary summary;
         gnilk::IPCBinaryDecoder decoder(ipcServer, summary);
         if (!decoder.Process()) {
             continue;

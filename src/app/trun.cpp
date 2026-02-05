@@ -65,6 +65,9 @@
 #include <optional>
 
 
+// FIXME: TEMP for tcov dev
+#include <signal.h>
+
 using namespace trun;
 gnilk::ILogger *pLogger = nullptr;
 
@@ -257,6 +260,13 @@ static bool ParseArguments(int argc, char **argv) {
                                 fmt::println(stderr, "ipc-name only available when compiled with 'TRUN_HAVE_FORK'");
                                 #endif
                                 goto next_argument;
+                            } else if (longArgument == "coverage") {
+                                // HIDDEN - we are started from 'tcov' and coverage tracking is enabled
+                                Config::Instance().isCoverageRunning = true;
+                                goto next_argument;
+                            } else if (longArgument == "tcov-ipc-name") {
+                                Config::Instance().coverageIPCName = argv[++i];
+                                goto next_argument;;
                             }
                             printf("Unknown long argument: %s\n", longArgument.c_str());
                             Help();
@@ -351,7 +361,14 @@ static void ScanLibraries(std::vector<std::string> &inputs) {
         }
     }
 }
-static void RunTestsForAllLibraries() {
+// FIXME: Make public - allows 'tcoverage' to break here - and analyze loaded libraries
+// We should remove this and wait for a signal (or something) to be raised!
+extern "C" void RunTestsForAllLibraries() {
+    if (Config::Instance().isCoverageRunning) {
+        printf("Sending signal to parent!\n");
+        raise(SIGUSR1);
+    }
+
     pLogger->Info("Running tests for all modules");
     for(auto lib : librariesToTest) {
         RunTestsForLibrary(lib);
@@ -369,6 +386,8 @@ static void RunTestsForLibrary(IDynLibrary::Ref library) {
     if (Config::Instance().executeTests) {
         pLogger->Debug("Running tests for: %s", library->Name().c_str());
         testRunner.ExecuteTests();
+    } else {
+        pLogger->Info("Didn't execute tests for: %s", library->Name().c_str());
     }
 }
 static void DumpTestsForLibrary(IDynLibrary::Ref library) {

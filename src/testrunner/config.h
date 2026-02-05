@@ -76,6 +76,8 @@ namespace trun {
         ModuleExecutionType moduleExecuteType = ModuleExecutionType::kSequential;
 #endif
         bool isSubProcess = false;
+        bool isCoverageRunning = false;
+        std::string coverageIPCName = "ipc_tcov";
         int useITestingVersion = 1;
         gnilk::ILogger *pLogger = nullptr;
     private:
