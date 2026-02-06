@@ -25,7 +25,7 @@ extern "C" int test_coverage(ITesting *t) {
     ITestingCoverage *icoverage = {};
     t->QueryInterface(ITestingCoverage_IFace_ID, reinterpret_cast<void **>(&icoverage));
     if (icoverage != nullptr) {
-        icoverage->BeginCoverage("CTestCoverage");
+        icoverage->BeginCoverage("CTestCoverage::SomeFunc");
     }
     printf("coverage main completed\n");
     return kTR_Pass;
