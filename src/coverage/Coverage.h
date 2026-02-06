@@ -52,6 +52,8 @@ namespace tcov {
         gnilk::ILogger *logger = {};
         std::string targetPathName = {};
         std::string workingDirectory = {};
+        std::vector<std::string> symbols = {};
+
         std::vector<std::string> trunArgsVector;
 
         BreakpointManager breakpointManager;
