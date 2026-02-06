@@ -21,11 +21,30 @@ void CTestCoverage::SomeFunc(int arg) {
     return;
 }
 
+static void internal_tcov_func(int arg) {
+    printf("bla bla\n");
+}
+void glb_tcov_func(int arg) {
+    printf("bla\n");
+}
+
+namespace gurka {
+    void ns_tcov_func(int arg) {
+        printf("bla\n");
+    }
+}
+
 extern "C" int test_coverage(ITesting *t) {
     ITestingCoverage *icoverage = {};
     t->QueryInterface(ITestingCoverage_IFace_ID, reinterpret_cast<void **>(&icoverage));
     if (icoverage != nullptr) {
-        icoverage->BeginCoverage("CTestCoverage::SomeFunc");
+        // This will stress test the various ways we resolve coverage breakpoints
+        icoverage->BeginCoverage("CTestCoverage::SomeFunc");  // resolves to a function (functionlist)
+        icoverage->BeginCoverage("CTestCoverage");    // resolves to class (symbollist)
+
+        icoverage->BeginCoverage("glb_tcov_func");     // global function, resolves to a function in tcov
+        icoverage->BeginCoverage("gurka::ns_tcov_func");    // function in a namespace, resolves to a function
+        icoverage->BeginCoverage("internal_tcov_func");   // internal function, not found at all...
     }
     printf("coverage main completed\n");
     return kTR_Pass;
