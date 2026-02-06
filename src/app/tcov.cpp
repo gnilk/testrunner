@@ -1,3 +1,24 @@
+//
+// tcov - testrunner code-coverage analyzer
+//
+// tcov acts as frontend to testrunner, running the testrunner through
+// lldb, in debugging mode, setting breakpoints on classes/functions
+// test-coverage is then calculated by checking how many breakpoints
+// where hit during execution.
+//
+// this is the first version and while it works fairly fine there are
+// probably quite a few gaps.
+//
+// to generate coverage information - run tcov instead of trun - use same arguments
+//
+// You need to compile with debug information (-g) but should otherwise work with
+// release and debug builds..
+//
+// TODO:
+// - Accept coverage class/function information via cmd line
+// - Generate better reports (ideally some file that can be imported in the IDE)
+// - Test multi-statement coverage 'if (X && Y)' - if X failed Y might not be evalulated
+//
 #include <filesystem>
 #include <iostream>
 #include <thread>
