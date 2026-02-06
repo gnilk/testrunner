@@ -573,6 +573,9 @@ static void int_tcov_begincov(const char *symbol) {
     printf("flushed fifo, res=%d\n", nFlush);
     printf("Sending signal to parent!\n");
     raise(SIGUSR1);
+    // Sleep a little - allow tcov to catch up - should be plenty enough
+    // The IPC should hold the data even if we are closed...
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
     // this should only close my end!
     ipc.Close();
     printf("Finished 'int_tcov_begincov'\n");
