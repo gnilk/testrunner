@@ -91,6 +91,8 @@ list(APPEND tcovsrcfiles src/coverage/Coverage.cpp src/coverage/Coverage.h)
 list(APPEND tcovsrcfiles src/coverage/SymbolTypeChecker.cpp src/coverage/SymbolTypeChecker.h)
 # this file is used by both trun and tcov - defined in the 'client'-space
 list(APPEND tcovsrcfiles src/testrunner/CoverageIPCMessages.cpp src/testrunner/CoverageIPCMessages.h)
+list(APPEND tcovsrcfiles src/testrunner/strutil.cpp src/testrunner/strutil.h)
+list(APPEND tcovsrcfiles src/testrunner/glob.cpp src/testrunner/glob.h)
 
 
 ## all files but the main application file
