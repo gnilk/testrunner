@@ -114,7 +114,7 @@ static void Help() {
     printf("  -m  <list> List of modules to test (default: '-' (all))\n");
     printf("  -t  <list> List of test cases to test (default: '-' (all))\n");
     printf("  --sequential\n");
-    printf("      Disable any parallel execution of modules\n");
+    printf("      Disable parallel execution (use this if you debug through trun, default: off)\n");
     printf("  --continue_on_assert\n");
     printf("      Continue test execution on assert errors (default: off)\n");
 #ifdef TRUN_HAVE_FORK    
