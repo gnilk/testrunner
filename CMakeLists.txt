@@ -86,8 +86,11 @@ set(LLDB_LIB "${LLVM_BUILD_ROOT}/lib")
 
 
 # all files from testrunner we reuse in tcov
+list(APPEND tcovsrcfiles src/coverage/Breakpoint.cpp src/coverage/Breakpoint.h)
+list(APPEND tcovsrcfiles src/coverage/Coverage.cpp src/coverage/Coverage.h)
+list(APPEND tcovsrcfiles src/coverage/SymbolTypeChecker.cpp src/coverage/SymbolTypeChecker.h)
+# this file is used by both trun and tcov - defined in the 'client'-space
 list(APPEND tcovsrcfiles src/testrunner/CoverageIPCMessages.cpp src/testrunner/CoverageIPCMessages.h)
-
 
 
 ## all files but the main application file
@@ -207,6 +210,7 @@ set_property(TARGET trun PROPERTY CXX_STANDARD 20)
 add_executable(tcov src/app/tcov.cpp ${ipcsrcfiles} ${tcovsrcfiles})
 target_include_directories(tcov PUBLIC ${FMT_HOME}/include)
 target_include_directories(tcov PUBLIC ${CMAKE_SOURCE_DIR}/src/testrunner)
+target_include_directories(tcov PUBLIC ${CMAKE_SOURCE_DIR}/src/coverage)
 target_include_directories(tcov PUBLIC ${CMAKE_SOURCE_DIR}/ext/gnklog/src)
 target_include_directories(tcov PUBLIC ${LLDB_INCLUDE} ${LLDB_BUILD_INCLUDE})
 target_link_directories(tcov PUBLIC ${LLDB_LIB})
