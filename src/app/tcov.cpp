@@ -145,6 +145,24 @@ struct CompileUnit {
     }
 };
 
+class SymbolTypeChecker {
+public:
+    enum class SymbolType {
+        kSymNotFound,
+        kSymClass,
+        kSymFunc,
+    };
+public:
+    SymbolTypeChecker() = default;
+    virtual ~SymbolTypeChecker() = default;
+
+    static SymbolType ClassifySymbol(lldb::SBTarget &target, const std::string &symbol);
+private:
+    static bool IsClassType(lldb::SBTarget &target, const std::string &symbol);
+    static bool IsFuncType(lldb::SBTarget &target, const std::string &symbol);
+};
+
+
 class BreakpointManager {
 public:
     BreakpointManager() = default;
@@ -153,7 +171,10 @@ public:
     void CreateCoverageBreakpoints(lldb::SBTarget &target, const std::string &symbol);
     void Report();
 protected:
-    void CreateBreakpointsForFunction(lldb::SBTarget &target, Function::Ref ptrFunction, lldb::SBCompileUnit &compileUnit, lldb::SBFunction &function);
+    SymbolTypeChecker::SymbolType CheckSymbolType(lldb::SBTarget &target, const std::string &symbol);
+    void CreateCoverageForFunction(lldb::SBTarget &target, const std::string &symbol);
+    void CreateCoverageForClass(lldb::SBTarget &target, const std::string &symbol);
+    void CreateBreakpointsFunctionRange(lldb::SBTarget &target, lldb::SBCompileUnit &compileUnit, Function::Ref ptrFunction);
     CompileUnit::Ref GetOrAddCompileUnit(const std::string &&pathName);
 
 
@@ -161,16 +182,129 @@ private:
     std::unordered_map<std::string, CompileUnit::Ref> compileUnits;
     std::vector<Breakpoint::Ref> breakpoints;
 };
-void BreakpointManager::CreateCoverageBreakpoints(lldb::SBTarget &target, const std::string &symbol) {
-    auto logger = gnilk::Logger::GetLogger("BreakpointManager");
 
+
+
+SymbolTypeChecker::SymbolType SymbolTypeChecker::ClassifySymbol(lldb::SBTarget &target, const std::string &symbol) {
+    if (IsClassType(target, symbol)) {
+        return SymbolType::kSymClass;
+    }
+    if (IsFuncType(target, symbol)) {
+        return SymbolType::kSymFunc;
+    }
+    return SymbolType::kSymNotFound;
+}
+bool SymbolTypeChecker::IsFuncType(lldb::SBTarget &target, const std::string &symbol) {
+    auto logger = gnilk::Logger::GetLogger("SymbolTypeChecker");
+
+    auto functionList = target.FindFunctions(symbol.c_str());
+    // Is function?
+    if (!functionList.IsValid()) {
+        logger->Debug("Unable to resolve symbol list for '%s'", symbol.c_str());
+        return false;
+    }
+    // Even if valid - it is quite often zero size if nothing did match
+    if (functionList.GetSize() == 0) {
+        return false;
+    }
+
+    // Having matches - normally this should only be one - but I am not sure how this works internally
+    // FIXME: try to find a case where this list is > 1 and we have multiple options
+    logger->Debug("Dumping functions, num=%u\n", functionList.GetSize());
+    for (uint32_t i=0;i<functionList.GetSize();i++) {
+        auto func = functionList.GetContextAtIndex(i);
+        logger->Debug("  %u:%s - in functionlist", i, func.GetSymbol().GetDisplayName());
+    }
+    // FIXME: might have to do some partial matching at least...
+    return true;
+}
+bool SymbolTypeChecker::IsClassType(lldb::SBTarget &target, const std::string &symbol) {
+    auto logger = gnilk::Logger::GetLogger("SymbolTypeChecker");
+    auto symbolTypeList = target.FindTypes(symbol.c_str());
+
+    if (!symbolTypeList.IsValid()) {
+        return false;
+    }
+    if (symbolTypeList.GetSize() == 0) {
+        return false;
+    }
+
+    auto nSymbols = symbolTypeList.GetSize();
+    logger->Debug("Dumping symbol type list - size=%u", nSymbols);
+
+    size_t nFound = 0;
+
+    for (size_t i=0;i<symbolTypeList.GetSize();i++) {
+        auto ct = symbolTypeList.GetTypeAtIndex(i);
+        logger->Debug("  %zu:%s",i,ct.GetDisplayTypeName());
+
+        if (!ct.IsValid()) {
+            logger->Debug("Invalid - skipping");
+            continue;
+        }
+        if (ct.IsFunctionType()) {
+            logger->Debug("Function type - good");
+            continue;;
+        }
+
+        if (ct.IsPolymorphicClass()) {
+            logger->Debug("  Class found - dumping members!");
+            for (size_t j=0; j<ct.GetNumberOfMemberFunctions();j++) {
+                auto member = ct.GetMemberFunctionAtIndex(j);
+                logger->Debug("    %zu:%s",j, member.GetName());
+                nFound++;
+            }
+        }
+    }
+
+    return (nFound > 0);
+}
+
+
+// Ok, we need to classify this harder...
+// Either we diffrentiate BeginCoverage, like:
+// - BeginCoverage(kTypeClass, "CTestCoverage");
+// or with different functions:
+// - BeginCoverageForClass("CTestCoverage") / BeginCoverageForFunc("some_func");
+//
+SymbolTypeChecker::SymbolType BreakpointManager::CheckSymbolType(lldb::SBTarget &target, const std::string &symbol) {
+    auto logger = gnilk::Logger::GetLogger("BreakpointManager");
+    auto symbolType = SymbolTypeChecker::ClassifySymbol(target, symbol);
+
+    if (symbolType == SymbolTypeChecker::SymbolType::kSymClass) {
+        logger->Info("%s - is class", symbol.c_str());
+    } else if (symbolType == SymbolTypeChecker::SymbolType::kSymFunc) {
+        logger->Info("%s - is function", symbol.c_str());
+    } else {
+        logger->Error("%s - can't classify, not found", symbol.c_str());
+    }
+    return symbolType;
+}
+
+// Create coverage break points
+void BreakpointManager::CreateCoverageBreakpoints(lldb::SBTarget &target, const std::string &symbol) {
+
+    auto symbolType = CheckSymbolType(target, symbol);
+    if (symbolType == SymbolTypeChecker::SymbolType::kSymClass) {
+        CreateCoverageForClass(target, symbol);
+    } else if (symbolType == SymbolTypeChecker::SymbolType::kSymFunc) {
+        CreateCoverageForFunction(target, symbol);
+    }
+}
+
+// Create coverage breakpoint for function
+void BreakpointManager::CreateCoverageForFunction(lldb::SBTarget &target, const std::string &symbol) {
+    auto logger = gnilk::Logger::GetLogger("BreakpointManager");
     auto symbollist = target.FindFunctions(symbol.c_str());
 
+    // This is not needed - we have checked this a number of times already before getting here
     if (!symbollist.IsValid()) {
         logger->Debug("Unable to resolve symbol list for '%s'", symbol.c_str());
         return;
     }
-    logger->Debug("Dumping symbols, num=%u\n", symbollist.GetSize());
+
+    // Not sure when there is one more in the list
+    logger->Debug("Resolving function '%s', num=%u\n", symbol.c_str(), symbollist.GetSize());
     for (uint32_t i=0;i<symbollist.GetSize();i++) {
         auto ctx = symbollist.GetContextAtIndex(i);
         auto compileUnit = ctx.GetCompileUnit();
@@ -180,22 +314,27 @@ void BreakpointManager::CreateCoverageBreakpoints(lldb::SBTarget &target, const 
         auto filename = std::filesystem::path(compileUnit.GetFileSpec().GetFilename());
         auto path = std::filesystem::path(compileUnit.GetFileSpec().GetDirectory());
         auto fullPathName = path / filename;
+
+        // Fetch, or create, the compile unit to which this function belongs
         CompileUnit::Ref ptrCompileUnit = GetOrAddCompileUnit(fullPathName);
+        // Fetch, or create, the function within the compile unit
         auto ptrFunction = ptrCompileUnit->GetOrAddFunction(displayName);
 
-
+        // Resolve the address range
         auto startAddr = ctx.GetFunction().GetStartAddress();
         auto endAddr = ctx.GetFunction().GetEndAddress();
-        auto startLine = startAddr.GetLineEntry().GetLine();
 
+        // Convert and assign
         ptrFunction->startLoadAddress = startAddr.GetLoadAddress(target);
         ptrFunction->endLoadAddress = endAddr.GetLoadAddress(target);
 
-        CreateBreakpointsForFunction(target, ptrFunction, compileUnit, func);
+        // Now create the actual breakpoints - using start/end addr
+        CreateBreakpointsFunctionRange(target, compileUnit, ptrFunction);
     }
-
 }
-void BreakpointManager::CreateBreakpointsForFunction(lldb::SBTarget &target, Function::Ref ptrFunction, lldb::SBCompileUnit &compileUnit, lldb::SBFunction &func) {
+
+// Create breakpoints for a function between start/end addr..
+void BreakpointManager::CreateBreakpointsFunctionRange(lldb::SBTarget &target, lldb::SBCompileUnit &compileUnit, Function::Ref ptrFunction) {
     auto numLines = compileUnit.GetNumLineEntries();
     for (uint32_t line = 0; line < numLines; line++) {
         auto lineEntry = compileUnit.GetLineEntryAtIndex(line);
@@ -229,7 +368,7 @@ void BreakpointManager::CreateBreakpointsForFunction(lldb::SBTarget &target, Fun
             continue;;
         }
         // FIXME: Put this on a flag - aggressive filtering
-        if (addr.GetLoadAddress(target) == func.GetStartAddress().GetLoadAddress(target)) {
+        if (addr.GetLoadAddress(target) == ptrFunction->startLoadAddress) {
             printf("Prolouge - skipping\n");
             continue;
         }
@@ -242,10 +381,7 @@ void BreakpointManager::CreateBreakpointsForFunction(lldb::SBTarget &target, Fun
             // Not sure which one is best - or if one translates to the other..
             //auto bp = target.BreakpointCreateByAddress(addr.GetLoadAddress(target));
             auto bp = target.BreakpointCreateBySBAddress(addr);
-            //bp.SetAutoContinue(true);
-
-            auto bp_line = addr.GetLineEntry().GetLine();
-
+            bp.SetAutoContinue(true);
 
             auto my_breakpoint = std::make_shared<Breakpoint>();
             my_breakpoint->breakpoint = bp;
@@ -256,6 +392,14 @@ void BreakpointManager::CreateBreakpointsForFunction(lldb::SBTarget &target, Fun
         }
     }
 }
+
+
+// Create coverage breakpoints for classes
+// FIXME: Need to enumerate members and then call 'for function'
+void BreakpointManager::CreateCoverageForClass(lldb::SBTarget &target, const std::string &symbol) {
+
+}
+
 
 void BreakpointManager::Report() {
     for (auto &[unitName, ptrCompileUnit] : compileUnits) {
@@ -607,7 +751,7 @@ bool CoverageRunner::Begin(int argc, const char *argv[]) {
     EnumerateMembers(target, "CTestCoverage");
 
     // should have a list of these per symbol
-    breakpointManager.CreateCoverageBreakpoints(target, "CTestCoverage::SomeFunc");
+    // breakpointManager.CreateCoverageBreakpoints(target, "CTestCoverage::SomeFunc");
     breakpoints = CreateCoverageBreakpoints(target, "CTestCoverage::SomeFunc");
     if (breakpoints.size() == 0) {
         logger->Error("Coverage symbol information not resolved");
@@ -727,7 +871,6 @@ void CoverageRunner::Process() {
         if (state == lldb::eStateStopped) {
             auto thread = process.GetSelectedThread();
             if (WasSignalRaised(sig_IPC_INTERRUPT)) {
-                logger->Debug("Stopped by signal: %d", sig_IPC_INTERRUPT);
                 HandleIPCInterrupt();
             } else {
                 CheckBreakPointHit(thread);
@@ -765,14 +908,14 @@ void CoverageRunner::ConsumeIPC() {
         logger->Debug("ConsumeIPC, No IPC data available");
         return;
     }
-    printf("ConsumeIPC, data available..\n");
+    logger->Debug("ConsumeIPC, data available..");
     while (ipcServer.Available()) {
         auto ipcMsg = ReadIPCMessage();
         if (!ipcMsg.IsValid()) {
-            continue;;
+            continue;
         }
-        // FIXME: handle stuff here...
-        logger->Info("BeginCoverage for '%s'",ipcMsg.symbolName.c_str());
+        logger->Debug("BeginCoverage for '%s'",ipcMsg.symbolName.c_str());
+        breakpointManager.CreateCoverageBreakpoints(target, ipcMsg.symbolName);
     }
 }
 
