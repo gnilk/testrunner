@@ -6,6 +6,7 @@
 
 #include "Coverage.h"
 #include "CoverageIPCMessages.h"
+#include "strutil.h"
 #include "ipc/IPCDecoder.h"
 #include <lldb/SBUnixSignals.h>
 #include <lldb/SBThread.h>
@@ -133,6 +134,11 @@ bool CoverageRunner::Begin(int argc, const char *argv[]) {
     }
     logger->Info("Libraries scanned - we are good to go...");
 
+    // Create breakpoint from symbols...
+    for (auto &s : symbols) {
+        breakpointManager.CreateCoverageBreakpoints(target, s);
+    }
+
 
     // FIXME: Remove this - test code
 
@@ -154,25 +160,43 @@ bool CoverageRunner::Begin(int argc, const char *argv[]) {
 
 static void PrintHelpAndExit() {
     printf("tcov - testrunner coverage\n");
-    printf("bla\n");
+    printf("usage:  tcov [options] [trun options]\n");
+    printf("options:\n");
+    printf("-h/-H/--help             This cruft...\n");
+    printf("--target <path to trun>  Specify where trun is (unless it's in the path)\n");
+    printf("--symbols <list>         List of debugging symbols to track for coverage\n");
+    printf("You can use the 'symbols' argument if you don't fancy changing your unit-tests\n");
+    printf("Any other argument is passed on to the target, while any known argument is removed\n");
     exit(1);
 }
 
 // Parse arguments, capture the ones belonging to us pass the rest to the target (trun)
 bool CoverageRunner::ParseArgs(int argc, const char *argv[]) {
+    bool bSequentialFound = false;
     for (int i=1;i<argc;i++) {
         std::string arg = argv[i];
-        if ((arg == "-h") || (arg == "--help")) {
+        if ((arg == "-h") || (arg == "-H") || (arg == "--help")) {
             PrintHelpAndExit();
         }
         if (arg == "--target") {
             targetPathName = argv[++i];
             goto nextargument;
+        } else if (arg == "--symbols") {
+            auto symbolsString = argv[++i];
+            trun::split(symbols, symbolsString, ',');
+            goto nextargument;
+        } else if (arg == "--sequential") {
+            bSequentialFound = true;
         }
         // otherwise, just pass this on to trun
         trunArgsVector.push_back(arg);
 nextargument:
         ;   // Note: we need this as labels are attached to statements
+    }
+    // Verify if this is actually needed..
+    if (!bSequentialFound) {
+        logger->Info("'--sequential' missing from trun args, adding even though not specified...\n");
+        trunArgsVector.push_back("--sequential");
     }
     // FIXME: Should point to install directory..
     if (targetPathName.empty()) {
