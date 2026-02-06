@@ -16,12 +16,20 @@ namespace trun {
         bool Marshal(gnilk::IPCEncoderBase &encoder) const override;
         bool Unmarshal(gnilk::IPCDecoderBase &decoder) override;
         gnilk::IPCDeserializer *GetDeserializerForObject(uint8_t idObject) override;
+
+        bool IsValid() {
+            return isValid;
+        }
+        const std::string &GetSymbolName() {
+            return symbolName;
+        }
     protected:
         typedef enum : uint8_t {
             kMsgType_BeginSymbol = 0x80,  //
         } CovIPCMessageType;
     public:
-        std::string symbolName;
+        bool isValid = false;
+        std::string symbolName = {};
     };
 
 }

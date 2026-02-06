@@ -15,6 +15,7 @@ bool CovIPCCmdMsg::Marshal(gnilk::IPCEncoderBase &encoder) const {
 }
 bool CovIPCCmdMsg::Unmarshal(IPCDecoderBase &decoder) {
     decoder.ReadStr(symbolName);
+    isValid = true;
     return true;
 }
 IPCDeserializer *CovIPCCmdMsg::GetDeserializerForObject(uint8_t idObject) {
