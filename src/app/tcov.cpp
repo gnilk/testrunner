@@ -4,6 +4,12 @@
 #include <sys/types.h>
 #include <sys/ptrace.h>
 #include <unistd.h>
+#include <unordered_map>
+#include <vector>
+#include <string>
+#include <memory>
+
+
 #include <lldb/SBDebugger.h>
 #include <lldb/SBTarget.h>
 #include <lldb/SBProcess.h>
@@ -15,6 +21,7 @@
 #include <lldb/SBEvent.h>
 #include <lldb/SBUnixSignals.h>
 #include <lldb/SBLineEntry.h>
+
 
 #include "logger.h"
 #include "CoverageIPCMessages.h"
@@ -74,6 +81,7 @@ static std::vector<MyBreakpoint> CreateCoverageBreakpoints_old(lldb::SBTarget &t
             auto endAddr = ctx.GetFunction().GetEndAddress();
             auto startLine = startAddr.GetLineEntry().GetLine();
 
+
             // Offset the end by '-1' to move it into the scope which will cause the line entry to point to the last instruction...
             endAddr.OffsetAddress(-1);
             auto endLine = endAddr.GetLineEntry().GetLine();
@@ -103,7 +111,187 @@ static std::vector<MyBreakpoint> CreateCoverageBreakpoints_old(lldb::SBTarget &t
         printf("No symbols...\n");
     }
     return breakpoints;
+}
 
+struct Breakpoint {
+    using Ref = std::shared_ptr<Breakpoint>;
+    lldb::addr_t loadAddress;
+    uint32_t line;
+    lldb::SBBreakpoint breakpoint;
+};
+struct Function {
+    using Ref = std::shared_ptr<Function>;
+    lldb::addr_t startLoadAddress;
+    lldb::addr_t endLoadAddress;
+    std::string name;       // will I have this?
+    std::vector<Breakpoint::Ref> breakpoints;
+
+};
+struct CompileUnit {
+    using Ref = std::shared_ptr<CompileUnit>;
+    std::string pathName;
+    std::unordered_map<std::string, Function::Ref> functions;
+
+    Function::Ref GetOrAddFunction(const std::string &&dispName) {
+        Function::Ref ptrFunction = nullptr;
+        if (!functions.contains(dispName)) {
+            ptrFunction = std::make_shared<Function>();
+            ptrFunction->name = dispName;
+            functions[dispName] = ptrFunction;
+        } else {
+            ptrFunction = functions[dispName];
+        }
+        return ptrFunction;
+    }
+};
+
+class BreakpointManager {
+public:
+    BreakpointManager() = default;
+    virtual ~BreakpointManager() = default;
+
+    void CreateCoverageBreakpoints(lldb::SBTarget &target, const std::string &symbol);
+    void Report();
+protected:
+    void CreateBreakpointsForFunction(lldb::SBTarget &target, Function::Ref ptrFunction, lldb::SBCompileUnit &compileUnit, lldb::SBFunction &function);
+    CompileUnit::Ref GetOrAddCompileUnit(const std::string &&pathName);
+
+
+private:
+    std::unordered_map<std::string, CompileUnit::Ref> compileUnits;
+    std::vector<Breakpoint::Ref> breakpoints;
+};
+void BreakpointManager::CreateCoverageBreakpoints(lldb::SBTarget &target, const std::string &symbol) {
+    auto logger = gnilk::Logger::GetLogger("BreakpointManager");
+
+    auto symbollist = target.FindFunctions(symbol.c_str());
+
+    if (!symbollist.IsValid()) {
+        logger->Debug("Unable to resolve symbol list for '%s'", symbol.c_str());
+        return;
+    }
+    logger->Debug("Dumping symbols, num=%u\n", symbollist.GetSize());
+    for (uint32_t i=0;i<symbollist.GetSize();i++) {
+        auto ctx = symbollist.GetContextAtIndex(i);
+        auto compileUnit = ctx.GetCompileUnit();
+        auto func = ctx.GetFunction();
+        auto displayName =  ctx.GetSymbol().GetDisplayName();
+
+        auto filename = std::filesystem::path(compileUnit.GetFileSpec().GetFilename());
+        auto path = std::filesystem::path(compileUnit.GetFileSpec().GetDirectory());
+        auto fullPathName = path / filename;
+        CompileUnit::Ref ptrCompileUnit = GetOrAddCompileUnit(fullPathName);
+        auto ptrFunction = ptrCompileUnit->GetOrAddFunction(displayName);
+
+
+        auto startAddr = ctx.GetFunction().GetStartAddress();
+        auto endAddr = ctx.GetFunction().GetEndAddress();
+        auto startLine = startAddr.GetLineEntry().GetLine();
+
+        ptrFunction->startLoadAddress = startAddr.GetLoadAddress(target);
+        ptrFunction->endLoadAddress = endAddr.GetLoadAddress(target);
+
+        CreateBreakpointsForFunction(target, ptrFunction, compileUnit, func);
+    }
+
+}
+void BreakpointManager::CreateBreakpointsForFunction(lldb::SBTarget &target, Function::Ref ptrFunction, lldb::SBCompileUnit &compileUnit, lldb::SBFunction &func) {
+    auto numLines = compileUnit.GetNumLineEntries();
+    for (uint32_t line = 0; line < numLines; line++) {
+        auto lineEntry = compileUnit.GetLineEntryAtIndex(line);
+        if (!lineEntry.IsValid()) {
+            continue;
+        }
+
+        // 'invalid'?
+        if (lineEntry.GetLine() == 0) {
+            printf("lineEntry.GetLine() == 0, invalid\n");
+            continue;
+        }
+        if (!lineEntry.GetFileSpec().IsValid()) {
+            printf("Filespec for line entry invalid\n");
+            continue;
+        }
+        // Filter out lines starting at column 0 - normally does not count...
+        // FIXME: Put this on a flag - aggressive filtering (might be good for large projects)
+        //        For 'normal' code the 'Proluge' check will detect this...
+        // if (lineEntry.GetColumn() == 0) {
+        //     printf("lineEntry.GetColumn() == 0, invalid (for line=%u)\n", lineEntry.GetLine());
+        //     continue;
+        // }
+
+        auto addr = lineEntry.GetStartAddress();
+        if (!addr.IsValid()) {
+            continue;
+        }
+        if (addr.GetLoadAddress(target) == LLDB_INVALID_ADDRESS) {
+            printf("INVALID address\n");
+            continue;;
+        }
+        // FIXME: Put this on a flag - aggressive filtering
+        if (addr.GetLoadAddress(target) == func.GetStartAddress().GetLoadAddress(target)) {
+            printf("Prolouge - skipping\n");
+            continue;
+        }
+
+        // FIXME: Don't create breakpoints here - just gather the coverage addresses
+        // seems DWARF data can contain multiple addresses pointing to same line etc...
+
+        if (addr.GetLoadAddress(target) >= ptrFunction->startLoadAddress &&
+            addr.GetLoadAddress(target) < ptrFunction->endLoadAddress) {
+            // Not sure which one is best - or if one translates to the other..
+            //auto bp = target.BreakpointCreateByAddress(addr.GetLoadAddress(target));
+            auto bp = target.BreakpointCreateBySBAddress(addr);
+            //bp.SetAutoContinue(true);
+
+            auto bp_line = addr.GetLineEntry().GetLine();
+
+
+            auto my_breakpoint = std::make_shared<Breakpoint>();
+            my_breakpoint->breakpoint = bp;
+            my_breakpoint->line = line;
+            my_breakpoint->loadAddress = addr.GetLoadAddress(target);
+
+            ptrFunction->breakpoints.push_back(my_breakpoint);
+        }
+    }
+}
+
+void BreakpointManager::Report() {
+    for (auto &[unitName, ptrCompileUnit] : compileUnits) {
+        auto pathName = std::filesystem::path(ptrCompileUnit->pathName);
+        if (std::filesystem::exists(pathName)) {
+            // FIXME: Loadfile here
+        }
+
+        for (auto &[funcName, ptrFunction] : ptrCompileUnit->functions) {
+            size_t nHits = 0;
+            for (auto &bp : ptrFunction->breakpoints) {
+                if (bp->breakpoint.GetHitCount() > 0) {
+                    nHits++;
+                }
+                printf("%llX - %s:%d:%d\n",bp->loadAddress, funcName.c_str(), bp->loadAddress, bp->breakpoint.GetHitCount());
+
+            }
+            float funcCoverage = (float)nHits / (float)ptrFunction->breakpoints.size();
+            int coveragePercentage = 100 * funcCoverage;
+            printf("%s - Coverage: %d%% (%.3f) (hits: %zu, bp:%zu) \n", funcName.c_str(), coveragePercentage, funcCoverage, nHits, ptrFunction->breakpoints.size());
+
+        }
+    }
+}
+
+
+CompileUnit::Ref BreakpointManager::GetOrAddCompileUnit(const std::string &&pathName) {
+    CompileUnit::Ref ptrCompileUnit = nullptr;
+    if (!compileUnits.contains(pathName)) {
+        ptrCompileUnit = std::make_shared<CompileUnit>();
+        ptrCompileUnit->pathName = pathName;
+        compileUnits.insert(std::make_pair(pathName, ptrCompileUnit));
+    } else {
+        ptrCompileUnit = compileUnits[pathName];
+    }
+    return ptrCompileUnit;
 }
 
 //
@@ -282,6 +470,8 @@ private:
     std::vector<std::string> trunArgsVector;
     std::vector<MyBreakpoint> breakpoints;
 
+    BreakpointManager breakpointManager;
+
     // LLDB API variables
     lldb::SBDebugger lldbDebugger;
     lldb::SBTarget target;
@@ -417,6 +607,7 @@ bool CoverageRunner::Begin(int argc, const char *argv[]) {
     EnumerateMembers(target, "CTestCoverage");
 
     // should have a list of these per symbol
+    breakpointManager.CreateCoverageBreakpoints(target, "CTestCoverage::SomeFunc");
     breakpoints = CreateCoverageBreakpoints(target, "CTestCoverage::SomeFunc");
     if (breakpoints.size() == 0) {
         logger->Error("Coverage symbol information not resolved");
@@ -602,6 +793,8 @@ void CoverageRunner::End() {
 }
 
 void CoverageRunner::Report() {
+
+    breakpointManager.Report();
     // TEMPORARY
     size_t linestested = 0;
     for (auto &bp : breakpoints) {
