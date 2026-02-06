@@ -28,90 +28,6 @@
 #include "ipc/IPCDecoder.h"
 #include "unix/IPCFifoUnix.h"
 
-static gnilk::IPCFifoUnix tcovIPCServer;
-
-static void EnumerateMembers(lldb::SBTarget &target, const std::string &className) {
-    auto classtype = target.FindTypes(className.c_str());
-
-    //auto classctx = target.FindSymbols("Dummy");
-    if (classtype.IsValid()) {
-        printf("class type ok - size=%u\n", classtype.GetSize());
-        for (size_t i=0;i<classtype.GetSize();i++) {
-            auto ct = classtype.GetTypeAtIndex(i);
-            printf("%zu:%s\n",i,ct.GetDisplayTypeName());
-
-            if (!ct.IsValid()) {
-                printf("Invalid - skipping\n");
-                continue;
-            }
-
-            if (ct.IsPolymorphicClass()) {
-                printf("Class found - good!\n");
-                for (size_t j=0; j<ct.GetNumberOfMemberFunctions();j++) {
-                    auto member = ct.GetMemberFunctionAtIndex(j);
-                    printf("  %zu:%s\n",j, member.GetName());
-                }
-            }
-
-        }
-    }
-}
-
-// Bla - this should be broken in to a multi-structure one for the 'symbol' (file + function) and one for line+breakpoint
-struct MyBreakpoint {
-    std::string filename;
-    std::string function;
-    lldb::addr_t address;
-    uint32_t line;
-    lldb::SBBreakpoint breakpoint;
-};
-
-// This calculates coverage breakpoints by using line-numbers - but there is some trickery involved and this might not always
-// work...
-static std::vector<MyBreakpoint> CreateCoverageBreakpoints_old(lldb::SBTarget &target, const std::string &symbol) {
-    std::vector<MyBreakpoint> breakpoints;
-
-    auto symbollist = target.FindFunctions("Dummy::SomeFunc");
-    if (symbollist.IsValid()) {
-        printf("Dumping symbols, num=%u\n", symbollist.GetSize());
-        for (size_t i=0;i<symbollist.GetSize();i++) {
-            auto ctx = symbollist.GetContextAtIndex(i);
-            auto compileUnit = ctx.GetCompileUnit();
-            auto startAddr = ctx.GetFunction().GetStartAddress();
-            auto endAddr = ctx.GetFunction().GetEndAddress();
-            auto startLine = startAddr.GetLineEntry().GetLine();
-
-
-            // Offset the end by '-1' to move it into the scope which will cause the line entry to point to the last instruction...
-            endAddr.OffsetAddress(-1);
-            auto endLine = endAddr.GetLineEntry().GetLine();
-            auto name = ctx.GetSymbol().GetDisplayName();
-            printf("%zu:%s @ %s (%u -> %u) at address: %llX (to: %llX) \n", i, name, compileUnit.GetFileSpec().GetFilename(), startLine, endLine, startAddr.GetFileAddress(), endAddr.GetFileAddress());
-            target.BreakpointCreateBySBAddress(startAddr);
-
-            // Create a break point for each line...
-            for (uint32_t bp_line = startLine; bp_line < (endLine+1); bp_line++) {
-                auto bp = target.BreakpointCreateByLocation(compileUnit.GetFileSpec().GetFilename(), bp_line);
-
-                bp.SetAutoContinue(true);   // just push on...
-                MyBreakpoint my_breakpoint = {
-                    compileUnit.GetFileSpec().GetFilename(),
-            name,
-                    startAddr.GetLoadAddress(target),      // bogus - we don't have this in this version...
-                        bp_line,
-                        bp,
-                    };
-
-
-                breakpoints.push_back(my_breakpoint);
-            }
-
-        }
-    } else {
-        printf("No symbols...\n");
-    }
-    return breakpoints;
-}
 
 struct Breakpoint {
     using Ref = std::shared_ptr<Breakpoint>;
@@ -438,8 +354,434 @@ CompileUnit::Ref BreakpointManager::GetOrAddCompileUnit(const std::string &&path
     return ptrCompileUnit;
 }
 
+
+
+// Coverage runner - responsible for executing trun within lldb
+// and setup breakpoint to monitor all lines of code being used
+class CoverageRunner {
+public:
+    CoverageRunner() = default;
+    virtual ~CoverageRunner() = default;
+
+    bool Begin(int argc, const char *argv[]);
+    void End();
+    void Process();
+    void Report();
+protected:
+    bool ParseArgs(int argc, const char *argv[]);
+    static void ConvertArgs(std::vector<char *> &out, std::vector<std::string> &args);
+    bool CreateIPCServer();
+    void ResolveCWD();
+    void SuppressSignals();
+    bool WaitState(lldb::StateType targetState, uint32_t timeoutMSec);
+    bool WasSignalRaised(int expectedSignal);   // note: on macos the signal type for raise is 'int'
+    void HandleIPCInterrupt();
+    void CheckBreakPointHit(lldb::SBThread &thread);
+    void ConsumeIPC();
+    trun::CovIPCCmdMsg ReadIPCMessage();
+
+    // More functions
+private:
+    static const int sig_DYNLIB_LOADED = SIGUSR1;
+    static const int sig_IPC_INTERRUPT = SIGUSR1;
+    gnilk::IPCFifoUnix ipcServer;
+    gnilk::ILogger *logger = {};
+    std::string targetPathName = {};
+    std::string workingDirectory = {};
+    std::vector<std::string> trunArgsVector;
+
+    BreakpointManager breakpointManager;
+
+    // LLDB API variables
+    lldb::SBDebugger lldbDebugger;
+    lldb::SBTarget target;
+    lldb::SBBreakpoint bpMain;
+    lldb::SBProcess process;
+    pid_t pid;
+    int exit_code;
+};
+
+// Initialize the session
+// this is quite a lengthy function and could be split
+bool CoverageRunner::Begin(int argc, const char *argv[]) {
+    logger = gnilk::Logger::GetLogger("CoverageRunner");
+    ParseArgs(argc, argv);
+    for (auto &arg : trunArgsVector) {
+        printf("arg=%s\n", arg.c_str());
+    }
+
+    if (!CreateIPCServer()) {
+        logger->Error("Unable to create IPC Server");
+        return false;
+    }
+
+    // Add the following so TRUN knows we are running in coverage mode and how to communicate back...
+    // '--coverage' is a bit redundant here - but let's keep them separate for now...
+    trunArgsVector.push_back("--coverage");
+    trunArgsVector.push_back("--tcov-ipc-name");
+    trunArgsVector.push_back(ipcServer.FifoName());
+
+    ResolveCWD();
+
+    std::string dbg_argString;
+    for (auto &arg : trunArgsVector) {
+        dbg_argString += arg + " ";
+    }
+    logger->Info("Target: %s %s", targetPathName.c_str(), dbg_argString.c_str());
+    logger->Info("Working Directory: %s", workingDirectory.c_str());
+
+
+    // Initialize LLDB
+    lldb::SBDebugger::Initialize();
+
+    // Create the debugger
+    lldbDebugger = lldb::SBDebugger::Create(false);
+
+    // Remap stdout/stderr
+    // FIXME: check if we can redirect to logger instead
+    lldbDebugger.SetAsync(false);       // lldb is async by default - which is good, but complicated to start with
+    lldbDebugger.SetOutputFileHandle(stdout, false);
+    lldbDebugger.SetErrorFileHandle(stderr, false);
+
+
+    // Create our target
+    if (targetPathName.empty()) {
+        // FIXME: Only in debug builds...
+        targetPathName = "/Users/gnilk/src/github.com/testrunner/cmake-build-debug/trun";
+    }
+
+    lldb::SBError error;
+    target = lldbDebugger.CreateTarget(targetPathName.c_str(), nullptr, nullptr, true, error);
+    if (!target.IsValid()) {
+        logger->Error("Invalid target '%s'", argv[0]);
+        return false;
+    }
+
+    // LLDB starts the program in 'running' mode - so we create this breakpoint to control execution
+    // 'main' is present even in release builds, other options would be '_start' or
+    // Make sure we control launch - lldb starts in running mode by default - so we insert this..
+    bpMain = target.BreakpointCreateByName("main");
+
+
+
+    // Convert trunArgs to argv style char *[]
+    std::vector<char *> trunArgs;
+    ConvertArgs(trunArgs, trunArgsVector);
+    // done
+    //char **target_argv = args.data();
+
+    //const char *target_argv[]={"--sequential", "--coverage","--tcov-ipc-name",tcovIPCServer.FifoName().c_str(),"-vvv", "-m", "coverage", nullptr};
+    lldb::SBLaunchInfo launch_info(const_cast<const char **>(trunArgs.data()));
+    launch_info.SetWorkingDirectory(workingDirectory.c_str());   // se should be here and not where the target is located
+
+    // Make sure we duplicate stdout/stderr to the debuggee
+    launch_info.AddDuplicateFileAction(STDOUT_FILENO, STDOUT_FILENO);
+    launch_info.AddDuplicateFileAction(STDERR_FILENO, STDERR_FILENO);
+
+    // launch target
+    process = target.Launch(launch_info, error);
+    if (!process.IsValid() || error.Fail()) {
+        logger->Error("Launch failed for target '%s': %s", argv[0], error.GetCString());
+        return false;
+    }
+    SuppressSignals();
+    // At this point we are running...
+
+    // yield - try for the debugger to kick in - other wise we might have a raise condition on our hands..
+    std::this_thread::yield();
+
+    // verify (or at least sanity check we have a PID)
+    pid = process.GetProcessID();
+    logger->Info("PID: %llu", pid);
+
+    // Wait for the process to become stopped
+    if (!WaitState(lldb::eStateStopped, 1000)) {
+        logger->Error("Premature exit");
+        return false;
+    }
+
+    // we have started - and we should be at 'main' now...  verify
+    if (!(bpMain.GetHitCount() > 0)) {
+        logger->Error("main breakpoint not hit");
+        return false;
+    }
+
+    // Start again - we now know where we are - next stop is after TRUN has scanned all libraries
+    process.Continue();
+
+    if (!WaitState(lldb::eStateStopped, 1000)) {
+        logger->Error("Premature exit waiting for TRUN to load libraries");
+        return false;
+    }
+
+    if (!WasSignalRaised(sig_DYNLIB_LOADED)) {
+        logger->Error("Signal missing for loading of dynamic libraries - out of sync");
+        return false;
+    }
+    logger->Info("Libraries scanned - we are good to go...");
+
+
+    // FIXME: Remove this - test code
+
+    // We can do either one of these..
+    //auto breakpoint = target.BreakpointCreateByLocation("dbgme.cpp", 6);
+    //EnumerateMembers(target, "CTestCoverage");
+
+    // should have a list of these per symbol
+    // breakpointManager.CreateCoverageBreakpoints(target, "CTestCoverage::SomeFunc");
+    // breakpoints = CreateCoverageBreakpoints(target, "CTestCoverage::SomeFunc");
+    // if (breakpoints.size() == 0) {
+    //     logger->Error("Coverage symbol information not resolved");
+    //     return 1;
+    // }
+    // logger->Debug("Num Coverage BP's found = %zu", breakpoints.size());
+
+    return true;
+}
+
+static void PrintHelpAndExit() {
+    printf("tcov - testrunner coverage\n");
+    printf("bla\n");
+    exit(1);
+}
+
+// Parse arguments, capture the ones belonging to us pass the rest to the target (trun)
+bool CoverageRunner::ParseArgs(int argc, const char *argv[]) {
+    for (int i=1;i<argc;i++) {
+        std::string arg = argv[i];
+        if ((arg == "-h") || (arg == "--help")) {
+            PrintHelpAndExit();
+        }
+        if (arg == "--target") {
+            targetPathName = argv[++i];
+            goto nextargument;
+        }
+        // otherwise, just pass this on to trun
+        trunArgsVector.push_back(arg);
+nextargument:
+        ;   // Note: we need this as labels are attached to statements
+    }
+    // FIXME: Should point to install directory..
+    if (targetPathName.empty()) {
+        targetPathName = "./trun";    // '/usr/bin/trun'  - do we need an absolute path?
+    }
+    return true;
+}
+
 //
-// FIXME: clean this mess up a bit...
+// Convert a vector of std::string to vector of char *
+// as this is continous memory the 'data' member of vector is a char **
+// the data is only alive as long as the original std::string vector is alive
+//
+void CoverageRunner::ConvertArgs(std::vector<char *> &out, std::vector<std::string> &args) {
+    out.reserve(args.size() + 1);
+    for (auto &arg : args) {
+        out.push_back(arg.data());
+    }
+    out.push_back(nullptr);
+}
+
+// fills in the class member 'workingDirectory' (will be different on Windows)
+void CoverageRunner::ResolveCWD() {
+    char cwd[PATH_MAX+1] = {};
+    getcwd(cwd, PATH_MAX);
+    workingDirectory = cwd;
+}
+
+// Opens the IPC server
+// the server address is defined by the IPC class
+// as '/tmp/testrunner_pid
+bool CoverageRunner::CreateIPCServer() {
+    // might want to do other things here...
+    if (!ipcServer.Open()) {
+        return false;
+    }
+    logger->Info("IPC Server at: %s", ipcServer.FifoName().c_str());
+    return true;
+}
+
+// Configure signals handling within lldb
+void CoverageRunner::SuppressSignals() {
+    // Try send 'SIGUSR1' when we have done 'dlopen' (no debug info needed)
+    auto unixSignals = process.GetUnixSignals();
+    unixSignals.SetShouldStop(SIGUSR1, true);
+    unixSignals.SetShouldNotify(SIGUSR1, true);
+    unixSignals.SetShouldSuppress(SIGUSR1, true);
+
+    unixSignals.SetShouldStop(SIGUSR2, true);
+    unixSignals.SetShouldNotify(SIGUSR2, true);
+    unixSignals.SetShouldSuppress(SIGUSR2, true);
+}
+
+//
+// Wait for a specific target state to happen in the lldb context
+// if the target process has crashed or exited we return false..
+// FIXME: impelement timeout
+//
+bool CoverageRunner::WaitState(lldb::StateType targetState, uint32_t timeoutMSec) {
+    while (targetState != process.GetState()) {
+        std::this_thread::yield();
+        switch (process.GetState()) {
+            case lldb::eStateCrashed :
+            case lldb::eStateExited :
+                return false;
+            default :
+                break;
+        }
+    }
+    return true;
+}
+
+//
+// Check if a specific signal was raised from the target
+//
+bool CoverageRunner::WasSignalRaised(int expectedSignal) {
+
+    // Check that we really got SIGUSR1 - raised once dylibs have been loaded...
+    auto thread = process.GetSelectedThread();
+    if (thread.GetStopReason() != lldb::eStopReasonSignal) {
+        return false;
+    }
+    uint32_t data_count = thread.GetStopReasonDataCount();
+    if (data_count > 0) {
+        int signo = thread.GetStopReasonDataAtIndex(0);
+        logger->Debug("Stopped by signal: %d", signo);
+        if (signo == expectedSignal) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// Process - this assumes we are all setup and ready to run
+// In case the debuggee tries to talk to us they have to raise the IPC_INTERRUPT signal
+// if that happens we reach out and try to read the IPC and act
+// during this time the lldb processing is halted (as async is false)
+void CoverageRunner::Process() {
+    logger->Debug("--> Entering Process Loop");
+    // continue until we have exited
+    while (true) {
+        process.Continue();
+        auto state = process.GetState();
+        if ((state == lldb::eStateExited) || (state == lldb::eStateCrashed)) {
+            logger->Debug("Process exited or crashed");
+            break;
+        }
+        if (state == lldb::eStateStopped) {
+            auto thread = process.GetSelectedThread();
+            if (WasSignalRaised(sig_IPC_INTERRUPT)) {
+                HandleIPCInterrupt();
+            } else {
+                CheckBreakPointHit(thread);
+            }
+        }
+    } // while(true)
+    logger->Debug("--> Process Loop Complete");
+
+    // get the exit code from the debuggee
+    exit_code = process.GetExitStatus();
+    logger->Debug("Target finished with exit code: %d", exit_code);
+
+}
+
+void CoverageRunner::CheckBreakPointHit(lldb::SBThread &thread) {
+    auto frame = thread.GetSelectedFrame();
+    auto line = frame.GetLineEntry();
+
+    if (line.IsValid()) {
+        auto filename = line.GetFileSpec().GetFilename();
+        auto lineno = line.GetLine();
+        auto pc = frame.GetPC();
+        logger->Debug("Hit Breakpoint at %s:%u - PC=%llX", filename, lineno, pc);
+    } else {
+        logger->Warning("Breakpoint, but line info is bad!");
+    }
+}
+
+// Might extend this in the future - but currently we just process IPC
+void CoverageRunner::HandleIPCInterrupt() {
+    ConsumeIPC();
+}
+
+// Consume the IPC data - this will empty the pipe
+void CoverageRunner::ConsumeIPC() {
+    if (!ipcServer.Available()) {
+        //printf("ConsumeFIFO: tcovIPCServer not available\n");
+        logger->Debug("ConsumeIPC, No IPC data available");
+        return;
+    }
+    logger->Debug("ConsumeIPC, data available..");
+    while (ipcServer.Available()) {
+        auto ipcMsg = ReadIPCMessage();
+        if (!ipcMsg.IsValid()) {
+            continue;
+        }
+        logger->Debug("BeginCoverage for '%s'",ipcMsg.symbolName.c_str());
+        breakpointManager.CreateCoverageBreakpoints(target, ipcMsg.symbolName);
+    }
+}
+
+// Read a single IPC message
+trun::CovIPCCmdMsg CoverageRunner::ReadIPCMessage() {
+    trun::CovIPCCmdMsg ipcMsg;
+    gnilk::IPCBinaryDecoder decoder(ipcServer, ipcMsg);
+    if (!decoder.Process()) {
+        return {};
+    }
+    return ipcMsg;
+}
+
+// End the processing, note: we need to kill the IPC before terminating the lldb
+// otherwise the IPC connection will stay open
+void CoverageRunner::End() {
+    // Close IPC connection
+    ipcServer.Close();
+    // terminate everything..
+    lldb::SBDebugger::Terminate();
+}
+
+// Generate the coverage report
+// FIXME: extend this - we should drop a file with all details
+void CoverageRunner::Report() {
+    breakpointManager.Report();
+    // // TEMPORARY
+    // size_t linestested = 0;
+    // for (auto &bp : breakpoints) {
+    //
+    //     printf("%llX - %s:%d:%d\n",bp.address, bp.function.c_str(), bp.line, bp.breakpoint.GetHitCount());
+    //     if (bp.breakpoint.GetHitCount() > 0) {
+    //         linestested++;
+    //     }
+    // }
+    // auto factor = (float)linestested / (float)breakpoints.size();
+    // printf("coverage=%f = %d%%\n", factor, (int)(100 * factor));
+}
+
+int main(int argc, const char *argv[]) {
+    CoverageRunner coverageRunner;
+    if (!coverageRunner.Begin(argc, argv)) {
+        return 1;
+    }
+    coverageRunner.Process();
+    coverageRunner.Report();
+    coverageRunner.End();
+    return 0;
+}
+
+// ============
+// only old test code beyond this code
+
+static gnilk::IPCFifoUnix tcovIPCServer;
+// Bla - this should be broken in to a multi-structure one for the 'symbol' (file + function) and one for line+breakpoint
+struct MyBreakpoint {
+    std::string filename;
+    std::string function;
+    lldb::addr_t address;
+    uint32_t line;
+    lldb::SBBreakpoint breakpoint;
+};
+
+//
 // This will create coverage breakpoint based on addresses instead of lines and then map back to lines
 // thus, we will have a few more breakpoints so we need to sort/unique this a bit...
 //
@@ -564,6 +906,81 @@ static void signal_handler(int sig) {
     }
 }
 
+static void EnumerateMembers(lldb::SBTarget &target, const std::string &className) {
+    auto classtype = target.FindTypes(className.c_str());
+
+    //auto classctx = target.FindSymbols("Dummy");
+    if (classtype.IsValid()) {
+        printf("class type ok - size=%u\n", classtype.GetSize());
+        for (size_t i=0;i<classtype.GetSize();i++) {
+            auto ct = classtype.GetTypeAtIndex(i);
+            printf("%zu:%s\n",i,ct.GetDisplayTypeName());
+
+            if (!ct.IsValid()) {
+                printf("Invalid - skipping\n");
+                continue;
+            }
+
+            if (ct.IsPolymorphicClass()) {
+                printf("Class found - good!\n");
+                for (size_t j=0; j<ct.GetNumberOfMemberFunctions();j++) {
+                    auto member = ct.GetMemberFunctionAtIndex(j);
+                    printf("  %zu:%s\n",j, member.GetName());
+                }
+            }
+
+        }
+    }
+}
+
+
+// This calculates coverage breakpoints by using line-numbers - but there is some trickery involved and this might not always
+// work...
+static std::vector<MyBreakpoint> CreateCoverageBreakpoints_old(lldb::SBTarget &target, const std::string &symbol) {
+    std::vector<MyBreakpoint> breakpoints;
+
+    auto symbollist = target.FindFunctions("Dummy::SomeFunc");
+    if (symbollist.IsValid()) {
+        printf("Dumping symbols, num=%u\n", symbollist.GetSize());
+        for (size_t i=0;i<symbollist.GetSize();i++) {
+            auto ctx = symbollist.GetContextAtIndex(i);
+            auto compileUnit = ctx.GetCompileUnit();
+            auto startAddr = ctx.GetFunction().GetStartAddress();
+            auto endAddr = ctx.GetFunction().GetEndAddress();
+            auto startLine = startAddr.GetLineEntry().GetLine();
+
+
+            // Offset the end by '-1' to move it into the scope which will cause the line entry to point to the last instruction...
+            endAddr.OffsetAddress(-1);
+            auto endLine = endAddr.GetLineEntry().GetLine();
+            auto name = ctx.GetSymbol().GetDisplayName();
+            printf("%zu:%s @ %s (%u -> %u) at address: %llX (to: %llX) \n", i, name, compileUnit.GetFileSpec().GetFilename(), startLine, endLine, startAddr.GetFileAddress(), endAddr.GetFileAddress());
+            target.BreakpointCreateBySBAddress(startAddr);
+
+            // Create a break point for each line...
+            for (uint32_t bp_line = startLine; bp_line < (endLine+1); bp_line++) {
+                auto bp = target.BreakpointCreateByLocation(compileUnit.GetFileSpec().GetFilename(), bp_line);
+
+                bp.SetAutoContinue(true);   // just push on...
+                MyBreakpoint my_breakpoint = {
+                    compileUnit.GetFileSpec().GetFilename(),
+            name,
+                    startAddr.GetLoadAddress(target),      // bogus - we don't have this in this version...
+                        bp_line,
+                        bp,
+                    };
+
+
+                breakpoints.push_back(my_breakpoint);
+            }
+
+        }
+    } else {
+        printf("No symbols...\n");
+    }
+    return breakpoints;
+}
+
 static void ConsumeFIFO() {
     if (!tcovIPCServer.Available()) {
         //printf("ConsumeFIFO: tcovIPCServer not available\n");
@@ -581,391 +998,9 @@ static void ConsumeFIFO() {
     }
 }
 
-class CoverageRunner {
-public:
-    CoverageRunner() = default;
-    virtual ~CoverageRunner() = default;
-
-    bool Begin(int argc, const char *argv[]);
-    void End();
-    void Process();
-    void Report();
-protected:
-    bool ParseArgs(int argc, const char *argv[]);
-    static void ConvertArgs(std::vector<char *> &out, std::vector<std::string> &args);
-    bool CreateIPCServer();
-    void ResolveCWD();
-    void SuppressSignals();
-    bool WaitState(lldb::StateType targetState, uint32_t timeoutMSec);
-    bool WasSignalRaised(int expectedSignal);   // note: on macos the signal type for raise is 'int'
-    void HandleIPCInterrupt();
-    void CheckBreakPointHit(lldb::SBThread &thread);
-    void ConsumeIPC();
-    trun::CovIPCCmdMsg ReadIPCMessage();
-
-    // More functions
-private:
-    static const int sig_DYNLIB_LOADED = SIGUSR1;
-    static const int sig_IPC_INTERRUPT = SIGUSR1;
-    gnilk::IPCFifoUnix ipcServer;
-    gnilk::ILogger *logger = {};
-    std::string targetPathName = {};
-    std::string workingDirectory = {};
-    std::vector<std::string> trunArgsVector;
-    std::vector<MyBreakpoint> breakpoints;
-
-    BreakpointManager breakpointManager;
-
-    // LLDB API variables
-    lldb::SBDebugger lldbDebugger;
-    lldb::SBTarget target;
-    lldb::SBBreakpoint bpMain;
-    lldb::SBProcess process;
-    pid_t pid;
-    int exit_code;
-};
-
-
-bool CoverageRunner::Begin(int argc, const char *argv[]) {
-    logger = gnilk::Logger::GetLogger("CoverageRunner");
-    ParseArgs(argc, argv);
-    for (auto &arg : trunArgsVector) {
-        printf("arg=%s\n", arg.c_str());
-    }
-
-    if (!CreateIPCServer()) {
-        logger->Error("Unable to create IPC Server");
-        return false;
-    }
-
-    // Add the following so TRUN knows we are running in coverage mode and how to communicate back...
-    // '--coverage' is a bit redundant here - but let's keep them separate for now...
-    trunArgsVector.push_back("--coverage");
-    trunArgsVector.push_back("--tcov-ipc-name");
-    trunArgsVector.push_back(ipcServer.FifoName());
-
-    ResolveCWD();
-
-    std::string dbg_argString;
-    for (auto &arg : trunArgsVector) {
-        dbg_argString += arg + " ";
-    }
-    logger->Info("Target: %s %s", targetPathName.c_str(), dbg_argString.c_str());
-    logger->Info("Working Directory: %s", workingDirectory.c_str());
-
-
-    // Initialize LLDB
-    lldb::SBDebugger::Initialize();
-
-    // Create the debugger
-    lldbDebugger = lldb::SBDebugger::Create(false);
-
-    // Remap stdout/stderr
-    // FIXME: check if we can redirect to logger instead
-    lldbDebugger.SetAsync(false);       // lldb is async by default - which is good, but complicated to start with
-    lldbDebugger.SetOutputFileHandle(stdout, false);
-    lldbDebugger.SetErrorFileHandle(stderr, false);
-
-
-    // Create our target
-    if (targetPathName.empty()) {
-        // FIXME: Only in debug builds...
-        targetPathName = "/Users/gnilk/src/github.com/testrunner/cmake-build-debug/trun";
-    }
-
-    lldb::SBError error;
-    target = lldbDebugger.CreateTarget(targetPathName.c_str(), nullptr, nullptr, true, error);
-    if (!target.IsValid()) {
-        logger->Error("Invalid target '%s'", argv[0]);
-        return false;
-    }
-
-    // LLDB starts the program in 'running' mode - so we create this breakpoint to control execution
-    // 'main' is present even in release builds, other options would be '_start' or
-    // Make sure we control launch - lldb starts in running mode by default - so we insert this..
-    bpMain = target.BreakpointCreateByName("main");
-
-
-
-    // Convert trunArgs to argv style char *[]
-    std::vector<char *> trunArgs;
-    ConvertArgs(trunArgs, trunArgsVector);
-    // done
-    //char **target_argv = args.data();
-
-    //const char *target_argv[]={"--sequential", "--coverage","--tcov-ipc-name",tcovIPCServer.FifoName().c_str(),"-vvv", "-m", "coverage", nullptr};
-    lldb::SBLaunchInfo launch_info(const_cast<const char **>(trunArgs.data()));
-    launch_info.SetWorkingDirectory(workingDirectory.c_str());   // se should be here and not where the target is located
-
-    // Make sure we duplicate stdout/stderr to the debuggee
-    launch_info.AddDuplicateFileAction(STDOUT_FILENO, STDOUT_FILENO);
-    launch_info.AddDuplicateFileAction(STDERR_FILENO, STDERR_FILENO);
-
-    // launch target
-    process = target.Launch(launch_info, error);
-    if (!process.IsValid() || error.Fail()) {
-        logger->Error("Launch failed for target '%s': %s", argv[0], error.GetCString());
-        return false;
-    }
-    SuppressSignals();
-    // At this point we are running...
-
-    // yield - try for the debugger to kick in - other wise we might have a raise condition on our hands..
-    std::this_thread::yield();
-
-    // verify (or at least sanity check we have a PID)
-    pid = process.GetProcessID();
-    logger->Info("PID: %llu", pid);
-
-    // Wait for the process to become stopped
-    if (!WaitState(lldb::eStateStopped, 1000)) {
-        logger->Error("Premature exit");
-        return false;
-    }
-
-    // we have started - and we should be at 'main' now...  verify
-    if (!(bpMain.GetHitCount() > 0)) {
-        logger->Error("main breakpoint not hit");
-        return false;
-    }
-
-    // Start again - we now know where we are - next stop is after TRUN has scanned all libraries
-    process.Continue();
-
-    if (!WaitState(lldb::eStateStopped, 1000)) {
-        logger->Error("Premature exit waiting for TRUN to load libraries");
-        return false;
-    }
-
-    if (!WasSignalRaised(sig_DYNLIB_LOADED)) {
-        logger->Error("Signal missing for loading of dynamic libraries - out of sync");
-        return false;
-    }
-    logger->Info("Libraries scanned - we are good to go...");
-
-
-    // FIXME: Remove this - test code
-
-    // We can do either one of these..
-    //auto breakpoint = target.BreakpointCreateByLocation("dbgme.cpp", 6);
-    EnumerateMembers(target, "CTestCoverage");
-
-    // should have a list of these per symbol
-    // breakpointManager.CreateCoverageBreakpoints(target, "CTestCoverage::SomeFunc");
-    breakpoints = CreateCoverageBreakpoints(target, "CTestCoverage::SomeFunc");
-    if (breakpoints.size() == 0) {
-        logger->Error("Coverage symbol information not resolved");
-        return 1;
-    }
-    logger->Debug("Num Coverage BP's found = %zu", breakpoints.size());
-
-    return true;
-}
-
-static void PrintHelpAndExit() {
-    printf("tcov - testrunner coverage\n");
-    printf("bla\n");
-    exit(1);
-}
-
-bool CoverageRunner::ParseArgs(int argc, const char *argv[]) {
-    for (int i=1;i<argc;i++) {
-        std::string arg = argv[i];
-        if ((arg == "-h") || (arg == "--help")) {
-            PrintHelpAndExit();
-        }
-        if (arg == "--target") {
-            targetPathName = argv[++i];
-            goto nextargument;
-        }
-        // pass this on to trun
-        trunArgsVector.push_back(arg);
-nextargument:
-        ;
-    }
-    // FIXME: Should point to install directory..
-    if (targetPathName.empty()) {
-        targetPathName = "./trun";    // '/usr/bin/trun'  - do we need an absolute path?
-    }
-    return true;
-}
-
-// After this the 'trunArgs' contains char * elements pointing to trunArgsVector
-// calling trunArgs.Data() will give you a char ** which can be used to argv..
-
-void CoverageRunner::ConvertArgs(std::vector<char *> &out, std::vector<std::string> &args) {
-    out.reserve(args.size() + 1);
-    for (auto &arg : args) {
-        out.push_back(arg.data());
-    }
-    out.push_back(nullptr);
-}
-void CoverageRunner::ResolveCWD() {
-    char cwd[PATH_MAX+1] = {};
-    getcwd(cwd, PATH_MAX);
-    workingDirectory = cwd;
-}
-
-bool CoverageRunner::CreateIPCServer() {
-    // might want to do other things here...
-    if (!ipcServer.Open()) {
-        return false;
-    }
-    logger->Info("IPC Server at: %s", ipcServer.FifoName().c_str());
-    return true;
-}
-void CoverageRunner::SuppressSignals() {
-    // Try send 'SIGUSR1' when we have done 'dlopen' (no debug info needed)
-    auto unixSignals = process.GetUnixSignals();
-    unixSignals.SetShouldStop(SIGUSR1, true);
-    unixSignals.SetShouldNotify(SIGUSR1, true);
-    unixSignals.SetShouldSuppress(SIGUSR1, true);
-
-    unixSignals.SetShouldStop(SIGUSR2, true);
-    unixSignals.SetShouldNotify(SIGUSR2, true);
-    unixSignals.SetShouldSuppress(SIGUSR2, true);
-
-}
-
-bool CoverageRunner::WaitState(lldb::StateType targetState, uint32_t timeoutMSec) {
-    while (targetState != process.GetState()) {
-        std::this_thread::yield();
-        switch (process.GetState()) {
-            case lldb::eStateCrashed :
-            case lldb::eStateExited :
-                return false;
-            default :
-                break;
-        }
-    }
-    return true;
-}
-bool CoverageRunner::WasSignalRaised(int expectedSignal) {
-
-    // Check that we really got SIGUSR1 - raised once dylibs have been loaded...
-    auto thread = process.GetSelectedThread();
-    if (thread.GetStopReason() != lldb::eStopReasonSignal) {
-        return false;
-    }
-    uint32_t data_count = thread.GetStopReasonDataCount();
-    if (data_count > 0) {
-        int signo = thread.GetStopReasonDataAtIndex(0);
-        logger->Debug("Stopped by signal: %d", signo);
-        if (signo == expectedSignal) {
-            return true;
-        }
-    }
-    return false;
-}
-
-void CoverageRunner::Process() {
-    logger->Debug("--> Entering Process Loop");
-    // continue until we have exited
-    while (true) {
-        process.Continue();
-        auto state = process.GetState();
-        if ((state == lldb::eStateExited) || (state == lldb::eStateCrashed)) {
-            logger->Debug("Process exited or crashed");
-            break;
-        }
-        if (state == lldb::eStateStopped) {
-            auto thread = process.GetSelectedThread();
-            if (WasSignalRaised(sig_IPC_INTERRUPT)) {
-                HandleIPCInterrupt();
-            } else {
-                CheckBreakPointHit(thread);
-            }
-        }
-    } // while(true)
-    logger->Debug("--> Process Loop Complete");
-    // get the exit code from the debuggee
-    exit_code = process.GetExitStatus();
-    logger->Debug("Target finished with exit code: %d", exit_code);
-
-}
-
-void CoverageRunner::CheckBreakPointHit(lldb::SBThread &thread) {
-    auto frame = thread.GetSelectedFrame();
-    auto line = frame.GetLineEntry();
-
-    if (line.IsValid()) {
-        auto filename = line.GetFileSpec().GetFilename();
-        auto lineno = line.GetLine();
-        auto pc = frame.GetPC();
-        logger->Debug("Hit Breakpoint at %s:%u - PC=%llX", filename, lineno, pc);
-    } else {
-        logger->Warning("Breakpoint, but line info is bad!");
-    }
-}
-
-void CoverageRunner::HandleIPCInterrupt() {
-    ConsumeIPC();
-}
-
-void CoverageRunner::ConsumeIPC() {
-    if (!ipcServer.Available()) {
-        //printf("ConsumeFIFO: tcovIPCServer not available\n");
-        logger->Debug("ConsumeIPC, No IPC data available");
-        return;
-    }
-    logger->Debug("ConsumeIPC, data available..");
-    while (ipcServer.Available()) {
-        auto ipcMsg = ReadIPCMessage();
-        if (!ipcMsg.IsValid()) {
-            continue;
-        }
-        logger->Debug("BeginCoverage for '%s'",ipcMsg.symbolName.c_str());
-        breakpointManager.CreateCoverageBreakpoints(target, ipcMsg.symbolName);
-    }
-}
-
-trun::CovIPCCmdMsg CoverageRunner::ReadIPCMessage() {
-    trun::CovIPCCmdMsg ipcMsg;
-    gnilk::IPCBinaryDecoder decoder(ipcServer, ipcMsg);
-    if (!decoder.Process()) {
-        return {};
-    }
-    return ipcMsg;
-}
-
-void CoverageRunner::End() {
-    // Close IPC connection
-    ipcServer.Close();
-    // terminate everything..
-    lldb::SBDebugger::Terminate();
-}
-
-void CoverageRunner::Report() {
-
-    breakpointManager.Report();
-    // TEMPORARY
-    size_t linestested = 0;
-    for (auto &bp : breakpoints) {
-
-        printf("%llX - %s:%d:%d\n",bp.address, bp.function.c_str(), bp.line, bp.breakpoint.GetHitCount());
-        if (bp.breakpoint.GetHitCount() > 0) {
-            linestested++;
-        }
-    }
-    auto factor = (float)linestested / (float)breakpoints.size();
-    printf("coverage=%f = %d%%\n", factor, (int)(100 * factor));
-}
-
-int main(int argc, const char *argv[]) {
-    CoverageRunner coverageRunner;
-    if (!coverageRunner.Begin(argc, argv)) {
-        return 1;
-    }
-    coverageRunner.Process();
-    coverageRunner.Report();
-    coverageRunner.End();
-    return 0;
-}
-
-
 // Example of 'debugging' a file programmatically with LLDB...
 // and capturing the output of the debuggee...
-static int oldmain(int argc, const char *argv[]) {
+static int oldmain (int argc, const char *argv[]) {
     auto my_pid = getpid();
     printf("tcov - start, pid=%d\n",my_pid);
 
