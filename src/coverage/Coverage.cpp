@@ -134,7 +134,7 @@ bool CoverageRunner::Begin(int argc, const char *argv[]) {
     }
     logger->Info("Libraries scanned - we are good to go...");
 
-    // Create breakpoint from symbols...
+    // Create breakpoints from symbols coming from cmd-line..
     for (auto &s : symbols) {
         breakpointManager.CreateCoverageBreakpoints(target, s);
     }
