@@ -4,15 +4,16 @@
 
 #include "SymbolTypeChecker.h"
 #include "logger.h"
+#include <lldb/SBType.h>
 
 using namespace tcov;
 
 SymbolTypeChecker::SymbolType SymbolTypeChecker::ClassifySymbol(lldb::SBTarget &target, const std::string &symbol) {
-    if (IsClassType(target, symbol)) {
-        return SymbolType::kSymClass;
-    }
     if (IsFuncType(target, symbol)) {
         return SymbolType::kSymFunc;
+    }
+    if (IsClassType(target, symbol)) {
+        return SymbolType::kSymClass;
     }
     return SymbolType::kSymNotFound;
 }
@@ -55,31 +56,23 @@ bool SymbolTypeChecker::IsClassType(lldb::SBTarget &target, const std::string &s
     logger->Debug("Dumping symbol type list - size=%u", nSymbols);
 
     size_t nFound = 0;
-
     for (size_t i=0;i<symbolTypeList.GetSize();i++) {
         auto ct = symbolTypeList.GetTypeAtIndex(i);
         logger->Debug("  %zu:%s",i,ct.GetDisplayTypeName());
-
         if (!ct.IsValid()) {
             logger->Debug("Invalid - skipping");
             continue;
         }
-        if (ct.IsFunctionType()) {
-            logger->Debug("Function type - good");
-            continue;;
-        }
-
-        if (ct.IsPolymorphicClass()) {
-            logger->Debug("  Class found - dumping members!");
-            for (size_t j=0; j<ct.GetNumberOfMemberFunctions();j++) {
-                auto member = ct.GetMemberFunctionAtIndex(j);
-                logger->Debug("    %zu:%s",j, member.GetName());
-                nFound++;
-            }
+        logger->Debug("Enumerating members");
+        for (size_t j=0; j<ct.GetNumberOfMemberFunctions();j++) {
+            auto member = ct.GetMemberFunctionAtIndex(j);
+            logger->Debug("    %zu:%s",j, member.GetName());
+            nFound++;
         }
     }
 
     return (nFound > 0);
 }
+
 
 
