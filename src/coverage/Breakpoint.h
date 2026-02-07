@@ -25,6 +25,7 @@ namespace tcov {
         using Ref = std::shared_ptr<Function>;
         lldb::addr_t startLoadAddress;
         lldb::addr_t endLoadAddress;
+        uint32_t startLine;
         std::string name;       // will I have this?
         std::vector<Breakpoint::Ref> breakpoints;
 
@@ -59,6 +60,7 @@ namespace tcov {
         void CreateCoverageForFunction(lldb::SBTarget &target, const std::string &symbol);
         void CreateCoverageForClass(lldb::SBTarget &target, const std::string &symbol);
         void CreateBreakpointsFunctionRange(lldb::SBTarget &target, lldb::SBCompileUnit &compileUnit, Function::Ref ptrFunction);
+        std::vector<std::string> EnumerateMembers(lldb::SBTarget &target, const std::string &className);
         CompileUnit::Ref GetOrAddCompileUnit(const std::string &&pathName);
 
 
