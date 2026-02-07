@@ -10,7 +10,7 @@
 #include "ipc/IPCDecoder.h"
 #include <lldb/SBUnixSignals.h>
 #include <lldb/SBThread.h>
-
+#include <lldb/SBBreakpointLocation.h>
 
 using namespace tcov;
 
@@ -75,8 +75,6 @@ bool CoverageRunner::Begin(int argc, const char *argv[]) {
     // 'main' is present even in release builds, other options would be '_start' or
     // Make sure we control launch - lldb starts in running mode by default - so we insert this..
     bpMain = target.BreakpointCreateByName("main");
-
-
 
     // Convert trunArgs to argv style char *[]
     std::vector<char *> trunArgs;
@@ -297,21 +295,27 @@ bool CoverageRunner::WasSignalRaised(int expectedSignal) {
 void CoverageRunner::Process() {
     logger->Debug("--> Entering Process Loop");
     // continue until we have exited
+    size_t nHits = 0;
     while (true) {
         process.Continue();
         auto state = process.GetState();
         if ((state == lldb::eStateExited) || (state == lldb::eStateCrashed)) {
             logger->Debug("Process exited or crashed");
             break;
-        }
-        if (state == lldb::eStateStopped) {
+        } else if (state == lldb::eStateStopped) {
             auto thread = process.GetSelectedThread();
-            if (WasSignalRaised(sig_IPC_INTERRUPT)) {
+            auto stopReason = thread.GetStopReason();
+            if ((stopReason == lldb::eStopReasonSignal) && WasSignalRaised(sig_IPC_INTERRUPT)) {
                 HandleIPCInterrupt();
-            } else {
+            } else if (stopReason == lldb::eStopReasonBreakpoint) {
                 CheckBreakPointHit(thread);
+                nHits++;
+            } else {
+                logger->Error("Unhandled stop reson = %d\n", (int)stopReason);
             }
         }
+        //logger->Debug("Number of hits: %d", nHits);
+        std::this_thread::yield();
     } // while(true)
     logger->Debug("--> Process Loop Complete");
 
@@ -322,17 +326,22 @@ void CoverageRunner::Process() {
 }
 
 void CoverageRunner::CheckBreakPointHit(lldb::SBThread &thread) {
-    auto frame = thread.GetSelectedFrame();
-    auto line = frame.GetLineEntry();
+    auto bp_id = thread.GetStopReasonDataAtIndex(0);
+    auto loc_id = thread.GetStopReasonDataAtIndex(1);
 
-    if (line.IsValid()) {
-        auto filename = line.GetFileSpec().GetFilename();
-        auto lineno = line.GetLine();
-        auto pc = frame.GetPC();
-        logger->Debug("Hit Breakpoint at %s:%u - PC=%llX", filename, lineno, pc);
-    } else {
-        logger->Warning("Breakpoint, but line info is bad!");
+    // FIXME: disable location only as a breakpoint can have multiple locations in case of inlining
+    //        another option is to use 'loc.SetOneShot(true)'
+    auto bp = target.FindBreakpointByID(bp_id);
+    if (!bp.IsValid()) {
+        logger->Error("Invalid breakpoint with ID: %lld", bp_id);
+        return;
     }
+    bp.SetEnabled(false);
+    auto loc = bp.FindLocationByID(loc_id);
+    if (!loc.IsValid()) {
+        logger->Error("Invalid breakpoint location with ID: %lld", loc_id);
+    }
+    loc.SetEnabled(false);
 }
 
 // Might extend this in the future - but currently we just process IPC
