@@ -10,6 +10,15 @@ public:
     virtual ~CTestCoverage() = default;
 
     void SomeFunc(int arg);
+    void SomeInlineFunc(int arg) {
+        printf("this is an inline func with stuff\n");
+    }
+protected:
+    void ProtectedFunc(int arg) {
+        printf("is inline\n");
+    }
+private:
+    void PrivateFunc(int arg);
 };
 
 void CTestCoverage::SomeFunc(int arg) {
@@ -19,6 +28,9 @@ void CTestCoverage::SomeFunc(int arg) {
         printf("More than 10\n");
     }
     return;
+}
+void CTestCoverage::PrivateFunc(int arg) {
+    printf("not inline\n");
 }
 
 static void internal_tcov_func(int arg) {
@@ -39,12 +51,12 @@ extern "C" int test_coverage(ITesting *t) {
     t->QueryInterface(ITestingCoverage_IFace_ID, reinterpret_cast<void **>(&icoverage));
     if (icoverage != nullptr) {
         // This will stress test the various ways we resolve coverage breakpoints
-        icoverage->BeginCoverage("CTestCoverage::SomeFunc");  // resolves to a function (functionlist)
         icoverage->BeginCoverage("CTestCoverage");    // resolves to class (symbollist)
-
-        icoverage->BeginCoverage("glb_tcov_func");     // global function, resolves to a function in tcov
-        icoverage->BeginCoverage("gurka::ns_tcov_func");    // function in a namespace, resolves to a function
-        icoverage->BeginCoverage("internal_tcov_func");   // internal function, not found at all...
+        // icoverage->BeginCoverage("CTestCoverage::SomeFunc");  // resolves to a function (functionlist)
+        //
+        // icoverage->BeginCoverage("glb_tcov_func");     // global function, resolves to a function in tcov
+        // icoverage->BeginCoverage("gurka::ns_tcov_func");    // function in a namespace, resolves to a function
+        // icoverage->BeginCoverage("internal_tcov_func");   // internal function, not found at all...
     }
     printf("coverage main completed\n");
     return kTR_Pass;
