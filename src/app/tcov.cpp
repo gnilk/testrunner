@@ -15,7 +15,8 @@
 // release and debug builds..
 //
 // TODO:
-// - Accept coverage class/function information via cmd line
+// ! Accept coverage class/function information via cmd line
+// - Inline members do not work, see comments in 'Breakpoint.cpp'
 // - Generate better reports (ideally some file that can be imported in the IDE)
 // - Test multi-statement coverage 'if (X && Y)' - if X failed Y might not be evalulated
 //
