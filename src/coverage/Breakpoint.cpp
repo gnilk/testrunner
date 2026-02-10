@@ -97,6 +97,7 @@ void BreakpointManager::CreateCoverageForFunction(lldb::SBTarget &target, const 
         ptrFunction->startLine = startAddr.GetLineEntry().GetLine();
         ptrFunction->startLoadAddress = startAddr.GetLoadAddress(target);
         ptrFunction->endLoadAddress = endAddr.GetLoadAddress(target);
+        ptrFunction->symbol = ctx.GetSymbol();
 
         // Now create the actual breakpoints - using start/end addr
         CreateBreakpointsFunctionRange(target, compileUnit, ptrFunction);
@@ -230,9 +231,49 @@ std::vector<std::string> BreakpointManager::EnumerateMembers(lldb::SBTarget &tar
     }
     return classMembers;
 }
+std::vector<FunctionCoverage> BreakpointManager::ComputeCoverage() {
+    auto logger = gnilk::Logger::GetLogger("BreakpointManager");
+    logger->Debug("Computing coverage");
+    std::vector<FunctionCoverage> coverageList;
+
+    for (auto &[unitName, ptrCompileUnit] : compileUnits) {
+        auto pathName = std::filesystem::path(ptrCompileUnit->pathName);
+        if (std::filesystem::exists(pathName)) {
+            // FIXME: Loadfile here
+        }
+
+        for (auto &[_, ptrFunction] : ptrCompileUnit->functions) {
+            size_t nHits = 0;
+            for (auto &bp : ptrFunction->breakpoints) {
+                if (bp->breakpoint.GetHitCount() > 0) {
+                    nHits++;
+                }
+                if (bp->breakpoint.GetHitCount() > 1) {
+                    printf("****  %d - %s - %llX - %d\n",bp->line, ptrFunction->name.c_str(), bp->loadAddress, bp->breakpoint.GetHitCount());
+                }
+
+            }
+            float coverage = (float)nHits / (float)ptrFunction->breakpoints.size();
+            uint32_t coveragePercentage = 100 * coverage;
+            FunctionCoverage funcCoverage {
+                coverage,
+                coveragePercentage,
+                nHits,
+                ptrFunction->breakpoints.size(),
+                ptrFunction,
+                ptrCompileUnit,
+            };
+            coverageList.push_back(funcCoverage);
+        }
+    }
+    return coverageList;
+}
 
 
 void BreakpointManager::Report() {
+
+    // NOT USED!!!
+
     // FIXME: Sort results here!
     for (auto &[unitName, ptrCompileUnit] : compileUnits) {
         auto pathName = std::filesystem::path(ptrCompileUnit->pathName);
@@ -243,9 +284,6 @@ void BreakpointManager::Report() {
         for (auto &[_, ptrFunction] : ptrCompileUnit->functions) {
             functions.push_back(ptrFunction);
         }
-        // std::sort(functions.begin(), functions.end(),[](auto &a, auto &b) {
-        //    return a->startLine < b->startLine;
-        // });
 
 
         printf("%s\n", ptrCompileUnit->pathName.c_str());
