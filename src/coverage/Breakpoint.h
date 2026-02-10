@@ -8,6 +8,7 @@
 #include <lldb/SBBreakpoint.h>
 #include <lldb/SBTarget.h>
 #include <lldb/SBCompileUnit.h>
+#include <lldb/SBSymbol.h>
 #include <vector>
 #include <string>
 #include <unordered_map>
@@ -25,8 +26,10 @@ namespace tcov {
         using Ref = std::shared_ptr<Function>;
         lldb::addr_t startLoadAddress;
         lldb::addr_t endLoadAddress;
+        lldb::SBSymbol symbol;
         uint32_t startLine;
         std::string name;       // will I have this?
+
         std::vector<Breakpoint::Ref> breakpoints;
 
     };
@@ -48,12 +51,23 @@ namespace tcov {
         }
     };
 
+    struct FunctionCoverage {
+        using Ref = std::shared_ptr<FunctionCoverage>;
+        float functionCoverage;
+        uint32_t percentageCoverage;
+        size_t nHits;
+        size_t nBreakpoints;
+        Function::Ref ptrFunction;
+        CompileUnit::Ref ptrCompileUnit;
+    };
+
     class BreakpointManager {
     public:
         BreakpointManager() = default;
         virtual ~BreakpointManager() = default;
 
         void CreateCoverageBreakpoints(lldb::SBTarget &target, const std::string &symbol);
+        std::vector<FunctionCoverage> ComputeCoverage();
         void Report();
     protected:
         SymbolTypeChecker::SymbolType CheckSymbolType(lldb::SBTarget &target, const std::string &symbol);
