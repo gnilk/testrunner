@@ -269,44 +269,6 @@ std::vector<FunctionCoverage> BreakpointManager::ComputeCoverage() {
     return coverageList;
 }
 
-
-void BreakpointManager::Report() {
-
-    // NOT USED!!!
-
-    // FIXME: Sort results here!
-    for (auto &[unitName, ptrCompileUnit] : compileUnits) {
-        auto pathName = std::filesystem::path(ptrCompileUnit->pathName);
-        if (std::filesystem::exists(pathName)) {
-            // FIXME: Loadfile here
-        }
-        std::vector<Function::Ref> functions;
-        for (auto &[_, ptrFunction] : ptrCompileUnit->functions) {
-            functions.push_back(ptrFunction);
-        }
-
-
-        printf("%s\n", ptrCompileUnit->pathName.c_str());
-        for (auto &ptrFunction: functions) {
-            size_t nHits = 0;
-            for (auto &bp : ptrFunction->breakpoints) {
-                if (bp->breakpoint.GetHitCount() > 0) {
-                    nHits++;
-                }
-                if (bp->breakpoint.GetHitCount() > 1) {
-                    printf("****  %d - %s - %llX - %d\n",bp->line, ptrFunction->name.c_str(), bp->loadAddress, bp->breakpoint.GetHitCount());
-                }
-
-            }
-            float funcCoverage = (float)nHits / (float)ptrFunction->breakpoints.size();
-            int coveragePercentage = 100 * funcCoverage;
-            printf("%s - Coverage: %d%% (%.3f) (hits: %zu, bp:%zu) \n", ptrFunction->name.c_str(), coveragePercentage, funcCoverage, nHits, ptrFunction->breakpoints.size());
-
-        }
-    }
-}
-
-
 CompileUnit::Ref BreakpointManager::GetOrAddCompileUnit(const std::string &&pathName) {
     CompileUnit::Ref ptrCompileUnit = nullptr;
     if (!compileUnits.contains(pathName)) {

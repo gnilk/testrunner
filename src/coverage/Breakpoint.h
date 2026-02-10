@@ -68,7 +68,6 @@ namespace tcov {
 
         void CreateCoverageBreakpoints(lldb::SBTarget &target, const std::string &symbol);
         std::vector<FunctionCoverage> ComputeCoverage();
-        void Report();
     protected:
         SymbolTypeChecker::SymbolType CheckSymbolType(lldb::SBTarget &target, const std::string &symbol);
         void CreateCoverageForFunction(lldb::SBTarget &target, const std::string &symbol);
