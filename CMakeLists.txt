@@ -93,6 +93,8 @@ list(APPEND tcovsrcfiles src/coverage/SymbolTypeChecker.cpp src/coverage/SymbolT
 list(APPEND tcovsrcfiles src/testrunner/CoverageIPCMessages.cpp src/testrunner/CoverageIPCMessages.h)
 list(APPEND tcovsrcfiles src/testrunner/strutil.cpp src/testrunner/strutil.h)
 list(APPEND tcovsrcfiles src/testrunner/glob.cpp src/testrunner/glob.h)
+list(APPEND tcovsrcfiles src/coverage/reporting/ReportBase.h)
+list(APPEND tcovsrcfiles src/coverage/reporting/ReportConsole.cpp src/coverage/reporting/ReportConsole.h)
 
 
 ## all files but the main application file
