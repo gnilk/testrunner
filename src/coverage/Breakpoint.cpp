@@ -44,9 +44,9 @@ void BreakpointManager::CreateCoverageBreakpoints(lldb::SBTarget &target, const 
     // Dump
     auto logger = gnilk::Logger::GetLogger("BreakpointManager");
     logger->Debug("Dumping details");
-    for (auto &[name, cp] : compileUnits) {
-        logger->Debug("%s @ %s nFunctions=%zu\n", name, cp->pathName, cp->functions.size());
-        for (auto &[name, func] : cp->functions) {
+    for (auto &[cname, cp] : compileUnits) {
+        logger->Debug("%s @ %s nFunctions=%zu\n", cname, cp->pathName, cp->functions.size());
+        for (auto &[fname, func] : cp->functions) {
             logger->Debug("  %s, line=%u, start=%llX, end=%llX, bp=%zu", func->name.c_str(), func->startLine, func->startLoadAddress, func->endLoadAddress, func->breakpoints.size());
         }
     }
@@ -107,7 +107,7 @@ void BreakpointManager::CreateCoverageForFunction(lldb::SBTarget &target, const 
 
 // Create breakpoints for a function between start/end addr..
 void BreakpointManager::CreateBreakpointsFunctionRange(lldb::SBTarget &target, lldb::SBCompileUnit &compileUnit, Function::Ref ptrFunction) {
-    auto logger = gnilk::Logger::GetLogger("BreakpointManager");
+    //auto logger = gnilk::Logger::GetLogger("BreakpointManager");
 
     auto numLines = compileUnit.GetNumLineEntries();
     for (uint32_t line = 0; line < numLines; line++) {
@@ -231,7 +231,7 @@ std::vector<std::string> BreakpointManager::EnumerateMembers(lldb::SBTarget &tar
     }
     return classMembers;
 }
-std::vector<FunctionCoverage> BreakpointManager::ComputeCoverage() {
+std::vector<FunctionCoverage> BreakpointManager::ComputeCoverage() const {
     auto logger = gnilk::Logger::GetLogger("BreakpointManager");
     logger->Debug("Computing coverage");
     std::vector<FunctionCoverage> coverageList;
@@ -239,7 +239,7 @@ std::vector<FunctionCoverage> BreakpointManager::ComputeCoverage() {
     for (auto &[unitName, ptrCompileUnit] : compileUnits) {
         auto pathName = std::filesystem::path(ptrCompileUnit->pathName);
         if (std::filesystem::exists(pathName)) {
-            // FIXME: Loadfile here
+            // FIXME: Loadfile here?
         }
 
         for (auto &[_, ptrFunction] : ptrCompileUnit->functions) {
