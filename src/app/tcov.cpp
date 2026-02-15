@@ -32,6 +32,7 @@
 #include <memory>
 
 
+#ifdef APPLE
 #include <lldb/SBDebugger.h>
 #include <lldb/SBTarget.h>
 #include <lldb/SBProcess.h>
@@ -43,7 +44,19 @@
 #include <lldb/SBEvent.h>
 #include <lldb/SBUnixSignals.h>
 #include <lldb/SBLineEntry.h>
-
+#else
+#include <lldb/API/SBDebugger.h>
+#include <lldb/API/SBTarget.h>
+#include <lldb/API/SBProcess.h>
+#include <lldb/API/SBTrace.h>
+#include <lldb/API/SBThread.h>
+#include <lldb/API/SBBroadcaster.h>
+#include <lldb/API/SBListener.h>
+#include <lldb/API/SBStream.h>
+#include <lldb/API/SBEvent.h>
+#include <lldb/API/SBUnixSignals.h>
+#include <lldb/API/SBLineEntry.h>
+#endif
 
 #include "logger.h"
 #include "CoverageIPCMessages.h"

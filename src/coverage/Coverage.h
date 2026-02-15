@@ -9,10 +9,17 @@
 #include <stdint.h>
 #include <vector>
 #include <string>
+#ifdef APPLE
 #include <lldb/SBTarget.h>
 #include <lldb/SBDebugger.h>
 #include <lldb/SBBreakpoint.h>
 #include <lldb/SBProcess.h>
+#else
+#include <lldb/API/SBTarget.h>
+#include <lldb/API/SBDebugger.h>
+#include <lldb/API/SBBreakpoint.h>
+#include <lldb/API/SBProcess.h>
+#endif
 
 #include "logger.h"
 #include "unix/IPCFifoUnix.h"

@@ -73,6 +73,10 @@ void BreakpointManager::CreateCoverageForFunction(lldb::SBTarget &target, const 
         auto compileUnit = ctx.GetCompileUnit();
         auto func = ctx.GetFunction();
         auto displayName =  ctx.GetSymbol().GetDisplayName();
+        if (displayName == nullptr) {
+            logger->Debug("  Display name for symbol '%s' is null", func.GetName());
+            continue;
+        }
 
         auto fileSpec = compileUnit.GetFileSpec();
         std::filesystem::path filename = {};

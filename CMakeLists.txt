@@ -2,6 +2,10 @@
 # CMAKE file for TestRunner
 #
 
+#
+# FIXME: Clean this mess up - in general but specifically for lldb dependencies if build tcov (should be optional)
+#
+
 #set(CMAKE_OSX_ARCHITECTURES "x86_64;arm64" CACHE STRING "")
 #set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "")
 set(CMAKE_OSX_ARCHITECTURES "arm64" CACHE STRING "")
@@ -77,12 +81,6 @@ list(APPEND extlibs fmt)
 #
 # setup the LLDB dev and build stuff, needed for tcov
 #
-# FIXME: This is not good - but we need LLVM as a dev-dependency for TCOV
-set(LLVM_ROOT "/Users/gnilk/src/ext/llvm-project")
-set(LLVM_BUILD_ROOT "/Users/gnilk/src/ext/llvm_build")
-set(LLDB_INCLUDE "${LLVM_ROOT}/lldb/include")
-set(LLDB_BUILD_INCLUDE "${LLVM_BUILD_ROOT}/include")
-set(LLDB_LIB "${LLVM_BUILD_ROOT}/lib")
 
 
 # all files from testrunner we reuse in tcov
@@ -301,6 +299,14 @@ set_property(TARGET trunembedded PROPERTY CXX_STANDARD 20)
 include(GNUInstallDirs)
 
 if (APPLE)
+    # FIXME: This is not good - but we need LLVM as a dev-dependency for TCOV
+    set(LLVM_ROOT "/Users/gnilk/src/ext/llvm-project")
+    set(LLVM_BUILD_ROOT "/Users/gnilk/src/ext/llvm_build")
+    set(LLDB_INCLUDE "${LLVM_ROOT}/lldb/include")
+    set(LLDB_BUILD_INCLUDE "${LLVM_BUILD_ROOT}/include")
+    set(LLDB_LIB "${LLVM_BUILD_ROOT}/lib")
+
+
 
     target_compile_options(trun PUBLIC -Wall -Wpedantic -Wextra -Wno-multichar -fsanitize=address)
     target_compile_options(trun_utests PUBLIC -Wno-multichar)
@@ -318,6 +324,7 @@ if (APPLE)
 
     set(CMAKE_FRAMEWORK_PATH "${LLVM_BUILD_ROOT}/bin" ${CMAKE_FRAMEWORK_PATH})
     find_library(LLDB_FRAMEWORK Lldb)
+
 
 
     message(STATUS ${COCOA_FRAMEWORK})
@@ -356,13 +363,25 @@ elseif (WIN32)
     target_compile_options(trun_utests PUBLIC /std:c++20 /Zc:__cplusplus /volatile:iso /EHsc /Zc:implicitNoexcept)
     target_compile_definitions(trun PUBLIC _CRT_SECURE_NO_WARNINGS)
 elseif (UNIX)
+    message(STATUS "Building for Linux")
+
     target_compile_options(trun_utests PUBLIC -Wno-multichar)
     #target_link_libraries(trun dl pthread)
     target_compile_options(trun PUBLIC -Wall -Wpedantic -Wextra -Wno-multichar)
 
     target_compile_definitions(trun PUBLIC -DTRUN_HAVE_FORK)
 
+
+    find_library(LLDB_FRAMEWORK lldb)
+    message(STATUS ${LLDB_FRAMEWORK})
+# not needed
+#    set(LLDB_INCLUDE "${LLVM_ROOT}/lldb/include")
+#    set(LLDB_BUILD_INCLUDE "${LLVM_BUILD_ROOT}/include")
+#    set(LLDB_LIB "${LLVM_BUILD_ROOT}/lib")
+
+
     list(APPEND platformlibs dl pthread)
+    list(APPEND tcovlibs lldb)
 
     include(GNUInstallDirs)
 

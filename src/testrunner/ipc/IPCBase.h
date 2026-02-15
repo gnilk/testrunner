@@ -7,6 +7,7 @@
 
 #include <stdint.h>
 #include <string>
+#include <memory>
 #include "IPCCore.h"
 
 namespace gnilk {
