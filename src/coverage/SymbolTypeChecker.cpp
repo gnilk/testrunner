@@ -4,7 +4,11 @@
 
 #include "SymbolTypeChecker.h"
 #include "logger.h"
+#ifdef APPLE
 #include <lldb/SBType.h>
+#else
+#include <lldb/API/SBType.h>
+#endif
 
 using namespace tcov;
 

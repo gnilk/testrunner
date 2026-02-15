@@ -2,6 +2,7 @@
 // Created by gnilk on 11.02.2026.
 //
 
+#include <algorithm>
 #include "ReportConsole.h"
 
 using namespace tcov;
@@ -32,9 +33,12 @@ void ReportConsole::GenerateReport(const BreakpointManager &breakpointManager) {
     };
     uint32_t idxCurrentRange = 0;
     for (auto &cov : coverageData) {
-        if (cov.percentageCoverage <= ranges[idxCurrentRange]) {
+        if (cov.percentageCoverage < ranges[idxCurrentRange]) {
             printf("%d\n",cov.percentageCoverage);
             while (cov.percentageCoverage <= ranges[idxCurrentRange]) {
+                if (idxCurrentRange >= 6) {
+                    break;
+                }
                 idxCurrentRange++;
             }
         }

@@ -5,10 +5,15 @@
 #ifndef TESTRUNNER_BREAKPOINT_H
 #define TESTRUNNER_BREAKPOINT_H
 
-#include <lldb/SBBreakpoint.h>
-#include <lldb/SBTarget.h>
-#include <lldb/SBCompileUnit.h>
-#include <lldb/SBSymbol.h>
+// #include <lldb/SBBreakpoint.h>
+// #include <lldb/SBTarget.h>
+// #include <lldb/SBCompileUnit.h>
+// #include <lldb/SBSymbol.h>
+#include <lldb/API/SBBreakpoint.h>
+#include <lldb/API/SBTarget.h>
+#include <lldb/API/SBCompileUnit.h>
+#include <lldb/API/SBSymbol.h>
+
 #include <vector>
 #include <string>
 #include <unordered_map>

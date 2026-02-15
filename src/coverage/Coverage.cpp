@@ -8,9 +8,18 @@
 #include "CoverageIPCMessages.h"
 #include "strutil.h"
 #include "ipc/IPCDecoder.h"
+#ifdef APPLE
 #include <lldb/SBUnixSignals.h>
 #include <lldb/SBThread.h>
 #include <lldb/SBBreakpointLocation.h>
+#else
+#include <lldb/API/SBUnixSignals.h>
+#include <lldb/API/SBThread.h>
+#include <lldb/API/SBBreakpointLocation.h>
+#include <lldb/API/SBStringList.h>
+#include <lldb/API/SBCommandInterpreter.h>
+#include <lldb/API/SBCommandReturnObject.h>
+#endif
 
 #include "reporting/ReportConsole.h"
 
@@ -47,6 +56,10 @@ bool CoverageRunner::Begin(int argc, const char *argv[]) {
     logger->Info("Working Directory: %s", workingDirectory.c_str());
 
 
+#ifdef LINUX
+    setenv("LLDB_DEBUGSERVER_PATH", "/usr/lib/llvm-18/bin/lldb-server", 1);
+#endif
+
     // Initialize LLDB
     lldb::SBDebugger::Initialize();
 
@@ -58,7 +71,34 @@ bool CoverageRunner::Begin(int argc, const char *argv[]) {
     lldbDebugger.SetAsync(false);       // lldb is async by default - which is good, but complicated to start with
     lldbDebugger.SetOutputFileHandle(stdout, false);
     lldbDebugger.SetErrorFileHandle(stderr, false);
+    lldb::SBError error;
 
+
+    // this little scripts enables internal logging for lldb - good when debugging API usage
+
+    // lldb::SBCommandInterpreter interp = lldbDebugger.GetCommandInterpreter();
+    // lldb::SBCommandReturnObject result;
+    //
+    // interp.HandleCommand(
+    //     //"settings set plugin.process.gdb-remote.server-path /usr/lib/llvm-18/bin/lldb-server",
+    //     //"log enable lldb gdb-remote process platform host",
+    //     "log enable gdb-remote all",
+    //     result
+    // );
+    //
+    // if (!result.Succeeded()) {
+    //     printf("Failed to set server path: %s\n", result.GetError());
+    // }
+    // interp.HandleCommand(
+    //     //"settings set plugin.process.gdb-remote.server-path /usr/lib/llvm-18/bin/lldb-server",
+    //     //"log enable lldb gdb-remote process platform host",
+    //     "log enable lldb process platform host api",
+    //     result
+    // );
+    //
+    // if (!result.Succeeded()) {
+    //     printf("Failed to set server path: %s\n", result.GetError());
+    // }
 
     // Create our target
     if (targetPathName.empty()) {
@@ -66,7 +106,6 @@ bool CoverageRunner::Begin(int argc, const char *argv[]) {
         targetPathName = "/Users/gnilk/src/github.com/testrunner/cmake-build-debug/trun";
     }
 
-    lldb::SBError error;
     target = lldbDebugger.CreateTarget(targetPathName.c_str(), nullptr, nullptr, true, error);
     if (!target.IsValid()) {
         logger->Error("Invalid target '%s'", argv[0]);
@@ -91,6 +130,8 @@ bool CoverageRunner::Begin(int argc, const char *argv[]) {
     // Make sure we duplicate stdout/stderr to the debuggee
     launch_info.AddDuplicateFileAction(STDOUT_FILENO, STDOUT_FILENO);
     launch_info.AddDuplicateFileAction(STDERR_FILENO, STDERR_FILENO);
+//    auto execFS = launch_info.GetExecutableFile();
+//    logger->Debug("Executing: %s", execFS.GetFilename());
 
     // launch target
     process = target.Launch(launch_info, error);
