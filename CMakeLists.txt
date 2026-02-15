@@ -181,6 +181,14 @@ if (UNIX)
 
     if (APPLE)
         add_definitions(-DAPPLE)
+
+        # FIXME: This is not good - but we need LLVM as a dev-dependency for TCOV
+        set(LLVM_ROOT "/Users/gnilk/src/ext/llvm-project")
+        set(LLVM_BUILD_ROOT "/Users/gnilk/src/ext/llvm_build")
+        set(LLDB_INCLUDE "${LLVM_ROOT}/lldb/include")
+        set(LLDB_BUILD_INCLUDE "${LLVM_BUILD_ROOT}/include")
+        set(LLDB_LIB "${LLVM_BUILD_ROOT}/lib")
+
     else()
         add_definitions(-DLINUX)
     endif()
@@ -299,12 +307,6 @@ set_property(TARGET trunembedded PROPERTY CXX_STANDARD 20)
 include(GNUInstallDirs)
 
 if (APPLE)
-    # FIXME: This is not good - but we need LLVM as a dev-dependency for TCOV
-    set(LLVM_ROOT "/Users/gnilk/src/ext/llvm-project")
-    set(LLVM_BUILD_ROOT "/Users/gnilk/src/ext/llvm_build")
-    set(LLDB_INCLUDE "${LLVM_ROOT}/lldb/include")
-    set(LLDB_BUILD_INCLUDE "${LLVM_BUILD_ROOT}/include")
-    set(LLDB_LIB "${LLVM_BUILD_ROOT}/lib")
 
 
 
