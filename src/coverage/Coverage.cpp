@@ -21,6 +21,7 @@
 #include <lldb/API/SBCommandReturnObject.h>
 #endif
 
+#include "timer.h"
 #include "reporting/ReportConsole.h"
 
 using namespace tcov;
@@ -150,7 +151,9 @@ bool CoverageRunner::Begin(int argc, const char *argv[]) {
     logger->Info("PID: %llu", pid);
 
     // Wait for the process to become stopped
-    if (!WaitState(lldb::eStateStopped, 1000)) {
+    // The timeouts here are set very high due to caching on the initial run (from the OS)
+    // Second run normally just takes a couple of 100ms...
+    if (!WaitState(lldb::eStateStopped, 10000)) {
         logger->Error("Premature exit");
         return false;
     }
@@ -164,7 +167,7 @@ bool CoverageRunner::Begin(int argc, const char *argv[]) {
     // Start again - we now know where we are - next stop is after TRUN has scanned all libraries
     process.Continue();
 
-    if (!WaitState(lldb::eStateStopped, 1000)) {
+    if (!WaitState(lldb::eStateStopped, 10000)) {
         logger->Error("Premature exit waiting for TRUN to load libraries");
         return false;
     }
@@ -297,14 +300,24 @@ void CoverageRunner::SuppressSignals() {
 // FIXME: impelement timeout
 //
 bool CoverageRunner::WaitState(lldb::StateType targetState, uint32_t timeoutMSec) {
+    trun::Timer timer;
+    timer.Reset();
     while (targetState != process.GetState()) {
         std::this_thread::yield();
         switch (process.GetState()) {
             case lldb::eStateCrashed :
+                logger->Error("lldb Crashed (state=%d)",(int)process.GetState());
+                return false;
             case lldb::eStateExited :
+                logger->Error("lldb Exited (state=%d)",(int)process.GetState());
+                // logger->Error("lldb Exit Description: %s", process.GetExitDescription());
                 return false;
             default :
                 break;
+        }
+        if (timer.Sample() > (timeoutMSec / 1000.0)) {
+            logger->Error("lldb wait state timed out");
+            return false;
         }
     }
     return true;
