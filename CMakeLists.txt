@@ -48,30 +48,39 @@ if (NOT EXISTS ${CMAKE_SOURCE_DIR}/ext)
     execute_process(COMMAND mkdir ${CMAKE_SOURCE_DIR}/ext)
 endif()
 
-
-
-if (NOT EXISTS ${CMAKE_SOURCE_DIR}/ext/fmt)
-    message(WARNING "Installing fmt library")
-    execute_process(COMMAND git clone --depth 1 --branch 10.2.1 https://github.com/fmtlib/fmt ${CMAKE_SOURCE_DIR}/ext/fmt)
-endif()
-
 #
-# include fmt library
-#
-add_subdirectory(${CMAKE_SOURCE_DIR}/ext/fmt ${CMAKE_BINARY_DIR}/fmt EXCLUDE_FROM_ALL)
-set_property(TARGET fmt PROPERTY POSITION_INDEPENDENT_CODE ON)
-target_compile_definitions(fmt PUBLIC FMT_EXCEPTIONS=0)
-list(APPEND extlibs fmt)
-
-
-
-#
-# gnklog (FetchContent, pinned)
+# fmt (FetchContent, pinned)
 #
 include(FetchContent)
 
+set(FMT_GIT_REPOSITORY "https://github.com/fmtlib/fmt")
+set(FMT_GIT_TAG "10.2.1")
+
+FetchContent_Declare(
+        fmt
+        GIT_REPOSITORY ${FMT_GIT_REPOSITORY}
+        GIT_TAG        ${FMT_GIT_TAG}
+)
+FetchContent_MakeAvailable(fmt)
+
+# keep compatibility with existing include usage (targets use ${FMT_HOME}/include)
+set(FMT_HOME ${fmt_SOURCE_DIR})
+
+# keep your existing fmt customization
+if(TARGET fmt)
+    set_property(TARGET fmt PROPERTY POSITION_INDEPENDENT_CODE ON)
+    target_compile_definitions(fmt PUBLIC FMT_EXCEPTIONS=0)
+endif()
+
+list(APPEND extlibs fmt)
+
+#
+# gnklog needs fmt configured as a dependency input (keep this)
+#
+
 set(LOG_HAVE_FMT ON)
-set(LOG_FMT_DIR ${CMAKE_SOURCE_DIR}/ext/fmt)
+#set(LOG_FMT_DIR ${CMAKE_SOURCE_DIR}/ext/fmt)
+set(LOG_FMT_DIR ${FMT_HOME})
 
 set(GNKLOG_GIT_REPOSITORY "https://github.com/gnilk/gnklog")
 set(GNKLOG_GIT_TAG "c8fb15fb7e75366d0ce34f50186e1c7b8234756c")  # pin to master commit hash
