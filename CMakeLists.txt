@@ -38,140 +38,19 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug)
 endif()
 
+# FIXME: This should be 'off' by default
 option(BUILD_TCOV "Build tcov coverage tool" ON)
 
-#
-# Dependencies bootstrap (kept as before)
-#
-if (NOT EXISTS ${CMAKE_SOURCE_DIR}/ext)
-    message(STATUS "ext directory (for dependencies) missing, creating...")
-    execute_process(COMMAND mkdir ${CMAKE_SOURCE_DIR}/ext)
-endif()
+# External dependencies (FetchContent etc.)
+include(${CMAKE_SOURCE_DIR}/cmake/CMakeDeps.cmake)
 
-#
-# fmt (FetchContent, pinned)
-#
-include(FetchContent)
-
-set(FMT_GIT_REPOSITORY "https://github.com/fmtlib/fmt")
-set(FMT_GIT_TAG "10.2.1")
-
-FetchContent_Declare(
-        fmt
-        GIT_REPOSITORY ${FMT_GIT_REPOSITORY}
-        GIT_TAG        ${FMT_GIT_TAG}
-)
-FetchContent_MakeAvailable(fmt)
-
-# keep compatibility with existing include usage (targets use ${FMT_HOME}/include)
-set(FMT_HOME ${fmt_SOURCE_DIR})
-
-# keep your existing fmt customization
-if(TARGET fmt)
-    set_property(TARGET fmt PROPERTY POSITION_INDEPENDENT_CODE ON)
-    target_compile_definitions(fmt PUBLIC FMT_EXCEPTIONS=0)
-endif()
-
-list(APPEND extlibs fmt)
-
-#
-# gnklog needs fmt configured as a dependency input (keep this)
-#
-
-set(LOG_HAVE_FMT ON)
-#set(LOG_FMT_DIR ${CMAKE_SOURCE_DIR}/ext/fmt)
-set(LOG_FMT_DIR ${FMT_HOME})
-
-set(GNKLOG_GIT_REPOSITORY "https://github.com/gnilk/gnklog")
-set(GNKLOG_GIT_TAG "c8fb15fb7e75366d0ce34f50186e1c7b8234756c")  # pin to master commit hash
-
-FetchContent_Declare(
-        gnklog
-        GIT_REPOSITORY ${GNKLOG_GIT_REPOSITORY}
-        GIT_TAG        ${GNKLOG_GIT_TAG}
-)
-FetchContent_MakeAvailable(gnklog)
-
-# Keep your existing workaround/tweaks
-if(UNIX)
-    target_compile_options(gnklog PUBLIC -fPIC -Wno-unused-parameter)
-endif()
-
-# If this target exists in gnklog's CMake, keep it excluded (same as before)
-if(TARGET gnklog_utest)
-    set_target_properties(gnklog_utest PROPERTIES EXCLUDE_FROM_ALL true)
-endif()
-
-list(APPEND extlibs gnklog)
-
-
-#
 # Common compile options/settings for our targets (INTERFACE library)
-#
 include(${CMAKE_SOURCE_DIR}/cmake/TrunCommonOptions.cmake)
 
-#
 # Shared source lists (used by multiple targets)
-#
 include(${CMAKE_SOURCE_DIR}/cmake/CMakeShared.cmake)
 
-#
-# Platform specific libs and (tcov) LLDB setup
-#
-if (UNIX)
-    if (APPLE)
-        add_definitions(-DAPPLE)
-
-        set(LLVM_ROOT "/Users/gnilk/src/ext/llvm-project")
-        set(LLVM_BUILD_ROOT "/Users/gnilk/src/ext/llvm_build")
-        set(LLDB_INCLUDE "${LLVM_ROOT}/lldb/include")
-        set(LLDB_BUILD_INCLUDE "${LLVM_BUILD_ROOT}/include")
-        set(LLDB_LIB "${LLVM_BUILD_ROOT}/lib")
-
-        set(CMAKE_INSTALL_PREFIX /usr/local)
-        set(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH} /usr/local/lib /usr/lib/system)
-
-        find_library(COCOA_FRAMEWORK Cocoa)
-        find_library(IOKIT_FRAMEWORK IOKit)
-        find_library(CORE_FRAMEWORK CoreFoundation)
-        find_library(SYSTEM_FRAMEWORK System)
-
-        set(CMAKE_FRAMEWORK_PATH "${LLVM_BUILD_ROOT}/bin" ${CMAKE_FRAMEWORK_PATH})
-        find_library(LLDB_FRAMEWORK Lldb)
-
-        list(APPEND platformlibs ${COCOA_FRAMEWORK} ${IOKIT_FRAMEWORK} ${CORE_FRAMEWORK} ${SYSTEM_FRAMEWORK})
-        list(APPEND tcovlibs ${LLDB_FRAMEWORK})
-    else()
-        add_definitions(-DLINUX)
-        message(STATUS "Building for Linux")
-
-        list(APPEND platformlibs dl pthread)
-
-        find_library(LLDB_FRAMEWORK lldb)
-        message(STATUS "LLDB library: ${LLDB_FRAMEWORK}")
-        list(APPEND tcovlibs lldb)
-    endif()
-elseif(WIN32)
-    add_definitions(-DWIN32_LEAN_AND_MEAN)
-endif()
-
 message(STATUS "source: ${CMAKE_SOURCE_DIR}")
-
-#
-# cpptrace (shared by trun + trun_utests)
-#
-set(CPPTRACE_USE_EXTERNAL_ZSTD ON)
-set(CPPTRACE_USE_EXTERNAL_LIBDWARF OFF)
-set(CPPTRACE_BUILD_SHARED OFF)
-
-include(FetchContent)
-FetchContent_Declare(
-        cpptrace
-        GIT_REPOSITORY https://github.com/jeremy-rifkin/cpptrace.git
-        GIT_TAG        v0.7.1
-)
-FetchContent_MakeAvailable(cpptrace)
-set(CPPTRACE_INCLUDE_DIR "${cpptrace_SOURCE_DIR}/include")
 
 #
 # Targets
@@ -181,6 +60,7 @@ add_subdirectory(${CMAKE_SOURCE_DIR}/src/app/trun)
 if(BUILD_TCOV)
     add_subdirectory(${CMAKE_SOURCE_DIR}/src/app/tcov)
 endif()
+
 
 #
 # Install + packaging (kept aligned with previous behavior)
