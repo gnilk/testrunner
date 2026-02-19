@@ -87,7 +87,7 @@ endif()
 #
 
 add_executable(trun
-        ${CMAKE_SOURCE_DIR}/src/app/trun.cpp
+        ${CMAKE_SOURCE_DIR}/src/app/trun/trun.cpp
         ${srcfiles}
         ${execsrcfiles}
         ${rprtsrcfiles}

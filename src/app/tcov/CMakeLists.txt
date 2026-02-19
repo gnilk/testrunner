@@ -14,7 +14,7 @@ if(UNIX)
 endif()
 
 add_executable(tcov
-        ${CMAKE_SOURCE_DIR}/src/app/tcov.cpp
+        ${CMAKE_SOURCE_DIR}/src/app/tcov/tcov.cpp
         ${ipcsrcfiles}
         ${tcovsrcfiles}
 )
