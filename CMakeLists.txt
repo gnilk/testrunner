@@ -14,6 +14,19 @@ endif()
 
 project(testrunner)
 
+# Put all build outputs in the build root (not per-subdirectory)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
+
+# Multi-config generators (e.g., Xcode, Visual Studio, Ninja Multi-Config)
+foreach(cfg IN ITEMS Debug Release RelWithDebInfo MinSizeRel)
+    string(TOUPPER "${cfg}" cfg_uc)
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_${cfg_uc} "${CMAKE_BINARY_DIR}")
+    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_${cfg_uc} "${CMAKE_BINARY_DIR}/lib")
+    set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_${cfg_uc} "${CMAKE_BINARY_DIR}/lib")
+endforeach()
+
 set(LIBRARY_OUTPUT_PATH ./lib)
 
 SET(TRUN_VERSION_MAJOR 2)
@@ -35,31 +48,12 @@ if (NOT EXISTS ${CMAKE_SOURCE_DIR}/ext)
     execute_process(COMMAND mkdir ${CMAKE_SOURCE_DIR}/ext)
 endif()
 
-if (NOT EXISTS ${CMAKE_SOURCE_DIR}/ext/gnklog)
-    message(WARNING "Installing GnkLog library")
-    execute_process(COMMAND git clone https://github.com/gnilk/gnklog ${CMAKE_SOURCE_DIR}/ext/gnklog)
-endif ()
+
 
 if (NOT EXISTS ${CMAKE_SOURCE_DIR}/ext/fmt)
     message(WARNING "Installing fmt library")
     execute_process(COMMAND git clone --depth 1 --branch 10.2.1 https://github.com/fmtlib/fmt ${CMAKE_SOURCE_DIR}/ext/fmt)
 endif()
-
-set(FMT_HOME ${CMAKE_SOURCE_DIR}/ext/fmt)
-set(GNKLOG_HOME ${CMAKE_SOURCE_DIR}/ext/gnklog)
-
-#
-# include gnklog
-#
-set(LOG_HAVE_FMT ON)
-set(LOG_FMT_DIR ${CMAKE_SOURCE_DIR}/ext/fmt)
-
-add_subdirectory(${CMAKE_SOURCE_DIR}/ext/gnklog ${CMAKE_BINARY_DIR}/gnklog)
-if(UNIX)
-    target_compile_options(gnklog PUBLIC -fPIC -Wno-unused-parameter)
-endif()
-set_target_properties(gnklog_utest PROPERTIES EXCLUDE_FROM_ALL true)
-list(APPEND extlibs gnklog)
 
 #
 # include fmt library
@@ -68,6 +62,39 @@ add_subdirectory(${CMAKE_SOURCE_DIR}/ext/fmt ${CMAKE_BINARY_DIR}/fmt EXCLUDE_FRO
 set_property(TARGET fmt PROPERTY POSITION_INDEPENDENT_CODE ON)
 target_compile_definitions(fmt PUBLIC FMT_EXCEPTIONS=0)
 list(APPEND extlibs fmt)
+
+
+
+#
+# gnklog (FetchContent, pinned)
+#
+include(FetchContent)
+
+set(LOG_HAVE_FMT ON)
+set(LOG_FMT_DIR ${CMAKE_SOURCE_DIR}/ext/fmt)
+
+set(GNKLOG_GIT_REPOSITORY "https://github.com/gnilk/gnklog")
+set(GNKLOG_GIT_TAG "c8fb15fb7e75366d0ce34f50186e1c7b8234756c")  # pin to master commit hash
+
+FetchContent_Declare(
+        gnklog
+        GIT_REPOSITORY ${GNKLOG_GIT_REPOSITORY}
+        GIT_TAG        ${GNKLOG_GIT_TAG}
+)
+FetchContent_MakeAvailable(gnklog)
+
+# Keep your existing workaround/tweaks
+if(UNIX)
+    target_compile_options(gnklog PUBLIC -fPIC -Wno-unused-parameter)
+endif()
+
+# If this target exists in gnklog's CMake, keep it excluded (same as before)
+if(TARGET gnklog_utest)
+    set_target_properties(gnklog_utest PROPERTIES EXCLUDE_FROM_ALL true)
+endif()
+
+list(APPEND extlibs gnklog)
+
 
 #
 # Common compile options/settings for our targets (INTERFACE library)
