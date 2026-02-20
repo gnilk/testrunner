@@ -7,10 +7,7 @@
 
 using namespace tcov;
 
-void ReportConsole::GenerateReport(const BreakpointManager &breakpointManager) {
-    auto coverageData = breakpointManager.ComputeCoverage();
-
-    // Define coverage groups with title, range, and vector for coverage data
+namespace {
     struct CoverageGroup {
         const char* title;
         uint32_t minRange;
@@ -26,6 +23,10 @@ void ReportConsole::GenerateReport(const BreakpointManager &breakpointManager) {
         {"24%-1%", 1, 24, {}},
         {"0%", 0, 0, {}}
     };
+}
+
+void ReportConsole::GenerateReport(const BreakpointManager &breakpointManager) {
+    auto coverageData = breakpointManager.ComputeCoverage();
 
     // Clear previous data
     for (auto &group : groups) {
