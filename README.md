@@ -627,6 +627,8 @@ Example output:
 <b>Note:</b> Passes are only reported IF you include it in the summary (`-S`).
 
 # Version history
+## v2.1.3
+- Fixed bugs when compiling unit tests as C code instead of C++ code (testinterface.h was threw errors)
 ## v2.1.2
 - Fixed a bug when using V1 causing asserts to continue even if they should exit
 - When dumping config also write out continue on assert setting
