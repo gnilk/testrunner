@@ -13,6 +13,7 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
 #ifdef WIN32
     #ifndef WIN32_LEAN_AND_MEAN
@@ -49,11 +50,19 @@ typedef enum {
 
 // Assert macro, checks version and casts to right (hopefully) interface...
 // Note: comparing magic here is quite ok - we can't have a difference!
+#ifdef __cplusplus
 #define TR_ASSERT(t, _exp_) \
     if (!(_exp_)) {                                                    \
         auto tr_temp_res = ((ITesting *)t)->AssertError(__LINE__, __FILE__, #_exp_);   \
         if (tr_temp_res == kTRContinueMode::kTRLeave) return kTR_Fail; \
     }
+#else
+#define TR_ASSERT(t, _exp_) \
+    if (!(_exp_)) {                                                    \
+        kTRContinueMode tr_temp_res = ((ITesting *)t)->AssertError(__LINE__, __FILE__, #_exp_);   \
+        if (tr_temp_res == kTRLeave) return kTR_Fail; \
+    }
+#endif
 
 #define TR_REQUIRE(t, _exp_, _msg_) \
     if (!(_exp_)) {                 \
@@ -93,21 +102,22 @@ struct ITesting {
 // Experimental - built in extension interface for configuration fetching..
 //
 
-enum kTRConfigType {
+typedef enum {
     kTRCfgType_Bool,
     kTRCfgType_Num,
     kTRCfgType_Str,
-};
+} kTRConfigType;
 
 #define TR_CFG_ITEM_NAME_LEN 32
 
 // Not sure this is so great for Rust - will have to verify...
+typedef struct TRUN_ConfigItem TRUN_ConfigItem;
 struct TRUN_ConfigItem {
     bool isValid;
     char name[TR_CFG_ITEM_NAME_LEN];
     kTRConfigType value_type;
     union {
-        int boolean = 0;
+        int boolean;
         int32_t num;
         const char *str;    // Readonly..
     } value;
