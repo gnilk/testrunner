@@ -44,11 +44,16 @@
 
 using namespace trun;
 
-IDynLibrary::Ref DynLibLinux::Create() {
-    return std::make_shared<DynLibLinux>();
+IDynLibrary::Ref DynLibLinux::Create(bool bUseDeepBinding) {
+    auto lib = std::make_shared<DynLibLinux>(bUseDeepBinding);
+
 }
 
-DynLibLinux::DynLibLinux() {
+DynLibLinux::DynLibLinux() : bUseDeepBinding(false) {
+    this->pLogger = gnilk::Logger::GetLogger("Loader");
+}
+
+DynLibLinux::DynLibLinux(bool useDeepBinding) : bUseDeepBinding(useDeepBinding){
     this->pLogger = gnilk::Logger::GetLogger("Loader");
 }
 DynLibLinux::~DynLibLinux() {

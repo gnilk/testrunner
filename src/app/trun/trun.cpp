@@ -317,14 +317,11 @@ next_argument:;
 static IDynLibrary::Ref GetLibraryLoader() {
     IDynLibrary::Ref lib;
 #ifdef WIN32
-    lib = DynLibWin::Create();
+    return DynLibWin::Create();
 #elif __linux
-    lib = DynLibLinux::Create();
-    if (Config::Instance().linuxUseDeepBinding) {
-        lib->SetUseDeepBinding(true);
-    }
+    return DynLibLinux::Create(Config::Instance().linuxUseDeepBinding);
 #else
-    lib = DynLibLinux::Create();
+    return DynLibLinux::Create();
 #endif
     return {};
 }

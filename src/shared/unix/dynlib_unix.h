@@ -14,9 +14,10 @@ namespace trun {
     class DynLibLinux : public IDynLibrary {
     public:
 
-        static IDynLibrary::Ref Create();
+        static IDynLibrary::Ref Create(bool useDeepBinding);
 
         DynLibLinux();
+        DynLibLinux(bool useDeepBinding);
         virtual ~DynLibLinux();
 
     public: // IDynLibrary
