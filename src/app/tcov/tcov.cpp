@@ -66,6 +66,11 @@
 
 using namespace tcov;
 
+//
+// Test like this:
+// --target ./trun --symbols pucko::DateTime -- --sequential -m datetime /home/gnilk/src/work/embedded/libraries/PuckoNew/cmake-build-debug/lib/libpucko_utests.so
+//
+
 // basically all contained in the class CoverageRunner...
 int main(int argc, const char *argv[]) {
     CoverageRunner coverageRunner;
