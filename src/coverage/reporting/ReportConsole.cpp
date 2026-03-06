@@ -33,6 +33,11 @@ namespace {
                 });
         }
 
+        std::string GetShortDisplayName(const std::string &sbname) const {
+            auto shortName = sbname.substr(0, sbname.find('('));
+            return shortName;
+        }
+
         void Print() const {
             if (items.empty()) {
                 return;
@@ -40,8 +45,9 @@ namespace {
 
             printf("%s\n", title);
             for (const auto *cov : items) {
+                auto shortDisplayName = GetShortDisplayName(cov->ptrFunction->symbol.GetDisplayName());
                 printf("   %s - Coverage: %d%% (%.3f) (hits: %zu, bp:%zu) \n",
-                    cov->ptrFunction->symbol.GetName(),
+                    shortDisplayName.c_str(),
                     cov->percentageCoverage,
                     cov->functionCoverage,
                     cov->nHits,
