@@ -7,7 +7,7 @@
 #include <memory>
 
 #include "testlibversion.h"
-#include "testinterface_internal.h"
+#include "../testrunner/testinterface_internal.h"
 
 #include <stdint.h>
 #include <vector>

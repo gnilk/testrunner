@@ -9,7 +9,7 @@ namespace trun {
         CoverageRPCBridge() = default;
         virtual ~CoverageRPCBridge() = default;
 
-        void BeginCoverage(const std::string &symbol);
+        void BeginCoverageA(const std::string &symbol);
     };
 }
 

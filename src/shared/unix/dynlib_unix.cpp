@@ -28,9 +28,6 @@
 #include "dynlib.h"
 #include "strutil.h"
 #include "logger.h"
-#include "config.h"
-
-#include "testinterface_internal.h"
 
 #include "process.h"
 #include "dynlib_unix.h"
@@ -135,11 +132,9 @@ bool DynLibLinux::Open() {
     //       in favor of hosting exe..  That is - if a symbol is defined twice (exe and lib) RTLD_DEEPBIND will
     //       prioritize the symbol belonging to the lib...
     //
-    if (Config::Instance().linuxUseDeepBinding) {
 #ifdef __linux
-        openFlags |= RTLD_DEEPBIND;
+        openFlags |= bUseDeepBinding ? RTLD_DEEPBIND : 0;
 #endif
-    }
 
     // Handle is used later when resolving imports
     handle = dlopen(pathName.c_str(), openFlags);

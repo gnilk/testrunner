@@ -32,7 +32,7 @@
 #include "testrunner.h"
 #include "testmodule.h"
 #include "responseproxy.h"
-#include "strutil.h"
+#include "../shared/strutil.h"
 #include "resultsummary.h"
 #include "funcexecutors.h"
 #include <string>

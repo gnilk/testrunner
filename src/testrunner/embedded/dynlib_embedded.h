@@ -8,7 +8,7 @@
 
 #include "logger.h"
 #include "testinterface_internal.h"
-#include "dynlib.h"
+#include "../../shared/dynlib.h"
 
 #include <string>
 #include <map>

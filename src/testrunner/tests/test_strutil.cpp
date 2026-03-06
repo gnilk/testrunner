@@ -6,7 +6,7 @@
 #include <vector>
 #include <string>
 #include "ext_testinterface/testinterface.h"
-#include "../strutil.h"
+#include "../../shared/strutil.h"
 
 extern "C" {
 DLL_EXPORT int test_strutil(ITesting *t);

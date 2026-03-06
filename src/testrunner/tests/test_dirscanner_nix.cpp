@@ -2,7 +2,7 @@
 // Created by Fredrik Kling on 18.08.22.
 //
 #include "ext_testinterface/testinterface.h"
-#include "../dirscanner.h"
+#include "../../shared/dirscanner.h"
 
 using namespace trun;
 

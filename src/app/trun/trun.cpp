@@ -41,7 +41,7 @@
 
 #include "logger.h"
 #include "testrunner.h"
-#include "dynlib.h"
+#include "../../shared/dynlib.h"
 
 
 
@@ -52,10 +52,10 @@
 #else
 #include "unix/dynlib_unix.h"
 #endif
-#include "strutil.h"
+#include "../../shared/strutil.h"
 #include "config.h"
-#include "timer.h"
-#include "dirscanner.h"
+#include "../../shared/timer.h"
+#include "../../shared/dirscanner.h"
 #include "resultsummary.h"
 
 #include <iostream>
@@ -315,12 +315,16 @@ next_argument:;
 }
 
 static IDynLibrary::Ref GetLibraryLoader() {
+    IDynLibrary::Ref lib;
 #ifdef WIN32
-    return DynLibWin::Create();
+    lib = DynLibWin::Create();
 #elif __linux
-    return DynLibLinux::Create();
+    lib = DynLibLinux::Create();
+    if (Config::Instance().linuxUseDeepBinding) {
+        lib->SetUseDeepBinding(true);
+    }
 #else
-    return DynLibLinux::Create();
+    lib = DynLibLinux::Create();
 #endif
     return {};
 }

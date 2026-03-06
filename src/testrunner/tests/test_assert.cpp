@@ -3,8 +3,8 @@
 //
 #include "../testinterface_internal.h"
 #include "../testfunc.h"
-#include "../dynlib.h"
-#include "../strutil.h"
+#include "../../shared/dynlib.h"
+#include "../../shared/strutil.h"
 #include "../testrunner.h"
 #include <vector>
 #include <string>

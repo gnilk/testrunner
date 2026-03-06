@@ -8,7 +8,7 @@
 
 #include <chrono>
 #include <thread>
-#include "../timer.h"
+#include "../../shared/timer.h"
 // using dev-version, instead of install version... self-hosting..
 #include "ext_testinterface/testinterface.h"
 

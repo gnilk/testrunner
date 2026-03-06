@@ -14,7 +14,7 @@
 
 #include "dynlib.h"
 #include "testmodule.h"
-#include "process.h"
+#include "../shared/unix/process.h"
 
 namespace trun {
     // shortcut for process clock

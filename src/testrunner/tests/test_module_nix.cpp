@@ -3,10 +3,10 @@
 //
 
 // using dev-version, instead of install version... self-hosting..
-#include "../config.h"
-#include "../testinterface_internal.h"
-#include "../dynlib.h"
-#include "../unix/dynlib_unix.h"
+#include "config.h"
+#include "testinterface_internal.h"
+#include "../../shared/dynlib.h"
+#include "unix/dynlib_unix.h"
 
 extern "C" {
 DLL_EXPORT int test_module(ITesting *t);

@@ -8,7 +8,8 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <string>
-#include "testinterface_internal.h"
+#include <version_t.h>
+
 
 namespace trun {
 // This represented the decoded version

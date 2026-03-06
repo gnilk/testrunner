@@ -22,7 +22,7 @@
 #include <stdio.h>
 #include <string_view>
 
-#include "strutil.h"
+#include "../shared/strutil.h"
 #include "config.h"
 #include "resultsummary.h"
 #include "reporting/reportingbase.h"

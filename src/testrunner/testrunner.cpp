@@ -39,14 +39,14 @@
 #include <thread>
 #include <iostream>
 
-#include "dynlib.h"
-#include "strutil.h"
+#include "../shared/dynlib.h"
+#include "../shared/strutil.h"
 #include "testrunner.h"
 #include "logger.h"
 #include "config.h"
 #include "resultsummary.h"
 #include "testresult.h"
-#include "timer.h"
+#include "../shared/timer.h"
 #include "moduleexecutors.h"
 
 using namespace trun;

@@ -1,14 +1,11 @@
 #pragma once
-#include "platform.h"
 
 #include "dynlib.h"
-#include "config.h"
-#include "logger.h"
 #include "testresult.h"
 #include "responseproxy.h"
 #include "testinterface_internal.h"
 #include "testfunc.h"
-#include "strutil.h"
+#include "../shared/strutil.h"
 #include <string>
 #include <memory>
 #include <unordered_map>

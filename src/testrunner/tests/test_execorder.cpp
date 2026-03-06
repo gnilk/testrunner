@@ -2,7 +2,7 @@
 // Created by gnilk on 09.05.24.
 //
 #include "../config.h"
-#include "../strutil.h"
+#include "../../shared/strutil.h"
 #include "ext_testinterface/testinterface.h"
 #include <unordered_map>
 

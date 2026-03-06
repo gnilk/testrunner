@@ -9,7 +9,7 @@
 #include "testmodule.h"
 
 #include "../testinterface_internal.h"
-#include "../strutil.h"
+#include "../../shared/strutil.h"
 
 extern "C" {
     DLL_EXPORT int test_testmod(ITesting *t);

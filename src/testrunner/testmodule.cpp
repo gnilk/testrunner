@@ -24,14 +24,14 @@
 
 #include "platform.h"
 
-#include "dynlib.h"
+#include "../shared/dynlib.h"
 #include "config.h"
 #include "logger.h"
 #include "testresult.h"
 #include "responseproxy.h"
 #include "testinterface_internal.h"
 #include "testmodule.h"
-#include "strutil.h"
+#include "../shared/strutil.h"
 #include "resultsummary.h"
 
 #include "std_backport.h"

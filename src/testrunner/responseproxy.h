@@ -3,9 +3,9 @@
 
 
 #include <string>
-#include "testlibversion.h"
+#include "../shared/testlibversion.h"
 #include "testinterface_internal.h"
-#include "timer.h"
+#include "../shared/timer.h"
 #include "logger.h"
 #include "testresult.h"
 #include "asserterror.h"

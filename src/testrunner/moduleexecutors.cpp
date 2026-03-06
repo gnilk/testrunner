@@ -19,7 +19,7 @@
  - 2024.05.02, FKling, Implementation
  ---------------------------------------------------------------------------*/
 #include "testrunner.h"
-#include "strutil.h"
+#include "../shared/strutil.h"
 #include "moduleexecutors.h"
 #include "resultsummary.h"
 #include "testfunc.h"
@@ -32,7 +32,7 @@
 #ifndef WIN32
     #ifdef TRUN_HAVE_FORK
         #include "unix/process.h"
-        #include "unix/subprocess.h"
+        #include "subprocess.h"
         #include "unix/IPCFifoUnix.h"
         #include "IPCMessages.h"
 #include "ipc/IPCDecoder.h"

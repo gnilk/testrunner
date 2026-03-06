@@ -3,10 +3,10 @@
 //
 #include "test_ipc_common.h"
 
-#include "../../IPCMessages.h"
-#include "../IPCEncoder.h"
-#include "../IPCBufferedWriter.h"
-#include "../IPCDecoder.h"
+#include "IPCMessages.h"
+#include "ipc/IPCEncoder.h"
+#include "ipc/IPCBufferedWriter.h"
+#include "ipc/IPCDecoder.h"
 #include "ext_testinterface/testinterface.h"
 #include <string>
 

@@ -14,6 +14,7 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#include <version_t.h>
 
 #ifdef WIN32
 #ifndef WIN32_LEAN_AND_MEAN
@@ -27,14 +28,6 @@
 
 
 //#define STR_TO_VER(ver) ((ver[0]<<24) | (ver[1]<<16) | (ver[2] << 8) | (ver[3]))
-#define STR_TO_VER(ver) (((uint64_t)ver[0]<<56) | ((uint64_t)ver[1]<<48) | ((uint64_t)ver[2] << 40) | ((uint64_t)ver[3] << 32) | ((uint64_t)ver[4] << 24) | ((uint64_t)ver[5] << 16) | ((uint64_t)ver[6] << 8) | ((uint64_t)ver[7]))
-
-// This is the raw version type
-typedef uint64_t version_t;
-
-
-static constexpr version_t TRUN_MAGICAL_IF_VERSION1 = STR_TO_VER("GNK_0100");        // This version doesn't formally exist - it is assumed if no other version is found...
-static constexpr version_t TRUN_MAGICAL_IF_VERSION2 = STR_TO_VER("GNK_0200");
 
 
 #ifdef __cplusplus

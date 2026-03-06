@@ -16,9 +16,14 @@
 //
 // TODO:
 // ! Accept coverage class/function information via cmd line
-// - Inline members do not work, see comments in 'Breakpoint.cpp'
-// - Generate better reports (ideally some file that can be imported in the IDE)
-// - Test multi-statement coverage 'if (X && Y)' - if X failed Y might not be evalulated
+// - Better cmd-line handling
+//   - Accept multiple symbols (should be a list - as in trun)
+//   - Allow wildcards in symbols, like 'pucko::*'
+//   ! Make the split between target options and tcov '--' (like lldb/gdb does it)
+// - Support for GCOV/LCOV reporting
+// + Inline members do not work, see comments in 'Breakpoint.cpp' (should work now)
+// + Generate better reports (ideally some file that can be imported in the IDE)
+// + Test multi-statement coverage 'if (X && Y)' - if X failed Y might not be evalulated
 //
 #include <filesystem>
 #include <iostream>
@@ -63,6 +68,9 @@
 #include "ipc/IPCDecoder.h"
 #include "unix/IPCFifoUnix.h"
 #include "Coverage.h"
+#include "ArgParser.h"
+#include "strutil.h"
+#include "Config.h"
 
 using namespace tcov;
 
@@ -71,8 +79,64 @@ using namespace tcov;
 // --target ./trun --symbols pucko::DateTime -- --sequential -m datetime /home/gnilk/src/work/embedded/libraries/PuckoNew/cmake-build-debug/lib/libpucko_utests.so
 //
 
+struct TCOVConfig {
+    std::string target = "trun";
+    bool verbose = false;
+    std::string ipc_name = "tcov-ipc";
+    std::string symbolString = {};
+    std::vector<std::string> symbols = {};
+    std::vector<std::string> target_args = {};
+};
+static TCOVConfig g_config;
+
+
+
+
+static void ConfigureLogger() {
+    // Setup up logger according to verbose flags
+    gnilk::Logger::SetAllSinkDebugLevel(gnilk::LogLevel::kError);
+    if (g_config.verbose > 0) {
+        gnilk::Logger::SetAllSinkDebugLevel(gnilk::LogLevel::kInfo);
+        if (g_config.verbose > 1) {
+            gnilk::Logger::SetAllSinkDebugLevel(gnilk::LogLevel::kDebug);
+        }
+    }
+}
+
+static void ParseArguments(int argc, const char *argv[]) {
+    ArgParser argparser(argc, argv);
+    //argparser.TryParse("-h","--help")
+    if (argparser.IsPresent("hH?","help")) {
+        printf("tcov - coverage tool for LLDB\n");
+        printf("Usage: tcov [options]\n");
+        printf("Options:\n");
+        printf("  -h, --help              Print this help\n");
+        printf("  -v, --verbose           Verbose output\n");
+        printf("  -t, --target            Target executable to run (default: trun)\n");
+        printf("  -s, --symbols           Comma separated list of symbols to track for coverage\n");
+//        printf("  -i, --tcov-ipc-name <ipc>  Name of the IPC FIFO to use for communication\n");
+        return;
+    }
+    // TODO: I need a stop condition at '--' because I want '--' as separator between our arguments and target arguments
+    Config::Instance().verbose = argparser.CountPresence("-v", "--verbose");
+    g_config.target = *argparser.TryParse(g_config.target, "-t","--target");
+    g_config.symbolString = *argparser.TryParse(g_config.symbolString, "-s","--symbols");
+
+    ConfigureLogger();
+
+    trun::split(g_config.symbols, g_config.symbolString.c_str(), ',');
+
+    if (argparser.CopyAllAfter(g_config.target_args, "--") < 0) {
+        fprintf(stderr, "Unable to parse target arguments\n");
+        return;
+    }
+
+}
+
 // basically all contained in the class CoverageRunner...
 int main(int argc, const char *argv[]) {
+    ParseArguments(argc, argv);
+    return 1;
     CoverageRunner coverageRunner;
     if (!coverageRunner.Begin(argc, argv)) {
         return 1;

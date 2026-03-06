@@ -1,8 +1,8 @@
 #pragma once
 
 #include "logger.h"
-#include "testinterface_internal.h"
-#include "dynlib.h"
+//#include "testinterface_internal.h"
+#include "../dynlib.h"
 
 
 #include <stdint.h>
@@ -26,10 +26,14 @@ namespace trun {
         PTESTFUNC FindExportedSymbol(const std::string &symbolName) override;
         const std::string &Name() const override { return pathName; };
 
+        void SetUseDeepBinding(bool useDeepBinding) { bUseDeepBinding = useDeepBinding; }
+
     private:
         bool Open();
         bool Close();
         bool IsValidTestFunc(std::string funcName);
+
+        bool bUseDeepBinding = false;
 
         std::string pathName;
         void *handle = nullptr;

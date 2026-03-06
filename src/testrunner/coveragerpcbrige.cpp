@@ -20,7 +20,7 @@ using namespace trun;
 using namespace gnilk;
 
 
-void CoverageRPCBridge::BeginCoverage(const std::string &symbol) {
+void CoverageRPCBridge::BeginCoverageA(const std::string &symbol) {
     gnilk::IPCFifoUnix ipc;
     if (!ipc.ConnectTo(Config::Instance().coverageIPCName)) {
         return;

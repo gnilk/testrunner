@@ -5,7 +5,7 @@
 #ifndef TESTRUNNER_FUNC_EXECUTORS_H
 #define TESTRUNNER_FUNC_EXECUTORS_H
 
-#include "dynlib.h"
+#include "../shared/dynlib.h"
 #include "testfunc.h"
 
 namespace trun {
