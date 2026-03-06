@@ -321,7 +321,7 @@ static IDynLibrary::Ref GetLibraryLoader() {
 #elif __linux
     return DynLibLinux::Create(Config::Instance().linuxUseDeepBinding);
 #else
-    return DynLibLinux::Create();
+    return DynLibLinux::Create(Config::Instance().linuxUseDeepBinding);
 #endif
     return {};
 }
