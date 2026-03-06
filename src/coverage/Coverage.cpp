@@ -43,9 +43,12 @@ bool CoverageRunner::Begin(int argc, const char *argv[]) {
 
     // Add the following so TRUN knows we are running in coverage mode and how to communicate back...
     // '--coverage' is a bit redundant here - but let's keep them separate for now...
-    trunArgsVector.push_back("--coverage");
-    trunArgsVector.push_back("--tcov-ipc-name");
-    trunArgsVector.push_back(ipcServer.FifoName());
+
+    std::vector <std::string> trunArgsVectorInternal;
+    trunArgsVectorInternal.push_back("--coverage");
+    trunArgsVectorInternal.push_back("--tcov-ipc-name");
+    trunArgsVectorInternal.push_back(ipcServer.FifoName());
+    trunArgsVector.insert(trunArgsVector.begin(), trunArgsVectorInternal.begin(), trunArgsVectorInternal.end());
 
     ResolveCWD();
 
@@ -204,11 +207,12 @@ bool CoverageRunner::Begin(int argc, const char *argv[]) {
 
 static void PrintHelpAndExit() {
     printf("tcov - testrunner coverage\n");
-    printf("usage:  tcov [options] [trun options]\n");
+    printf("usage:  tcov [options] -- [trun options]\n");
     printf("options:\n");
     printf("-h/-H/--help             This cruft...\n");
     printf("--target <path to trun>  Specify where trun is (unless it's in the path)\n");
     printf("--symbols <list>         List of debugging symbols to track for coverage\n");
+    printf("--                       Any argument following this will be forwarded to trun\n");
     printf("You can use the 'symbols' argument if you don't fancy changing your unit-tests\n");
     printf("Any other argument is passed on to the target, while any known argument is removed\n");
     exit(1);
@@ -216,11 +220,15 @@ static void PrintHelpAndExit() {
 
 // Parse arguments, capture the ones belonging to us pass the rest to the target (trun)
 bool CoverageRunner::ParseArgs(int argc, const char *argv[]) {
-    bool bSequentialFound = false;
+    bool isTargetArgs = false;
     for (int i=1;i<argc;i++) {
         std::string arg = argv[i];
         if ((arg == "-h") || (arg == "-H") || (arg == "--help")) {
             PrintHelpAndExit();
+        }
+        if (isTargetArgs) {
+            trunArgsVector.push_back(arg);
+            continue;;
         }
         if (arg == "--target") {
             targetPathName = argv[++i];
@@ -229,19 +237,18 @@ bool CoverageRunner::ParseArgs(int argc, const char *argv[]) {
             auto symbolsString = argv[++i];
             trun::split(symbols, symbolsString, ',');
             goto nextargument;
-        } else if (arg == "--sequential") {
-            bSequentialFound = true;
+        } else if (arg == "--") {
+            isTargetArgs = true;
         }
-        // otherwise, just pass this on to trun
-        trunArgsVector.push_back(arg);
 nextargument:
         ;   // Note: we need this as labels are attached to statements
     }
     // Verify if this is actually needed..
-    if (!bSequentialFound) {
-        logger->Info("'--sequential' missing from trun args, adding even though not specified...\n");
-        trunArgsVector.push_back("--sequential");
+    if (std::find_if(trunArgsVector.begin(), trunArgsVector.end(),[](auto &s) -> bool { return (s == "--sequential");} ) == trunArgsVector.end()) {
+        logger->Info("'--sequential' missing from trun args, adding even though not specified...");
+        trunArgsVector.insert(trunArgsVector.begin(), "--sequential");
     }
+
     // FIXME: Should point to install directory..
     if (targetPathName.empty()) {
         targetPathName = "./trun";    // '/usr/bin/trun'  - do we need an absolute path?
