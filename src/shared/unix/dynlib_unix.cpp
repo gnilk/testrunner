@@ -46,7 +46,7 @@ using namespace trun;
 
 IDynLibrary::Ref DynLibLinux::Create(bool bUseDeepBinding) {
     auto lib = std::make_shared<DynLibLinux>(bUseDeepBinding);
-
+    return lib;
 }
 
 DynLibLinux::DynLibLinux() : bUseDeepBinding(false) {
