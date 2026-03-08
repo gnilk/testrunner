@@ -23,18 +23,20 @@
 
 #include "timer.h"
 #include "reporting/ReportConsole.h"
+#include "Config.h"
 
 using namespace tcov;
 
 
 // Initialize the session
 // this is quite a lengthy function and could be split
-bool CoverageRunner::Begin(int argc, const char *argv[]) {
+bool CoverageRunner::Begin() {
     logger = gnilk::Logger::GetLogger("CoverageRunner");
-    ParseArgs(argc, argv);
-    for (auto &arg : trunArgsVector) {
-        printf("arg=%s\n", arg.c_str());
-    }
+    // ParseArgs(argc, argv);
+    // for (auto &arg : trunArgsVector) {
+    //     printf("arg=%s\n", arg.c_str());
+    // }
+
 
     if (!CreateIPCServer()) {
         logger->Error("Unable to create IPC Server");
@@ -48,12 +50,12 @@ bool CoverageRunner::Begin(int argc, const char *argv[]) {
     trunArgsVectorInternal.push_back("--coverage");
     trunArgsVectorInternal.push_back("--tcov-ipc-name");
     trunArgsVectorInternal.push_back(ipcServer.FifoName());
-    trunArgsVector.insert(trunArgsVector.begin(), trunArgsVectorInternal.begin(), trunArgsVectorInternal.end());
+    Config::Instance().target_args.insert(Config::Instance().target_args.begin(), trunArgsVectorInternal.begin(), trunArgsVectorInternal.end());
 
     ResolveCWD();
 
     std::string dbg_argString;
-    for (auto &arg : trunArgsVector) {
+    for (auto &arg : Config::Instance().target_args) {
         dbg_argString += arg + " ";
     }
     logger->Info("Target: %s %s", targetPathName.c_str(), dbg_argString.c_str());
@@ -112,7 +114,7 @@ bool CoverageRunner::Begin(int argc, const char *argv[]) {
 
     target = lldbDebugger.CreateTarget(targetPathName.c_str(), nullptr, nullptr, true, error);
     if (!target.IsValid()) {
-        logger->Error("Invalid target '%s'", argv[0]);
+        logger->Error("Invalid target '%s'", Config::Instance().target.c_str());
         return false;
     }
 
@@ -123,7 +125,7 @@ bool CoverageRunner::Begin(int argc, const char *argv[]) {
 
     // Convert trunArgs to argv style char *[]
     std::vector<char *> trunArgs;
-    ConvertArgs(trunArgs, trunArgsVector);
+    ConvertArgs(trunArgs, Config::Instance().target_args);
     // done
     //char **target_argv = args.data();
 
@@ -140,7 +142,7 @@ bool CoverageRunner::Begin(int argc, const char *argv[]) {
     // launch target
     process = target.Launch(launch_info, error);
     if (!process.IsValid() || error.Fail()) {
-        logger->Error("Launch failed for target '%s': %s", argv[0], error.GetCString());
+        logger->Error("Launch failed for target '%s': %s", Config::Instance().target.c_str(), error.GetCString());
         return false;
     }
     SuppressSignals();
@@ -202,57 +204,6 @@ bool CoverageRunner::Begin(int argc, const char *argv[]) {
     // }
     // logger->Debug("Num Coverage BP's found = %zu", breakpoints.size());
 
-    return true;
-}
-
-static void PrintHelpAndExit() {
-    printf("tcov - testrunner coverage\n");
-    printf("usage:  tcov [options] -- [trun options]\n");
-    printf("options:\n");
-    printf("-h/-H/--help             This cruft...\n");
-    printf("--target <path to trun>  Specify where trun is (unless it's in the path)\n");
-    printf("--symbols <list>         List of debugging symbols to track for coverage\n");
-    printf("--                       Any argument following this will be forwarded to trun\n");
-    printf("You can use the 'symbols' argument if you don't fancy changing your unit-tests\n");
-    printf("Any other argument is passed on to the target, while any known argument is removed\n");
-    exit(1);
-}
-
-// Parse arguments, capture the ones belonging to us pass the rest to the target (trun)
-bool CoverageRunner::ParseArgs(int argc, const char *argv[]) {
-    bool isTargetArgs = false;
-    for (int i=1;i<argc;i++) {
-        std::string arg = argv[i];
-        if ((arg == "-h") || (arg == "-H") || (arg == "--help")) {
-            PrintHelpAndExit();
-        }
-        if (isTargetArgs) {
-            trunArgsVector.push_back(arg);
-            continue;;
-        }
-        if (arg == "--target") {
-            targetPathName = argv[++i];
-            goto nextargument;
-        } else if (arg == "--symbols") {
-            auto symbolsString = argv[++i];
-            trun::split(symbols, symbolsString, ',');
-            goto nextargument;
-        } else if (arg == "--") {
-            isTargetArgs = true;
-        }
-nextargument:
-        ;   // Note: we need this as labels are attached to statements
-    }
-    // Verify if this is actually needed..
-    if (std::find_if(trunArgsVector.begin(), trunArgsVector.end(),[](auto &s) -> bool { return (s == "--sequential");} ) == trunArgsVector.end()) {
-        logger->Info("'--sequential' missing from trun args, adding even though not specified...");
-        trunArgsVector.insert(trunArgsVector.begin(), "--sequential");
-    }
-
-    // FIXME: Should point to install directory..
-    if (targetPathName.empty()) {
-        targetPathName = "./trun";    // '/usr/bin/trun'  - do we need an absolute path?
-    }
     return true;
 }
 

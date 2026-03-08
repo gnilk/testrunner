@@ -34,12 +34,11 @@ namespace tcov {
         CoverageRunner() = default;
         virtual ~CoverageRunner() = default;
 
-        bool Begin(int argc, const char *argv[]);
+        bool Begin();
         void End();
         void Process();
         void Report();
     protected:
-        bool ParseArgs(int argc, const char *argv[]);
         static void ConvertArgs(std::vector<char *> &out, std::vector<std::string> &args);
         bool CreateIPCServer();
         void ResolveCWD();
@@ -60,8 +59,6 @@ namespace tcov {
         std::string targetPathName = {};
         std::string workingDirectory = {};
         std::vector<std::string> symbols = {};
-
-        std::vector<std::string> trunArgsVector;
 
         BreakpointManager breakpointManager;
 

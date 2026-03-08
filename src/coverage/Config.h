@@ -19,7 +19,7 @@ namespace tcov {
         Config() = default;
     public:
         std::string target = "trun";
-        bool verbose = false;
+        int verbose = 0;
         std::string ipc_name = "tcov-ipc";
         std::string symbolString = {};
         std::vector<std::string> symbols = {};
