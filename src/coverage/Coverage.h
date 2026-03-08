@@ -40,6 +40,7 @@ namespace tcov {
         void Report();
     protected:
         static void ConvertArgs(std::vector<char *> &out, std::vector<std::string> &args);
+        bool EnableSelfDebugging();
         bool CreateIPCServer();
         void ResolveCWD();
         void SuppressSignals();
@@ -50,15 +51,17 @@ namespace tcov {
         void ConsumeIPC();
         trun::CovIPCCmdMsg ReadIPCMessage();
 
+
+        bool StartLLDBDebugger();
+        bool RunInitialLLDBPhase();
+
         // More functions
     private:
         static const int sig_DYNLIB_LOADED = SIGUSR1;
         static const int sig_IPC_INTERRUPT = SIGUSR1;
         gnilk::IPCFifoUnix ipcServer;
         gnilk::ILogger *logger = {};
-        std::string targetPathName = {};
         std::string workingDirectory = {};
-        std::vector<std::string> symbols = {};
 
         BreakpointManager breakpointManager;
 

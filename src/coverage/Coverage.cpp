@@ -12,6 +12,8 @@
 #include <lldb/SBUnixSignals.h>
 #include <lldb/SBThread.h>
 #include <lldb/SBBreakpointLocation.h>
+#include <lldb/API/SBCommandInterpreter.h>
+#include <lldb/API/SBCommandReturnObject.h>
 #else
 #include <lldb/API/SBUnixSignals.h>
 #include <lldb/API/SBThread.h>
@@ -32,25 +34,30 @@ using namespace tcov;
 // this is quite a lengthy function and could be split
 bool CoverageRunner::Begin() {
     logger = gnilk::Logger::GetLogger("CoverageRunner");
-    // ParseArgs(argc, argv);
-    // for (auto &arg : trunArgsVector) {
-    //     printf("arg=%s\n", arg.c_str());
-    // }
 
-
+    // Let's bring up the IPC - which handles communication between TRUN and TCOV
     if (!CreateIPCServer()) {
         logger->Error("Unable to create IPC Server");
         return false;
     }
 
     // Add the following so TRUN knows we are running in coverage mode and how to communicate back...
-    // '--coverage' is a bit redundant here - but let's keep them separate for now...
-
     std::vector <std::string> trunArgsVectorInternal;
     trunArgsVectorInternal.push_back("--coverage");
     trunArgsVectorInternal.push_back("--tcov-ipc-name");
     trunArgsVectorInternal.push_back(ipcServer.FifoName());
     Config::Instance().target_args.insert(Config::Instance().target_args.begin(), trunArgsVectorInternal.begin(), trunArgsVectorInternal.end());
+
+
+    // FIXME: Better resolver here!
+    // Create our target
+    if (Config::Instance().target.empty()) {
+        // FIXME: Only in debug builds...
+#ifdef DEBUG
+        logger->Info("Debug build - setting to internal dev-path");
+        Config::Instance().target = "/Users/gnilk/src/github.com/testrunner/cmake-build-debug/trun";
+#endif
+    }
 
     ResolveCWD();
 
@@ -58,14 +65,47 @@ bool CoverageRunner::Begin() {
     for (auto &arg : Config::Instance().target_args) {
         dbg_argString += arg + " ";
     }
-    logger->Info("Target: %s %s", targetPathName.c_str(), dbg_argString.c_str());
+    logger->Info("Target: %s %s", Config::Instance().target.c_str(), dbg_argString.c_str());
     logger->Info("Working Directory: %s", workingDirectory.c_str());
 
 
+    // FIXME: Need better resolver for the path - see ChatGPT history
+    // Note: this is not needed on macOS as the LLDB Server process is already running - at least if you have xcode installed
 #ifdef LINUX
     setenv("LLDB_DEBUGSERVER_PATH", "/usr/lib/llvm-18/bin/lldb-server", 1);
 #endif
 
+    // Startup the LLDB Debugger Process...
+    if (!StartLLDBDebugger()) {
+        return false;
+    }
+
+    // verify (or at least sanity check we have a PID)
+    pid = process.GetProcessID();
+    logger->Info("PID: %llu", pid);
+
+    if (!RunInitialLLDBPhase()) {
+        return false;
+    }
+
+    // We now have everything we need to set breakpoint for the symbols we want to monitor
+    logger->Info("Libraries scanned - we are good to go...");
+    // Create breakpoints from symbols coming from cmd-line..
+    for (auto &s : Config::Instance().symbols) {
+        breakpointManager.CreateCoverageBreakpoints(target, s);
+    }
+    return true;
+}
+
+//
+// Kicks of the LLDB process and set's it up properly
+// ASYNC = false (we really don't want to have an event loop to worry about)
+// Supress stdout/stderr for LLDB
+// Create breakpoints for main (this symbol is ALWAYS present) of TRUN
+// Redirect stdout/stderr for TRUN so we get them
+// Supress signals from TRUN to LLDB - this allows us to trap on them...
+//
+bool CoverageRunner::StartLLDBDebugger() {
     // Initialize LLDB
     lldb::SBDebugger::Initialize();
 
@@ -79,40 +119,7 @@ bool CoverageRunner::Begin() {
     lldbDebugger.SetErrorFileHandle(stderr, false);
     lldb::SBError error;
 
-
-    // this little scripts enables internal logging for lldb - good when debugging API usage
-
-    // lldb::SBCommandInterpreter interp = lldbDebugger.GetCommandInterpreter();
-    // lldb::SBCommandReturnObject result;
-    //
-    // interp.HandleCommand(
-    //     //"settings set plugin.process.gdb-remote.server-path /usr/lib/llvm-18/bin/lldb-server",
-    //     //"log enable lldb gdb-remote process platform host",
-    //     "log enable gdb-remote all",
-    //     result
-    // );
-    //
-    // if (!result.Succeeded()) {
-    //     printf("Failed to set server path: %s\n", result.GetError());
-    // }
-    // interp.HandleCommand(
-    //     //"settings set plugin.process.gdb-remote.server-path /usr/lib/llvm-18/bin/lldb-server",
-    //     //"log enable lldb gdb-remote process platform host",
-    //     "log enable lldb process platform host api",
-    //     result
-    // );
-    //
-    // if (!result.Succeeded()) {
-    //     printf("Failed to set server path: %s\n", result.GetError());
-    // }
-
-    // Create our target
-    if (targetPathName.empty()) {
-        // FIXME: Only in debug builds...
-        targetPathName = "/Users/gnilk/src/github.com/testrunner/cmake-build-debug/trun";
-    }
-
-    target = lldbDebugger.CreateTarget(targetPathName.c_str(), nullptr, nullptr, true, error);
+    target = lldbDebugger.CreateTarget(Config::Instance().target.c_str(), nullptr, nullptr, true, error);
     if (!target.IsValid()) {
         logger->Error("Invalid target '%s'", Config::Instance().target.c_str());
         return false;
@@ -126,8 +133,6 @@ bool CoverageRunner::Begin() {
     // Convert trunArgs to argv style char *[]
     std::vector<char *> trunArgs;
     ConvertArgs(trunArgs, Config::Instance().target_args);
-    // done
-    //char **target_argv = args.data();
 
     //const char *target_argv[]={"--sequential", "--coverage","--tcov-ipc-name",tcovIPCServer.FifoName().c_str(),"-vvv", "-m", "coverage", nullptr};
     lldb::SBLaunchInfo launch_info(const_cast<const char **>(trunArgs.data()));
@@ -136,8 +141,6 @@ bool CoverageRunner::Begin() {
     // Make sure we duplicate stdout/stderr to the debuggee
     launch_info.AddDuplicateFileAction(STDOUT_FILENO, STDOUT_FILENO);
     launch_info.AddDuplicateFileAction(STDERR_FILENO, STDERR_FILENO);
-//    auto execFS = launch_info.GetExecutableFile();
-//    logger->Debug("Executing: %s", execFS.GetFilename());
 
     // launch target
     process = target.Launch(launch_info, error);
@@ -150,11 +153,15 @@ bool CoverageRunner::Begin() {
 
     // yield - try for the debugger to kick in - other wise we might have a raise condition on our hands..
     std::this_thread::yield();
+    return true;
+}
 
-    // verify (or at least sanity check we have a PID)
-    pid = process.GetProcessID();
-    logger->Info("PID: %llu", pid);
-
+// This will run until 'sig_DYNLIB_LOADED' and we know that the testrunner has scanned
+// all dynlibs and have all symbols...
+// Basically - we trap the 'main' breakpoint, then we continue until we get the 'sig_DYNLIB_LOADED' signal
+// this is raised after TRUN has loaded all dynlibs - thus they are in the debuggee process memory and we
+// can create breakpoints according to our coverage symbol list...
+bool CoverageRunner::RunInitialLLDBPhase() {
     // Wait for the process to become stopped
     // The timeouts here are set very high due to caching on the initial run (from the OS)
     // Second run normally just takes a couple of 100ms...
@@ -181,30 +188,43 @@ bool CoverageRunner::Begin() {
         logger->Error("Signal missing for loading of dynamic libraries - out of sync");
         return false;
     }
-    logger->Info("Libraries scanned - we are good to go...");
-
-    // Create breakpoints from symbols coming from cmd-line..
-    for (auto &s : symbols) {
-        breakpointManager.CreateCoverageBreakpoints(target, s);
-    }
-
-
-    // FIXME: Remove this - test code
-
-    // We can do either one of these..
-    //auto breakpoint = target.BreakpointCreateByLocation("dbgme.cpp", 6);
-    //EnumerateMembers(target, "CTestCoverage");
-
-    // should have a list of these per symbol
-    // breakpointManager.CreateCoverageBreakpoints(target, "CTestCoverage::SomeFunc");
-    // breakpoints = CreateCoverageBreakpoints(target, "CTestCoverage::SomeFunc");
-    // if (breakpoints.size() == 0) {
-    //     logger->Error("Coverage symbol information not resolved");
-    //     return 1;
-    // }
-    // logger->Debug("Num Coverage BP's found = %zu", breakpoints.size());
-
     return true;
+}
+
+// Internal - when debugging this is a helper that allows us to debug into LLDB - not needed
+// for debugging the CoverageRunner
+bool CoverageRunner::EnableSelfDebugging() {
+    // this little scripts enables internal logging for lldb - good when debugging API usage
+
+    lldb::SBCommandInterpreter interp = lldbDebugger.GetCommandInterpreter();
+    lldb::SBCommandReturnObject result;
+
+    logger->Info("Trying to enable self-debugging");
+
+    interp.HandleCommand(
+        //"settings set plugin.process.gdb-remote.server-path /usr/lib/llvm-18/bin/lldb-server",
+        //"log enable lldb gdb-remote process platform host",
+        "log enable gdb-remote all",
+        result
+    );
+
+    if (!result.Succeeded()) {
+        logger->Error("Failed 'enable gdb-remote all', result=%s", result.GetError());
+        return false;
+    }
+    interp.HandleCommand(
+        //"settings set plugin.process.gdb-remote.server-path /usr/lib/llvm-18/bin/lldb-server",
+        //"log enable lldb gdb-remote process platform host",
+        "log enable lldb process platform host api",
+        result
+    );
+
+    if (!result.Succeeded()) {
+        logger->Error("Failed 'enable lldb process platform host api', result=%s", result.GetError());
+        return false;
+    }
+    return true;
+
 }
 
 //
@@ -255,7 +275,6 @@ void CoverageRunner::SuppressSignals() {
 //
 // Wait for a specific target state to happen in the lldb context
 // if the target process has crashed or exited we return false..
-// FIXME: impelement timeout
 //
 bool CoverageRunner::WaitState(lldb::StateType targetState, uint32_t timeoutMSec) {
     trun::Timer timer;
@@ -376,6 +395,7 @@ void CoverageRunner::ConsumeIPC() {
         if (!ipcMsg.IsValid()) {
             continue;
         }
+        // Do I really need to do this???
         logger->Debug("BeginCoverage for '%s'",ipcMsg.symbolName.c_str());
         breakpointManager.CreateCoverageBreakpoints(target, ipcMsg.symbolName);
     }
