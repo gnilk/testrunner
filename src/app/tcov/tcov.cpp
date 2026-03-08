@@ -16,8 +16,8 @@
 //
 // TODO:
 // ! Accept coverage class/function information via cmd line
-// - Better cmd-line handling
-//   - Accept multiple symbols (should be a list - as in trun)
+// ! Better cmd-line handling
+//   ! Accept multiple symbols (should be a list - as in trun)
 //   - Allow wildcards in symbols, like 'pucko::*'
 //   ! Make the split between target options and tcov '--' (like lldb/gdb does it)
 // - Support for GCOV/LCOV reporting
@@ -79,17 +79,9 @@ using namespace tcov;
 // --target ./trun --symbols pucko::DateTime -- --sequential -m datetime /home/gnilk/src/work/embedded/libraries/PuckoNew/cmake-build-debug/lib/libpucko_utests.so
 //
 
-// struct TCOVConfig {
-//     std::string target = "trun";
-//     int verbose = 0;
-//     std::string ipc_name = "tcov-ipc";
-//     std::string symbolString = {};
-//     std::vector<std::string> symbols = {};
-//     std::vector<std::string> target_args = {};
-// };
-// static TCOVConfig g_config;
-
 static void ConfigureLogger() {
+    int verbose = Config::Instance().verbose;
+    printf("VERBOSE=%d\n", verbose);
     // Setup up logger according to verbose flags
     gnilk::Logger::SetAllSinkDebugLevel(gnilk::LogLevel::kError);
     if (Config::Instance().verbose > 0) {

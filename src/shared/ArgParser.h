@@ -148,6 +148,9 @@ public:
             if (arg == longParamName) {
                 nFound++;
             } else {
+                // If this is a 'long' parameter - just skip it...
+                if ((arg.length() > 1) && (arg[0] == '-') && (arg[1] == '-')) continue;
+                // now check every letter in the argument and if they are present in our short parameter name
                 for (size_t j = 1; j < arg.length(); j++) {
                     if (shortParamName.find(arg[j]) != std::string::npos) {
                         nFound++;

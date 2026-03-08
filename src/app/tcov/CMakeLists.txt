@@ -6,10 +6,6 @@ list(APPEND tcovsrcfiles ${CMAKE_SOURCE_DIR}/src/coverage/Coverage.cpp ${CMAKE_S
 list(APPEND tcovsrcfiles ${CMAKE_SOURCE_DIR}/src/coverage/SymbolTypeChecker.cpp ${CMAKE_SOURCE_DIR}/src/coverage/SymbolTypeChecker.h)
 list(APPEND tcovsrcfiles ${CMAKE_SOURCE_DIR}/src/coverage/reporting/ReportBase.h)
 list(APPEND tcovsrcfiles ${CMAKE_SOURCE_DIR}/src/coverage/reporting/ReportConsole.cpp ${CMAKE_SOURCE_DIR}/src/coverage/reporting/ReportConsole.h)
-#list(APPEND tcovsrcfiles ${CMAKE_SOURCE_DIR}/src/testrunner/CoverageIPCMessages.cpp ${CMAKE_SOURCE_DIR}/src/testrunner/CoverageIPCMessages.h)
-#list(APPEND tcovsrcfiles ${CMAKE_SOURCE_DIR}/src/testrunner/glob.cpp ${CMAKE_SOURCE_DIR}/src/testrunner/glob.h)
-#list(APPEND tcovsrcfiles ${CMAKE_SOURCE_DIR}/src/testrunner/strutil.cpp ${CMAKE_SOURCE_DIR}/src/testrunner/strutil.h)
-#list(APPEND tcovsrcfiles ${CMAKE_SOURCE_DIR}/src/testrunner/timer.cpp ${CMAKE_SOURCE_DIR}/src/testrunner/timer.h)
 
 
 add_executable(tcov
@@ -64,7 +60,6 @@ target_link_libraries(tcov PUBLIC trun_common_options)
 target_include_directories(tcov PUBLIC ${FMT_HOME}/include)
 target_include_directories(tcov PUBLIC ${CMAKE_SOURCE_DIR}/src/shared)
 target_include_directories(tcov PUBLIC ${CMAKE_SOURCE_DIR}/src/coverage)
-#target_include_directories(tcov PUBLIC ${CMAKE_SOURCE_DIR}/src/testrunner)
 target_include_directories(tcov PUBLIC ${CMAKE_SOURCE_DIR}/ext/gnklog/src)
 
 if(APPLE)
