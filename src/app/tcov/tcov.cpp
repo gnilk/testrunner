@@ -124,6 +124,9 @@ static void ParseArguments(int argc, const char *argv[]) {
 
 // basically all contained in the class CoverageRunner...
 int main(int argc, const char *argv[]) {
+    // Initialize the logger - we need this to set some default values
+    gnilk::Logger::Initialize();
+
     ParseArguments(argc, argv);
     CoverageRunner coverageRunner;
     if (!coverageRunner.Begin()) {
