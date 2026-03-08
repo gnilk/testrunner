@@ -205,30 +205,30 @@ void BreakpointManager::CreateCoverageForClass(lldb::SBTarget &target, const std
 }
 
 std::vector<std::string> BreakpointManager::EnumerateMembers(lldb::SBTarget &target, const std::string &className) {
-
+    auto logger = gnilk::Logger::GetLogger("BreakpointManager");
     std::vector<std::string> classMembers;
 
     auto classtype = target.FindTypes(className.c_str());
 
     //auto classctx = target.FindSymbols("Dummy");
     if (classtype.IsValid()) {
-        printf("class type ok - size=%u\n", classtype.GetSize());
+        logger->Debug("class type ok - size=%u", classtype.GetSize());
         for (size_t i=0;i<classtype.GetSize();i++) {
             auto ct = classtype.GetTypeAtIndex(i);
             printf("%zu:%s\n",i,ct.GetDisplayTypeName());
 
             if (!ct.IsValid()) {
-                printf("Invalid - skipping\n");
+                logger->Error("Invalid - skipping\n");
                 continue;
             }
 
             // This is wrong
-            printf("Class found - good!\n");
+            // printf("Class found - good!\n");
             for (size_t j=0; j<ct.GetNumberOfMemberFunctions();j++) {
                 auto member = ct.GetMemberFunctionAtIndex(j);
                 // FIXME: we can use 'getkind' to figure out if this is a CTOR/DTOR/etc..
                 // member.GetKind();
-                printf("  %zu:%s (%s, %s)\n",j, member.GetName(), member.GetMangledName(), member.GetDemangledName());
+                // printf("  %zu:%s (%s, %s)\n",j, member.GetName(), member.GetMangledName(), member.GetDemangledName());
                 classMembers.push_back(member.GetDemangledName());
             }
         }
