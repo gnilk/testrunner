@@ -136,10 +136,6 @@ bool CoverageRunner::StartLLDBDebugger() {
     lldb::SBLaunchInfo launch_info(const_cast<const char **>(trunArgs.data()));
     launch_info.SetWorkingDirectory(workingDirectory.c_str());   // se should be here and not where the target is located
 
-    // Make sure we duplicate stdout/stderr to the debuggee
-    launch_info.AddDuplicateFileAction(STDOUT_FILENO, STDOUT_FILENO);
-    launch_info.AddDuplicateFileAction(STDERR_FILENO, STDERR_FILENO);
-
     // launch target
     process = target.Launch(launch_info, error);
     if (!process.IsValid() || error.Fail()) {
@@ -168,6 +164,8 @@ bool CoverageRunner::RunInitialLLDBPhase() {
         return false;
     }
 
+    ConsumeProcessOutput();
+
     // we have started - and we should be at 'main' now...  verify
     if (!(bpMain.GetHitCount() > 0)) {
         logger->Error("main breakpoint not hit");
@@ -181,6 +179,8 @@ bool CoverageRunner::RunInitialLLDBPhase() {
         logger->Error("Premature exit waiting for TRUN to load libraries");
         return false;
     }
+
+    ConsumeProcessOutput();
 
     if (!WasSignalRaised(sig_DYNLIB_LOADED)) {
         logger->Error("Signal missing for loading of dynamic libraries - out of sync");
@@ -270,6 +270,19 @@ void CoverageRunner::SuppressSignals() {
     unixSignals.SetShouldSuppress(SIGUSR2, true);
 }
 
+void CoverageRunner::ConsumeProcessOutput() {
+    char buffer[1024];
+    size_t nBytes;
+    while ((nBytes = process.GetSTDOUT(buffer, sizeof(buffer))) > 0) {
+        fwrite(buffer, 1, nBytes, stdout);
+    }
+    while ((nBytes = process.GetSTDERR(buffer, sizeof(buffer))) > 0) {
+        fwrite(buffer, 1, nBytes, stderr);
+    }
+    fflush(stdout);
+    fflush(stderr);
+}
+
 //
 // Wait for a specific target state to happen in the lldb context
 // if the target process has crashed or exited we return false..
@@ -329,6 +342,9 @@ void CoverageRunner::Process() {
     size_t nHits = 0;
     while (true) {
         process.Continue();
+
+        ConsumeProcessOutput();
+
         auto state = process.GetState();
         if ((state == lldb::eStateExited) || (state == lldb::eStateCrashed)) {
             logger->Debug("Process exited or crashed");

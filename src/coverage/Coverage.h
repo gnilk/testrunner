@@ -44,6 +44,7 @@ namespace tcov {
         bool CreateIPCServer();
         void ResolveCWD();
         void SuppressSignals();
+        void ConsumeProcessOutput();
         bool WaitState(lldb::StateType targetState, uint32_t timeoutMSec);
         bool WasSignalRaised(int expectedSignal);   // note: on macos the signal type for raise is 'int'
         void HandleIPCInterrupt();
