@@ -18,6 +18,7 @@ namespace tcov {
     protected:
         Config() = default;
     public:
+        bool internal_test_startup = false;
         std::string target = "trun";
         int verbose = 0;
         std::string ipc_name = "tcov-ipc";

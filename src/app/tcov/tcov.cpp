@@ -132,17 +132,19 @@ static kParseArgRes ParseArguments(int argc, const char *argv[]) {
 //        printf("  -i, --tcov-ipc-name <ipc>  Name of the IPC FIFO to use for communication\n");
         return kExit;
     }
+
     // TODO: I need a stop condition at '--' because I want '--' as separator between our arguments and target arguments
     Config::Instance().verbose = argparser.CountPresence("-v", "--verbose");
     Config::Instance().target = *argparser.TryParse(Config::Instance().target, "-t","--target");
     Config::Instance().symbolString = *argparser.TryParse(Config::Instance().symbolString, "-s","--symbols");
     Config::Instance().lldb_server_path = *argparser.TryParse(Config::Instance().lldb_server_path, "","--lldb-server");
+    Config::Instance().internal_test_startup = argparser.IsPresent("", "--test-startup");
 
     ConfigureLogger();
 
     trun::split(Config::Instance().symbols, Config::Instance().symbolString.c_str(), ',');
 
-    if (argparser.CopyAllAfter(Config::Instance().target_args, "--") < 0) {
+    if (!Config::Instance().internal_test_startup && (argparser.CopyAllAfter(Config::Instance().target_args, "--") < 0)) {
         fprintf(stderr, "Unable to parse target arguments\n");
         PrintUsage(argv[0]);
         return kExit;
@@ -168,6 +170,10 @@ int main(int argc, const char *argv[]) {
     // Initialize the logger - we need this to set some default values
     gnilk::Logger::Initialize();
     ParseArguments(argc, argv);
+
+    if (Config::Instance().internal_test_startup) {
+        return 1;
+    }
 
     CoverageRunner coverageRunner;
     if (!coverageRunner.Begin()) {
@@ -198,8 +204,8 @@ static bool IsLLDBServerPresent() {
     const char *currentLLDB = getenv("LLDB_DEBUGSERVER_PATH");
     if (currentLLDB != nullptr) {
         auto currentLLDBPath = std::string();
-        logger->Info("'LLDB_DEBUGSERVER_PATH found, verifying: '%s'", currentLLDB);
         if (!currentLLDBPath.empty() && IsValidLLDBServer(currentLLDBPath)) {
+            logger->Info("'LLDB_DEBUGSERVER_PATH' env found and verified - using");
             Config::Instance().lldb_server_path = currentLLDBPath;
             return true;
         }
@@ -210,9 +216,11 @@ static bool IsLLDBServerPresent() {
         return true;
     }
 
+    logger->Warning("No valid 'lldd-server' found - trying well known candidates");
 
     auto lldbServer = TryDetectLLDBServer();
     if (!lldbServer.empty()) {
+        logger->Info("Detected valid lldb-server: '%s' - using", lldbServer.c_str());
         Config::Instance().lldb_server_path = lldbServer;
         return true;
     }
@@ -249,7 +257,10 @@ static std::string TryDetectLLDBServer() {
         "lldb-server-16",
         "lldb-server-15",
     };
+    auto logger = gnilk::Logger::GetLogger("CoverageRunner");
+
     for (auto &fileName : possibleFiles) {
+        logger->Debug("Trying: %s", fileName.c_str());
         auto result = TryDetectFile(fileName);
         if (!result.empty() && IsValidLLDBServer(result)) {
             return result;
