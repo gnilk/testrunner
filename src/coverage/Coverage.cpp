@@ -275,19 +275,46 @@ void CoverageRunner::SuppressSignals() {
     unixSignals.SetShouldSuppress(SIGUSR2, true);
 }
 
+// On Linux this consumes the process output and sends it to print/sanitization
+// on macos this is not needed - redirection works fine - but on Linux it stopped working..
+// I have no clue why it stopped - even after reverting to an earlier working version (before starting cleanup) it
+// was still broken - I could never find a version where it worked again - no clue...
 void CoverageRunner::ConsumeProcessOutput() {
 #ifdef LINUX
     char buffer[1024];
     size_t nBytes;
     while ((nBytes = process.GetSTDOUT(buffer, sizeof(buffer))) > 0) {
-        fwrite(buffer, 1, nBytes, stdout);
+        SanitizeAndPrint(stdout, buffer, nBytes);
     }
     while ((nBytes = process.GetSTDERR(buffer, sizeof(buffer))) > 0) {
-        fwrite(buffer, 1, nBytes, stderr);
+        SanitizeAndPrint(stderr, buffer, nBytes);
     }
     fflush(stdout);
     fflush(stderr);
 #endif
+}
+
+// This will sanitize the debuggee output and write to our stdout
+void CoverageRunner::SanitizeAndPrint(FILE *out, const char *buffer, size_t nBytes) {
+    // Ok, will be initialized the first time
+    static std::string tabstr(Config::Instance().tab_size, ' ');
+
+    for (size_t i = 0; i < nBytes; i++) {
+        unsigned char c = buffer[i];
+        if (c == '\n') {
+            fprintf(out, "\n");
+        } else if (c == '\r') {
+            // ignore \r
+        } else if (c == '\t') {
+            // Wow - this is ugly
+            fprintf(out, "%s", tabstr.c_str());
+        } else if (c < 32 || c > 126) {
+            // sanitize non-printable
+            fprintf(out, ".");
+        } else {
+            fprintf(out, "%c", c);
+        }
+    }
 }
 
 //
