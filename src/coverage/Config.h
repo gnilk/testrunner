@@ -20,6 +20,7 @@ namespace tcov {
     public:
         bool internal_test_startup = false;
         std::string target = "trun";
+        int tab_size = 4;
         int verbose = 0;
         std::string ipc_name = "tcov-ipc";
         std::string lldb_server_path = "/usr/lib/llvm-18/bin/lldb-server";
