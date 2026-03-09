@@ -253,7 +253,7 @@ std::vector<FunctionCoverage> BreakpointManager::ComputeCoverage() const {
                     nHits++;
                 }
                 if (bp->breakpoint.GetHitCount() > 1) {
-                    printf("****  %d - %s - %llX - %d\n",bp->line, ptrFunction->name.c_str(), bp->loadAddress, bp->breakpoint.GetHitCount());
+                    printf("****  %d - %s - %lX - %d\n",bp->line, ptrFunction->name.c_str(), bp->loadAddress, bp->breakpoint.GetHitCount());
                 }
 
             }
