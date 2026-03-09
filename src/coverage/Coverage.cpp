@@ -136,6 +136,11 @@ bool CoverageRunner::StartLLDBDebugger() {
     lldb::SBLaunchInfo launch_info(const_cast<const char **>(trunArgs.data()));
     launch_info.SetWorkingDirectory(workingDirectory.c_str());   // se should be here and not where the target is located
 
+#ifdef APPLE
+    // Make sure we duplicate stdout/stderr to the debuggee
+    launch_info.AddDuplicateFileAction(STDOUT_FILENO, STDOUT_FILENO);
+    launch_info.AddDuplicateFileAction(STDERR_FILENO, STDERR_FILENO);
+#endif
     // launch target
     process = target.Launch(launch_info, error);
     if (!process.IsValid() || error.Fail()) {
@@ -271,6 +276,7 @@ void CoverageRunner::SuppressSignals() {
 }
 
 void CoverageRunner::ConsumeProcessOutput() {
+#ifdef LINUX
     char buffer[1024];
     size_t nBytes;
     while ((nBytes = process.GetSTDOUT(buffer, sizeof(buffer))) > 0) {
@@ -281,6 +287,7 @@ void CoverageRunner::ConsumeProcessOutput() {
     }
     fflush(stdout);
     fflush(stderr);
+#endif
 }
 
 //
