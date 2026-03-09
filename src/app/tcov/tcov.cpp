@@ -213,6 +213,7 @@ static bool IsLLDBServerPresent() {
 
     // Verify currently configured pathname
     if (IsValidLLDBServer(Config::Instance().lldb_server_path)) {
+        logger->Info("Configured 'lldb-server' path (%s) is valid - using", Config::Instance().lldb_server_path.c_str());
         return true;
     }
 
