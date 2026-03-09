@@ -151,14 +151,12 @@ static kParseArgRes ParseArguments(int argc, const char *argv[]) {
     }
 
 #ifdef LINUX
+    // Note: this is not needed on macOS as the LLDB Server process is already running - at least if you have xcode installed
     if (!IsLLDBServerPresent()) {
         fprintf(stderr, "Unable to find or detect the lldb server, you can specify path to the 'lldb-server' binary with '--lldb-server <path to binary>'\n");
         return kExit;
     };
 
-    // FIXME: Need better resolver for the path - see ChatGPT history
-    // Note: this is not needed on macOS as the LLDB Server process is already running - at least if you have xcode installed
-    //setenv("LLDB_DEBUGSERVER_PATH", "/usr/lib/llvm-18/bin/lldb-server", 1);
     auto logger = gnilk::Logger::GetLogger("CoverageRunner");
     logger->Info("Setting LLDB Server Path Env: %s", Config::Instance().lldb_server_path.c_str());
     setenv("LLDB_DEBUGSERVER_PATH", Config::Instance().lldb_server_path.c_str(), 1);
@@ -176,8 +174,23 @@ static kParseArgRes ParseArguments(int argc, const char *argv[]) {
 //
 #ifdef LINUX
 static bool IsLLDBServerPresent() {
+    auto logger = gnilk::Logger::GetLogger("CoverageRunner");
+
+    // If someone is using this variable - they know what they are doing, but we verify anyway..
+    const char *currentLLDB = getenv("LLDB_DEBUGSERVER_PATH");
+    if (currentLLDB != nullptr) {
+        auto currentLLDBPath = std::string();
+        logger->Info("'LLDB_DEBUGSERVER_PATH found, verifying: '%s'", currentLLDB);
+        if (!currentLLDBPath.empty() && IsValidLLDBServer(currentLLDBPath)) {
+            Config::Instance().lldb_server_path = currentLLDBPath;
+            return true;
+        }
+    }
+
     // Verify currently configured pathname
-    IsValidLLDBServer(Config::Instance().lldb_server_path);
+    if (IsValidLLDBServer(Config::Instance().lldb_server_path)) {
+        return true;
+    }
 
 
     auto lldbServer = TryDetectLLDBServer();
