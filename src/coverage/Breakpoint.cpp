@@ -215,7 +215,8 @@ std::vector<std::string> BreakpointManager::EnumerateMembers(lldb::SBTarget &tar
         logger->Debug("class type ok - size=%u", classtype.GetSize());
         for (size_t i=0;i<classtype.GetSize();i++) {
             auto ct = classtype.GetTypeAtIndex(i);
-            printf("%zu:%s\n",i,ct.GetDisplayTypeName());
+
+            //printf("%zu:%s\n",i,ct.GetDisplayTypeName());
 
             if (!ct.IsValid()) {
                 logger->Error("Invalid - skipping\n");
@@ -252,9 +253,9 @@ std::vector<FunctionCoverage> BreakpointManager::ComputeCoverage() const {
                 if (bp->breakpoint.GetHitCount() > 0) {
                     nHits++;
                 }
-                if (bp->breakpoint.GetHitCount() > 1) {
-                    printf("****  %d - %s - %lX - %d\n",bp->line, ptrFunction->name.c_str(), bp->loadAddress, bp->breakpoint.GetHitCount());
-                }
+                // if (bp->breakpoint.GetHitCount() > 1) {
+                //     printf("****  %d - %s - %lX - %d\n",bp->line, ptrFunction->name.c_str(), bp->loadAddress, bp->breakpoint.GetHitCount());
+                // }
 
             }
             float coverage = (float)nHits / (float)ptrFunction->breakpoints.size();
