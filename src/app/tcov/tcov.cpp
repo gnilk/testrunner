@@ -35,6 +35,7 @@
 #include <vector>
 #include <string>
 #include <memory>
+#include <sys/stat.h>
 
 
 #ifdef APPLE
@@ -78,6 +79,15 @@ using namespace tcov;
 // Test like this:
 // --target ./trun --symbols pucko::DateTime -- --sequential -m datetime /home/gnilk/src/work/embedded/libraries/PuckoNew/cmake-build-debug/lib/libpucko_utests.so
 //
+#ifdef LINUX
+static bool IsLLDBServerPresent();
+static std::string TryDetectLLDBServer();
+static std::string TryDetectFile(const std::string &name);
+static bool IsValidLLDBServer(const std::string &lldbServer);
+static bool IsExecutable(const std::string& path);
+
+#endif
+
 
 static void ConfigureLogger() {
     int verbose = Config::Instance().verbose;
@@ -92,24 +102,43 @@ static void ConfigureLogger() {
     }
 }
 
-static void ParseArguments(int argc, const char *argv[]) {
+static void PrintUsage(const char *prgname) {
+    printf("%s - coverage tool for LLDB\n", prgname);
+    printf("Usage: %s [options] -- <target cmd line>\n", prgname);
+    printf("Options:\n");
+    printf("  -h, --help              Print this help\n");
+    printf("  -v, --verbose           Verbose output\n");
+    printf("  -t, --target            Target executable to run (default: trun)\n");
+    printf("  -s, --symbols           Comma separated list of symbols to track for coverage\n");
+    printf("Linux\n");
+    printf("  --lldb-server <path>    Set the full path to the lldb-server binary\n");
+    printf("\n");
+    printf("Examples:\n");
+    // -vvv --target ./trun --symbols pucko::DateTime --  -m datetime /home/gnilk/src/work/embedded/libraries/PuckoNew/cmake-build-debug/lib/libpucko_utests.so
+    printf("Run locally (same directory) compiled 'trun' generate coverage for 'MyClass' pass '-m myclass ./libunittests.so' to trun\n");
+    printf("  %s --target ./trun --symbols MyClass -- -m myclass ./libunittests.so\n", prgname);
+
+
+}
+
+typedef enum {
+    kExit,
+    kContinue,
+} kParseArgRes;
+
+static kParseArgRes ParseArguments(int argc, const char *argv[]) {
     ArgParser argparser(argc, argv);
     //argparser.TryParse("-h","--help")
     if (argparser.IsPresent("hH?","help")) {
-        printf("tcov - coverage tool for LLDB\n");
-        printf("Usage: tcov [options]\n");
-        printf("Options:\n");
-        printf("  -h, --help              Print this help\n");
-        printf("  -v, --verbose           Verbose output\n");
-        printf("  -t, --target            Target executable to run (default: trun)\n");
-        printf("  -s, --symbols           Comma separated list of symbols to track for coverage\n");
+        PrintUsage(argv[0]);
 //        printf("  -i, --tcov-ipc-name <ipc>  Name of the IPC FIFO to use for communication\n");
-        return;
+        return kExit;
     }
     // TODO: I need a stop condition at '--' because I want '--' as separator between our arguments and target arguments
     Config::Instance().verbose = argparser.CountPresence("-v", "--verbose");
     Config::Instance().target = *argparser.TryParse(Config::Instance().target, "-t","--target");
     Config::Instance().symbolString = *argparser.TryParse(Config::Instance().symbolString, "-s","--symbols");
+    Config::Instance().lldb_server_path = *argparser.TryParse(Config::Instance().lldb_server_path, "","--lldb-server");
 
     ConfigureLogger();
 
@@ -117,10 +146,102 @@ static void ParseArguments(int argc, const char *argv[]) {
 
     if (argparser.CopyAllAfter(Config::Instance().target_args, "--") < 0) {
         fprintf(stderr, "Unable to parse target arguments\n");
-        return;
+        PrintUsage(argv[0]);
+        return kExit;
     }
 
+#ifdef LINUX
+    if (!IsLLDBServerPresent()) {
+        fprintf(stderr, "Unable to find or detect the lldb server, you can specify path to the 'lldb-server' binary with '--lldb-server <path to binary>'\n");
+        return kExit;
+    };
+
+    // FIXME: Need better resolver for the path - see ChatGPT history
+    // Note: this is not needed on macOS as the LLDB Server process is already running - at least if you have xcode installed
+    //setenv("LLDB_DEBUGSERVER_PATH", "/usr/lib/llvm-18/bin/lldb-server", 1);
+    auto logger = gnilk::Logger::GetLogger("CoverageRunner");
+    logger->Info("Setting LLDB Server Path Env: %s", Config::Instance().lldb_server_path.c_str());
+    setenv("LLDB_DEBUGSERVER_PATH", Config::Instance().lldb_server_path.c_str(), 1);
+#endif
+
+    return kContinue;
 }
+
+//
+// This tries to find any installation of LLDB on your system...
+// Basically by executing 'which <filename>' and checking the result...
+// It will enumerate: lldb-server, lldb-server-20, lldb-server-19, lldb-server-18,...  down to lldb-server-16
+// I've just added a bunch of number's without much consideration - should at least not need updating for a year or two..
+// One can always override with '--lldb-server'
+//
+#ifdef LINUX
+static bool IsLLDBServerPresent() {
+    // Verify currently configured pathname
+    IsValidLLDBServer(Config::Instance().lldb_server_path);
+
+
+    auto lldbServer = TryDetectLLDBServer();
+    if (!lldbServer.empty()) {
+        Config::Instance().lldb_server_path = lldbServer;
+        return true;
+    }
+
+    return false;
+}
+
+static bool IsValidLLDBServer(const std::string &lldbServer) {
+    std::filesystem::path lldbPathName = lldbServer;
+
+    // Verify are good...
+    if (exists(lldbPathName) && is_regular_file(lldbPathName) && IsExecutable(lldbPathName)) {
+        return true;
+    }
+    return false;
+}
+
+static bool IsExecutable(const std::string& path) {
+    struct stat fileStat;
+    if (stat(path.c_str(), &fileStat) != 0) {
+        return false; // File does not exist
+    }
+    return (fileStat.st_mode & S_IXUSR) || (fileStat.st_mode & S_IXGRP) || (fileStat.st_mode & S_IXOTH);
+}
+
+
+static std::string TryDetectLLDBServer() {
+    static std::vector<std::string> possibleFiles = {
+        "lldb-server",
+        "lldb-server-20",
+        "lldb-server-19",
+        "lldb-server-18",
+        "lldb-server-17",
+        "lldb-server-16",
+        "lldb-server-15",
+    };
+    for (auto &fileName : possibleFiles) {
+        auto result = TryDetectFile(fileName);
+        if (!result.empty() && IsValidLLDBServer(result)) {
+            return result;
+        }
+    }
+    return {};
+}
+static std::string TryDetectFile(const std::string &name) {
+    char cmd[256] = {};
+    snprintf(cmd, 255, "which %s 2>/dev/null", name.c_str());
+    FILE* pipe = popen(cmd, "r");
+    if (!pipe) return "";
+
+    char buffer[256] = {};
+    std::string result;
+    if (fgets(buffer, sizeof(buffer), pipe)) {
+        result = buffer;
+        result.erase(result.find_last_not_of(" \n\r\t") + 1);
+    }
+    pclose(pipe);
+    return result;
+}
+#endif
 
 // basically all contained in the class CoverageRunner...
 int main(int argc, const char *argv[]) {
@@ -128,6 +249,7 @@ int main(int argc, const char *argv[]) {
     gnilk::Logger::Initialize();
 
     ParseArguments(argc, argv);
+
     CoverageRunner coverageRunner;
     if (!coverageRunner.Begin()) {
         return 1;

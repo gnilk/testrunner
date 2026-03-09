@@ -72,13 +72,6 @@ bool CoverageRunner::Begin() {
     logger->Info("Target: %s %s", Config::Instance().target.c_str(), dbg_argString.c_str());
     logger->Info("Working Directory: %s", workingDirectory.c_str());
 
-
-    // FIXME: Need better resolver for the path - see ChatGPT history
-    // Note: this is not needed on macOS as the LLDB Server process is already running - at least if you have xcode installed
-#ifdef LINUX
-    setenv("LLDB_DEBUGSERVER_PATH", "/usr/lib/llvm-18/bin/lldb-server", 1);
-#endif
-
     // Startup the LLDB Debugger Process...
     if (!StartLLDBDebugger()) {
         return false;
@@ -115,6 +108,7 @@ bool CoverageRunner::StartLLDBDebugger() {
 
     // Create the debugger
     lldbDebugger = lldb::SBDebugger::Create(false);
+    logger->Info("LLDB Debugger Version: %s\n",lldbDebugger.GetVersionString());
 
     // Remap stdout/stderr
     // FIXME: check if we can redirect to logger instead
