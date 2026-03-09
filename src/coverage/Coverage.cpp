@@ -43,6 +43,10 @@ bool CoverageRunner::Begin() {
 
     // Add the following so TRUN knows we are running in coverage mode and how to communicate back...
     std::vector <std::string> trunArgsVectorInternal;
+    if (std::find_if(Config::Instance().target_args.begin(), Config::Instance().target_args.end(), [](auto &v) -> bool { return (v == "--sequential"); }) == Config::Instance().target_args.end()) {
+        logger->Info("Adding '--sequential' to target arguments");
+        trunArgsVectorInternal.push_back("--sequential");
+    }
     trunArgsVectorInternal.push_back("--coverage");
     trunArgsVectorInternal.push_back("--tcov-ipc-name");
     trunArgsVectorInternal.push_back(ipcServer.FifoName());
@@ -369,6 +373,7 @@ void CoverageRunner::CheckBreakPointHit(lldb::SBThread &thread) {
         logger->Error("Invalid breakpoint with ID: %lld", bp_id);
         return;
     }
+    // FIXME: According to ChatGPT we can remove this and just disble the location
     bp.SetEnabled(false);
     auto loc = bp.FindLocationByID(loc_id);
     if (!loc.IsValid()) {
