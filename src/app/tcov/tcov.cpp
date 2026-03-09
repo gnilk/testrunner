@@ -90,8 +90,6 @@ static bool IsExecutable(const std::string& path);
 
 
 static void ConfigureLogger() {
-    int verbose = Config::Instance().verbose;
-    printf("VERBOSE=%d\n", verbose);
     // Setup up logger according to verbose flags
     gnilk::Logger::SetAllSinkDebugLevel(gnilk::LogLevel::kError);
     if (Config::Instance().verbose > 0) {
@@ -164,6 +162,26 @@ static kParseArgRes ParseArguments(int argc, const char *argv[]) {
 
     return kContinue;
 }
+
+// basically all contained in the class CoverageRunner...
+int main(int argc, const char *argv[]) {
+    // Initialize the logger - we need this to set some default values
+    gnilk::Logger::Initialize();
+    ParseArguments(argc, argv);
+
+    CoverageRunner coverageRunner;
+    if (!coverageRunner.Begin()) {
+        return 1;
+    }
+    coverageRunner.Process();
+    coverageRunner.Report();
+    coverageRunner.End();
+    return 0;
+}
+
+//
+// Helpers
+//
 
 //
 // This tries to find any installation of LLDB on your system...
@@ -255,21 +273,3 @@ static std::string TryDetectFile(const std::string &name) {
     return result;
 }
 #endif
-
-// basically all contained in the class CoverageRunner...
-int main(int argc, const char *argv[]) {
-    // Initialize the logger - we need this to set some default values
-    gnilk::Logger::Initialize();
-
-    ParseArguments(argc, argv);
-
-    CoverageRunner coverageRunner;
-    if (!coverageRunner.Begin()) {
-        return 1;
-    }
-    coverageRunner.Process();
-    coverageRunner.Report();
-    coverageRunner.End();
-    return 0;
-}
-
