@@ -91,14 +91,16 @@ void BreakpointManager::CreateCoverageForFunction(lldb::SBTarget &target, const 
 
 
         auto fileSpec = compileUnit.GetFileSpec();
+        if (!fileSpec.IsValid()) {
+            logger->Error("Invalid Filespec for compile unit - skipping");
+            continue;
+        }
         std::filesystem::path filename = {};
         std::filesystem::path path = {};
         std::filesystem::path fullPathName = {};
-        if (fileSpec.IsValid()) {
-            filename = std::filesystem::path(compileUnit.GetFileSpec().GetFilename());
-            path = std::filesystem::path(compileUnit.GetFileSpec().GetDirectory());
-            fullPathName = path / filename;
-        }
+        filename = std::filesystem::path(compileUnit.GetFileSpec().GetFilename());
+        path = std::filesystem::path(compileUnit.GetFileSpec().GetDirectory());
+        fullPathName = path / filename;
         logger->Debug("  %s, %s, %s", filename.c_str(), path.c_str(), fullPathName.c_str());
 
         // FIXME: There is a problem with inlined functions showing up in 'all' compile unit
