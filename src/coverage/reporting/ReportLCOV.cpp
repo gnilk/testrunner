@@ -5,6 +5,7 @@
 #include "ReportLCOV.h"
 #include <unordered_map>
 #include <unordered_set>
+#include <algorithm>
 
 using namespace tcov;
 
@@ -45,18 +46,18 @@ void ReportLCOV::GenerateReport(const BreakpointManager &breakpoints) {
     for (auto &unit : units) {
         fprintf(fOut, "SF:%s\n", unit->pathName.c_str());
         for (auto &[name, func] : unit->functions) {
-            fprintf(fOut, "FN: %d,%s\n", func->startLine, GetShortDisplayName(func->name).c_str());
+            fprintf(fOut, "FN:%d,%s\n", func->startLine, GetShortDisplayName(func->name).c_str());
         }
         size_t fnhits = 0;
         for (auto &[name, func] : unit->functions) {
             auto nHits = HitsForFunction(func);
-            fprintf(fOut, "FNDA: %zu,%s\n", nHits, GetShortDisplayName(func->name).c_str());
+            fprintf(fOut, "FNDA:%zu,%s\n", nHits, GetShortDisplayName(func->name).c_str());
             if (nHits > 0) {
                 fnhits++;
             }
         }
-        fprintf(fOut, "FNF: %zu\n", unit->functions.size());
-        fprintf(fOut, "FNH: %zu\n", fnhits);
+        fprintf(fOut, "FNF:%zu\n", unit->functions.size());
+        fprintf(fOut, "FNH:%zu\n", fnhits);
 
         std::unordered_map<uint32_t, size_t> lineHits = {};
         std::vector<uint32_t> lines = {};
@@ -75,13 +76,13 @@ void ReportLCOV::GenerateReport(const BreakpointManager &breakpoints) {
         std::sort(lines.begin(), lines.end());
         size_t linesHit = 0;
         for (auto &line : lines) {
-            fprintf(fOut, "DA: %d,%zu\n", line, lineHits[line]);
+            fprintf(fOut, "DA:%d,%zu\n", line, lineHits[line]);
             if (lineHits[line] > 0) {
                 linesHit++;
             }
         }
-        fprintf(fOut, "LF: %zu\n",linesFound);
-        fprintf(fOut, "LH: %zu\n",linesHit);
+        fprintf(fOut, "LF:%zu\n",linesFound);
+        fprintf(fOut, "LH:%zu\n",linesHit);
         fprintf(fOut, "end_of_record\n");
 
     }
