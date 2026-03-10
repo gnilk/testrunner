@@ -20,6 +20,7 @@ namespace tcov {
     public:
         bool internal_test_startup = false;
         std::string target = "trun";
+        std::string lcovReportFilename = "lcov.info";
         int tab_size = 4;
         int verbose = 0;
         std::string ipc_name = "tcov-ipc";
