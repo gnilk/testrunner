@@ -2,10 +2,12 @@
 // Created by gnilk on 10.03.2026.
 //
 
-#include "ReportLCOV.h"
 #include <unordered_map>
 #include <unordered_set>
 #include <algorithm>
+#include "logger.h"
+#include "Config.h"
+#include "ReportLCOV.h"
 
 using namespace tcov;
 
@@ -18,12 +20,22 @@ static size_t HitsForFunction(Function::Ref func) {
 }
 
 void ReportLCOV::GenerateReport(const BreakpointManager &breakpoints) {
-    printf("LCOV\n");
-
     auto coverage = breakpoints.ComputeCoverage();
+    auto logger = gnilk::Logger::GetLogger("BreakpointManager");
 
+    FILE *fOut = nullptr;
+    if ((Config::Instance().lcovReportFilename.empty()) || (Config::Instance().lcovReportFilename == "-")) {
+        logger->Info("Writing lcov report to stdout");
+        fOut = stdout;
+    } else {
+        logger->Info("Writing lcov report to '%s'", Config::Instance().lcovReportFilename.c_str());
+        fOut = fopen(Config::Instance().lcovReportFilename.c_str(), "w");
+    }
     //FILE *fOut = stdout;
-    FILE *fOut = fopen("lcov.info", "w");
+    if (fOut == nullptr) {
+        logger->Error("Failed to open output file '%s'", Config::Instance().lcovReportFilename.c_str());
+        return;
+    }
 
     // Restructure
     std::unordered_set<CompileUnit::Ref> units;
