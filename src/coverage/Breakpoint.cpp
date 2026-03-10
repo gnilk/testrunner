@@ -52,6 +52,7 @@ void BreakpointManager::CreateCoverageBreakpoints(lldb::SBTarget &target, const 
     }
 }
 
+
 // Create coverage breakpoint for function
 void BreakpointManager::CreateCoverageForFunction(lldb::SBTarget &target, const std::string &symbol) {
     auto logger = gnilk::Logger::GetLogger("BreakpointManager");
@@ -78,6 +79,17 @@ void BreakpointManager::CreateCoverageForFunction(lldb::SBTarget &target, const 
             continue;
         }
 
+        // Try to filter inlined functions...
+        auto leFileSpec = func.GetStartAddress().GetLineEntry().GetFileSpec();
+        auto cuFileSpec = compileUnit.GetFileSpec();
+        if (leFileSpec != cuFileSpec) {
+            logger->Debug("  Line entry file spec (%s) does not match compile unit file spec (%s)",
+                leFileSpec.GetFilename(),
+                cuFileSpec.GetFilename());
+            continue;
+        }
+
+
         auto fileSpec = compileUnit.GetFileSpec();
         std::filesystem::path filename = {};
         std::filesystem::path path = {};
@@ -87,6 +99,12 @@ void BreakpointManager::CreateCoverageForFunction(lldb::SBTarget &target, const 
             path = std::filesystem::path(compileUnit.GetFileSpec().GetDirectory());
             fullPathName = path / filename;
         }
+        logger->Debug("  %s, %s, %s", filename.c_str(), path.c_str(), fullPathName.c_str());
+
+        // FIXME: There is a problem with inlined functions showing up in 'all' compile unit
+        //        Question is where we should filter - either here, just remove line-break which does not belong
+        //        Or in the reporting
+
 
         // Fetch, or create, the compile unit to which this function belongs
         CompileUnit::Ref ptrCompileUnit = GetOrAddCompileUnit(fullPathName);
@@ -96,6 +114,7 @@ void BreakpointManager::CreateCoverageForFunction(lldb::SBTarget &target, const 
         // Resolve the address range
         auto startAddr = ctx.GetFunction().GetStartAddress();
         auto endAddr = ctx.GetFunction().GetEndAddress();
+
 
         // Convert and assign
         ptrFunction->startLine = startAddr.GetLineEntry().GetLine();
@@ -120,26 +139,29 @@ void BreakpointManager::CreateBreakpointsFunctionRange(lldb::SBTarget &target, l
             continue;
         }
 
-        // 'invalid'?
-        // if (lineEntry.GetLine() == 0) {
-        //     logger->Debug("lineEntry.GetLine() == 0, invalid\n");
-        //     continue;
-        // }
-        // if (!lineEntry.GetFileSpec().IsValid()) {
-        //     logger->Debug("Filespec for line entry invalid\n");
-        //     continue;
-        // }
-        // // FIXME: Verify and put this behind a flag!
-        // // Filter inlined stuff from other places
-        // if (lineEntry.GetFileSpec() != compileUnit.GetFileSpec()) {
-        //     // this is an inlined function from something else - skip it, not part of our coverage
-        //     continue;
-        // }
+
+        // Added for prolouge/epiolouge code and other intermediate stuff - we can't compute coverage for it - so let's just skip it...
+        if (lineEntry.GetLine() == 0) {
+            //logger->Debug("lineEntry.GetLine() == 0, invalid\n");
+            continue;
+        }
         // Filter out lines starting at column 0 - normally does not count...
         // FIXME: Put this on a flag - aggressive filtering (might be good for large projects)
         //        For 'normal' code the 'Proluge' check will detect this...
         // if (lineEntry.GetColumn() == 0) {
         //     printf("lineEntry.GetColumn() == 0, invalid (for line=%u)\n", lineEntry.GetLine());
+        //     continue;
+        // }
+
+        // if (!lineEntry.GetFileSpec().IsValid()) {
+        //     logger->Debug("Filespec for line entry invalid\n");
+        //     continue;
+        // }
+
+        // // FIXME: Verify and put this behind a flag!
+        // // Filter inlined stuff from other places
+        // if (lineEntry.GetFileSpec() != compileUnit.GetFileSpec()) {
+        //     // this is an inlined function from something else - skip it, not part of our coverage
         //     continue;
         // }
 
@@ -193,7 +215,7 @@ void BreakpointManager::CreateBreakpointsFunctionRange(lldb::SBTarget &target, l
 void BreakpointManager::CreateCoverageForClass(lldb::SBTarget &target, const std::string &symbol) {
     auto members = EnumerateMembers(target,symbol);
     auto logger = gnilk::Logger::GetLogger("BreakpointManager");
-    logger->Debug("Creating coverage for members");
+    logger->Debug("Creating coverage for class");
 
     // Loop over all members and create coverage for each of them..
     // This will create for everything, CTOR/DTOR/Public/Protected/Private members
@@ -258,6 +280,9 @@ std::vector<FunctionCoverage> BreakpointManager::ComputeCoverage() const {
                 // }
 
             }
+            // Store this - certain report engines want hit
+            ptrFunction->nHits = nHits;
+
             float coverage = (float)nHits / (float)ptrFunction->breakpoints.size();
             uint32_t coveragePercentage = 100 * coverage;
             FunctionCoverage funcCoverage {

@@ -29,13 +29,13 @@ namespace tcov {
     };
     struct Function {
         using Ref = std::shared_ptr<Function>;
-        lldb::addr_t startLoadAddress;
-        lldb::addr_t endLoadAddress;
-        lldb::SBSymbol symbol;
-        uint32_t startLine;
-        std::string name;       // will I have this?
-
-        std::vector<Breakpoint::Ref> breakpoints;
+        lldb::addr_t startLoadAddress = {};
+        lldb::addr_t endLoadAddress = {};
+        lldb::SBSymbol symbol = {};
+        uint32_t startLine = 0;
+        std::string name = {};       // will I have this?
+        size_t nHits = 0;
+        std::vector<Breakpoint::Ref> breakpoints = {};
 
     };
     struct CompileUnit {
