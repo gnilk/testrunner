@@ -403,6 +403,12 @@ static void DumpTestsForAllLibraries() {
         DumpTestsForLibrary(m);
     }
 }
+static std::string workingDirectory = {};
+static void ResolveCWD() {
+    char cwd[PATH_MAX+1] = {};
+    getcwd(cwd, PATH_MAX);
+    workingDirectory = cwd;
+}
 
 int main(int argc, char **argv) {
     // Cache the logger - also creates the Config singleton with default values
@@ -431,8 +437,11 @@ int main(int argc, char **argv) {
 #endif
     }
 
+    ResolveCWD();
+    pLogger->Info("Working directory: %s\n", workingDirectory.c_str());
+
     Timer timer;
-    
+
     timer.Reset();
     ScanLibraries(Config::Instance().inputs);
 
