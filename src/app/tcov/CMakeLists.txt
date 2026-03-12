@@ -48,6 +48,10 @@ if (UNIX)
 
         find_library(LLDB_FRAMEWORK lldb)
         message(STATUS "LLDB library: ${LLDB_FRAMEWORK}")
+        if (NOT LLDB_FRAMEWORK)
+            message(FATAL_ERROR "Please install the LLDB dev libraries (liblldb-dev)")
+        endif()
+
         list(APPEND tcovlibs lldb)
     endif()
 elseif(WIN32)
