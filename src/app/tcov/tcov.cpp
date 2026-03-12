@@ -124,10 +124,11 @@ typedef enum {
     kContinue,
 } kParseArgRes;
 
+// -v --target ./trun --symbols pucko::DateTime -- --sequential -m datetime /home/gnilk/src/work/embedded/libraries/PuckoNew/cmake-build-debug/lib/libpucko_utests.so
 static kParseArgRes ParseArguments(int argc, const char *argv[]) {
     ArgParser argparser(argc, argv);
     //argparser.TryParse("-h","--help")
-    if (argparser.IsPresent("hH?","help")) {
+    if (argparser.IsPresent("-hH?","--help")) {
         PrintUsage(argv[0]);
 //        printf("  -i, --tcov-ipc-name <ipc>  Name of the IPC FIFO to use for communication\n");
         return kExit;
@@ -139,6 +140,11 @@ static kParseArgRes ParseArguments(int argc, const char *argv[]) {
     Config::Instance().symbolString = *argparser.TryParse(Config::Instance().symbolString, "-s","--symbols");
     Config::Instance().lldb_server_path = *argparser.TryParse(Config::Instance().lldb_server_path, "","--lldb-server");
     Config::Instance().internal_test_startup = argparser.IsPresent("", "--test-startup");
+
+    // Ensure we run the test with highest verbose level
+    if (Config::Instance().internal_test_startup) {
+        Config::Instance().verbose = 3;
+    }
 
     ConfigureLogger();
 
@@ -162,16 +168,15 @@ static kParseArgRes ParseArguments(int argc, const char *argv[]) {
     setenv("LLDB_DEBUGSERVER_PATH", Config::Instance().lldb_server_path.c_str(), 1);
 #endif
 
-    return kContinue;
+    return Config::Instance().internal_test_startup ? kExit : kContinue;
 }
 
 // basically all contained in the class CoverageRunner...
 int main(int argc, const char *argv[]) {
     // Initialize the logger - we need this to set some default values
     gnilk::Logger::Initialize();
-    ParseArguments(argc, argv);
-
-    if (Config::Instance().internal_test_startup) {
+    auto res = ParseArguments(argc, argv);
+    if (res == kExit) {
         return 1;
     }
 
