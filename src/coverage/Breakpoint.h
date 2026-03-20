@@ -37,6 +37,13 @@ namespace tcov {
         size_t nHits = 0;
         std::vector<Breakpoint::Ref> breakpoints = {};
 
+        std::string GetDisplayName() const {
+            auto sbname = std::string(symbol.GetDisplayName());
+            auto shortName = sbname.substr(0, sbname.find('('));
+            return shortName;
+        }
+
+
     };
     struct CompileUnit {
         using Ref = std::shared_ptr<CompileUnit>;
@@ -64,6 +71,9 @@ namespace tcov {
         size_t nBreakpoints;
         Function::Ref ptrFunction;
         CompileUnit::Ref ptrCompileUnit;
+        uint32_t totalLines;
+        std::vector<uint32_t> coveredLines;
+        std::vector<uint32_t> uncoveredLines;
     };
 
     class BreakpointManager {

@@ -8,6 +8,7 @@
 #include "logger.h"
 #include "Breakpoint.h"
 #include "SymbolTypeChecker.h"
+#include <unordered_set>
 
 using namespace tcov;
 
@@ -273,17 +274,57 @@ std::vector<FunctionCoverage> BreakpointManager::ComputeCoverage() const {
 
         for (auto &[_, ptrFunction] : ptrCompileUnit->functions) {
             size_t nHits = 0;
+            std::vector<uint32_t> covered_lines;
+            std::vector<uint32_t> uncovered_lines;
+            // Some lines appear multiple times, in order to compute the 'total' lines of a function
+            // we need to eliminate duplicates - this is the 'lazy' version
+            std::unordered_set<uint32_t> covered_line_set;
+            std::unordered_set<uint32_t> unique_line_set;
             for (auto &bp : ptrFunction->breakpoints) {
                 if (bp->breakpoint.GetHitCount() > 0) {
                     nHits++;
+                    covered_lines.push_back(bp->line);
+                    covered_line_set.insert(bp->line);
+                } else {
+                    uncovered_lines.push_back(bp->line);
                 }
+                unique_line_set.insert(bp->line);
+
                 // if (bp->breakpoint.GetHitCount() > 1) {
                 //     printf("****  %d - %s - %lX - %d\n",bp->line, ptrFunction->name.c_str(), bp->loadAddress, bp->breakpoint.GetHitCount());
                 // }
 
             }
+
             // Store this - certain report engines want hit
             ptrFunction->nHits = nHits;
+
+            // Sort and remove duplicates in the 'covered_lines' vector
+            std::ranges::sort(covered_lines);
+            const auto ures = std::ranges::unique(covered_lines);
+            covered_lines.erase(std::ranges::begin(ures), std::ranges::end(ures));
+
+            // Same for uncovered_lines
+            std::ranges::sort(uncovered_lines);
+            const auto uncres = std::ranges::unique(uncovered_lines);
+            uncovered_lines.erase(std::ranges::begin(uncres), std::ranges::end(uncres));
+
+            // We don't support multi-statements per line - thus some of these lines appear
+            // as both in covered and uncovered - just remove them from uncovered for now...
+            if (!uncovered_lines.empty()) {
+                bool bFoundDuplicate = true;
+                while (bFoundDuplicate) {
+                    bFoundDuplicate = false;
+                    for (auto it = uncovered_lines.begin(); it != uncovered_lines.end(); ++it) {
+                        if (covered_line_set.contains(*it)) {
+                            logger->Debug("!! %s - Duplicate line found, removing: %d",ptrFunction->name.c_str(), *it);
+                            uncovered_lines.erase(it);
+                            bFoundDuplicate = true;
+                            break;
+                        }
+                    }
+                }
+            }
 
             float coverage = (float)nHits / (float)ptrFunction->breakpoints.size();
             uint32_t coveragePercentage = 100 * coverage;
@@ -294,6 +335,9 @@ std::vector<FunctionCoverage> BreakpointManager::ComputeCoverage() const {
                 ptrFunction->breakpoints.size(),
                 ptrFunction,
                 ptrCompileUnit,
+                (uint32_t)unique_line_set.size(),
+                std::move(covered_lines),
+                std::move(uncovered_lines),
             };
             coverageList.push_back(funcCoverage);
         }
