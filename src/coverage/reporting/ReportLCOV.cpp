@@ -20,7 +20,6 @@ static size_t HitsForFunction(Function::Ref func) {
 }
 
 void ReportLCOV::GenerateReport(const BreakpointManager &breakpoints) {
-    auto coverage = breakpoints.ComputeCoverage();
     auto logger = gnilk::Logger::GetLogger("BreakpointManager");
 
     FILE *fOut = nullptr;
@@ -36,6 +35,17 @@ void ReportLCOV::GenerateReport(const BreakpointManager &breakpoints) {
         logger->Error("Failed to open output file '%s'", Config::Instance().lcovReportFilename.c_str());
         return;
     }
+
+    printf("Wrote LCOV to.: %s\n", Config::Instance().lcovReportFilename.c_str());
+    WriteReport(fOut, breakpoints);
+
+    if (fOut != stdout) {
+        fclose(fOut);
+    }
+}
+
+void ReportLCOV::WriteReport(FILE *fOut, const BreakpointManager &breakpoints) {
+    auto coverage = breakpoints.ComputeCoverage();
 
     // Restructure
     std::unordered_set<CompileUnit::Ref> units;
@@ -97,8 +107,5 @@ void ReportLCOV::GenerateReport(const BreakpointManager &breakpoints) {
         fprintf(fOut, "LH:%zu\n",linesHit);
         fprintf(fOut, "end_of_record\n");
 
-    }
-    if (fOut != stdout) {
-        fclose(fOut);
     }
 }

@@ -28,6 +28,7 @@
 #include "reporting/ReportLCOV.h"
 #include "reporting/ReportDiff.h"
 #include "Config.h"
+#include "unordered_map"
 
 using namespace tcov;
 
@@ -472,13 +473,34 @@ void CoverageRunner::End() {
 }
 
 // Generate the coverage report
-// FIXME: extend this - we should drop a file with all details
-void CoverageRunner::Report() {
-    ReportConsole reportConsole;
-    reportConsole.GenerateReport(breakpointManager);
-    // ReportLCOV reportLCOV;
-    // reportLCOV.GenerateReport(breakpointManager);
-    ReportDiff reportDiff;
-    reportDiff.GenerateReport(breakpointManager);
+using ReportFactory = std::function<ReportBase *()>;
 
+static std::unordered_map<std::string, ReportFactory> reportMap = {
+    {"lcov", []{ return new ReportLCOV(); } },
+    {"base", []{ return new ReportConsole(); } },
+    {"diff", []{ return new ReportDiff(); } },
+};
+static ReportBase *CreateReportEngine() {
+    if (!reportMap.contains(Config::Instance().reportEngine)) {
+        return nullptr;
+    }
+    return reportMap[Config::Instance().reportEngine]();
+}
+void CoverageRunner::Report(double durationSec) {
+    //ReportConsole reportConsole;
+
+    auto reportEngine = CreateReportEngine();
+    if (reportEngine == nullptr) {
+        fprintf(stderr, "Invalid report engine '%s'\n", Config::Instance().reportEngine.c_str());
+        return;
+    }
+
+    // This 'line' diffrentiates from trun which is using '----'
+    printf("===================\n");
+    printf("Coverage Report\n");
+    printf("Duration......: %.3f sec\n", durationSec);
+    reportEngine->GenerateReport(breakpointManager);
+
+    // not really needed, we quite the process directly after the report has been printed...
+    delete reportEngine;
 }

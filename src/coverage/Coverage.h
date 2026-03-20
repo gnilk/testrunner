@@ -37,7 +37,7 @@ namespace tcov {
         bool Begin();
         void End();
         void Process();
-        void Report();
+        void Report(double durationSec);
     protected:
         static void ConvertArgs(std::vector<char *> &out, std::vector<std::string> &args);
         bool EnableSelfDebugging();

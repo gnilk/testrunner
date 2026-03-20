@@ -25,6 +25,7 @@
 // + Generate better reports (ideally some file that can be imported in the IDE)
 // + Test multi-statement coverage 'if (X && Y)' - if X failed Y might not be evalulated
 // - Prolouge statemens are still reported as untested (single lines with '}' for instance)
+// - Ability to pass arguments to the report generator
 //
 #include <filesystem>
 #include <iostream>
@@ -73,6 +74,8 @@
 #include "ArgParser.h"
 #include "strutil.h"
 #include "Config.h"
+#include "timer.h"
+
 
 using namespace tcov;
 
@@ -108,6 +111,7 @@ static void PrintUsage(const char *prgname) {
     printf("  -h, --help              Print this help\n");
     printf("  -v, --verbose           Verbose output\n");
     printf("  -t, --target            Target executable to run (default: trun)\n");
+    printf("  -R, --Report            Report engine (base, lcov, diff)\n");
     printf("  -s, --symbols           Comma separated list of symbols to track for coverage\n");
     printf("Linux\n");
     printf("  --lldb-server <path>    Set the full path to the lldb-server binary\n");
@@ -141,6 +145,7 @@ static kParseArgRes ParseArguments(int argc, const char *argv[]) {
     Config::Instance().symbolString = *argparser.TryParse(Config::Instance().symbolString, "-s","--symbols");
     Config::Instance().lldb_server_path = *argparser.TryParse(Config::Instance().lldb_server_path, "","--lldb-server");
     Config::Instance().internal_test_startup = argparser.IsPresent("", "--test-startup");
+    Config::Instance().reportEngine = *argparser.TryParse(Config::Instance().reportEngine, "-R","--Report");
 
     // Ensure we run the test with highest verbose level
     if (Config::Instance().internal_test_startup) {
@@ -182,11 +187,15 @@ int main(int argc, const char *argv[]) {
     }
 
     CoverageRunner coverageRunner;
+    trun::Timer timer;
+    timer.Reset();
+    double tStart = timer.Sample();
     if (!coverageRunner.Begin()) {
         return 1;
     }
     coverageRunner.Process();
-    coverageRunner.Report();
+    double tElapsed = timer.Sample() - tStart;
+    coverageRunner.Report(tElapsed);
     coverageRunner.End();
     return 0;
 }

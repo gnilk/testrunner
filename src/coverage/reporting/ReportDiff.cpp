@@ -4,6 +4,7 @@
 
 #include "ReportDiff.h"
 #include "logger.h"
+#include "Config.h"
 
 #include <string>
 #include <vector>
@@ -11,6 +12,9 @@
 #include <unordered_set>
 
 using namespace tcov;
+
+// UPDATE THIS WHEN SNAPSHOT FORMAT IS UPDATED!!!!
+#define TCOV_DIFF_VERSION 0x01
 
 struct DiffFunctionCoverage {
     std::string name;                  // "pucko::DateTime::Diff"
@@ -27,7 +31,7 @@ struct DiffFunctionCoverage {
 #define TCOV_DIFF_MAGIC (0x43564F56)
 struct SnapshotFileHeader {
     uint32_t magic = TCOV_DIFF_MAGIC;   // 'CVOV' (Coverage OVerview or whatever)
-    uint16_t version = 1;
+    uint16_t version = TCOV_DIFF_VERSION;
     uint16_t reserved = 0;
     uint32_t num_functions = 0;
 };
@@ -37,15 +41,20 @@ struct CoverageSnapshot {
 using FunctionMap = std::unordered_map<std::string, DiffFunctionCoverage>;
 
 
-
+//
+// Write a binary string <len><chars
+//
 static void WriteString(FILE *f, const std::string &str) {
     uint16_t len = static_cast<uint16_t>(str.size());
     fwrite(&len, sizeof(len), 1, f);
     fwrite(str.data(), 1, len, f);
 }
 
-static bool WriteSnapshot(const char *path, const CoverageSnapshot &snapshot) {
-    FILE *f = fopen(path, "wb");
+//
+// Serialize a snapshot
+//
+static bool WriteSnapshot(const std::string  &path, const CoverageSnapshot &snapshot) {
+    FILE *f = fopen(path.c_str(), "wb");
     if (!f) {
         return false;
     }
@@ -75,6 +84,9 @@ static bool WriteSnapshot(const char *path, const CoverageSnapshot &snapshot) {
     fclose(f);
     return true;
 }
+//
+// Read a bin-string (<len><chars>)
+//
 static std::string ReadString(FILE *f) {
     uint16_t len;
     fread(&len, sizeof(len), 1, f);
@@ -84,10 +96,13 @@ static std::string ReadString(FILE *f) {
     return str;
 }
 
-static CoverageSnapshot ReadSnapshot(const char *path) {
+//
+// Read a serialized snapshot
+//
+static CoverageSnapshot ReadSnapshot(const std::string &path) {
     CoverageSnapshot snapshot;
 
-    FILE *f = fopen(path, "rb");
+    FILE *f = fopen(path.c_str(), "rb");
     if (!f) {
         return {};
     }
@@ -126,6 +141,7 @@ static CoverageSnapshot ReadSnapshot(const char *path) {
     return snapshot;
 }
 
+// Create hash-key
 static inline std::string MakeKey(const DiffFunctionCoverage &f) {
     return f.file + "::" + f.name;
 }
@@ -138,9 +154,34 @@ FunctionMap BuildMap(const CoverageSnapshot &snap) {
     return map;
 }
 
+//
+// Diff snapshots
+// FIXME: Split this - it is quite messy
+//
+static size_t NumChanges(const FunctionMap &prevMap, const FunctionMap &currMap) {
+    size_t numChanges = 0;
+    for (const auto &[key, currFn] : currMap) {
+        auto it = prevMap.find(key);
+        if (it == prevMap.end()) {
+            ++numChanges;
+            continue;
+        }
+        const auto &prevFn = it->second;
+        int delta = (int)currFn.covered_lines - (int)prevFn.covered_lines;
+        if (delta != 0) {
+        }
+    }
+    return numChanges;
+}
 static void DiffSnapshots(const CoverageSnapshot &prev, const CoverageSnapshot &curr) {
     auto prevMap = BuildMap(prev);
     auto currMap = BuildMap(curr);
+    size_t numChanges = NumChanges(prevMap, currMap);
+    if (numChanges == 0) {
+        printf("Diff: No changes\n");
+        return;
+    }
+    printf("Changes.......: %zu\n", numChanges);
 
     for (const auto &[key, currFn] : currMap) {
         // if (key == "/Users/gnilk/src/embedded/libraries/PuckoNew/src/Time/DateTime.cpp::pucko::DateTime::Format") {
@@ -214,6 +255,7 @@ static void DiffSnapshots(const CoverageSnapshot &prev, const CoverageSnapshot &
                 delta,
                 currFn.covered_lines,
                 currFn.total_lines);
+
         }
         else {
             // optional: skip unchanged
@@ -238,14 +280,24 @@ static CoverageSnapshot GenerateSnapshot(const BreakpointManager &breakpoints) {
     }
     return snapshot;
 }
+
+//
+// Generate the report
+//
 void ReportDiff::GenerateReport(const BreakpointManager &breakpoints) {
     auto logger = gnilk::Logger::GetLogger("ReportDiff");
 
+
     logger->Debug("Generating diff report");
 
-    logger->Debug("Reading previous snapshot");
-    // FIXME: REMOVE - only used while developing..
-    auto previousSnapshot = ReadSnapshot("coverage_dt_norfc.diff");
+    auto diffFilename = Config::Instance().diffReportFilename;
+    if (Config::Instance().diffClean) {
+        std::remove(diffFilename.c_str());
+    }
+
+    logger->Debug("Reading previous snapshot from '%s'", diffFilename.c_str());
+    // FIXME: Need a unique filename - which is still applicable over projects..
+    auto previousSnapshot = ReadSnapshot(diffFilename);
 
     logger->Debug("Generate current snapshot");
     auto snapshot = GenerateSnapshot(breakpoints);
@@ -253,11 +305,9 @@ void ReportDiff::GenerateReport(const BreakpointManager &breakpoints) {
     logger->Debug("Diffing snapshots");
     DiffSnapshots(previousSnapshot, snapshot);
 
+    logger->Debug("Writing new snapshot to '%s'", diffFilename.c_str());
 
-    logger->Debug("Writing snapshot to 'coverage.diff'");
-
-    if (!WriteSnapshot("coverage.diff", snapshot)) {
+    if (!WriteSnapshot(diffFilename, snapshot)) {
         logger->Error("Failed to write snapshot");
     }
-
 }
