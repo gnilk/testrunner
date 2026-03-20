@@ -1,9 +1,9 @@
 # testrunner
 [![Build](https://github.com/gnilk/testrunner/actions/workflows/cmake.yml/badge.svg)](https://github.com/gnilk/testrunner/actions/workflows/cmake.yml)
 
-Single header C/C++ Unit Test 'Framework'.
+Single header C/C++ Unit Test and Coverage 'Framework' 
 
-<b>Note:</b> This is V2 of the testrunner - the old V1 is in branch `trun_v1_main`.
+<b>Note:</b> This is V3 of the testrunner - the old V1 is in branch `trun_v1_main`.
 
 Heavy GOLANG inspired unit test framework for C/C++.
 Currently works on macOS(arm/x86)/Linux/Windows (x86/x64)/embedded(tested on: ESP32/NRF52/STM32x/SiLabs EFR32M series)
@@ -11,10 +11,17 @@ Currently works on macOS(arm/x86)/Linux/Windows (x86/x64)/embedded(tested on: ES
 The testing framework comes with two parts.
 * A header to be used when defining the test-cases
 * A runner to execute the tests
+* A coverage tool to generate code coverage reports
 
 See [Usage](#Usage) for more details on how to write test cases and execute them.
 
-# Important changes between 1.6.x and V2.0
+# Important changes between V2.x and V3.0
+
+Experimental test coverage tool included. Will instrument the code being tested and generate a coverage report.
+Requires LLDB installed on your system. Only works on macOS/Linux. Windows support has been dropped.
+Test runner is available for Windows in the latest V1.X branch (V1.6.2)
+
+See documentation at the bottom for Test Coverage tool.
 
 ## Execution
 Parallel execution of test modules. This brings (depending on project) a massive speed-up (about 10x) for medium-sized
@@ -625,6 +632,67 @@ Example output:
 ```
 
 <b>Note:</b> Passes are only reported IF you include it in the summary (`-S`).
+
+# Test Coverage
+The test coverage tool (`tcov`) is a tool to generate test coverage reports. 
+Coverage is calculated by running `trun` through LLDB and trap breakpoints for specific symbols under test.
+Thus `tcov` requires you to have LLDB installed. Both the binaries and the dev-packages (in order to build it).
+
+Assume you are building a DateTime handling library and you run `trun` as the unit-test framework. You can
+now generate coverage by means of running `trun` through `tcov`.
+Example:
+```shell
+./tcov -R base --symbols mynamespace::DateTime -- -m datetime /Users/gnilk/src/embedded/libraries/PuckoNew/cmake-build-debug/lib/libpucko_utests.dylib
+```
+
+This will run the basic reporting and monitor coverage for any symbol in the class `DateTime` within the namespace `mynamespace`.
+Anything after `--` is passed to `trun` as regular arguments.
+
+Basic usage:
+```shell
+./tcov - coverage tool for LLDB
+Usage: ./tcov [options] -- <target cmd line>
+Options:
+  -h, --help              Print this help
+  -v, --verbose           Verbose output
+  -t, --target            Target executable to run (default: trun)
+  -R, --Report            Report engine (base, lcov, diff)
+  -s, --symbols           Comma separated list of symbols to track for coverage
+Linux
+  --lldb-server <path>    Set the full path to the lldb-server binary
+
+Examples:
+Run locally (same directory) compiled 'trun' generate coverage for 'MyClass' pass '-m myclass ./libunittests.so' to trun
+  ./tcov --target ./trun --symbols MyClass -- -m myclass ./libunittests.so
+```
+While `tcov` was designed to be used with `trun` it can be used with any executable.
+By specifying `--target` you can run any executable as the baseline for your unit-testing.
+
+## Reporting
+There are currently three different reporting modes available.
+- base, basic grouping of functions by steps of 25% coverage 
+- lcov, LCOV compatible output - you can use these files with VSCode or any other editor supporting LCOV files
+- diff, generate a diff between the baseline and the current coverage (the baseline is overwritten)
+
+### Diff reporting
+Diff reporting is really usefule when you write unit-tests and want to see progress and exactly which lines are being hit and not.
+The first time invoked `tcov` will generate a baseline coverage report - everything will be tagged as 'new'.
+After this the baseline will be used as the reference for the current coverage report in order
+to track Added, Removed and Modified lines.
+
+Each time your run `tcov` a new baseline file is created. Thus, if you run it twice in succession, the output
+will say `no changes detected`.  If you update a unit-test to cover an else case which was not in the original the diff will detect this and mark the line as covered the next time your run `tcov`.
+
+## Symbols
+You can/should specify a list of symbols to track coverage for. A symbol can be a class or a function.
+It is not possible to specify a full namespace (never tested though).
+
+## Performance
+As `tcov` is essentially stepping through your program, with a breakpoint on each statement for every matching symbol, it can take quite a while
+to finish. As an example, tracking 30 unit-tests for a class with 1000 lines of code takes roughly 3 seconds on my M1 Pro.
+
+Coverage is more of a dev-tool than a `generate coverage for this project` tool.
+It is very helpful when you are writing unit-tests and want to see exactly which lines are being hit and not.
 
 # Version history
 ## v2.1.3
