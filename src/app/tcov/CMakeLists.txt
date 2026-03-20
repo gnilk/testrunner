@@ -6,6 +6,7 @@ list(APPEND tcovsrcfiles ${CMAKE_SOURCE_DIR}/src/coverage/Coverage.cpp ${CMAKE_S
 list(APPEND tcovsrcfiles ${CMAKE_SOURCE_DIR}/src/coverage/SymbolTypeChecker.cpp ${CMAKE_SOURCE_DIR}/src/coverage/SymbolTypeChecker.h)
 list(APPEND tcovsrcfiles ${CMAKE_SOURCE_DIR}/src/coverage/reporting/ReportBase.h)
 list(APPEND tcovsrcfiles ${CMAKE_SOURCE_DIR}/src/coverage/reporting/ReportConsole.cpp ${CMAKE_SOURCE_DIR}/src/coverage/reporting/ReportConsole.h)
+list(APPEND tcovsrcfiles ${CMAKE_SOURCE_DIR}/src/coverage/reporting/ReportDiff.cpp ${CMAKE_SOURCE_DIR}/src/coverage/reporting/ReportDiff.h)
 list(APPEND tcovsrcfiles ${CMAKE_SOURCE_DIR}/src/coverage/reporting/ReportLCOV.cpp ${CMAKE_SOURCE_DIR}/src/coverage/reporting/ReportLCOV.h)
 
 

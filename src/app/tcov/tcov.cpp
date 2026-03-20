@@ -20,10 +20,11 @@
 //   ! Accept multiple symbols (should be a list - as in trun)
 //   - Allow wildcards in symbols, like 'pucko::*'
 //   ! Make the split between target options and tcov '--' (like lldb/gdb does it)
-// - Support for GCOV/LCOV reporting
+// ! Support for GCOV/LCOV reporting
 // + Inline members do not work, see comments in 'Breakpoint.cpp' (should work now)
 // + Generate better reports (ideally some file that can be imported in the IDE)
 // + Test multi-statement coverage 'if (X && Y)' - if X failed Y might not be evalulated
+// - Prolouge statemens are still reported as untested (single lines with '}' for instance)
 //
 #include <filesystem>
 #include <iostream>
