@@ -26,6 +26,7 @@
 #include "timer.h"
 #include "reporting/ReportConsole.h"
 #include "reporting/ReportLCOV.h"
+#include "reporting/ReportDiff.h"
 #include "Config.h"
 
 using namespace tcov;
@@ -473,9 +474,11 @@ void CoverageRunner::End() {
 // Generate the coverage report
 // FIXME: extend this - we should drop a file with all details
 void CoverageRunner::Report() {
-//    ReportConsole reportConsole;
-//    reportConsole.GenerateReport(breakpointManager);
-    ReportLCOV reportLCOV;
-    reportLCOV.GenerateReport(breakpointManager);
+    ReportConsole reportConsole;
+    reportConsole.GenerateReport(breakpointManager);
+    // ReportLCOV reportLCOV;
+    // reportLCOV.GenerateReport(breakpointManager);
+    ReportDiff reportDiff;
+    reportDiff.GenerateReport(breakpointManager);
 
 }
