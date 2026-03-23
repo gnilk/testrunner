@@ -22,10 +22,16 @@
 //   ! Make the split between target options and tcov '--' (like lldb/gdb does it)
 // ! Support for GCOV/LCOV reporting
 // + Inline members do not work, see comments in 'Breakpoint.cpp' (should work now)
-// + Generate better reports (ideally some file that can be imported in the IDE)
+// ! Generate better reports (ideally some file that can be imported in the IDE)
+//   LCOV and DIFF implemented
+// ! Ability to run multiple reports in one go (i.e combine LCOV with DIFF)
 // + Test multi-statement coverage 'if (X && Y)' - if X failed Y might not be evalulated
 // - Prolouge statemens are still reported as untested (single lines with '}' for instance)
 // - Ability to pass arguments to the report generator
+//   This will be tricky with the comma separated list of reports..
+// - If we allow multiple -R arguments we need to enhance the ArgParser to continue parsing
+//   after the inital has been hit. The ArgParser currently expects only one instance of each
+//   Which is not quite true for "Count" functions...
 //
 #include <filesystem>
 #include <iostream>
