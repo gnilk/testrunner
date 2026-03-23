@@ -126,7 +126,7 @@ static void PrintUsage(const char *prgname) {
     printf("  -h, --help              Print this help\n");
     printf("  -v, --verbose           Verbose output\n");
     printf("  -t, --target            Target executable to run (default: trun)\n");
-    printf("  -R, --Report            Report engine (base, lcov, diff)\n");
+    printf("  -R, --Report            Comma separated list of report engines (base, lcov, diff)\n");
     printf("  -s, --symbols           Comma separated list of symbols to track for coverage\n");
     printf("Linux\n");
     printf("  --lldb-server <path>    Set the full path to the lldb-server binary\n");
@@ -135,7 +135,9 @@ static void PrintUsage(const char *prgname) {
     // -vvv --target ./trun --symbols pucko::DateTime --  -m datetime /home/gnilk/src/work/embedded/libraries/PuckoNew/cmake-build-debug/lib/libpucko_utests.so
     printf("Run locally (same directory) compiled 'trun' generate coverage for 'MyClass' pass '-m myclass ./libunittests.so' to trun\n");
     printf("  %s --target ./trun --symbols MyClass -- -m myclass ./libunittests.so\n", prgname);
-
+    printf("\n");
+    printf("Run same as above but use both diff and lcov\n");
+    printf("  %s -R diff,lcov --target ./trun --symbols MyClass -- -m myclass ./libunittests.so\n", prgname);
 
 }
 
@@ -160,7 +162,18 @@ static kParseArgRes ParseArguments(int argc, const char *argv[]) {
     Config::Instance().symbolString = *argparser.TryParse(Config::Instance().symbolString, "-s","--symbols");
     Config::Instance().lldb_server_path = *argparser.TryParse(Config::Instance().lldb_server_path, "","--lldb-server");
     Config::Instance().internal_test_startup = argparser.IsPresent("", "--test-startup");
-    Config::Instance().reportEngine = *argparser.TryParse(Config::Instance().reportEngine, "-R","--Report");
+    if (argparser.IsPresent("-R","--Report")) {
+        // Save the default
+        std::string reportArg = Config::Instance().reportEngines[0];
+        Config::Instance().reportEngines.clear();
+
+        reportArg = *argparser.TryParse(reportArg, "-R","--Report");
+        trun::split(Config::Instance().reportEngines, reportArg.c_str(), ',');
+        if (Config::Instance().reportEngines.empty()) {
+            fprintf(stderr, "ERR: Invalid report engine '%s' (should command separated list)\n", reportArg.c_str());
+            return kExit;
+        }
+    }
 
     // Ensure we run the test with highest verbose level
     if (Config::Instance().internal_test_startup) {

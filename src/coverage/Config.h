@@ -24,7 +24,7 @@ namespace tcov {
         std::string target = "trun";
         std::string lcovReportFilename = "lcov.info";
         std::string diffReportFilename = "tcov_coverage.diff";
-        std::string reportEngine = "diff";
+        std::vector<std::string> reportEngines = {"diff"};
         bool diffClean = false;
         int tab_size = 4;
         int verbose = 0;

@@ -480,27 +480,30 @@ static std::unordered_map<std::string, ReportFactory> reportMap = {
     {"base", []{ return new ReportConsole(); } },
     {"diff", []{ return new ReportDiff(); } },
 };
-static ReportBase *CreateReportEngine() {
-    if (!reportMap.contains(Config::Instance().reportEngine)) {
+static ReportBase *CreateReportEngine(const std::string &reportEngine) {
+    if (!reportMap.contains(reportEngine)) {
         return nullptr;
     }
-    return reportMap[Config::Instance().reportEngine]();
+    return reportMap[reportEngine]();
 }
 void CoverageRunner::Report(double durationSec) {
     //ReportConsole reportConsole;
-
-    auto reportEngine = CreateReportEngine();
-    if (reportEngine == nullptr) {
-        fprintf(stderr, "Invalid report engine '%s'\n", Config::Instance().reportEngine.c_str());
-        return;
-    }
 
     // This 'line' diffrentiates from trun which is using '----'
     printf("===================\n");
     printf("Coverage Report\n");
     printf("Duration......: %.3f sec\n", durationSec);
-    reportEngine->GenerateReport(breakpointManager);
 
-    // not really needed, we quite the process directly after the report has been printed...
-    delete reportEngine;
+    for (auto &reportEngineName : Config::Instance().reportEngines) {
+        auto reportEngine = CreateReportEngine(reportEngineName);
+        if (reportEngine == nullptr) {
+            fprintf(stderr, "Invalid report engine '%s'\n", reportEngineName.c_str());
+            return;
+        }
+        reportEngine->GenerateReport(breakpointManager);
+
+        // not really needed, we quite the process directly after the report has been printed...
+        delete reportEngine;
+    }
+
 }
