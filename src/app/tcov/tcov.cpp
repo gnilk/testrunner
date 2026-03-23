@@ -105,7 +105,22 @@ static void ConfigureLogger() {
 }
 
 static void PrintUsage(const char *prgname) {
-    printf("%s - coverage tool for LLDB\n", prgname);
+#ifdef _WIN64
+    std::string strPlatform = "Windows x64 (64 bit)";
+#elif WIN32
+    std::string strPlatform = "Windows x86 (32 bit)";
+#elif __linux
+    std::string strPlatform = "Linux";
+#else
+    std::string strPlatform = "macOS";
+#endif
+
+    printf("Coverage tool v%s - %s - %s\n",
+        Config::Instance().version.c_str(),
+        strPlatform.c_str(),
+        Config::Instance().description.c_str());
+
+    //printf("%s - coverage tool for LLDB\n", prgname);
     printf("Usage: %s [options] -- <target cmd line>\n", prgname);
     printf("Options:\n");
     printf("  -h, --help              Print this help\n");

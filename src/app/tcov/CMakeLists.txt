@@ -18,6 +18,10 @@ add_executable(tcov
         ${sharedsrcfiles}
 )
 
+# Share the versioning for now..
+target_compile_definitions(tcov PUBLIC TCOV_VERSION="${TRUN_VERSION_STR}")
+
+
 if (UNIX)
     if (APPLE)
         add_definitions(-DAPPLE)

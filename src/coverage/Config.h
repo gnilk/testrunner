@@ -19,6 +19,8 @@ namespace tcov {
         Config() = default;
     public:
         bool internal_test_startup = false;
+        std::string version = TCOV_VERSION;
+        std::string description = "Calculating code coverage through LLDB";
         std::string target = "trun";
         std::string lcovReportFilename = "lcov.info";
         std::string diffReportFilename = "tcov_coverage.diff";
