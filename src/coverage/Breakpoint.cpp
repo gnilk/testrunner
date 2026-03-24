@@ -35,6 +35,8 @@ SymbolTypeChecker::SymbolType BreakpointManager::CheckSymbolType(lldb::SBTarget 
 // Create coverage break points
 void BreakpointManager::CreateCoverageBreakpoints(lldb::SBTarget &target, const std::string &symbol) {
 
+    // FIXME: Symbol here should be glob pattern
+
     auto symbolType = CheckSymbolType(target, symbol);
     if (symbolType == SymbolTypeChecker::SymbolType::kSymClass) {
         CreateCoverageForClass(target, symbol);

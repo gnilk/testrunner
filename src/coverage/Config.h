@@ -11,6 +11,13 @@
 namespace tcov {
     class Config {
     public:
+        struct CoverageSymbol {
+            bool isGlob = false;
+            std::string name = {};
+            std::string globPrefix = {};
+        };
+
+    public:
         static Config &Instance();
         ~Config() = default;
 
@@ -31,7 +38,7 @@ namespace tcov {
         std::string ipc_name = "tcov-ipc";
         std::string lldb_server_path = "/usr/lib/llvm-18/bin/lldb-server";
         std::string symbolString = {};
-        std::vector<std::string> symbols = {};
+        std::vector<CoverageSymbol> symbols = {};
         std::vector<std::string> target_args = {};
     };
 }

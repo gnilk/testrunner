@@ -88,11 +88,12 @@ bool CoverageRunner::Begin() {
         return false;
     }
 
+    // FIXME: Skip this line in case we are not running 'trun'
     // We now have everything we need to set breakpoint for the symbols we want to monitor
     logger->Info("Libraries scanned - we are good to go...");
     // Create breakpoints from symbols coming from cmd-line..
     for (auto &s : Config::Instance().symbols) {
-        breakpointManager.CreateCoverageBreakpoints(target, s);
+        breakpointManager.CreateCoverageBreakpoints(target, s.name);
     }
     return true;
 }
@@ -179,6 +180,8 @@ bool CoverageRunner::RunInitialLLDBPhase() {
         logger->Error("main breakpoint not hit");
         return false;
     }
+
+    // FIXME: If we are not running 'trun' this can be skipped
 
     // Start again - we now know where we are - next stop is after TRUN has scanned all libraries
     process.Continue();

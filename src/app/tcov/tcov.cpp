@@ -32,6 +32,9 @@
 // - If we allow multiple -R arguments we need to enhance the ArgParser to continue parsing
 //   after the inital has been hit. The ArgParser currently expects only one instance of each
 //   Which is not quite true for "Count" functions...
+// - Verify how this works outside 'trun', we must disable the signal trapping in that case
+//   See comments in 'Coverage.cpp' (RunInitialLLDBPhase)
+//
 //
 #include <filesystem>
 #include <iostream>
@@ -97,6 +100,7 @@ static bool IsValidLLDBServer(const std::string &lldbServer);
 static bool IsExecutable(const std::string& path);
 
 #endif
+static void PrepareCoverageSymbols();
 
 
 static void ConfigureLogger() {
@@ -188,7 +192,9 @@ static kParseArgRes ParseArguments(int argc, const char *argv[]) {
 
     ConfigureLogger();
 
-    trun::split(Config::Instance().symbols, Config::Instance().symbolString.c_str(), ',');
+    PrepareCoverageSymbols();
+
+    //trun::split(Config::Instance().symbols, Config::Instance().symbolString.c_str(), ',');
 
     if (!Config::Instance().internal_test_startup && (argparser.CopyAllAfter(Config::Instance().target_args, "--") < 0)) {
         fprintf(stderr, "Unable to parse target arguments\n");
@@ -209,6 +215,25 @@ static kParseArgRes ParseArguments(int argc, const char *argv[]) {
 #endif
 
     return Config::Instance().internal_test_startup ? kExit : kContinue;
+}
+
+static void PrepareCoverageSymbols() {
+    std::vector<std::string> symbols;
+    trun::split(symbols, Config::Instance().symbolString.c_str(), ',');
+    for (auto &s : symbols) {
+        Config::CoverageSymbol symbol;
+        symbol.name = s;
+        if ((s.find_first_of("*") != std::string::npos) || (s.find_first_of("?") != std::string::npos)) {
+            symbol.isGlob = true;
+
+            if (s.find_first_of("*") != std::string::npos) {
+                symbol.globPrefix = s.substr(0, s.find_first_of("*"));
+            } else {
+                symbol.globPrefix = s.substr(0, s.find_first_of("?"));
+            }
+        }
+        Config::Instance().symbols.push_back(symbol);
+    }
 }
 
 // basically all contained in the class CoverageRunner...
