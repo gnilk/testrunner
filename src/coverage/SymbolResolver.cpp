@@ -147,7 +147,5 @@ std::vector<SymbolResolver::SymbolInfo> SymbolResolver::ResolveForTarget(lldb::S
         logger->Debug("%s - %s", sym.name.c_str(), sym.full.c_str());
     }
 
-    exit(1);
-
     return result;
 }
