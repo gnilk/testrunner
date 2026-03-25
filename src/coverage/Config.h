@@ -21,12 +21,14 @@ namespace tcov {
         static Config &Instance();
         ~Config() = default;
 
+        std::string ResolveCacheDir();
 
     protected:
         Config() = default;
     public:
         bool internal_test_startup = false;
         std::string version = TCOV_VERSION;
+        std::string cache_dir = {};     // empty from start
         std::string description = "Calculating code coverage through LLDB";
         std::string target = "trun";
         std::string lcovReportFilename = "lcov.info";

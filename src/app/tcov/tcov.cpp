@@ -166,7 +166,14 @@ static kParseArgRes ParseArguments(int argc, const char *argv[]) {
         return kExit;
     }
 
-    // TODO: I need a stop condition at '--' because I want '--' as separator between our arguments and target arguments
+    // Check if cache directory is specified on the cmd-line, if it is we use it, otherwise we resolve it...
+    std::string cache_dir;
+    cache_dir = *argparser.TryParse(cache_dir, "", "--cache-dir");
+    if (cache_dir.empty()) {
+        cache_dir = Config::Instance().ResolveCacheDir();
+    }
+    Config::Instance().cache_dir = cache_dir;
+
     Config::Instance().verbose = argparser.CountPresence("-v", "--verbose");
     Config::Instance().target = *argparser.TryParse(Config::Instance().target, "-t","--target");
     Config::Instance().symbolString = *argparser.TryParse(Config::Instance().symbolString, "-s","--symbols");
