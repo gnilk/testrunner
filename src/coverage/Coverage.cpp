@@ -41,6 +41,8 @@ using namespace tcov;
 bool CoverageRunner::Begin() {
     logger = gnilk::Logger::GetLogger("CoverageRunner");
 
+    // FIXME: This is only needed if target is './trun'
+
     // Let's bring up the IPC - which handles communication between TRUN and TCOV
     if (!CreateIPCServer()) {
         logger->Error("Unable to create IPC Server");

@@ -173,7 +173,6 @@ static kParseArgRes ParseArguments(int argc, const char *argv[]) {
         cache_dir = Config::Instance().ResolveCacheDir();
     }
     Config::Instance().cache_dir = cache_dir;
-
     Config::Instance().verbose = argparser.CountPresence("-v", "--verbose");
     Config::Instance().target = *argparser.TryParse(Config::Instance().target, "-t","--target");
     Config::Instance().symbolString = *argparser.TryParse(Config::Instance().symbolString, "-s","--symbols");
@@ -199,6 +198,11 @@ static kParseArgRes ParseArguments(int argc, const char *argv[]) {
 
     ConfigureLogger();
 
+    auto logger = gnilk::Logger::GetLogger("CoverageRunner");
+    logger->Info("Coverage tool version: v%s", Config::Instance().version.c_str());
+    logger->Info("Running with verbose level: %d", Config::Instance().verbose);
+    logger->Info("Cache directory set to: %s", Config::Instance().cache_dir.c_str());
+
     PrepareCoverageSymbols();
 
     //trun::split(Config::Instance().symbols, Config::Instance().symbolString.c_str(), ',');
@@ -216,8 +220,7 @@ static kParseArgRes ParseArguments(int argc, const char *argv[]) {
         return kExit;
     };
 
-    auto logger = gnilk::Logger::GetLogger("CoverageRunner");
-    logger->Info("Setting LLDB Server Path Env: %s", Config::Instance().lldb_server_path.c_str());
+    logger->Info("LLDB Server Detected at: %s", Config::Instance().lldb_server_path.c_str());
     setenv("LLDB_DEBUGSERVER_PATH", Config::Instance().lldb_server_path.c_str(), 1);
 #endif
 
@@ -332,6 +335,11 @@ static bool IsExecutable(const std::string& path) {
 static std::string TryDetectLLDBServer() {
     static std::vector<std::string> possibleFiles = {
         "lldb-server",
+        "lldb-server-25",
+        "lldb-server-24",
+        "lldb-server-23",
+        "lldb-server-22",
+        "lldb-server-21",
         "lldb-server-20",
         "lldb-server-19",
         "lldb-server-18",
