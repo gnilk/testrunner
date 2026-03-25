@@ -3,7 +3,9 @@
 list(APPEND tcovsrcfiles ${CMAKE_SOURCE_DIR}/src/coverage/Breakpoint.cpp ${CMAKE_SOURCE_DIR}/src/coverage/Breakpoint.h)
 list(APPEND tcovsrcfiles ${CMAKE_SOURCE_DIR}/src/coverage/Config.cpp ${CMAKE_SOURCE_DIR}/src/coverage/Config.h)
 list(APPEND tcovsrcfiles ${CMAKE_SOURCE_DIR}/src/coverage/Coverage.cpp ${CMAKE_SOURCE_DIR}/src/coverage/Coverage.h)
+list(APPEND tcovsrcfiles ${CMAKE_SOURCE_DIR}/src/coverage/SymbolResolver.cpp ${CMAKE_SOURCE_DIR}/src/coverage/SymbolResolver.h)
 list(APPEND tcovsrcfiles ${CMAKE_SOURCE_DIR}/src/coverage/SymbolTypeChecker.cpp ${CMAKE_SOURCE_DIR}/src/coverage/SymbolTypeChecker.h)
+# reporting
 list(APPEND tcovsrcfiles ${CMAKE_SOURCE_DIR}/src/coverage/reporting/ReportBase.h)
 list(APPEND tcovsrcfiles ${CMAKE_SOURCE_DIR}/src/coverage/reporting/ReportConsole.cpp ${CMAKE_SOURCE_DIR}/src/coverage/reporting/ReportConsole.h)
 list(APPEND tcovsrcfiles ${CMAKE_SOURCE_DIR}/src/coverage/reporting/ReportDiff.cpp ${CMAKE_SOURCE_DIR}/src/coverage/reporting/ReportDiff.h)

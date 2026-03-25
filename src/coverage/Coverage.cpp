@@ -3,11 +3,9 @@
 //
 #include <stdio.h>
 #include <unistd.h>
+#include <unordered_map>
 
-#include "Coverage.h"
-#include "CoverageIPCMessages.h"
-#include "strutil.h"
-#include "ipc/IPCDecoder.h"
+
 #ifdef APPLE
 #include <lldb/SBUnixSignals.h>
 #include <lldb/SBThread.h>
@@ -23,12 +21,17 @@
 #include <lldb/API/SBCommandReturnObject.h>
 #endif
 
+
+#include "Coverage.h"
+#include "CoverageIPCMessages.h"
+#include "strutil.h"
+#include "ipc/IPCDecoder.h"
+#include "SymbolResolver.h"
 #include "timer.h"
 #include "reporting/ReportConsole.h"
 #include "reporting/ReportLCOV.h"
 #include "reporting/ReportDiff.h"
 #include "Config.h"
-#include "unordered_map"
 
 using namespace tcov;
 
@@ -88,11 +91,13 @@ bool CoverageRunner::Begin() {
         return false;
     }
 
-    // FIXME: Skip this line in case we are not running 'trun'
+
+    auto symbols = SymbolResolver::ResolveForTarget(target);
+
     // We now have everything we need to set breakpoint for the symbols we want to monitor
     logger->Info("Libraries scanned - we are good to go...");
     // Create breakpoints from symbols coming from cmd-line..
-    for (auto &s : Config::Instance().symbols) {
+    for (auto &s : symbols) {
         breakpointManager.CreateCoverageBreakpoints(target, s.name);
     }
     return true;
