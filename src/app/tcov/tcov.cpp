@@ -18,7 +18,7 @@
 // ! Accept coverage class/function information via cmd line
 // ! Better cmd-line handling
 //   ! Accept multiple symbols (should be a list - as in trun)
-//   - Allow wildcards in symbols, like 'pucko::*'
+//   ! Allow wildcards in symbols, like 'pucko::*'
 //   ! Make the split between target options and tcov '--' (like lldb/gdb does it)
 // ! Support for GCOV/LCOV reporting
 // + Inline members do not work, see comments in 'Breakpoint.cpp' (should work now)
