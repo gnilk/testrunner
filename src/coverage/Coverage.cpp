@@ -106,6 +106,7 @@ bool CoverageRunner::PrepareTrunExecution() {
         Config::Instance().target = "/Users/gnilk/src/github.com/testrunner/cmake-build-debug/trun";
 #endif
     }
+    return true;
 }
 
 //
