@@ -35,8 +35,6 @@ SymbolTypeChecker::SymbolType BreakpointManager::CheckSymbolType(lldb::SBTarget 
 // Create coverage break points
 void BreakpointManager::CreateCoverageBreakpoints(lldb::SBTarget &target, const std::string &symbol) {
 
-    // FIXME: Symbol here should be glob pattern
-
     auto symbolType = CheckSymbolType(target, symbol);
     if (symbolType == SymbolTypeChecker::SymbolType::kSymClass) {
         CreateCoverageForClass(target, symbol);
@@ -66,9 +64,6 @@ void BreakpointManager::CreateCoverageForFunction(lldb::SBTarget &target, const 
         logger->Debug("Unable to resolve symbol list for '%s'", symbol.c_str());
         return;
     }
-
-    // FIXME: IF number of symbols is 0 we should treat this as an inlined function (or declared in the body)
-    //        switch to line-table based breakpoint creation instead of address based..
 
     // Not sure when there is one more in the list
     logger->Debug("Resolving function '%s', num symbols=%u", symbol.c_str(), symbollist.GetSize());
@@ -186,9 +181,7 @@ void BreakpointManager::CreateBreakpointsFunctionRange(lldb::SBTarget &target, l
         // }
 
 
-        // FIXME: Don't create breakpoints here - just gather the coverage addresses
         // seems DWARF data can contain multiple addresses pointing to same line etc...
-
         if (addr.GetLoadAddress(target) >= ptrFunction->startLoadAddress &&
             addr.GetLoadAddress(target) < ptrFunction->endLoadAddress) {
             // Was not sure which one to use - but load-address is the final truth, so let's use it
@@ -209,7 +202,7 @@ void BreakpointManager::CreateBreakpointsFunctionRange(lldb::SBTarget &target, l
     }
 
     // Sort created breakpoint based on load address
-        // this is safe - because a newly created breakpoint has not been hit yet!
+    // this is safe - because a newly created breakpoint has not been hit yet!
     std::sort(ptrFunction->breakpoints.begin(), ptrFunction->breakpoints.end(),[](auto &a, auto &b) {
         return a->loadAddress < b->loadAddress;
     });
@@ -237,7 +230,6 @@ std::vector<std::string> BreakpointManager::EnumerateMembers(lldb::SBTarget &tar
 
     auto classtype = target.FindTypes(className.c_str());
 
-    //auto classctx = target.FindSymbols("Dummy");
     if (classtype.IsValid()) {
         logger->Debug("class type ok - size=%u", classtype.GetSize());
         for (size_t i=0;i<classtype.GetSize();i++) {

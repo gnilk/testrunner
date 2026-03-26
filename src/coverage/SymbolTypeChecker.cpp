@@ -32,7 +32,6 @@ SymbolTypeChecker::SymbolType SymbolTypeChecker::ClassifySymbol(lldb::SBTarget &
 bool SymbolTypeChecker::IsFuncType(lldb::SBTarget &target, const std::string &symbol) {
     auto logger = gnilk::Logger::GetLogger("SymbolTypeChecker");
 
-    // FIXME: Check what kind of symbols this returns..
     auto functionList = target.FindFunctions(symbol.c_str());
     // Is function?
     if (!functionList.IsValid()) {
@@ -45,13 +44,11 @@ bool SymbolTypeChecker::IsFuncType(lldb::SBTarget &target, const std::string &sy
     }
 
     // Having matches - normally this should only be one - but I am not sure how this works internally
-    // FIXME: try to find a case where this list is > 1 and we have multiple options
     logger->Debug("Dumping functions, num=%u\n", functionList.GetSize());
     for (uint32_t i=0;i<functionList.GetSize();i++) {
         auto func = functionList.GetContextAtIndex(i);
         logger->Debug("  %u:%s - in functionlist", i, func.GetSymbol().GetDisplayName());
     }
-    // FIXME: might have to do some partial matching at least...
     return true;
 }
 bool SymbolTypeChecker::IsClassType(lldb::SBTarget &target, const std::string &symbol) {

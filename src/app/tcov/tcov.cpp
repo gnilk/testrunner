@@ -32,7 +32,7 @@
 // - If we allow multiple -R arguments we need to enhance the ArgParser to continue parsing
 //   after the inital has been hit. The ArgParser currently expects only one instance of each
 //   Which is not quite true for "Count" functions...
-// - Verify how this works outside 'trun', we must disable the signal trapping in that case
+// ! Verify how this works outside 'trun', we must disable the signal trapping in that case
 //   See comments in 'Coverage.cpp' (RunInitialLLDBPhase)
 //
 //

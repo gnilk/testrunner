@@ -98,7 +98,6 @@ bool CoverageRunner::PrepareTrunExecution() {
     Config::Instance().target_args.insert(Config::Instance().target_args.begin(), trunArgsVectorInternal.begin(), trunArgsVectorInternal.end());
 
 
-    // FIXME: Better resolver here!
     // Create our target
     if (Config::Instance().target.empty()) {
         // FIXME: Only in debug builds...
@@ -126,7 +125,6 @@ bool CoverageRunner::StartLLDBDebugger() {
     logger->Info("LLDB Debugger Version: %s\n",lldbDebugger.GetVersionString());
 
     // Remap stdout/stderr
-    // FIXME: check if we can redirect to logger instead
     lldbDebugger.SetAsync(false);       // lldb is async by default - which is good, but complicated to start with
     lldbDebugger.SetOutputFileHandle(stdout, false);
     lldbDebugger.SetErrorFileHandle(stderr, false);
@@ -437,7 +435,7 @@ void CoverageRunner::CheckBreakPointHit(lldb::SBThread &thread) {
         logger->Error("Invalid breakpoint with ID: %lld", bp_id);
         return;
     }
-    // FIXME: According to ChatGPT we can remove this and just disble the location
+    // According to ChatGPT we can remove this and just disable the location - but that didn't work..  so don't...
     bp.SetEnabled(false);
     auto loc = bp.FindLocationByID(loc_id);
     if (!loc.IsValid()) {
