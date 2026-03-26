@@ -39,6 +39,7 @@ namespace tcov {
         void Process();
         void Report(double durationSec);
     protected:
+        bool PrepareTrunExecution();
         static void ConvertArgs(std::vector<char *> &out, std::vector<std::string> &args);
         bool EnableSelfDebugging();
         bool CreateIPCServer();

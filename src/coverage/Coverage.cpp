@@ -41,8 +41,45 @@ using namespace tcov;
 bool CoverageRunner::Begin() {
     logger = gnilk::Logger::GetLogger("CoverageRunner");
 
-    // FIXME: This is only needed if target is './trun'
+    if (Config::Instance().IsTrunTarget()) {
+        if (!PrepareTrunExecution()) {
+            return false;
+        }
+    }
 
+    ResolveCWD();
+
+    std::string dbg_argString;
+    for (auto &arg : Config::Instance().target_args) {
+        dbg_argString += arg + " ";
+    }
+    logger->Info("Target: %s %s", Config::Instance().target.c_str(), dbg_argString.c_str());
+    logger->Info("Working Directory: %s", workingDirectory.c_str());
+
+    // Startup the LLDB Debugger Process...
+    if (!StartLLDBDebugger()) {
+        return false;
+    }
+
+    // verify (or at least sanity check we have a PID)
+    pid = process.GetProcessID();
+    logger->Info("PID: %llu", pid);
+
+    if (!RunInitialLLDBPhase()) {
+        return false;
+    }
+
+    auto symbols = SymbolResolver::ResolveForTarget(target);
+
+    // We now have everything we need to set breakpoint for the symbols we want to monitor
+    //logger->Info("Libraries scanned - we are good to go...");
+    // Create breakpoints from symbols coming from cmd-line..
+    for (auto &s : symbols) {
+        breakpointManager.CreateCoverageBreakpoints(target, s.name);
+    }
+    return true;
+}
+bool CoverageRunner::PrepareTrunExecution() {
     // Let's bring up the IPC - which handles communication between TRUN and TCOV
     if (!CreateIPCServer()) {
         logger->Error("Unable to create IPC Server");
@@ -70,39 +107,6 @@ bool CoverageRunner::Begin() {
         Config::Instance().target = "/Users/gnilk/src/github.com/testrunner/cmake-build-debug/trun";
 #endif
     }
-
-    ResolveCWD();
-
-    std::string dbg_argString;
-    for (auto &arg : Config::Instance().target_args) {
-        dbg_argString += arg + " ";
-    }
-    logger->Info("Target: %s %s", Config::Instance().target.c_str(), dbg_argString.c_str());
-    logger->Info("Working Directory: %s", workingDirectory.c_str());
-
-    // Startup the LLDB Debugger Process...
-    if (!StartLLDBDebugger()) {
-        return false;
-    }
-
-    // verify (or at least sanity check we have a PID)
-    pid = process.GetProcessID();
-    logger->Info("PID: %llu", pid);
-
-    if (!RunInitialLLDBPhase()) {
-        return false;
-    }
-
-
-    auto symbols = SymbolResolver::ResolveForTarget(target);
-
-    // We now have everything we need to set breakpoint for the symbols we want to monitor
-    logger->Info("Libraries scanned - we are good to go...");
-    // Create breakpoints from symbols coming from cmd-line..
-    for (auto &s : symbols) {
-        breakpointManager.CreateCoverageBreakpoints(target, s.name);
-    }
-    return true;
 }
 
 //
@@ -188,7 +192,10 @@ bool CoverageRunner::RunInitialLLDBPhase() {
         return false;
     }
 
-    // FIXME: If we are not running 'trun' this can be skipped
+    // Not running 'trun' - skip coverage setup (this is explicit for trun sync of dynlib loading)
+    if (!Config::Instance().IsTrunTarget()) {
+        return true;
+    }
 
     // Start again - we now know where we are - next stop is after TRUN has scanned all libraries
     process.Continue();

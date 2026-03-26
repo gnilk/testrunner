@@ -22,6 +22,7 @@ namespace tcov {
         ~Config() = default;
 
         std::string ResolveCacheDir();
+        bool IsTrunTarget() const;
 
     protected:
         Config() = default;

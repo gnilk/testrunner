@@ -91,7 +91,12 @@ using namespace tcov;
 //
 // Test like this:
 // --target ./trun --symbols pucko::DateTime -- --sequential -m datetime /home/gnilk/src/work/embedded/libraries/PuckoNew/cmake-build-debug/lib/libpucko_utests.so
+// -vvv --target ./trun --symbols pucko::DateTime::* -- --sequential -m datetime /home/gnilk/src/work/embedded/libraries/PuckoNew/cmake-build-debug/lib/libpucko_utests.so
 //
+// Other exec
+// --target ./otherexe --symbols MyClass
+//
+
 #ifdef LINUX
 static bool IsLLDBServerPresent();
 static std::string TryDetectLLDBServer();
@@ -205,12 +210,14 @@ static kParseArgRes ParseArguments(int argc, const char *argv[]) {
 
     PrepareCoverageSymbols();
 
-    //trun::split(Config::Instance().symbols, Config::Instance().symbolString.c_str(), ',');
 
-    if (!Config::Instance().internal_test_startup && (argparser.CopyAllAfter(Config::Instance().target_args, "--") < 0)) {
-        fprintf(stderr, "Unable to parse target arguments\n");
-        PrintUsage(argv[0]);
-        return kExit;
+    // Are we running trun?
+    if (Config::Instance().IsTrunTarget()) {
+        if (!Config::Instance().internal_test_startup && (argparser.CopyAllAfter(Config::Instance().target_args, "--") < 0)) {
+            fprintf(stderr, "Unable to parse target arguments\n");
+            PrintUsage(argv[0]);
+            return kExit;
+        }
     }
 
 #ifdef LINUX

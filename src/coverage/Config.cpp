@@ -18,6 +18,11 @@ Config& Config::Instance() {
 
 static const std::string TOOL_NAME = "tcov";
 
+bool Config::IsTrunTarget() const {
+    // FIXME: this is not correct!
+    return target.find("trun") != std::string::npos;
+}
+
 // made by ChatGPT - this might throw exceptions
 std::string Config::ResolveCacheDir()  {
     // 1. XDG
