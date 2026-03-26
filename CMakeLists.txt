@@ -40,6 +40,7 @@ endif()
 
 # FIXME: This should be 'off' by default
 option(BUILD_TCOV "Build tcov coverage tool" ON)
+option(BUILD_OTHER "Build other exec" ON)
 
 # External dependencies (FetchContent etc.)
 include(${CMAKE_SOURCE_DIR}/cmake/CMakeDeps.cmake)
@@ -61,6 +62,9 @@ if(BUILD_TCOV)
     add_subdirectory(${CMAKE_SOURCE_DIR}/src/app/tcov)
 endif()
 
+if (BUILD_OTHER)
+    add_subdirectory(${CMAKE_SOURCE_DIR}/src/app/otherexe)
+endif()
 
 #
 # Install + packaging (kept aligned with previous behavior)
