@@ -550,6 +550,8 @@ static void int_tcfg_get(const char *key, TRUN_ConfigItem *outValue) {
 
 // CITestingCoverage_IFace_ID
 static void int_tcov_begincov(const char *symbol) {
+    // FIXME: Not sure this actually needed
+#ifdef TRUN_HAVE_FORK
     printf("BeginCoverage called for '%s'\n", symbol);
     if (!Config::Instance().isCoverageRunning) {
         printf("TCOV is not running!");
@@ -579,4 +581,5 @@ static void int_tcov_begincov(const char *symbol) {
     // this should only close my end!
     ipc.Close();
     printf("Finished 'int_tcov_begincov'\n");
+#endif
 }
