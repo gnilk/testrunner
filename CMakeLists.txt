@@ -90,10 +90,28 @@ elseif (UNIX)
     install(FILES "src/testrunner/ext_testinterface/testinterface.h" "src/testrunner/trunembedded.h" TYPE INCLUDE)
     install(FILES "src/testrunner/ext_testinterface/testinterface_v1.h" TYPE INCLUDE)
 
+#    if (NOT ${CMAKE_VERSION} VERSION_LESS "3.18.0")
+#        file(ARCHIVE_CREATE OUTPUT trun.1.gz PATHS "${PROJECT_SOURCE_DIR}/docs/trun.manpage" FORMAT raw COMPRESSION GZip)
+#        install(FILES ${CMAKE_CURRENT_BINARY_DIR}/trun.1.gz TYPE MAN RENAME "man1/trun.1.gz")
+#    endif()
+
     if (NOT ${CMAKE_VERSION} VERSION_LESS "3.18.0")
-        file(ARCHIVE_CREATE OUTPUT trun.1.gz PATHS "${PROJECT_SOURCE_DIR}/docs/trun.manpage" FORMAT raw COMPRESSION GZip)
-        install(FILES ${CMAKE_CURRENT_BINARY_DIR}/trun.1.gz TYPE MAN RENAME "man1/trun.1.gz")
+
+        set(MANPAGE_SRC "${PROJECT_SOURCE_DIR}/docs/trun.manpage")
+        set(MANPAGE_OUT "${CMAKE_CURRENT_BINARY_DIR}/trun.1.gz")
+
+        add_custom_command(
+                OUTPUT ${MANPAGE_OUT}
+                COMMAND gzip -c ${MANPAGE_SRC} > ${MANPAGE_OUT}
+                DEPENDS ${MANPAGE_SRC}
+                COMMENT "Compressing man page"
+        )
+        add_custom_target(manpage ALL DEPENDS ${MANPAGE_OUT})
+
+        install(FILES ${MANPAGE_OUT} DESTINATION share/man/man1)
+
     endif()
+
 
     message(STATUS "Linux target - setting up CPACK")
 
