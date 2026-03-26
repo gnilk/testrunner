@@ -152,8 +152,7 @@ add_library(trv2_utest SHARED ${CMAKE_SOURCE_DIR}/src/testv2/test_v2module.cpp)
 target_link_libraries(trv2_utest PUBLIC trun_common_options ${platformlibs})
 
 add_library(trunlib STATIC ${srcfiles} ${embedsrc} ${sharedsrcfiles})
-#target_link_libraries(trunlib PUBLIC trun_common_options)
-
+target_compile_features(trunlib PUBLIC cxx_std_17)
 target_include_directories(trunlib PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_include_directories(trunlib PRIVATE ${CMAKE_SOURCE_DIR}/src/shared)
 target_include_directories(trunlib PRIVATE ${CMAKE_SOURCE_DIR}/src/testrunner)
@@ -167,6 +166,8 @@ add_executable(trunembedded ${CMAKE_SOURCE_DIR}/src/exembedded/main_embedded.cpp
 #target_compile_options(trunembedded INTERFACE -Wall -Wpedantic -Wextra -Wno-multichar -Wno-unused-parameter)
 #target_link_libraries(trunembedded PUBLIC trun_common_options)
 target_compile_definitions(trunembedded PUBLIC TRUN_SINGLE_THREAD)
+target_compile_features(trunembedded PUBLIC cxx_std_17)
+
 
 if(CMAKE_BUILD_TYPE STREQUAL Debug)
     target_compile_definitions(trunembedded PUBLIC DEBUG)

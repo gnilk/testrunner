@@ -302,36 +302,62 @@ void TestResponseProxy::QueryInterface(uint32_t interface_id, void **outPtr) {
 
 // static private helpers
 ITestingV1 *TestResponseProxy::GetTRTestInterfaceV1() {
-    static ITestingV1 trp_bridge_v1 = {
-            .Debug = int_trp_debug,
-            .Info = int_trp_info,
-            .Warning = int_trp_warning,
-            .Error = int_trp_error,
-            .Fatal = int_trp_fatal,
-            .Abort = int_trp_abort,
-            .AssertError = int_trp_assert_error,
-            .SetPreCaseCallback = int_trp_hook_precase_v1,
-            .SetPostCaseCallback = int_trp_hook_postcase_v1,
-            .CaseDepends = int_trp_casedepend,
-    };
+    static ITestingV1 trp_bridge_v1 = [] {
+        ITestingV1 v{};
+
+        v.Debug = int_trp_debug;
+        v.Info = int_trp_info;
+        v.Warning = int_trp_warning;
+        v.Error = int_trp_error;
+        v.Fatal = int_trp_fatal;
+        v.Abort = int_trp_abort;
+        v.AssertError = int_trp_assert_error;
+        v.SetPreCaseCallback = int_trp_hook_precase_v1;
+        v.SetPostCaseCallback = int_trp_hook_postcase_v1;
+        v.CaseDepends = int_trp_casedepend;
+
+        return v;
+    }();
+
     return &trp_bridge_v1;
 }
 ITestingV2 *TestResponseProxy::GetTRTestInterfaceV2() {
-    static ITestingV2 trp_bridge_v2 = {
-            .Debug = int_trp_debug,
-            .Info = int_trp_info,
-            .Warning = int_trp_warning,
-            .Error = int_trp_error,
-            .Fatal = int_trp_fatal,
-            .Abort = int_trp_abort,
-            .AssertError = int_trp_assert_error_v2,
-            .SetPreCaseCallback = int_trp_hook_precase_v2,
-            .SetPostCaseCallback = int_trp_hook_postcase_v2,
-            .CaseDepends = int_trp_casedepend,
-            .ModuleDepends = int_trp_moduledepend,
-            .QueryInterface = int_trp_query_interface,
-    };
+    static ITestingV2 trp_bridge_v2 = [] {
+        ITestingV2 v{};
+
+        v.Debug = int_trp_debug;
+        v.Info = int_trp_info;
+        v.Warning = int_trp_warning;
+        v.Error = int_trp_error;
+        v.Fatal = int_trp_fatal;
+        v.Abort = int_trp_abort;
+        v.AssertError = int_trp_assert_error_v2;
+        v.SetPreCaseCallback = int_trp_hook_precase_v2;
+        v.SetPostCaseCallback = int_trp_hook_postcase_v2;
+        v.CaseDepends = int_trp_casedepend;
+        v.ModuleDepends = int_trp_moduledepend;
+        v.QueryInterface = int_trp_query_interface;
+
+        return v;
+    }();
+
     return &trp_bridge_v2;
+
+    // static ITestingV2 trp_bridge_v2 = {
+    //         .Debug = int_trp_debug,
+    //         .Info = int_trp_info,
+    //         .Warning = int_trp_warning,
+    //         .Error = int_trp_error,
+    //         .Fatal = int_trp_fatal,
+    //         .Abort = int_trp_abort,
+    //         .AssertError = int_trp_assert_error_v2,
+    //         .SetPreCaseCallback = int_trp_hook_precase_v2,
+    //         .SetPostCaseCallback = int_trp_hook_postcase_v2,
+    //         .CaseDepends = int_trp_casedepend,
+    //         .ModuleDepends = int_trp_moduledepend,
+    //         .QueryInterface = int_trp_query_interface,
+    // };
+    // return &trp_bridge_v2;
 }
 #ifndef _MSC_VER
 #pragma GCC diagnostic pop
