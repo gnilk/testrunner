@@ -14,7 +14,7 @@
 
 #include <stdint.h>
 #include <stdlib.h>
-#include <version_t.h>
+#include "version_t.h"
 
 #ifdef WIN32
 #ifndef WIN32_LEAN_AND_MEAN
