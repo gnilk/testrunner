@@ -50,6 +50,7 @@ list(APPEND testsrc ${CMAKE_SOURCE_DIR}/src/shared/ipc/tests/test_ipc_bufferedwr
 list(APPEND embedsrc ${CMAKE_SOURCE_DIR}/src/testrunner/embedded/dynlib_embedded.cpp ${CMAKE_SOURCE_DIR}/src/testrunner/embedded/dynlib_embedded.h)
 list(APPEND embedsrc ${CMAKE_SOURCE_DIR}/src/testrunner/embedded/logger.cpp)
 list(APPEND embedsrc ${CMAKE_SOURCE_DIR}/src/testrunner/trunembedded.cpp ${CMAKE_SOURCE_DIR}/src/testrunner/trunembedded.h)
+#list(APPEND embedsrc ${CMAKE_SOURCE_DIR}/src/shared/strutil.cpp)
 
 # add unit tests
 list(APPEND testsrc ${CMAKE_SOURCE_DIR}/src/testrunner/tests/test_assert.cpp)
@@ -150,10 +151,11 @@ target_link_libraries(trv1_utest PUBLIC trun_common_options ${platformlibs})
 add_library(trv2_utest SHARED ${CMAKE_SOURCE_DIR}/src/testv2/test_v2module.cpp)
 target_link_libraries(trv2_utest PUBLIC trun_common_options ${platformlibs})
 
-add_library(trunlib STATIC ${srcfiles} ${embedsrc})
-target_link_libraries(trunlib PUBLIC trun_common_options)
+add_library(trunlib STATIC ${srcfiles} ${embedsrc} ${sharedsrcfiles})
+#target_link_libraries(trunlib PUBLIC trun_common_options)
 
 target_include_directories(trunlib PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_include_directories(trunlib PRIVATE ${CMAKE_SOURCE_DIR}/src/shared)
 target_include_directories(trunlib PRIVATE ${CMAKE_SOURCE_DIR}/src/testrunner)
 target_include_directories(trunlib PRIVATE ${CMAKE_SOURCE_DIR}/src/testrunner/embedded)
 
@@ -162,14 +164,16 @@ if(CMAKE_BUILD_TYPE STREQUAL Debug)
 endif()
 
 add_executable(trunembedded ${CMAKE_SOURCE_DIR}/src/exembedded/main_embedded.cpp)
-target_link_libraries(trunembedded PUBLIC trun_common_options)
-
+#target_compile_options(trunembedded INTERFACE -Wall -Wpedantic -Wextra -Wno-multichar -Wno-unused-parameter)
+#target_link_libraries(trunembedded PUBLIC trun_common_options)
 target_compile_definitions(trunembedded PUBLIC TRUN_SINGLE_THREAD)
+
 if(CMAKE_BUILD_TYPE STREQUAL Debug)
     target_compile_definitions(trunembedded PUBLIC DEBUG)
 endif()
 
 target_include_directories(trunembedded PUBLIC ${CMAKE_SOURCE_DIR}/src)
+target_include_directories(trunembedded PUBLIC ${CMAKE_SOURCE_DIR}/src/shared)
 target_include_directories(trunembedded PUBLIC ${CMAKE_SOURCE_DIR}/src/testrunner)
 target_include_directories(trunembedded PUBLIC ${CMAKE_SOURCE_DIR}/src/testrunner/embedded)
 
