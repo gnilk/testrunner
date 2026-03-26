@@ -1,9 +1,12 @@
 # testrunner
 [![Build](https://github.com/gnilk/testrunner/actions/workflows/cmake.yml/badge.svg)](https://github.com/gnilk/testrunner/actions/workflows/cmake.yml)
 
-Single header C/C++ Unit Test and Coverage 'Framework' 
+Single header C/C++ Unit Test and Coverage 'Framework'
 
 <b>Note:</b> This is V3 of the testrunner - the old V1 is in branch `trun_v1_main`.
+
+<b>The coverage tool 'tcov' works with any executable</b>
+You do not need to use the unit-test framework for the coverage tool to work. This should work even if you use CTest/GTest/Catch2/etc.
 
 Heavy GOLANG inspired unit test framework for C/C++.
 Currently works on macOS(arm/x86)/Linux/Windows (x86/x64)/embedded(tested on: ESP32/NRF52/STM32x/SiLabs EFR32M series)
@@ -23,7 +26,7 @@ Test runner is available for Windows in the latest V1.X branch (V1.6.2)
 
 See documentation at the bottom for Test Coverage tool.
 
-## Execution
+## Trun Execution
 Parallel execution of test modules. This brings (depending on project) a massive speed-up (about 10x) for medium-sized
 projects. Testing on a project with ~90 modules and around a total of 500 test-cases completes within 6 seconds instead
 of 60-70 seconds using V1.6.2 on the same hardware.
@@ -71,6 +74,9 @@ The following libraries are fetched when running cmake:
 * cpptrace (https://github.com/jeremy-rifkin/cpptrace.git) - v0.7.1
 * fmtlib (https://github.com/fmtlib/fmt) - fetching version 10.1.1
 * gnklog (https://github.com/gnilk/gnklog) - new logging library which is interface compatible on embedded
+
+To build the coverage tool, on Linux, you also need:
+* liblldb-dev
 
 <b>Note:</b>
 <b>fmtlib</b> is Copyright (c) 2012 - present, Victor Zverovich and {fmt} contributors. (see: https://github.com/fmtlib/fmt for more details).
@@ -133,7 +139,7 @@ void setup() {
 - Assumes `stdout` is mapped to console serial port (or similar)
 - Only console reporting available
 
-# Usage
+# Unit-testing Usage
 
 The testrunner framework has two parts.
 * A header file; `testinterface.h`, to help implement test cases (essentially this is optional)
@@ -642,7 +648,7 @@ Assume you are building a DateTime handling library and you run `trun` as the un
 now generate coverage by means of running `trun` through `tcov`.
 Example:
 ```shell
-./tcov -R base --symbols mynamespace::DateTime -- -m datetime /Users/gnilk/src/embedded/libraries/PuckoNew/cmake-build-debug/lib/libpucko_utests.dylib
+./tcov -R base --symbols mynamespace::DateTime -- -m datetime myapp_utests.dylib
 ```
 
 This will run the basic reporting and monitor coverage for any symbol in the class `DateTime` within the namespace `mynamespace`.
@@ -650,13 +656,13 @@ Anything after `--` is passed to `trun` as regular arguments.
 
 Basic usage:
 ```shell
-./tcov - coverage tool for LLDB
+Coverage tool v3.0.0 - Linux - Calculating code coverage through LLDB
 Usage: ./tcov [options] -- <target cmd line>
 Options:
   -h, --help              Print this help
   -v, --verbose           Verbose output
   -t, --target            Target executable to run (default: trun)
-  -R, --Report            Report engine (base, lcov, diff)
+  -R, --Report            Comma separated list of report engines (base, lcov, diff)
   -s, --symbols           Comma separated list of symbols to track for coverage
 Linux
   --lldb-server <path>    Set the full path to the lldb-server binary
@@ -664,9 +670,14 @@ Linux
 Examples:
 Run locally (same directory) compiled 'trun' generate coverage for 'MyClass' pass '-m myclass ./libunittests.so' to trun
   ./tcov --target ./trun --symbols MyClass -- -m myclass ./libunittests.so
+
+Run same as above but use both diff and lcov
+  ./tcov -R diff,lcov --target ./trun --symbols MyClass -- -m myclass ./libunittests.so
+
 ```
 While `tcov` was designed to be used with `trun` it can be used with any executable.
 By specifying `--target` you can run any executable as the baseline for your unit-testing.
+Any arguments after `--` will be passed to the target executable.
 
 ## Reporting
 There are currently three different reporting modes available.
@@ -675,17 +686,18 @@ There are currently three different reporting modes available.
 - diff, generate a diff between the baseline and the current coverage (the baseline is overwritten)
 
 ### Diff reporting
-Diff reporting is really usefule when you write unit-tests and want to see progress and exactly which lines are being hit and not.
+Diff reporting is really useful when you write unit-tests and want to see progress and exactly which lines are being hit and not.
 The first time invoked `tcov` will generate a baseline coverage report - everything will be tagged as 'new'.
 After this the baseline will be used as the reference for the current coverage report in order
 to track Added, Removed and Modified lines.
 
-Each time your run `tcov` a new baseline file is created. Thus, if you run it twice in succession, the output
-will say `no changes detected`.  If you update a unit-test to cover an else case which was not in the original the diff will detect this and mark the line as covered the next time your run `tcov`.
+Each time you run `tcov` a new baseline file is created. Thus, if you run it twice in succession, the output
+will say `no changes detected`.  If you update a unit-test to cover an else case which was not in the original, the diff will detect this and mark the line as covered the next time your run `tcov`.
 
 ## Symbols
-You can/should specify a list of symbols to track coverage for. A symbol can be a class or a function.
-It is not possible to specify a full namespace (never tested though).
+You can/should specify a list of symbols to track coverage for. A symbol can be a namespace, class or function. Symbol lookup supports
+wildcards (mynamespace::*, myclass::F*, etc...).
+
 
 ## Performance
 As `tcov` is essentially stepping through your program, with a breakpoint on each statement for every matching symbol, it can take quite a while
@@ -695,6 +707,9 @@ Coverage is more of a dev-tool than a `generate coverage for this project` tool.
 It is very helpful when you are writing unit-tests and want to see exactly which lines are being hit and not.
 
 # Version history
+## v3.0.0
+- Coverage tool added
+- Various issues fixed in the 'testinterface.h' to better support C as well as C++
 ## v2.1.3
 - Fixed bugs when compiling unit tests as C code instead of C++ code (testinterface.h was threw errors)
 ## v2.1.2
