@@ -28,11 +28,36 @@ if (UNIX)
     if (APPLE)
         add_definitions(-DAPPLE)
 
-        set(LLVM_ROOT "/Users/gnilk/src/ext/llvm-project")
-        set(LLVM_BUILD_ROOT "/Users/gnilk/src/ext/llvm_build")
-        set(LLDB_INCLUDE "${LLVM_ROOT}/lldb/include")
-        set(LLDB_BUILD_INCLUDE "${LLVM_BUILD_ROOT}/include")
-        set(LLDB_LIB "${LLVM_BUILD_ROOT}/lib")
+        list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
+
+        find_package(LLDB REQUIRED)
+
+        message(STATUS "LLDB_INCLUDE_DIRS: ${LLDB_INCLUDE_DIRS}")
+        message(STATUS "LLDB_LIBRARIES: ${LLDB_LIBRARIES}")
+        message(STATUS "LLDB_FRAMEWORK_PATH: ${LLDB_FRAMEWORK_PATH}")
+
+        target_include_directories(tcov PRIVATE ${LLDB_INCLUDE_DIRS})
+        target_link_libraries(tcov PRIVATE ${LLDB_LIBRARIES})
+
+        # Fix your macOS runtime issue
+        set_target_properties(tcov PROPERTIES
+                INSTALL_RPATH "${LLDB_FRAMEWORK_PATH}"
+        )
+
+        # Point to the SharedFrameworks for XCode as this contains LLDB.Framework and brew llvm install doesn't install
+        # that one...
+        set_target_properties(tcov PROPERTIES
+                INSTALL_RPATH
+                "@loader_path/../lib;/Applications/Xcode.app/Contents/SharedFrameworks"
+        )
+        #
+        # THIS DOES NOT WORK!!! - I forgot to change this before releasing...
+        #
+#        set(LLVM_ROOT "/Users/gnilk/src/ext/llvm-project")
+#        set(LLVM_BUILD_ROOT "/Users/gnilk/src/ext/llvm_build")
+#        set(LLDB_INCLUDE "${LLVM_ROOT}/lldb/include")
+#        set(LLDB_BUILD_INCLUDE "${LLVM_BUILD_ROOT}/include")
+#        set(LLDB_LIB "${LLVM_BUILD_ROOT}/lib")
 
         set(CMAKE_INSTALL_PREFIX /usr/local)
         set(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH} /usr/local/lib /usr/lib/system)

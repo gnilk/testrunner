@@ -8,12 +8,7 @@
 #include <string>
 #include <vector>
 
-#ifdef APPLE
-#include <lldb/SBAddress.h>
-#include <lldb/SBTarget.h>
-#else
 #include <lldb/API/SBTarget.h>
-#endif
 
 
 namespace tcov {

@@ -9,11 +9,7 @@
 #include "Config.h"
 #include "logger.h"
 #include "strutil.h"
-#ifdef APPLE
-#include <lldb/SBType.h>
-#else
 #include <lldb/API/SBType.h>
-#endif
 
 using namespace tcov;
 

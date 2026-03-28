@@ -8,11 +8,7 @@
 #include <stdint.h>
 #include <string>
 
-#ifdef APPLE
-#include <lldb/SBTarget.h>
-#else
 #include <lldb/API/SBTarget.h>
-#endif
 
 namespace tcov {
     class SymbolTypeChecker {

@@ -5,22 +5,12 @@
 #include <unistd.h>
 #include <unordered_map>
 
-
-#ifdef APPLE
-#include <lldb/SBUnixSignals.h>
-#include <lldb/SBThread.h>
-#include <lldb/SBBreakpointLocation.h>
-#include <lldb/API/SBCommandInterpreter.h>
-#include <lldb/API/SBCommandReturnObject.h>
-#else
 #include <lldb/API/SBUnixSignals.h>
 #include <lldb/API/SBThread.h>
 #include <lldb/API/SBBreakpointLocation.h>
 #include <lldb/API/SBStringList.h>
 #include <lldb/API/SBCommandInterpreter.h>
 #include <lldb/API/SBCommandReturnObject.h>
-#endif
-
 
 #include "Coverage.h"
 #include "CoverageIPCMessages.h"

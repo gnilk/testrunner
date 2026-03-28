@@ -82,7 +82,12 @@ To build the coverage tool, on Linux, you also need:
 <b>fmtlib</b> is Copyright (c) 2012 - present, Victor Zverovich and {fmt} contributors. (see: https://github.com/fmtlib/fmt for more details).
 
 ## Apple macOS
-Just run `make; sudo make install`. The binary (trun) will be installed in /usr/local/bin and the testinterface.h in /usr/local/include.
+First you need XCode installed and then you need homebrew and install lldb:
+```shell
+brew update
+brew install lldb`
+```
+Then, just run `make; sudo make install`. The binary (trun) will be installed in /usr/local/bin and the testinterface.h in /usr/local/include.
 <b>Note:</b> The macOs version depends on 'nm' (from binutils) when scanning a library for test functions.
 
 ## Linux
@@ -707,6 +712,8 @@ Coverage is more of a dev-tool than a `generate coverage for this project` tool.
 It is very helpful when you are writing unit-tests and want to see exactly which lines are being hit and not.
 
 # Version history
+## v3.0.1
+- Fixed macOS run after install issue, whereby it could not find lldb
 ## v3.0.0
 - Coverage tool added
 - Various issues fixed in the 'testinterface.h' to better support C as well as C++
