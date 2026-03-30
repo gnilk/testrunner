@@ -232,7 +232,7 @@ void TestRunner::PrepareTests() {
         func->SetLibrary(library);
 
         std::string moduleName = func->ModuleName();
-        pLogger->Info("  Module: %s, case: %s, Symbol: %s", func->ModuleName().c_str(), func->CaseName().c_str(), x.c_str());
+        pLogger->Debug("  Module: %s, case: %s, Symbol: %s", func->ModuleName().c_str(), func->CaseName().c_str(), x.c_str());
 
         // Ok, this is the signature of the main function for a 'library' (group of functions)
         if (moduleName == "-") {

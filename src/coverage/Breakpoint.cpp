@@ -23,9 +23,9 @@ SymbolTypeChecker::SymbolType BreakpointManager::CheckSymbolType(lldb::SBTarget 
     auto symbolType = SymbolTypeChecker::ClassifySymbol(target, symbol);
 
     if (symbolType == SymbolTypeChecker::SymbolType::kSymClass) {
-        logger->Info("%s - is class", symbol.c_str());
+        logger->Debug("%s - is class", symbol.c_str());
     } else if (symbolType == SymbolTypeChecker::SymbolType::kSymFunc) {
-        logger->Info("%s - is function", symbol.c_str());
+        logger->Debug("%s - is function", symbol.c_str());
     } else {
         logger->Error("%s - can't classify, not found", symbol.c_str());
     }

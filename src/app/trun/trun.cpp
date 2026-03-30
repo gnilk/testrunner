@@ -231,7 +231,7 @@ static void ScanLibraries(std::vector<std::string> &inputs) {
 // We should remove this and wait for a signal (or something) to be raised!
 static void RunTestsForAllLibraries() {
     if (Config::Instance().isCoverageRunning) {
-        printf("Sending signal to parent!\n");
+        pLogger->Debug("RunTestsForAllLibraries, sending signal to parent, about to run tests!");
         raise(SIGUSR1);
     }
 

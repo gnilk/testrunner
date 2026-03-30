@@ -143,6 +143,7 @@ typedef enum {
 // -v --target ./trun --symbols pucko::DateTime -- --sequential -m datetime /home/gnilk/src/work/embedded/libraries/PuckoNew/cmake-build-debug/lib/libpucko_utests.so
 static kParseArgRes ParseArguments(int argc, const char *argv[]) {
     ArgParser argparser(argc, argv);
+    argparser.SetStopCondition("--");
     //argparser.TryParse("-h","--help")
     if (argparser.IsPresent("-hH?","--help")) {
         PrintUsage(argv[0]);

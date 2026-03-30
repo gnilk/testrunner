@@ -58,12 +58,14 @@ bool CoverageRunner::Begin() {
     if (!RunInitialLLDBPhase()) {
         return false;
     }
+    logger->Info("LLDB Initial phase, complete - resolving symbols for target");
 
     auto symbols = SymbolResolver::ResolveForTarget(target);
 
     // We now have everything we need to set breakpoint for the symbols we want to monitor
     //logger->Info("Libraries scanned - we are good to go...");
     // Create breakpoints from symbols coming from cmd-line..
+    logger->Info("Creating breakpoints for symbols");
     for (auto &s : symbols) {
         breakpointManager.CreateCoverageBreakpoints(target, s.name);
     }

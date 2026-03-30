@@ -67,14 +67,16 @@ static bool IsCoverageSymbol(const std::string &name) {
 // static
 std::vector<SymbolResolver::SymbolInfo> SymbolResolver::ResolveForTarget(lldb::SBTarget &target) {
 
+    auto logger = gnilk::Logger::GetLogger("SymbolTypeChecker");
     std::vector<SymbolResolver::SymbolInfo> result;
 
     // dedupe: name + address
     std::unordered_set<std::string> seen;
-
+    logger->Info("");
     for (uint32_t m = 0; m < target.GetNumModules(); m++) {
         auto module = target.GetModuleAtIndex(m);
-
+        //logger->Info("%d/%d",module.GetFileSpec().GetFilename());
+        printf("\rScanning: %d/%d", m, target.GetNumModules());
         for (uint32_t i = 0; i < module.GetNumSymbols(); i++) {
             auto sym = module.GetSymbolAtIndex(i);
 
@@ -140,8 +142,7 @@ std::vector<SymbolResolver::SymbolInfo> SymbolResolver::ResolveForTarget(lldb::S
         }
     }
 
-    auto logger = gnilk::Logger::GetLogger("SymbolTypeChecker");
-
+    printf("\n");
     logger->Debug("Num symbols: %zu", result.size());
     for (auto &sym: result) {
         logger->Debug("%s - %s", sym.name.c_str(), sym.full.c_str());
