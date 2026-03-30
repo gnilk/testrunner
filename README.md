@@ -712,6 +712,10 @@ Coverage is more of a dev-tool than a `generate coverage for this project` tool.
 It is very helpful when you are writing unit-tests and want to see exactly which lines are being hit and not.
 
 # Version history
+## v3.0.2
+- C++17 compile for embedded
+- New command line parser for trun
+- Deadlock fixes in logger
 ## v3.0.1
 - Fixed macOS run after install issue, whereby it could not find lldb
 ## v3.0.0
