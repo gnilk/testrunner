@@ -27,7 +27,10 @@
 #include "config.h"
 #include "logger.h"
 #include "resultsummary.h"
+
+#ifndef TRUN_EMBEDDED
 #include "ArgParser.h"
+#endif
 
 using namespace trun;
 
@@ -101,13 +104,20 @@ static void ConfigureLogger() {
         }
     }
 }
+
+// In case we are running on embedded, actually I don't think we use this on embedded - at all
+#ifdef TRUN_EMBEDDED
 static Config::FromArgRes old_Config_FromArguments(int argc, char **argv);
+#endif
+
+
 
 // New argument parsing using ArgParser
 Config::FromArgRes Config::FromArguments(int argc, const char **argv) {
-
+#ifdef TRUN_EMBEDDED
     //return old_Config_FromArguments(argc, const_cast<char**>(argv));
-
+    return Config::FromArgRes::kError;
+#else
     ArgParser argParser(argc, argv);
     Config::Instance().appName = argv[0];
     if (argParser.IsPresent("-hH?","--help")) {
@@ -198,8 +208,10 @@ Config::FromArgRes Config::FromArguments(int argc, const char **argv) {
     }
 
     return Config::FromArgRes::kSuccess;
+#endif
 }
 // Returns false if we should leave the program directly, true if we are to continue
+#ifdef TRUN_EMBEDDED
 static Config::FromArgRes old_Config_FromArguments(int argc, char **argv) {
     bool firstInput = true;
 
@@ -290,7 +302,7 @@ static Config::FromArgRes old_Config_FromArguments(int argc, char **argv) {
                             }
                             Config::Instance().moduleExecTimeoutSec = (uint16_t)optNum.value();
 #else
-                            fmt::println(stderr,"module-timeout only available when compiled with 'TRUN_HAVE_FORK'");
+                            fprintf(stderr,"module-timeout only available when compiled with 'TRUN_HAVE_FORK'\n");
 #endif
                             goto next_argument;
                         } else if (longArgument == "subprocess") {
@@ -302,7 +314,7 @@ static Config::FromArgRes old_Config_FromArguments(int argc, char **argv) {
 #ifdef TRUN_HAVE_FORK
                             Config::Instance().ipcName = argv[++i];
 #else
-                            fmt::println(stderr, "ipc-name only available when compiled with 'TRUN_HAVE_FORK'");
+                            fprintf(stderr, "ipc-name only available when compiled with 'TRUN_HAVE_FORK'\n");
 #endif
                             goto next_argument;
                         } else if (longArgument == "coverage") {
@@ -341,7 +353,7 @@ static Config::FromArgRes old_Config_FromArguments(int argc, char **argv) {
     }
     return Config::FromArgRes::kSuccess;
 }
-
+#endif
 
 
 void Config::Dump() {
