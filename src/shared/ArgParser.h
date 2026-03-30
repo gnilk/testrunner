@@ -38,6 +38,9 @@
 //      bool doSomething = argParser.IsPresent("-f", "--flag");
 //      auto value2 = argParser.TryParse(42, "-n", "--number");
 //
+// Fix:
+//   Need ability to set a stop condition (like; don't go beyond '--')
+//
 class ArgParser {
 protected:
     enum class kParseResult {
@@ -51,6 +54,10 @@ public:
     ArgParser(size_t argc, const char **argv) : args{argv, argc} {
     }
     virtual ~ArgParser() = default;
+
+    void SetStopCondition(const std::string &stopArg) {
+        stoparg = stopArg;
+    }
 
     // Parse flags (true/false) based on presence of an option...  expecting no arguments...
     [[nodiscard]]
@@ -149,6 +156,9 @@ public:
         int nFound = 0;
         for(size_t i=0;i<args.size();++i) {
             std::string_view arg = args[i];
+            if (arg == stoparg) {
+                return nFound;
+            }
             if (!IsValidArgument(arg)) {
                 continue;
             }
@@ -275,6 +285,9 @@ protected:
     kParseResult TryParseInternal(bool bHaveParam, TFunc cbParam, const std::string &shortParamName, const std::string &longParamName = {}) const {
         for(size_t i=0;i<args.size();++i) {
             std::string_view arg = args[i];
+            if (arg == stoparg) {
+                return kParseResult::OkNotPresent;
+            }
             if (!IsValidArgument(arg)) {
                 continue;
             }
@@ -380,6 +393,7 @@ protected:
     }
 private:
     std::span<const char *> args;
+    std::string stoparg= {};
     std::unordered_map<std::string, int> paramargs;
 };
 
