@@ -119,7 +119,7 @@ static void Help() {
     printf("  -t  <list> List of test cases to test (default: '-' (all))\n");
     printf("  --sequential\n");
     printf("      Disable parallel execution (use this if you debug through trun, default: off)\n");
-    printf("  --continue_on_assert\n");
+    printf("  --continue-on-assert\n");
     printf("      Continue test execution on assert errors (default: off)\n");
 #ifdef TRUN_HAVE_FORK    
     printf("  --module-timeout <sec>\n");
@@ -162,7 +162,7 @@ static void ConfigureLogger() {
 }
 
 
-static bool ParseArguments(int argc, char **argv) {
+static bool ParseArguments(int argc, const char **argv) {
 
     auto res = Config::Instance().FromArguments(argc, argv);
     if (res == Config::FromArgRes::kVersion) {
@@ -293,7 +293,7 @@ static void ResolveCWD() {
     workingDirectory = cwd;
 }
 
-int main(int argc, char **argv) {
+int main(int argc, const char **argv) {
     // Cache the logger - also creates the Config singleton with default values
     pLogger = Config::Instance().pLogger;
     if (!ParseArguments(argc, argv)) {

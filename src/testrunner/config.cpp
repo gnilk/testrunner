@@ -27,7 +27,7 @@
 #include "config.h"
 #include "logger.h"
 #include "resultsummary.h"
-
+#include "ArgParser.h"
 
 using namespace trun;
 
@@ -75,7 +75,7 @@ Config::Config() {
     pLogger = gnilk::Logger::GetLogger("main");
 }
 
-static void ParseModuleFilters(char *filterstring) {
+static void ParseModuleFilters(const char *filterstring) {
     std::vector<std::string> modules;
     trun::split(modules, filterstring, ',');
 
@@ -85,7 +85,7 @@ static void ParseModuleFilters(char *filterstring) {
 
     Config::Instance().modules = modules;
 }
-static void ParseTestCaseFilters(char *filterstring) {
+static void ParseTestCaseFilters(const char *filterstring) {
     std::vector<std::string> testcases;
     trun::split(testcases, filterstring, ',');
     Config::Instance().testcases = testcases;
@@ -101,11 +101,106 @@ static void ConfigureLogger() {
         }
     }
 }
+static Config::FromArgRes old_Config_FromArguments(int argc, char **argv);
 
-// FIXME: Replace this with 'ArgParser'
+// New argument parsing using ArgParser
+Config::FromArgRes Config::FromArguments(int argc, const char **argv) {
 
+    //return old_Config_FromArguments(argc, const_cast<char**>(argv));
+
+    ArgParser argParser(argc, argv);
+    Config::Instance().appName = argv[0];
+    if (argParser.IsPresent("-hH?","--help")) {
+        return FromArgRes::kHelp;
+    }
+
+    Config::Instance().continueOnAssert = argParser.IsPresent("","--continue-on-assert");
+    // support both, as we changed the name with 3.0.2
+    if (argParser.IsPresent("","--continue-on-assert") || argParser.IsPresent("","--continue_on_assert")) {
+        if (argParser.IsPresent("","--continue_on_assert")) {
+            fmt::println(stderr, "Warning: --continue_on_assert is deprecated, use --continue-on-assert instead");
+        }
+        Config::Instance().continueOnAssert = true;
+    }
+    Config::Instance().discardTestReturnCode = argParser.IsPresent("-r");
+    Config::Instance().dumpConfig = argParser.IsPresent("-d");
+    Config::Instance().executeTests = !argParser.IsPresent("-x");
+    Config::Instance().linuxUseDeepBinding = !argParser.IsPresent("-d");
+    Config::Instance().listTests = argParser.IsPresent("-l");
+    Config::Instance().printPassSummary = argParser.IsPresent("-S");
+    Config::Instance().skipOnModuleFail = !argParser.IsPresent("-c");
+    Config::Instance().stopOnAllFail = !argParser.IsPresent("-C");
+    Config::Instance().testModuleGlobals = !argParser.IsPresent("-g");
+    Config::Instance().testGlobalMain = !argParser.IsPresent("-G");
+
+    if (argParser.IsPresent("-s")) {
+        Config::Instance().testLogFilter = true;
+        Config::Instance().suppressProgressMsg = true;
+    }
+    Config::Instance().verbose = argParser.CountPresence("-v","--verbose");
+
+    Config::Instance().reportingModule = *argParser.TryParse(Config::Instance().reportingModule,"-R","");
+    Config::Instance().reportFile = *argParser.TryParse(Config::Instance().reportFile,"-O","");
+
+    if (argParser.IsPresent("", "--version")) {
+        return Config::FromArgRes::kVersion;
+    }
+
+
+    if (argParser.IsPresent("-t")) {
+        std::string testModules;
+        testModules = *argParser.TryParse(testModules, "-t");
+        if (!testModules.empty()) {
+            ParseModuleFilters(testModules.c_str());
+        }
+    }
+
+    if (argParser.IsPresent("-t")) {
+        std::string testCases;
+        testCases = *argParser.TryParse(testCases, "-t");
+        if (!testCases.empty()) {
+            ParseTestCaseFilters(testCases.c_str());
+        }
+    }
+    if (argParser.IsPresent("-m")) {
+        std::string testModules;
+        testModules = *argParser.TryParse(testModules, "-m");
+        if (!testModules.empty()) {
+            ParseModuleFilters(testModules.c_str());
+        }
+    }
+
+    // special stuff
+
+    if (argParser.IsPresent("", "--sequential")) {
+        Config::Instance().moduleExecuteType = trun::ModuleExecutionType::kSequential;
+    }
+    if (argParser.IsPresent("", "--allow-thread-exit")) {
+        Config::Instance().testExecutionType = trun::TestExecutiontype::kThreadedWithExit;
+    }
+#ifdef TRUN_HAVE_FORK
+    Config::Instance().moduleExecTimeoutSec = *argParser.TryParse(Config::Instance().moduleExecTimeoutSec, "", "--module-timeout");
+    Config::Instance().ipcName = *argParser.TryParse(Config::Instance().ipcName, "", "--ipc-name");
+#endif
+
+    // Hidden
+    if (argParser.IsPresent("", "--subprocess")) {
+        // HIDDEN (only used internally) - We are started by another trun process
+        Config::Instance().isSubProcess = true;
+    }
+    Config::Instance().isCoverageRunning = argParser.IsPresent("", "--coverage");
+    Config::Instance().coverageIPCName = *argParser.TryParse(Config::Instance().coverageIPCName, "", "--tcov-ipc-name");
+
+
+    if (argParser.CopyEndArgs(Config::Instance().inputs, false) < 0) {
+        fmt::println(stderr, "Error: Failed to parse arguments");
+        return Config::FromArgRes::kError;
+    }
+
+    return Config::FromArgRes::kSuccess;
+}
 // Returns false if we should leave the program directly, true if we are to continue
-Config::FromArgRes Config::FromArguments(int argc, char **argv) {
+static Config::FromArgRes old_Config_FromArguments(int argc, char **argv) {
     bool firstInput = true;
 
     auto result = Config::FromArgRes::kSuccess;
@@ -175,7 +270,7 @@ Config::FromArgRes Config::FromArguments(int argc, char **argv) {
                     {
                         std::string longArgument = std::string(&argv[i][++j]);
                         if (longArgument == "version") {
-                            return FromArgRes::kVersion;
+                            return Config::FromArgRes::kVersion;
                         }
                         if (longArgument == "continue_on_assert") {
                             Config::Instance().continueOnAssert = true;
@@ -219,16 +314,16 @@ Config::FromArgRes Config::FromArguments(int argc, char **argv) {
                             goto next_argument;;
                         }
                         printf("Unknown long argument: %s\n", longArgument.c_str());
-                        return FromArgRes::kHelp;
+                        return Config::FromArgRes::kHelp;
                     }
                         break;
                     case '?' :
                     case 'h' :
                     case 'H' :
-                        return FromArgRes::kHelp;
+                        return Config::FromArgRes::kHelp;
                         break;
                     default:
-                        return FromArgRes::kHelp;
+                        return Config::FromArgRes::kHelp;
                         break;
 
                 }
@@ -244,7 +339,7 @@ Config::FromArgRes Config::FromArguments(int argc, char **argv) {
         // a bit ugly but does the trick in this case
         next_argument:;
     }
-    return FromArgRes::kSuccess;
+    return Config::FromArgRes::kSuccess;
 }
 
 

@@ -10,7 +10,9 @@
 #include <string>
 #include <string_view>
 #include <ranges>
+#include <algorithm>
 #include <charconv>
+#include <unordered_map>
 #include <vector>
 
 //
@@ -52,12 +54,13 @@ public:
 
     // Parse flags (true/false) based on presence of an option...  expecting no arguments...
     [[nodiscard]]
-    bool IsPresent(const std::string &shortParamName, const std::string &longParamName = {}) const {
+    bool IsPresent(const std::string &shortParamName, const std::string &longParamName = {}) {
         auto cbValue = [](int idxParam) { return kParseResult::Ok; };
         auto res = TryParseInternal(false, cbValue, shortParamName, longParamName);
         if (res != kParseResult::Ok) {
             return false;
         }
+        update_paramargs(shortParamName, longParamName, 0);
         return true;
     }
 
@@ -65,14 +68,14 @@ public:
     // Must be called explicitly like: 'TryParse<int>(...)' as C++ can't/won't deduce type-specification based on the return
     template<typename TValue>
     [[nodiscard]]
-    std::optional<TValue> TryParse(const std::string &shortParamName, const std::string &longParamName = {}) const {
+    std::optional<TValue> TryParse(const std::string &shortParamName, const std::string &longParamName = {}) {
         return TryParse<TValue>({}, shortParamName, longParamName);
     }
 
     // Same as above but for r-value ref's
     template<typename TValue>
     [[nodiscard]]
-    std::optional<TValue> TryParse(const TValue &&defaultValue, const std::string &shortParamName, const std::string &longParamName = {}) const {
+    std::optional<TValue> TryParse(const TValue &&defaultValue, const std::string &shortParamName, const std::string &longParamName = {}) {
         return TryParse(defaultValue, shortParamName, longParamName);
     }
 
@@ -80,7 +83,7 @@ public:
     // type deduction based on the default value...
     template<typename TValue>
     [[nodiscard]]
-    std::optional<TValue> TryParse(const TValue &defaultValue, const std::string &shortParamName, const std::string &longParamName = {}) const {
+    std::optional<TValue> TryParse(const TValue &defaultValue, const std::string &shortParamName, const std::string &longParamName = {}) {
         // pre-populate with default value, will be set to parsed/converted value by Lamda if everything works out...
         TValue result = {defaultValue};
         auto valueFunc = [&result, this](int idxArgValue) -> kParseResult {
@@ -94,6 +97,9 @@ public:
         };
 
         auto res = TryParseInternal(true, valueFunc, shortParamName, longParamName);
+        if (res == kParseResult::Ok) {
+            update_paramargs(shortParamName, longParamName, 1);
+        }
         if ((res == kParseResult::Ok) || (res == kParseResult::OkNotPresent)) {
             return result;
         }
@@ -104,7 +110,7 @@ public:
     // Parse an argument with an array as expected value
     template<typename TValue>
     [[nodiscard]]
-    int TryParse(std::vector<TValue> &outValues, const std::string &shortParamName, const std::string &longParamName = {}) const {
+    int TryParse(std::vector<TValue> &outValues, const std::string &shortParamName, const std::string &longParamName = {}) {
         int nCopied = 0;
 
         // lambda to convert an array of TValue
@@ -127,6 +133,9 @@ public:
         };
 
         auto res = TryParseInternal(true, valueFunc, shortParamName, longParamName);
+        if (res == kParseResult::Ok) {
+            update_paramargs(shortParamName, longParamName, nCopied);
+        }
         if ((res == kParseResult::Ok) || (res == kParseResult::OkNotPresent)) {
             return nCopied;
         }
@@ -163,16 +172,29 @@ public:
 
     template<typename TValue>
     [[nodiscard]]
-    int CopyEndArgs(std::vector<TValue> &outValues) const {
+    int CopyEndArgs(std::vector<TValue> &outValues, bool append = true) const {
 
         auto it = args.end()-1;
         while((*it[0] != '-') && (it != args.begin())) --it;
-        // got all the way to prgname, so lets advance...
+        std::string stopArg = *it;
+        // advance the argument
         ++it;
+        // Now advance the number of arguments - must be previously parsed..
+        if (paramargs.contains(stopArg)) {
+            auto num = paramargs.at(stopArg);
+            for (int i=0;i<num;++i) {
+                ++it;
+            }
+        }
+
         // are we at the end => nothing but prgname was supplied
         // or is the argument now a '-<name>' which means there was no end-of-cmdline parameters passed
         if ((it == args.end()) || (*it[0] == '-')) {
             return 0;
+        }
+
+        if (!append) {
+            outValues.clear();
         }
 
         int nValues = 0;
@@ -218,6 +240,27 @@ public:
     }
 
 protected:
+    void update_paramargs(const std::string &shortParamName, const std::string &longParamName, int nCount) {
+        if (!shortParamName.empty()) {
+            if (paramargs.contains(shortParamName)) {
+                if (nCount > paramargs[shortParamName]) {
+                    paramargs[shortParamName] = nCount;
+                }
+            } else {
+                paramargs.insert({shortParamName, nCount});
+            }
+
+        }
+        if (!longParamName.empty()) {
+            if (paramargs.contains(longParamName)) {
+                if (nCount > paramargs[longParamName]) {
+                    paramargs[longParamName] = nCount;
+                }
+            } else {
+                paramargs.insert({longParamName, nCount});
+            }
+        }
+    }
     static bool IsValidArgument(const std::string_view &arg) {
         if (arg.empty() || arg[0] != '-') {
             return false;
@@ -337,6 +380,7 @@ protected:
     }
 private:
     std::span<const char *> args;
+    std::unordered_map<std::string, int> paramargs;
 };
 
 #endif

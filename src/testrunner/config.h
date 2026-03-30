@@ -33,7 +33,7 @@ namespace trun {
         };
     public:
         static Config &Instance();
-        static FromArgRes FromArguments(int argc, char **argv);
+        static FromArgRes FromArguments(int argc, const char **argv);
         void Dump();
     public:
         // **** VERY IMPORTANT TO MYSELF: See CTOR for defaults!!!
@@ -43,7 +43,6 @@ namespace trun {
         std::string version;
         std::string description;
         std::string appName;
-        bool dumpConfig = false;
 
         int verbose = 0;
         uint32_t responseMsgByteLimit = 1024 * 8;
@@ -57,18 +56,20 @@ namespace trun {
         std::string reportingModule = "console";
         std::string reportFile = "-";
         int reportIndent = 8;
+
+        bool continueOnAssert = false;
+        bool discardTestReturnCode = false;
+        bool dumpConfig = false;
         bool executeTests = true;
+        bool linuxUseDeepBinding = true;       // Causes dlopen to use RTLD_DEEPBIND
         bool listTests = false;
         bool printPassSummary = false;
+        bool skipOnModuleFail = true;
+        bool stopOnAllFail = true;
         bool testModuleGlobals = true;
         bool testGlobalMain = true;
         bool testLogFilter = false;
-        bool skipOnModuleFail = true;
-        bool stopOnAllFail = true;
         bool suppressProgressMsg = false;
-        bool discardTestReturnCode = false;
-        bool linuxUseDeepBinding = true;       // Causes dlopen to use RTLD_DEEPBIND
-        bool continueOnAssert = false;
 
         // Default is parallel for v2
 #ifdef TRUN_HAVE_THREADS
