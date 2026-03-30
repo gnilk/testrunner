@@ -91,21 +91,24 @@ static void ConfigureLogger() {
         }
     }
 }
+static const std::string &GetPlatformString() {
+#ifdef _WIN64
+    static std::string strPlatform = "Windows x64 (64 bit)";
+#elif WIN32
+    static std::string strPlatform = "Windows x86 (32 bit)";
+#elif __linux
+    static std::string strPlatform = "Linux";
+#else
+    static std::string strPlatform = "macOS";
+#endif
+    return strPlatform;
+}
 
 static void PrintUsage(const char *prgname) {
-#ifdef _WIN64
-    std::string strPlatform = "Windows x64 (64 bit)";
-#elif WIN32
-    std::string strPlatform = "Windows x86 (32 bit)";
-#elif __linux
-    std::string strPlatform = "Linux";
-#else
-    std::string strPlatform = "macOS";
-#endif
 
     printf("Coverage tool v%s - %s - %s\n",
         Config::Instance().version.c_str(),
-        strPlatform.c_str(),
+        GetPlatformString().c_str(),
         Config::Instance().description.c_str());
 
     //printf("%s - coverage tool for LLDB\n", prgname);
@@ -116,6 +119,7 @@ static void PrintUsage(const char *prgname) {
     printf("  -t, --target            Target executable to run (default: trun)\n");
     printf("  -R, --Report            Comma separated list of report engines (base, lcov, diff)\n");
     printf("  -s, --symbols           Comma separated list of symbols to track for coverage\n");
+    printf("  --version               Print version information, then exit\n");
     printf("Linux\n");
     printf("  --lldb-server <path>    Set the full path to the lldb-server binary\n");
     printf("\n");
@@ -143,6 +147,11 @@ static kParseArgRes ParseArguments(int argc, const char *argv[]) {
 //        printf("  -i, --tcov-ipc-name <ipc>  Name of the IPC FIFO to use for communication\n");
         return kExit;
     }
+    if (argparser.IsPresent("", "--version")) {
+        printf("Coverage tool v%s\n",Config::Instance().version.c_str());
+        return kExit;
+    }
+
 
     // Check if cache directory is specified on the cmd-line, if it is we use it, otherwise we resolve it...
     std::string cache_dir;
