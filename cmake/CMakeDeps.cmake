@@ -43,7 +43,7 @@ set(LOG_HAVE_FMT ON)
 set(LOG_FMT_DIR ${FMT_HOME})
 
 set(GNKLOG_GIT_REPOSITORY "https://github.com/gnilk/gnklog")
-set(GNKLOG_GIT_TAG "c8fb15fb7e75366d0ce34f50186e1c7b8234756c")
+set(GNKLOG_GIT_TAG "9f1eec6c8354061cf0a7202006ce65ce6851b82f")
 
 FetchContent_Declare(
         gnklog
