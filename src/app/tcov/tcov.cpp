@@ -69,6 +69,8 @@ using namespace tcov;
 // Other exec
 // --target ./otherexe --symbols MyClass
 //
+// on macos:
+// -vvv --target ./trun --symbols pucko::DateTime::* -- --sequential -m datetime /Users/gnilk/src/embedded/libraries/PuckoNew/cmake-build-debug/lib/libpucko_utests.dylib
 
 #ifdef LINUX
 static bool IsLLDBServerPresent();

@@ -382,7 +382,7 @@ bool CoverageRunner::WasSignalRaised(int expectedSignal) {
 void CoverageRunner::Process() {
     logger->Debug("--> Entering Process Loop");
     // continue until we have exited
-    size_t nHits = 0;
+    //size_t nHits = 0;
     while (true) {
         process.Continue();
 
@@ -399,7 +399,7 @@ void CoverageRunner::Process() {
                 HandleIPCInterrupt();
             } else if (stopReason == lldb::eStopReasonBreakpoint) {
                 CheckBreakPointHit(thread);
-                nHits++;
+                //nHits++;
             } else {
                 logger->Error("Unhandled stop reson = %d\n", (int)stopReason);
             }

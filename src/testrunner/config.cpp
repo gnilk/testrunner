@@ -34,8 +34,9 @@
 
 using namespace trun;
 
+#if defined(TRUN_HAVE_FORK) && defined(TRUN_EMBEDDED)
 static std::optional<uint64_t> ParseNumber(const std::string_view &line);
-
+#endif
 
 Config &Config::Instance() {
     static Config glbConfig;
@@ -94,6 +95,7 @@ static void ParseTestCaseFilters(const char *filterstring) {
     Config::Instance().testcases = testcases;
 }
 
+/*
 static void ConfigureLogger() {
     // Setup up logger according to verbose flags
     gnilk::Logger::SetAllSinkDebugLevel(gnilk::LogLevel::kError);
@@ -104,6 +106,7 @@ static void ConfigureLogger() {
         }
     }
 }
+*/
 
 // In case we are running on embedded, actually I don't think we use this on embedded - at all
 #ifdef TRUN_EMBEDDED
@@ -397,6 +400,7 @@ void Config::Dump() {
 
 //////////////
 ///// Helper
+#if defined(TRUN_HAVE_FORK) && defined(TRUN_EMBEDDED)
 static std::optional<uint64_t> ParseNumber(const std::string_view &line) {
 
     std::string num;
@@ -477,3 +481,4 @@ static std::optional<uint64_t> ParseNumber(const std::string_view &line) {
 
     return {};
 }
+#endif

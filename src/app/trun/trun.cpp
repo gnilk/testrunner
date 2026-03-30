@@ -74,7 +74,6 @@ gnilk::ILogger *pLogger = nullptr;
 // -v --sequential -m datetime /home/gnilk/src/work/embedded/libraries/PuckoNew/cmake-build-debug/lib/libpucko_utests.so
 
 static bool isLibraryFound = false;
-static std::optional<uint64_t> ParseNumber(const std::string_view &line);
 static void PrintSummaryIfNeeded();
 
 static void PrintVersion() {
@@ -134,22 +133,6 @@ static void Help() {
     printf("\n");
 }
 
-static void ParseModuleFilters(char *filterstring) {
-    std::vector<std::string> modules;
-    trun::split(modules, filterstring, ',');
-
-    // for(auto m:modules) {
-    //     pLogger->Debug("  %s\n", m.c_str());
-    // }
-
-    Config::Instance().modules = modules;
-}
-static void ParseTestCaseFilters(char *filterstring) {
-    std::vector<std::string> testcases;
-    trun::split(testcases, filterstring, ',');
-    Config::Instance().testcases = testcases;
-}
-
 static void ConfigureLogger() {
     // Setup up logger according to verbose flags
     gnilk::Logger::SetAllSinkDebugLevel(gnilk::LogLevel::kError);
@@ -160,7 +143,6 @@ static void ConfigureLogger() {
         }
     }
 }
-
 
 static bool ParseArguments(int argc, const char **argv) {
 
@@ -389,87 +371,4 @@ static void PrintSummaryIfNeeded() {
     }
 
 
-}
-
-
-// Helper
-static std::optional<uint64_t> ParseNumber(const std::string_view &line) {
-
-    std::string num;
-    auto it = line.begin();
-
-    std::function<bool(const int chr)> isnumber = [](const int chr) -> bool {
-        return std::isdigit(chr);
-    };
-
-    //
-    // We could enhance this with more features normally found in assemblers
-    // $<hex> - for address
-    // #$<hex> - alt. syntax for hex numbers
-    // #<dec>  - alt. syntax for dec numbers
-    //
-    // '#' is a common denominator for numerical values
-    if (*it == '#') {
-        ++it;
-    }
-
-    enum class TNum {
-        Number,
-        NumberHex,
-        NumberBinary,
-        NumberOctal,
-    };
-
-    auto numberType = TNum::Number;
-    if (*it == '0') {
-        num += *it;
-        it++;
-        // Convert number here or during parsing???
-        switch(tolower(*it)) {
-            case 'x' : // hex
-                num += *it;
-                ++it;
-                numberType = TNum::NumberHex;
-                isnumber = [](const int chr) -> bool {
-                    static std::string hexnum = {"abcdef"};
-                    return (std::isdigit(chr) || (hexnum.find(tolower(chr)) != std::string::npos));
-                };
-                break;
-            case 'b' : // binary
-                num += *it;
-                ++it;
-                numberType = TNum::NumberBinary;
-                isnumber = [](const int chr) -> bool {
-                    return (chr=='1' || chr=='0');
-                };
-
-                break;
-            case 'o' : // octal
-                num += *it;
-                ++it;
-                numberType = TNum::NumberOctal;
-                isnumber = [](const int chr) -> bool {
-                    static std::string hexnum = {"01234567"};
-                    return (hexnum.find(tolower(chr)) != std::string::npos);
-                };
-                break;
-            default :
-                if (std::isdigit(*it)) {
-                    fprintf(stderr,"WARNING: Numerical tokens shouldn't start with zero!");
-                }
-                break;
-        }
-    }
-
-    while(it != line.end() && isnumber(*it)) {
-        num += *it;
-        ++it;
-    }
-    if (numberType == TNum::Number) {
-        return {trun::to_int32(num)};
-    } else if (numberType == TNum::NumberHex) {
-        return {uint64_t(trun::hex2dec(num))};
-    }
-
-    return {};
 }

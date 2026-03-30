@@ -55,7 +55,7 @@ void ResultsReportConsole::PrintFailures(const std::vector<TestResult::Ref> &res
                 continue;
             }
             // Append if there is room left...
-            if ((nChars < sizeof(lineHeader)) && (r->FailState() != TestResult::kFailState::Main)) {
+            if ((nChars < (int)sizeof(lineHeader)) && (r->FailState() != TestResult::kFailState::Main)) {
                 //fprintf(fout, " (%s)", r->FailStateName().c_str());
                 snprintf(&lineHeader[nChars], sizeof(lineHeader) - nChars, " (%s)", r->FailStateName().c_str());
             }
