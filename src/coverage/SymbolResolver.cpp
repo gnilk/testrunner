@@ -77,6 +77,7 @@ std::vector<SymbolResolver::SymbolInfo> SymbolResolver::ResolveForTarget(lldb::S
         auto module = target.GetModuleAtIndex(m);
         //logger->Info("%d/%d",module.GetFileSpec().GetFilename());
         printf("\rScanning: %d/%d", m, target.GetNumModules());
+        fflush(stdout);
         for (uint32_t i = 0; i < module.GetNumSymbols(); i++) {
             auto sym = module.GetSymbolAtIndex(i);
 
