@@ -25,7 +25,15 @@ namespace trun {
 
     class Config {
     public:
+        enum class FromArgRes {
+            kSuccess,
+            kError,
+            kHelp,
+            kVersion,
+        };
+    public:
         static Config &Instance();
+        static FromArgRes FromArguments(int argc, char **argv);
         void Dump();
     public:
         // **** VERY IMPORTANT TO MYSELF: See CTOR for defaults!!!
@@ -35,6 +43,7 @@ namespace trun {
         std::string version;
         std::string description;
         std::string appName;
+        bool dumpConfig = false;
 
         int verbose = 0;
         uint32_t responseMsgByteLimit = 1024 * 8;

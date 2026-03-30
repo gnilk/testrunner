@@ -71,11 +71,15 @@
 using namespace trun;
 gnilk::ILogger *pLogger = nullptr;
 
-
+// -v --sequential -m datetime /home/gnilk/src/work/embedded/libraries/PuckoNew/cmake-build-debug/lib/libpucko_utests.so
 
 static bool isLibraryFound = false;
 static std::optional<uint64_t> ParseNumber(const std::string_view &line);
 static void PrintSummaryIfNeeded();
+
+static void PrintVersion() {
+    printf("TestRunner v%s\n",Config::Instance().version.c_str());
+}
 
 static void Help() {
 
@@ -129,6 +133,7 @@ static void Help() {
     printf("Module and test case list can use wild cards, like: -m encode -t json*\n");
     printf("\n");
 }
+
 static void ParseModuleFilters(char *filterstring) {
     std::vector<std::string> modules;
     trun::split(modules, filterstring, ',');
@@ -156,153 +161,30 @@ static void ConfigureLogger() {
     }
 }
 
-// Returns false if we should leave the program directly, true if we are to continue
+
 static bool ParseArguments(int argc, char **argv) {
 
-    bool firstInput = true;
-    bool dumpConfig = false;
-
-    Config::Instance().appName = argv[0];
-
-    for (int i=1;i<argc;i++) {
-        if (argv[i][0]=='-') {
-            // parse options
-            int j=1;            
-            while((argv[i][j]!='\0')) {
-                switch(argv[i][j]) {
-                    case 'r' :
-                        Config::Instance().discardTestReturnCode = true;
-                        break;
-                    case 'l' :
-                        Config::Instance().listTests = true;
-                        break;
-                    case 'x' :
-                        Config::Instance().executeTests = false;
-                        break;
-                    case 'S' :
-                        Config::Instance().printPassSummary = true;
-                        break;
-                    case 'c' :
-                        Config::Instance().skipOnModuleFail = false;
-                        break;
-                    case 'C' :
-                        Config::Instance().stopOnAllFail = false;
-                        break;
-                    case 'd' :
-                        dumpConfig = true;
-                        break;
-                    case 'D' :
-                        Config::Instance().linuxUseDeepBinding = false;
-                        break;
-                    case 's' :
-                        Config::Instance().testLogFilter = true;
-                        Config::Instance().suppressProgressMsg = true;
-                        break;
-                    case 'g' :
-                        Config::Instance().testModuleGlobals = false;
-                        break;
-                    case 'G' :
-                        Config::Instance().testGlobalMain = false;
-                        break;
-                    case 't' :
-                        ParseTestCaseFilters(argv[++i]);
-                        goto next_argument;
-                    case 'm' :
-                        // Parse library filter
-                        ParseModuleFilters(argv[++i]);                        
-                        goto next_argument;
-                    case 'v' :
-                        Config::Instance().verbose++;
-                        break;
-                    case 'R' :
-                        Config::Instance().reportingModule = std::string(argv[++i]);
-                        goto next_argument;
-                        break;
-                    case 'O' :
-                        Config::Instance().reportFile = std::string(argv[++i]);
-                        goto next_argument;
-                        break;
-                    case '-' :
-                        // Long argument
-                        {
-                            std::string longArgument = std::string(&argv[i][++j]);
-                            if (longArgument == "continue_on_assert") {
-                                Config::Instance().continueOnAssert = true;                            
-                                goto next_argument;
-                            } else if (longArgument == "sequential") {
-                                Config::Instance().moduleExecuteType = trun::ModuleExecutionType::kSequential;
-                                goto next_argument;
-                            } else if (longArgument == "allow-thread-exit") {
-                                Config::Instance().testExecutionType = trun::TestExecutiontype::kThreadedWithExit;
-                                goto next_argument;
-                            } else if (longArgument == "module-timeout") {
-                #ifdef TRUN_HAVE_FORK
-                                auto optNum = ParseNumber(argv[++i]);
-                                if (!optNum.has_value()) {
-                                    fmt::println(stderr, "module-timeout, '{}' not a number", argv[i]);
-                                    Help();
-                                    exit(1);
-                                }
-                                Config::Instance().moduleExecTimeoutSec = (uint16_t)optNum.value();
-                #else
-                                fmt::println(stderr,"module-timeout only available when compiled with 'TRUN_HAVE_FORK'");
-                #endif
-                                goto next_argument;
-                            } else if (longArgument == "subprocess") {
-                                // HIDDEN (only used internally) - We are started by another trun process
-                                Config::Instance().isSubProcess = true;
-                                goto next_argument;
-                            } else if (longArgument == "ipc-name") {
-                                // HIDDEN (only used internally) - this is the IPC name we should when in a subprocess
-                                #ifdef TRUN_HAVE_FORK
-                                Config::Instance().ipcName = argv[++i];
-                                #else
-                                fmt::println(stderr, "ipc-name only available when compiled with 'TRUN_HAVE_FORK'");
-                                #endif
-                                goto next_argument;
-                            } else if (longArgument == "coverage") {
-                                // HIDDEN - we are started from 'tcov' and coverage tracking is enabled
-                                Config::Instance().isCoverageRunning = true;
-                                goto next_argument;
-                            } else if (longArgument == "tcov-ipc-name") {
-                                Config::Instance().coverageIPCName = argv[++i];
-                                goto next_argument;;
-                            }
-                            printf("Unknown long argument: %s\n", longArgument.c_str());
-                            Help();
-                            exit(1);
-                        }
-                        break;
-                    case '?' :
-                    case 'h' :
-                    case 'H' :
-                        Help();
-                        exit(1);
-                        break;
-                    default:
-                        printf("Unknown option: %c\n", argv[i][j]);
-                        Help();
-                        exit(1);
-
-                }
-                j++;
-            }
-        } else {
-            if (firstInput) {
-                Config::Instance().inputs.clear();
-                firstInput = false;
-            }
-            Config::Instance().inputs.push_back(argv[i]);
-        }
-// a bit ugly but does the trick in this case        
-next_argument:;
+    auto res = Config::Instance().FromArguments(argc, argv);
+    if (res == Config::FromArgRes::kVersion) {
+        PrintVersion();
+        exit(0);
     }
+    if (res == Config::FromArgRes::kHelp) {
+        Help();
+        exit(0);
+    }
+    if (res == Config::FromArgRes::kError) {
+        exit(1);
+    }
+
+    // Remove from 'ParseArguments'
     ConfigureLogger();
 
+
     bool bContinue = true;
-    if (dumpConfig || (Config::Instance().verbose > 1)) {
+    if (Config::Instance().dumpConfig || (Config::Instance().verbose > 1)) {
         Config::Instance().Dump();
-        if (dumpConfig) {
+        if (Config::Instance().dumpConfig) {
             bContinue = false;
         }
     }
@@ -313,6 +195,7 @@ next_argument:;
     }
     return bContinue;
 }
+
 
 static IDynLibrary::Ref GetLibraryLoader() {
     IDynLibrary::Ref lib;
@@ -414,7 +297,8 @@ int main(int argc, char **argv) {
     // Cache the logger - also creates the Config singleton with default values
     pLogger = Config::Instance().pLogger;
     if (!ParseArguments(argc, argv)) {
-        return 0;
+        //return 0;
+        exit(0);
     }
 
 #ifdef _WIN64
