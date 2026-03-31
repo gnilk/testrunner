@@ -122,6 +122,9 @@ static std::string UnwindException(const char *exceptionString, const cpptrace::
     int idxTargetFrame = 0;
     for(const auto& frame : exception_stacktrace.frames) {
 
+        // NOTE: we could do more here - for instance, we can insert a 'cut-line' in case the user wants an extended stack frame
+        //       also we can filter the libstdc++ stuff as well - as that is not so interesting...
+
         // check if we have unwind to the 'testrunner' in that case we are outside the scope of the user, thus we stop
         if (frame.symbol.find("trun::") != std::string::npos) {
             idxTargetFrame -= 1;
