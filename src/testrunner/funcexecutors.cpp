@@ -108,17 +108,6 @@ int TestFuncExecutorBase::InvokeHook(const CBPrePostHook &hook) {
     return returnCode;
 }
 #ifdef TRUN_HAVE_EXCEPTIONS
-
-// Enhance this with more types...
-static std::string HandleException(const std::exception_ptr &eptr = std::current_exception()) {
-    if (!eptr) { throw std::bad_exception(); }
-
-    try { std::rethrow_exception(eptr); }
-    catch (const std::exception &e) { return e.what()   ; }
-    catch (const std::string    &e) { return e          ; }
-    catch (const char           *e) { return e          ; }
-    catch (...)                     { return "unknown or unhandled exception type"; }
-}
 namespace cpptrace {
     void print_frame(
             std::ostream& stream,
@@ -128,7 +117,39 @@ namespace cpptrace {
             const stacktrace_frame& frame
     );
 }
+
+static std::string UnwindException(const char *exceptionString, const cpptrace::stacktrace &exception_stacktrace) {
+    int idxTargetFrame = 0;
+    for(const auto& frame : exception_stacktrace.frames) {
+        // This will stop the stack where it enters the testrunner..
+        // hard dependency on this filename - so DO NOT CHANGE!!!
+        auto pathname = std::filesystem::path(frame.filename);
+        if (pathname.filename() == "testfunc.h") {
+            idxTargetFrame -= 1;
+            break;
+        }
+        cpptrace::print_frame(std::cout, true, 2, idxTargetFrame, frame);
+        std::cout << "\n";
+        idxTargetFrame++;
+    }
+
+    if (idxTargetFrame < 0) {
+        return exceptionString;
+    }
+
+    auto &frame = exception_stacktrace.frames.at(idxTargetFrame);
+    if (!frame.line.has_value()) {
+        printf("*** EXCEPTION ERROR: %s\t'%s'\n",
+               frame.filename.c_str(), exceptionString);
+    } else {
+        printf("*** EXCEPTION ERROR: %s:%d\t'%s'\n",
+               frame.filename.c_str(), frame.line.value(), exceptionString);
+    }
+
+    return exceptionString;
+}
 #endif
+
 //
 // Sequential execution
 //
@@ -160,46 +181,33 @@ int TestFuncExecutorSequential::Execute(TestFunc *testFunc, const CBPrePostHook 
     int testReturnCode = {};
     testFunc->ChangeExecState(TestFunc::kExecState::Main);
 
+    // FIXME: This is not the proper way - replace!!
+
     // Trying 'cpptrace' to get a nice stack frame from an exception...
     // CPPTrace requires 'special' try/catch - there is some magic here
 #ifdef TRUN_HAVE_EXCEPTIONS
-    CPPTRACE_TRY {
-        testReturnCode = testFunc->InvokeTestCase(proxy);
-    } CPPTRACE_CATCH(...) {
-        auto &exception_stacktrace = cpptrace::from_current_exception();
-
-        // Ok, trying to print up to the test-runner code...
-        // stop when the stack frame leaves the code under test
-        int idxTargetFrame = 0;
-        for(const auto& frame : exception_stacktrace.frames) {
-            auto pathname = std::filesystem::path(frame.filename);
-            if (pathname.filename() == "testfunc.h") {
-                idxTargetFrame -= 1;
-                break;
-            }
-            // FIXME: store this in conjunction with the result??
-            cpptrace::print_frame(std::cout, true, 2, idxTargetFrame, frame);
-            std::cout << "\n";
-            idxTargetFrame++;
+    try {
+        CPPTRACE_TRY {
+            testReturnCode = testFunc->InvokeTestCase(proxy);
+        } CPPTRACE_CATCH(...) {
+            throw;
         }
-
-        // Consider declaring an 'ExceptionError' in the Result class
-        auto exceptionString = HandleException();
-        auto &frame = exception_stacktrace.frames.at(idxTargetFrame);
-        if (frame.line.has_value()) {
-            printf("*** EXCEPTION ERROR: %s\t'%s'\n", frame.filename.c_str(), exceptionString.c_str());
-        } else {
-            printf("*** EXCEPTION ERROR: %s:%d\t'%s'\n",
-                   frame.filename.c_str(), frame.line.value(),
-                   exceptionString.c_str());
-        }
-
-
-        // Normally this would be printed in the Response Proxy
-        // But exceptions are caught by the runner - thus, we print it here...
+    } catch (const TestAbortException &abort_exception) {
+        testReturnCode = kTR_Fail;
+        proxy.SetExceptionError(abort_exception.reason);
+    } catch (const std::exception &e) {
+        auto exception_stacktrace = cpptrace::from_current_exception();
+        auto exceptionString = UnwindException(e.what(), exception_stacktrace);
+        proxy.SetExceptionError(exceptionString);
+        testReturnCode = kTR_Fail;
+    } catch (...) {
+        // unknown exception (still real failure)
+        auto exception_stacktrace = cpptrace::from_current_exception();
+        auto exceptionString = UnwindException("unknown exception", exception_stacktrace);
         proxy.SetExceptionError(exceptionString);
         testReturnCode = kTR_Fail;
     }
+
 #else
     testReturnCode = testFunc->InvokeTestCase(proxy);
 #endif

@@ -229,7 +229,13 @@ void TestResponseProxy::TerminateThreadIfNeeded() {
         #ifdef WIN32
             TerminateThread(GetCurrentThread(), 0);
         #else
+            // FIXME: Terminate with exception here!!
+        #ifdef TRUN_HAVE_EXCEPTIONS
+            throw TestAbortException{"aborted - better reason required"};
+        #else
             pthread_exit(NULL);
+        #endif
+
         #endif
     }
 #endif

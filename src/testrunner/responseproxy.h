@@ -11,6 +11,14 @@
 #include "asserterror.h"
 
 namespace trun {
+
+    struct TestAbortException final {
+        const char *reason = nullptr;
+
+        explicit TestAbortException(const char *r = nullptr) noexcept
+            : reason(r) {}
+    };
+
     // FIXME: Support for exceptions
     class TestResponseProxy {
     public:
