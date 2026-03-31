@@ -121,10 +121,9 @@ namespace cpptrace {
 static std::string UnwindException(const char *exceptionString, const cpptrace::stacktrace &exception_stacktrace) {
     int idxTargetFrame = 0;
     for(const auto& frame : exception_stacktrace.frames) {
-        // This will stop the stack where it enters the testrunner..
-        // hard dependency on this filename - so DO NOT CHANGE!!!
-        auto pathname = std::filesystem::path(frame.filename);
-        if (pathname.filename() == "testfunc.h") {
+
+        // check if we have unwind to the 'testrunner' in that case we are outside the scope of the user, thus we stop
+        if (frame.symbol.find("trun::") != std::string::npos) {
             idxTargetFrame -= 1;
             break;
         }
