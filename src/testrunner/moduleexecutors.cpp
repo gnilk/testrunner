@@ -268,6 +268,35 @@ bool TestModuleExecutorFork::Execute(const IDynLibrary::Ref &library, const std:
     pLogger->Debug("Waiting for completition - %zu fork threads", subProcesses.size());
     int threadDeadCounter = 0;
 
+
+    // This is a better loop, doesn't 'block' waiting for long-running processes...
+    //
+    while (true) {
+        bool bAllFinished = true;
+        for(auto &p : subProcesses) {
+            if (p->State() != SubProcessState::kFinished) {
+                bAllFinished = false;
+            }
+            if (p->Duration() > Config::Instance().moduleExecTimeoutSec) {
+                pLogger->Error("Process for '%s' timed out!",p->Name().c_str());
+                p->Kill();
+            }
+            if (p->GetExitStatus() == ProcessExitStatus::kNormal) {
+                pLogger->Debug("Dumping output");
+                for(auto &s : p->Strings()) {
+                    printf("%s", s.c_str());
+                }
+            }
+        }
+        if (bAllFinished) {
+            break;
+        }
+        std::this_thread::yield();
+    }
+
+    // FIXME: Calculate crash data here!
+
+/*
     // This works - perhaps not the best way, but still...
     for(auto &p : subProcesses) {
         long tLastDuration = 0;
@@ -293,16 +322,15 @@ bool TestModuleExecutorFork::Execute(const IDynLibrary::Ref &library, const std:
                 printf("%s", s.c_str());
             }
         } else {
-            pLogger->Error("Process was abnormally terminated!");
-            printf("\nAbnormal termination for '%s'!\n", p->Name().c_str());
+            pLogger->Error("Process for '%s' was abnormally terminated!",p->Name().c_str());
+            //printf("\nAbnormal termination for '%s'!\n", p->Name().c_str());
         }
 
         pLogger->Debug("%d/%zu - completed", threadDeadCounter, subProcesses.size());
         printf("\n");
         threadDeadCounter++;
-
     }
-
+*/
     // Ok, this works - but needs to be formalized...
     while(ipcServer.Available()) {
 

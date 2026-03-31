@@ -65,6 +65,9 @@ namespace trun {
         const pclock::time_point StartTime() const {
             return tStart;
         }
+        long Duration() const {
+            return std::chrono::duration_cast<std::chrono::seconds>(pclock::now() - tStart).count();
+        }
         ProcessExitStatus GetExitStatus() const {
             return exitStatus;
         }
