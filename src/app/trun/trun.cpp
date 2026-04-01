@@ -72,6 +72,8 @@ using namespace trun;
 gnilk::ILogger *pLogger = nullptr;
 
 // -v --sequential -m datetime /home/gnilk/src/work/embedded/libraries/PuckoNew/cmake-build-debug/lib/libpucko_utests.so
+//  -vv --sequential -m !pafs,wavwriter /home/gnilk/src/work/embedded/libraries/PuckoNew/cmake-build-debug/lib/libpucko_utests.so
+// -vv --sequential -m exception ./lib/libtrun_utests.so
 
 static bool isLibraryFound = false;
 static void PrintSummaryIfNeeded();
