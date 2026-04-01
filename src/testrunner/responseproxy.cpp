@@ -86,6 +86,9 @@ void TestResponseProxy::Begin(const std::string &use_symbolName, const std::stri
     errorCount = 0;
     assertCount = 0;
     testResult = kTestResult_Pass;
+    exceptionThrown = false;
+    exceptionString = {};
+
     pLogger = gnilk::Logger::GetLogger("TestResponseProxy");
 
     // Reset the timer

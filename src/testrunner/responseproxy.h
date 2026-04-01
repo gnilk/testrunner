@@ -73,11 +73,11 @@ namespace trun {
         static ITestingV2 *GetTRTestInterfaceV2();
 
     private:
+        // NOTE: All of these must be cleared during 'begin' - this is a terrible design decision...
         Timer timer;
         double tElapsed;
 
         class AssertError assertError;
-
         bool exceptionThrown = false;
         std::string exceptionString = {};
         kTestResult testResult = {};
