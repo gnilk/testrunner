@@ -715,6 +715,7 @@ It is very helpful when you are writing unit-tests and want to see exactly which
 ## v3.0.3
 - Exception handling
 - Thread termination on assert/error/fatal
+- gnklog has been upgraded and improved (speed and alike)
 ## v3.0.2
 - C++17 compile for embedded
 - New command line parser for trun
