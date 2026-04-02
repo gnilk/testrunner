@@ -15,14 +15,16 @@ The testing framework comes with two parts.
 * A header to be used when defining the test-cases
 * A runner to execute the tests
 * A coverage tool to generate code coverage reports
-
+* A library to be used in embedded systems or for in-process testing (optional)
+ 
 See [Usage](#Usage) for more details on how to write test cases and execute them.
 
 # Important changes between V2.x and V3.0
 
 Experimental test coverage tool included. Will instrument the code being tested and generate a coverage report.
 Requires LLDB installed on your system. Only works on macOS/Linux. Windows support has been dropped.
-Test runner is available for Windows in the latest V1.X branch (V1.6.2)
+Test runner is available for Windows in the latest V1.X branch (V1.6.2). Note: tests written for V1 of the testinterface works
+fine on new versions of the testrunner. However, v2 and v3 of the testinterface are not compatible with v1 for certain features (pre/post case callbacks).
 
 See documentation at the bottom for Test Coverage tool.
 
@@ -30,6 +32,10 @@ See documentation at the bottom for Test Coverage tool.
 Parallel execution of test modules. This brings (depending on project) a massive speed-up (about 10x) for medium-sized
 projects. Testing on a project with ~90 modules and around a total of 500 test-cases completes within 6 seconds instead
 of 60-70 seconds using V1.6.2 on the same hardware.
+
+If you need extreme speeds you should use the in-process version of the testrunner. It can handle 100k tests per second
+on a decently modern machine. While the out-of-process version is much slower (~100 tests per second). The intended use
+for the out-of-process version is for TDD-dev loops where a focused number of tests can be executed quickly. 
 
 The testrunner will determine which modules to execute and then internally spin up
 separate test-runners in parallel to execute the tests. This improves performance (_alot_) for larger projects.
@@ -109,7 +115,7 @@ You want to include this file in your unit tests (note: It's optional).
 Also, `testinterface` versioning does not work on Windows (relies on `weak` symbols) - instead you must use the old version; always compile your test-code with `-DTRUN_USE_V1`
 
 ## Embedded or In-Process version
-The embedded version main purpose is to be used in embedded systems. But it can also be used as an in-process test runner.
+The in-process main purpose is to be used in embedded systems. But it can also be used as an in-process test runner.
 See the 'app/trunembedded' directory for an example of how to use the embedded version.
 
 If you are worried about the speed and/or about memory layout differences when running the normal (external) test runner,
