@@ -108,11 +108,27 @@ You want to include this file in your unit tests (note: It's optional).
 
 Also, `testinterface` versioning does not work on Windows (relies on `weak` symbols) - instead you must use the old version; always compile your test-code with `-DTRUN_USE_V1`
 
-## Embedded
-<b>Note:</b> Embedded has not yet been verified with V2.
+## Embedded or In-Process version
+The embedded version main purpose is to be used in embedded systems. But it can also be used as an in-process test runner.
+See the 'app/trunembedded' directory for an example of how to use the embedded version.
 
-<b>Only tested with PlatformIO as build system</b>
+If you are worried about the speed and/or about memory layout differences when running the normal (external) test runner,
+you can use the embedded version.
 
+The embedded version is stripped down in comparison to the normal version. It is also very fast - around 100k tests per second on a 
+decently modern machine.
+
+### Building on Linux/macOS with trunlib
+Part of the installation package you also have these files:
+- `trunembedded.h` - header file for the embedded version
+- `libtrunlib.a` - static library for the embedded version
+
+You need to link your test cases against this library. And use the `trunembedded.h` header file to access the small API.
+
+<b>Linux has only been tested with PlatformIO as build system</b>
+Clone the repository into your `lib_extras_dir`,
+### Building on embedded systems
+<b>Embedded systems have only been tested with PlatformIO as build system</b>
 Clone the repository into your `lib_extras_dir`, if you use Arduino as underlying framework this is the library
 directory for Arduino. Add it as a dependency in your `platformio.ini` file.
 ```text
@@ -138,10 +154,11 @@ void setup() {
 }
 ``` 
 
-### Limitations on embedded
+### Limitations on embedded/inprocess
+- No parallel execution of test modules
 - No threading, all tests are executed on the main thread
 - Internal logging has been disabled (not possible to execute in verbose mode)
-- Assumes `stdout` is mapped to console serial port (or similar)
+- Assumes `stdout` is mapped to console serial port (or similar) - embedded systems
 - Only console reporting available
 
 # Unit-testing Usage
@@ -712,6 +729,8 @@ Coverage is more of a dev-tool than a `generate coverage for this project` tool.
 It is very helpful when you are writing unit-tests and want to see exactly which lines are being hit and not.
 
 # Version history
+## v3.0.4
+- Embedded (or in-process) version of the library
 ## v3.0.3
 - Exception handling
 - Thread termination on assert/error/fatal

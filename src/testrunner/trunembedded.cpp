@@ -73,6 +73,16 @@ namespace trun {
         }
 
     }
+
+    void SetVerbose(int lvl) {
+        if (!isInitialized) {
+            Initialize();
+        }
+        Config::Instance().verbose = lvl;
+        // Need to reconfigure the logger here
+        ConfigureLogger();
+    }
+
     // helpers
     static void ConfigureLogger() {
         // Setup up logger according to verbose flags

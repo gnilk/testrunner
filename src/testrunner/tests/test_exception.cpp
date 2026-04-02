@@ -1,7 +1,8 @@
 //
 // Created by gnilk on 19.09.2024.
 //
-#include "../testinterface_internal.h"
+//#include "../testinterface_internal.h"
+#include "../testinterface.h"
 #include <vector>
 #include <string>
 

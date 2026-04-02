@@ -11,9 +11,13 @@
 #ifndef TESTRUNNER_TESTINTERFACE_INTERNAL_H
 #define TESTRUNNER_TESTINTERFACE_INTERNAL_H
 
-
 #include <stdint.h>
 #include <stdlib.h>
+
+//
+// Include the offical 'testinterface.h' header file
+//
+#include "testinterface.h"
 #include "version_t.h"
 
 #ifdef WIN32
@@ -40,7 +44,6 @@ extern "C" {
 #define kTR_FailModule 0x20
 #define kTR_FailAll 0x30
 
-typedef struct ITestingV2 ITesting;
 
 //
 // This is not a problem - I only use this structure internally during inheritance to allow treating all test-interface versions
@@ -66,25 +69,7 @@ union CBPrePostHook {
     TRUN_PRE_POST_HOOK_DELEGATE_V2 *cbHookV2;
 };
 
-typedef enum {
-    kTRLeave,
-    kTRContinue,
-} kTRContinueMode;
-
-// Assert macro, checks version and casts to right (hopefully) interface...
-// Note: comparing magic here is quite ok - we can't have a difference!
-#define TR_ASSERT(t, _exp_) \
-    if (!(_exp_)) {                                                    \
-        auto tr_temp_res = ((ITesting *)t)->AssertError(__LINE__, __FILE__, #_exp_);   \
-        if (tr_temp_res == kTRContinueMode::kTRLeave) return kTR_Fail; \
-    }
-
-#define TR_REQUIRE(t, _exp_, _msg_) \
-    if (!(_exp_)) {                 \
-        ((ITesting *)t)->Error(__LINE__, __FILE__, #_msg_); \
-        return kTR_Fail;                            \
-    }
-
+typedef struct ITestingV2 ITestingInternal;
 
 //
 // Callback Version V1 - same as in ext_testinterface/testinterface_v1.h
@@ -137,66 +122,8 @@ struct ITestingV2 : public ITestingVersioned {
 
 
 
-
-//
-// V2 extensions
-//
-
-enum kTRConfigType {
-    kTRCfgType_Bool,
-    kTRCfgType_Num,
-    kTRCfgType_Str,
-};
-
-#define TR_CFG_ITEM_NAME_LEN 32
-
-// Not sure this is so great for Rust - will have to verify...
-struct TRUN_ConfigItem {
-    bool isValid;
-    char name[TR_CFG_ITEM_NAME_LEN];
-    kTRConfigType value_type;
-    union {
-        int boolean = 0;
-        int32_t num;
-        const char *str;    // Readonly..
-    } value;
-};
-
-#define ITestingConfig_IFace_ID (uint32_t)(0xc07f19)
-#define ITestingCoverage_IFace_ID (uint32_t)(0xc07f20)
-
-typedef struct ITestingConfig ITestingConfig;
-struct ITestingConfig {
-    size_t (*List)(size_t maxItems, TRUN_ConfigItem *outArray);
-    void (*Get)(const char *key, TRUN_ConfigItem *outValue);
-};
-
-typedef struct ITestingCoverage ITestingCoverage;
-struct ITestingCoverage {
-    void (*BeginCoverage)(const char *symbol);
-};
-
-
-/*
-static bool TRUN_ContinueOnAssert(ITesting *t) {
-    ITestingConfig *trConfig = {};
-    t->QueryInterface(ITestingConfig_IFace_ID, (void **)&trConfig);
-    if (trConfig == nullptr) {
-        return false;   // default
-    }
-    TRUN_ConfigItem continueOnAssert = {};
-    trConfig->Get("continue_on_assert", &continueOnAssert);
-    if ((continueOnAssert.isValid) && (continueOnAssert.value_type == kTRCfgType_Bool)) {
-        return continueOnAssert.value.boolean;
-    }
-    return false;
-}
- */
-
-
 #ifdef __cplusplus
 }
 #endif
-
 
 #endif //TESTRUNNER_TESTINTERFACE_INTERNAL_H

@@ -5,8 +5,7 @@
 #ifndef TESTRUNNER_TRUNEMBEDDED_H
 #define TESTRUNNER_TRUNEMBEDDED_H
 
-#include "testinterface_internal.h"
-#include <string>
+#include <testinterface.h>
 
 namespace trun {
 
@@ -20,6 +19,13 @@ namespace trun {
     void Initialize();
     void AddTestCase(const char *symbolName, PTESTCASE func);
     void RunTests(const char *moduleFilter, const char *caseFilter);
+
+    // cfg options (as the internal Config object is not exposed)
+    // levels:
+    // 0 - Errors only
+    // 1 - Informational
+    // 2 - Debug
+    void SetVerbose(int lvl);
 }
 
 #endif //TESTRUNNER_TRUNEMBEDDED_H
