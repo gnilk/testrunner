@@ -17,7 +17,7 @@
 //
 // Include the offical 'testinterface.h' header file
 //
-#include "testinterface.h"
+#include "ext_testinterface/testinterface.h"
 #include "version_t.h"
 
 #ifdef WIN32
