@@ -1,8 +1,8 @@
 /*-------------------------------------------------------------------------
- File    : main.cpp
+ File    : trun.cpp
  Author  : FKling
  Version : -
- Orginal : 2018-10-18
+ Original: 2018-10-18
  Descr   : C/C++ Unit Test Runner
 
  This is the testrunner for the UnitTest 'framework'.
