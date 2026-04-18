@@ -63,11 +63,10 @@ bool CoverageRunner::Begin() {
     auto symbols = SymbolResolver::ResolveForTarget(target);
 
     // We now have everything we need to set breakpoint for the symbols we want to monitor
-    //logger->Info("Libraries scanned - we are good to go...");
     // Create breakpoints from symbols coming from cmd-line..
     logger->Info("Creating breakpoints for symbols");
     for (auto &s : symbols) {
-        breakpointManager.CreateCoverageBreakpoints(target, s.name);
+        breakpointManager.CreateCoverageForSymbol(target, s.name);
     }
     return true;
 }
@@ -457,7 +456,7 @@ void CoverageRunner::ConsumeIPC() {
         }
         // Do I really need to do this???
         logger->Debug("BeginCoverage for '%s'",ipcMsg.symbolName.c_str());
-        breakpointManager.CreateCoverageBreakpoints(target, ipcMsg.symbolName);
+        breakpointManager.CreateCoverageForSymbol(target, ipcMsg.symbolName);
     }
 }
 

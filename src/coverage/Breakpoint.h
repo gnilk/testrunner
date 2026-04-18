@@ -81,13 +81,13 @@ namespace tcov {
         BreakpointManager() = default;
         virtual ~BreakpointManager() = default;
 
-        void CreateCoverageBreakpoints(lldb::SBTarget &target, const std::string &symbol);
+        int CreateCoverageForSymbol(lldb::SBTarget &target, const std::string &symbol);
         std::vector<FunctionCoverage> ComputeCoverage() const;
     protected:
         SymbolTypeChecker::SymbolType CheckSymbolType(lldb::SBTarget &target, const std::string &symbol);
-        void CreateCoverageForFunction(lldb::SBTarget &target, const std::string &symbol);
-        void CreateCoverageForClass(lldb::SBTarget &target, const std::string &symbol);
-        void CreateBreakpointsFunctionRange(lldb::SBTarget &target, lldb::SBCompileUnit &compileUnit, Function::Ref ptrFunction);
+        int CreateCoverageForFunction(lldb::SBTarget &target, const std::string &symbol);
+        int CreateCoverageForClass(lldb::SBTarget &target, const std::string &symbol);
+        int CreateBreakpointsFunctionRange(lldb::SBTarget &target, lldb::SBCompileUnit &compileUnit, Function::Ref ptrFunction);
         std::vector<std::string> EnumerateMembers(lldb::SBTarget &target, const std::string &className);
         CompileUnit::Ref GetOrAddCompileUnit(const std::string &&pathName);
 

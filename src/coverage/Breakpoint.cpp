@@ -32,18 +32,26 @@ SymbolTypeChecker::SymbolType BreakpointManager::CheckSymbolType(lldb::SBTarget 
     return symbolType;
 }
 
-// Create coverage break points
-void BreakpointManager::CreateCoverageBreakpoints(lldb::SBTarget &target, const std::string &symbol) {
+// Create coverage break points for any symbol (this can be class - in a namespace or outside, or a function, or whatever)
+int BreakpointManager::CreateCoverageForSymbol(lldb::SBTarget &target, const std::string &symbol) {
+
+    auto logger = gnilk::Logger::GetLogger("BreakpointManager");
+    int numCreated = 0;
 
     auto symbolType = CheckSymbolType(target, symbol);
-    if (symbolType == SymbolTypeChecker::SymbolType::kSymClass) {
-        CreateCoverageForClass(target, symbol);
-    } else if (symbolType == SymbolTypeChecker::SymbolType::kSymFunc) {
-        CreateCoverageForFunction(target, symbol);
+    switch (symbolType) {
+        case SymbolTypeChecker::SymbolType::kSymClass:
+            numCreated = CreateCoverageForClass(target, symbol);
+            break;
+        case SymbolTypeChecker::SymbolType::kSymFunc:
+            numCreated = CreateCoverageForFunction(target, symbol);
+            break;
+        default:
+            logger->Error("CreateCoverageBreakpoints, Unsupported for '%s'", symbol.c_str());
+            return -1;
     }
 
     // Dump
-    auto logger = gnilk::Logger::GetLogger("BreakpointManager");
     logger->Debug("Dumping details");
     for (auto &[cname, cp] : compileUnits) {
         logger->Debug("%s @ %s nFunctions=%zu\n", cname, cp->pathName, cp->functions.size());
@@ -51,19 +59,22 @@ void BreakpointManager::CreateCoverageBreakpoints(lldb::SBTarget &target, const 
             logger->Debug("  %s, line=%u, start=%llX, end=%llX, bp=%zu", func->name.c_str(), func->startLine, func->startLoadAddress, func->endLoadAddress, func->breakpoints.size());
         }
     }
+    return numCreated;
 }
 
 
 // Create coverage breakpoint for function
-void BreakpointManager::CreateCoverageForFunction(lldb::SBTarget &target, const std::string &symbol) {
+int BreakpointManager::CreateCoverageForFunction(lldb::SBTarget &target, const std::string &symbol) {
     auto logger = gnilk::Logger::GetLogger("BreakpointManager");
     auto symbollist = target.FindFunctions(symbol.c_str());
 
     // This is not needed - we have checked this a number of times already before getting here
     if (!symbollist.IsValid()) {
         logger->Debug("Unable to resolve symbol list for '%s'", symbol.c_str());
-        return;
+        return 0;
     }
+
+    int numCreated = 0;
 
     // Not sure when there is one more in the list
     logger->Debug("Resolving function '%s', num symbols=%u", symbol.c_str(), symbollist.GetSize());
@@ -123,14 +134,17 @@ void BreakpointManager::CreateCoverageForFunction(lldb::SBTarget &target, const 
         ptrFunction->symbol = ctx.GetSymbol();
 
         // Now create the actual breakpoints - using start/end addr
-        CreateBreakpointsFunctionRange(target, compileUnit, ptrFunction);
+        numCreated += CreateBreakpointsFunctionRange(target, compileUnit, ptrFunction);
         logger->Debug("  Num Breakpoints = %zu", ptrFunction->breakpoints.size());
     }
+
+    return numCreated;
 }
 
 // Create breakpoints for a function between start/end addr..
-void BreakpointManager::CreateBreakpointsFunctionRange(lldb::SBTarget &target, lldb::SBCompileUnit &compileUnit, Function::Ref ptrFunction) {
+int BreakpointManager::CreateBreakpointsFunctionRange(lldb::SBTarget &target, lldb::SBCompileUnit &compileUnit, Function::Ref ptrFunction) {
     //auto logger = gnilk::Logger::GetLogger("BreakpointManager");
+    int numCreated = 0;
 
     auto numLines = compileUnit.GetNumLineEntries();
     for (uint32_t line = 0; line < numLines; line++) {
@@ -198,6 +212,7 @@ void BreakpointManager::CreateBreakpointsFunctionRange(lldb::SBTarget &target, l
             }
             my_breakpoint->loadAddress = addr.GetLoadAddress(target);
             ptrFunction->breakpoints.push_back(my_breakpoint);
+            numCreated++;
         }
     }
 
@@ -206,11 +221,12 @@ void BreakpointManager::CreateBreakpointsFunctionRange(lldb::SBTarget &target, l
     std::sort(ptrFunction->breakpoints.begin(), ptrFunction->breakpoints.end(),[](auto &a, auto &b) {
         return a->loadAddress < b->loadAddress;
     });
+    return numCreated;
 }
 
 
 // Create coverage breakpoints for classes
-void BreakpointManager::CreateCoverageForClass(lldb::SBTarget &target, const std::string &symbol) {
+int BreakpointManager::CreateCoverageForClass(lldb::SBTarget &target, const std::string &symbol) {
     auto members = EnumerateMembers(target,symbol);
     auto logger = gnilk::Logger::GetLogger("BreakpointManager");
     logger->Debug("Creating coverage for class");
@@ -219,9 +235,11 @@ void BreakpointManager::CreateCoverageForClass(lldb::SBTarget &target, const std
     // This will create for everything, CTOR/DTOR/Public/Protected/Private members
     // optional we should perhaps allow filtering for public/private/protected...
     // See comment in enumerate...
+    int numCreated = 0;
     for (auto &member : members) {
-        CreateCoverageForFunction(target, member);
+        numCreated += CreateCoverageForFunction(target, member);
     }
+    return numCreated;
 }
 
 std::vector<std::string> BreakpointManager::EnumerateMembers(lldb::SBTarget &target, const std::string &className) {
