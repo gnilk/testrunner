@@ -115,18 +115,24 @@ std::vector<SymbolResolver::SymbolInfo> SymbolResolver::ResolveForTarget(lldb::S
                 continue;
 
             auto fileSpec = lineEntry.GetFileSpec();
-            if (!fileSpec.IsValid() || fileSpec.GetFilename() == nullptr)
+            if (!fileSpec.IsValid() || fileSpec.GetFilename() == nullptr) {
                 continue;
+            }
 
             if (!IsInProject(fileSpec)) {
-                continue;;
+                continue;
             }
             std::string normName = NormalizeName(rawName);
 
             // dedupe key
             std::string key = normName + "@" + std::to_string(loadAddr);
-            if (!seen.insert(key).second)
+            if (seen.contains(key)) {
                 continue;
+            }
+            seen.insert(key);
+            // FIXME: Verify if this is enough...
+            // if (!seen.insert(key).second)
+            //     continue;
 
             // Potential - resolve already here - which means we can probably 'skip' FindFunc
             // auto sc = addr.GetSymbolContext(lldb::eSymbolContextFunction);
