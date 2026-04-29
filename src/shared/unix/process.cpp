@@ -67,7 +67,7 @@ void Process::AddArgument(const char *format, ...) {
 	if (res >= 0) {
 		arguments.push_back(newstr);
 	} else {
-        gnilk::Logger::GetLogger("Process")->Error("Buffer overflow in AddArgument detected");
+        gnilk::Logger::GetLogger("Process_Unix")->Error("Buffer overflow in AddArgument detected");
 	}
 }
 
@@ -274,7 +274,7 @@ bool Process_Unix::SetNonBlockingPipe(int *filedes) {
 	}
 	status = fcntl(filedes[1], O_NONBLOCK);
 	if (status == -1) {
-        gnilk::Logger::GetLogger("conapp")->Error("fcntl %d", errno);
+        gnilk::Logger::GetLogger("Process_Unix")->Error("fcntl %d", errno);
 		return false;			
 	}
 	return true;
