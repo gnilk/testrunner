@@ -15,7 +15,7 @@ include(FetchContent)
 # fmt (FetchContent, pinned)
 #
 set(FMT_GIT_REPOSITORY "https://github.com/fmtlib/fmt")
-set(FMT_GIT_TAG "10.2.1")
+set(FMT_GIT_TAG "12.1.0")
 
 FetchContent_Declare(
         fmt
@@ -43,7 +43,7 @@ set(LOG_HAVE_FMT ON)
 set(LOG_FMT_DIR ${FMT_HOME})
 
 set(GNKLOG_GIT_REPOSITORY "https://github.com/gnilk/gnklog")
-set(GNKLOG_GIT_TAG "5fcb9ae86c0be3847a3684c302420374429acbc2")
+set(GNKLOG_GIT_TAG "1b8c6bb3bac01249c3f030f7b233500f558d34f8")
 
 FetchContent_Declare(
         gnklog
