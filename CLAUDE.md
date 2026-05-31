@@ -146,3 +146,12 @@ The public `testinterface.h` uses `__attribute__((weak))` symbols to detect whic
 - Use `auto` sparingly, only when type is obvious from context
 - Mark all single-argument constructors `explicit`
 - Prefer range-based for loops
+
+## Tracking of work items
+The applications `tcov` has a TODO list on the top section of the file.
+The TODO follows a pattern I used since many years, items are marked/prefixed as follows:
+- `-`, an open item
+- `+`, work is in progress (no notion of how long or state of the progress)
+- `!`, work has completed in one way or another (can be deprecation)
+
+Sometimes the notation `[!]` is used, this denotes a deprecation items and normally with an explanation
