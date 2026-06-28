@@ -26,7 +26,8 @@ target_compile_definitions(tcov PUBLIC TCOV_VERSION="${TRUN_VERSION_STR}")
 
 if (UNIX)
     if (APPLE)
-        add_definitions(-DAPPLE)
+        # APPLE/LINUX platform defines now come from trun_common_options (linked below),
+        # so all targets that compile the shared code get them consistently.
 
         list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
@@ -73,7 +74,6 @@ if (UNIX)
         list(APPEND platformlibs ${COCOA_FRAMEWORK} ${IOKIT_FRAMEWORK} ${CORE_FRAMEWORK} ${SYSTEM_FRAMEWORK})
         list(APPEND tcovlibs ${LLDB_FRAMEWORK})
     else()
-        add_definitions(-DLINUX)
         message(STATUS "Building for Linux")
 
         list(APPEND platformlibs dl pthread)

@@ -18,8 +18,12 @@ if (WIN32)
     target_compile_definitions(trun_common_options INTERFACE _CRT_SECURE_NO_WARNINGS _SBCS)
 elseif(APPLE)
     target_compile_options(trun_common_options INTERFACE -Wall -Wpedantic -Wextra -Wno-multichar -Wno-unused-parameter)
-    target_compile_definitions(trun_common_options INTERFACE TRUN_HAVE_FORK)
+    # Project-controlled platform macro (deliberately not the compiler builtin __APPLE__).
+    # Carried here so every target that compiles the shared/unix code (trun, trun_utests, tcov, ...)
+    # branches consistently. APPLE implies UNIX, so this branch must stay above the UNIX one.
+    target_compile_definitions(trun_common_options INTERFACE TRUN_HAVE_FORK APPLE)
 elseif(UNIX)
     target_compile_options(trun_common_options INTERFACE -Wall -Wpedantic -Wextra -Wno-multichar)
-    target_compile_definitions(trun_common_options INTERFACE TRUN_HAVE_FORK)
+    # Project-controlled platform macro (deliberately not the compiler builtin __linux__).
+    target_compile_definitions(trun_common_options INTERFACE TRUN_HAVE_FORK LINUX)
 endif()
