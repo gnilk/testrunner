@@ -5,6 +5,13 @@ kParallel` → `forkExecutor`). Several issues cluster here; #1 and #3 in
 particular can bite intermittently. All references are
 `src/testrunner/moduleexecutors.cpp` and `src/testrunner/subprocess.{h,cpp}`.
 
+> **Note (count inflation):** the fork path used to report far more tests than
+> sequential (e.g. ~150 vs 93). Two distinct causes:
+> - Global `test_main`/`test_exit` counted once per forked child — **FIXED**
+>   on `dev` (commit 13102e5): children run the globals for setup but only the
+>   parent reports them (`!isSubProcess` guard in `testrunner.cpp`).
+> - Module-dependency double-execution across forks — see #5 below, still open.
+
 ### 1. Static accumulation + leaks across libraries
 
 `moduleexecutors.cpp:234`
@@ -70,6 +77,34 @@ fixing #1 without this will surface a terminate.
 - Join (or detach) each `SubProcess::thread` before the object is destroyed
 - Fix together with #1 so the lifetime is correct end-to-end
 
+### 5. Module-dependency modules re-run and re-reported across forks
+
+`test_main` declares module dependencies (`test_main.cpp:49-50`):
+`mdepmodA -> mdepmodB -> {mdepmodC, mdepmodD}`. In sequential the whole chain
+resolves once in a single process (each module executes once via the
+already-executed / `IsIdle` check). Under fork each module gets its own child,
+and **each child independently resolves its dependency closure**:
+- child `mdepmodA` runs A + B + C + D
+- child `mdepmodB` runs B + C + D
+- child `mdepmodC` runs C, child `mdepmodD` runs D
+
+So the dependency modules are reported by several children -> over-count.
+Confirmed: `-m mdepmodA,mdepmodB,mdepmodC,mdepmodD` gives fork=11 vs
+sequential=6 (the +5 residual in the full suite).
+
+This is the same shape as the (now fixed) globals problem: a child legitimately
+*runs* the dependency module for its own setup, but should only **report** the
+module it was actually asked to run (`-m` target), not the ones pulled in as
+dependencies.
+
+- Option A (child-side): in subprocess mode only report results for the
+  explicitly requested module(s), not dependency modules executed for setup.
+- Option B (parent-side): de-duplicate by symbol name while draining child
+  summaries (a module's results should be aggregated once).
+- Option A is closer to the globals fix and keeps the parent drain simple;
+  needs a way to mark "requested vs pulled-in" in the child.
+
 ### Note
 
 Worth doing #1–#4 as one pass — they're entangled (lifetime, threading, output).
+#5 is independent (reporting semantics, not lifetime) and can be done separately.
