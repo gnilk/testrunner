@@ -45,6 +45,7 @@ list(APPEND rprtsrcfiles ${CMAKE_SOURCE_DIR}/src/testrunner/reporting/reportjson
 list(APPEND testsrc ${CMAKE_SOURCE_DIR}/src/shared/ipc/tests/test_ipc_common.h)
 list(APPEND testsrc ${CMAKE_SOURCE_DIR}/src/shared/ipc/tests/test_ipc_messages.cpp)
 list(APPEND testsrc ${CMAKE_SOURCE_DIR}/src/shared/ipc/tests/test_ipc_bufferedwriter.cpp)
+list(APPEND testsrc ${CMAKE_SOURCE_DIR}/src/shared/ipc/tests/test_ipc_framing.cpp)
 
 # embedded
 list(APPEND embedsrc ${CMAKE_SOURCE_DIR}/src/testrunner/embedded/dynlib_embedded.cpp ${CMAKE_SOURCE_DIR}/src/testrunner/embedded/dynlib_embedded.h)

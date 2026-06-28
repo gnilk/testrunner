@@ -8,6 +8,7 @@
 #include <string>
 #include <stdlib.h>
 #include <stdint.h>
+#include <vector>
 
 #include "IPCCore.h"
 #include "IPCDecoderBase.h"
@@ -46,16 +47,28 @@ namespace gnilk {
         int32_t ReadArray(CBOnArrayItemRead onArrayItemRead) override;
         IPCObject *ReadObject(uint8_t expectedMsgId) override;
 
-        int32_t Read(void *out, size_t nBytes) override {
-            return reader.Read(out, nBytes);
-        }
+        // Sources from the in-memory frame while a message is being parsed,
+        // otherwise loops-to-fill straight from the transport.
+        int32_t Read(void *out, size_t nBytes) override;
         bool Available() override {
             return reader.Available();
         }
 
     private:
+        // Loop until nBytes are read from the transport (handles short/partial
+        // reads). Returns the number of bytes actually read: nBytes on success,
+        // less on EOF/would-block, -1 on a hard error.
+        int32_t ReadFromTransport(void *out, size_t nBytes);
+
+    private:
         IPCReader &reader;
         IPCDeserializer &deserializer;
+
+        // The whole current message body, pulled in by Process(); field reads
+        // during Unmarshal are served from here.
+        std::vector<uint8_t> frameBuf;
+        size_t frameOffset = 0;
+        bool frameActive = false;
     };
 
 

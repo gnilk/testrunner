@@ -7,6 +7,7 @@
 
 #include <stdlib.h>
 #include <string>
+#include <vector>
 
 #include "IPCCore.h"
 #include "IPCEncoderBase.h"
@@ -57,13 +58,21 @@ namespace gnilk {
             return ret;
         }
 
-        int32_t Write(const void *src, size_t nBytes) override {
-            return writer.Write(src, nBytes);
-        }
+        // Routes to the currently open object's buffer, or straight to the sink
+        // when no object is open. This is what lets EndObject backpatch msgSize
+        // and emit each top-level message as a single contiguous write.
+        int32_t Write(const void *src, size_t nBytes) override;
 
     protected:
         IPCWriter &writer;
 
+    private:
+        // One entry per open (nested) object; field writes append to the top.
+        struct Frame {
+            uint8_t objectId = 0;
+            std::vector<uint8_t> body;
+        };
+        std::vector<Frame> stack;
     };
 }
 
