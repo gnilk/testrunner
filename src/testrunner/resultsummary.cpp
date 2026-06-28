@@ -109,6 +109,17 @@ void ResultSummary::AddResult(const TestFunc::Ref tfunc) {
     std::lock_guard<std::mutex> guard(lock);
 #endif
 
+    // De-duplicate by test symbol. Under forked execution a module that is pulled
+    // in as a dependency runs (and is reported) by several child processes, so the
+    // same symbol can arrive here more than once. Keep the first one seen: a
+    // module's results are closure-invariant (its dependencies run before it, in a
+    // fresh process), so every copy is the same execution context - which copy we
+    // keep doesn't change pass/fail. Single-process runs never hit this (the
+    // already-executed guard prevents re-running a test).
+    if (!seenSymbols.insert(tfunc->SymbolName()).second) {
+        return;
+    }
+
     testFunctions.push_back(tfunc);
     results.push_back(result);
 

@@ -4,6 +4,8 @@
 #include <map>
 #include <vector>
 #include <mutex>
+#include <string>
+#include <unordered_set>
 #include "testfunc.h"
 #include "testresult.h"
 
@@ -27,6 +29,11 @@ namespace trun {
         int testsFailed = 0;
         double durationSec = 0.0;
     protected:
+        // Protected (not private) so a test can subclass for an isolated instance;
+        // production still goes through Instance(). It was private only as the
+        // singleton idiom - nothing else depends on it.
+        ResultSummary() = default;
+
         void SendResultToParentProc();
 
     private:
@@ -35,6 +42,6 @@ namespace trun {
 #endif
         std::vector<TestResult::Ref> results;
         std::vector<TestFunc::Ref > testFunctions;
-        ResultSummary() = default;
+        std::unordered_set<std::string> seenSymbols;    // de-dup key: test symbol name
     };
 }
