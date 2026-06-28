@@ -7,27 +7,6 @@
 
 using namespace gnilk;
 
-//
-// The encoder is self-framing: BeginObject opens an in-memory buffer, all field
-// writes accumulate into it, and EndObject prepends a header whose msgSize is the
-// now-known body length. Nested objects emit into their parent's buffer; the
-// outermost object is written to the sink in a single contiguous Write so the
-// message frame is intact (and atomic for transports like a FIFO).
-//
-// This means the encoder does not depend on any particular IPCWriter - a plain
-// sink works exactly like a buffered one.
-//
-
-int32_t IPCBinaryEncoder::Write(const void *src, size_t nBytes) {
-    if (!stack.empty()) {
-        auto ptr = static_cast<const uint8_t *>(src);
-        auto &body = stack.back().body;
-        body.insert(body.end(), ptr, ptr + nBytes);
-        return (int32_t)nBytes;
-    }
-    // No object open - write straight through to the underlying sink.
-    return writer.Write(src, nBytes);
-}
 
 bool IPCBinaryEncoder::BeginObject(uint8_t objectId) {
     Frame frame;
@@ -74,4 +53,26 @@ bool IPCBinaryEncoder::BeginArray(uint16_t num) {
 
 bool IPCBinaryEncoder::EndArray() {
     return true;
+}
+
+//
+// The encoder is self-framing: BeginObject opens an in-memory buffer, all field
+// writes accumulate into it, and EndObject prepends a header whose msgSize is the
+// now-known body length. Nested objects emit into their parent's buffer; the
+// outermost object is written to the sink in a single contiguous Write so the
+// message frame is intact (and atomic for transports like a FIFO).
+//
+// This means the encoder does not depend on any particular IPCWriter - a plain
+// sink works exactly like a buffered one.
+//
+
+int32_t IPCBinaryEncoder::Write(const void *src, size_t nBytes) {
+    if (!stack.empty()) {
+        auto ptr = static_cast<const uint8_t *>(src);
+        auto &body = stack.back().body;
+        body.insert(body.end(), ptr, ptr + nBytes);
+        return (int32_t)nBytes;
+    }
+    // No object open - write straight through to the underlying sink.
+    return writer.Write(src, nBytes);
 }
