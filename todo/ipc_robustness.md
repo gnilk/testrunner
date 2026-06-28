@@ -9,7 +9,13 @@ data-loss one (#7) are the most consequential.
 > **Status (fix/ipc-framing):** #1, #3, #4 and #9 are RESOLVED — the encoder is
 > now self-framing (real `msgSize`) and the decoder reads the whole frame then
 > parses from memory (short-read safe, can skip unknown messages). See
-> `src/shared/ipc/tests/test_ipc_framing.cpp`. Remaining: #2, #5, #6, #7, #8.
+> `src/shared/ipc/tests/test_ipc_framing.cpp`.
+>
+> **Status (fix/multiassert-ipc):** #7 is RESOLVED — `IPCAssertError` now
+> serializes the full assert list (length-prefixed). See
+> `test_ipcmsg_multiassert` in `src/shared/ipc/tests/test_ipc_messages.cpp`.
+>
+> Remaining: #2, #5, #6, #8.
 
 ### 1. No short-read / zero-read framing — ✅ RESOLVED (fix/ipc-framing)
 
@@ -81,7 +87,7 @@ the pattern is inconsistent.)
 - Own these with smart pointers, or delete after the drain loop consumes them
   [gnilk, Note]: Use smart pointers, as per CLAUDE.md
 
-### 7. Multi-assert data loss across the fork boundary
+### 7. Multi-assert data loss across the fork boundary — ✅ RESOLVED (fix/multiassert-ipc)
 
 `IPCMessages.cpp:108` — `IPCAssertError::Marshal` serializes only
 `assertError.Errors().front()`. A test that records multiple asserts loses all
