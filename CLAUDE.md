@@ -140,6 +140,7 @@ The public `testinterface.h` uses `__attribute__((weak))` symbols to detect whic
 - Never prefix member variables with `m_`: `m_width`
 - Convey intent with variables: `bool isSomething`
 - camelCase for variables: `isSomething`
+- Avoid shadowing for parameters when same as local variables (like CTOR, in that case prefix param with '_')
 
 ### C++ Specifics
 - Prefer `nullptr` over `NULL`
