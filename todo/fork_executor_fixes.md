@@ -10,7 +10,10 @@ particular can bite intermittently. All references are
 > - Global `test_main`/`test_exit` counted once per forked child — **FIXED**
 >   on `dev` (commit 13102e5): children run the globals for setup but only the
 >   parent reports them (`!isSubProcess` guard in `testrunner.cpp`).
-> - Module-dependency double-execution across forks — see #5 below, still open.
+> - Module-dependency double-execution across forks — reporting side **FIXED**
+>   on branch `fix/resultsummary-dedup`: `ResultSummary` now de-duplicates by
+>   test symbol, so fork counts match sequential (95/15). See #5. The redundant
+>   *execution* of dependency modules remains (benign perf cost).
 
 ### 1. Static accumulation + leaks across libraries
 
@@ -77,7 +80,15 @@ fixing #1 without this will surface a terminate.
 - Join (or detach) each `SubProcess::thread` before the object is destroyed
 - Fix together with #1 so the lifetime is correct end-to-end
 
-### 5. Module-dependency modules re-run and re-reported across forks
+### 5. Module-dependency modules re-run and re-reported across forks — ✅ RESOLVED (reporting) (fix/resultsummary-dedup)
+
+> Resolved via result de-duplication in `ResultSummary` (keep-first by test
+> symbol) rather than changing dependency resolution — deps must stay declared
+> in `test_main` (declaring them in the module main would force a rollback/abort
+> mid-execution, which was deliberately rejected). The dependency modules are
+> still *executed* by multiple children (benign perf cost); only the duplicate
+> *reporting* was the bug.
+
 
 `test_main` declares module dependencies (`test_main.cpp:49-50`):
 `mdepmodA -> mdepmodB -> {mdepmodC, mdepmodD}`. In sequential the whole chain
