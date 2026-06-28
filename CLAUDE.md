@@ -141,6 +141,7 @@ The public `testinterface.h` uses `__attribute__((weak))` symbols to detect whic
 - Convey intent with variables: `bool isSomething`
 - camelCase for variables: `isSomething`
 - Avoid shadowing for parameters when same as local variables (like CTOR, in that case prefix param with '_')
+- Write code top-down, no function should appear before it is used.
 
 ### C++ Specifics
 - Prefer `nullptr` over `NULL`

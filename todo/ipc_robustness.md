@@ -6,7 +6,12 @@ children back to the parent (default execution path) and breakpoint-hit data to
 `tcov`. Several correctness and robustness issues; the framing one (#1) and the
 data-loss one (#7) are the most consequential.
 
-### 1. No short-read / zero-read framing
+> **Status (fix/ipc-framing):** #1, #3, #4 and #9 are RESOLVED — the encoder is
+> now self-framing (real `msgSize`) and the decoder reads the whole frame then
+> parses from memory (short-read safe, can skip unknown messages). See
+> `src/shared/ipc/tests/test_ipc_framing.cpp`. Remaining: #2, #5, #6, #7, #8.
+
+### 1. No short-read / zero-read framing — ✅ RESOLVED (fix/ipc-framing)
 
 The decoder treats any non-negative read as success:
 ```cpp
@@ -38,7 +43,7 @@ fifo from a crashed run" logic never fires.
 
 - Compute `fifoname` first, then do the exists/remove
 
-### 3. ReadStr: one syscall per char + uninitialized char on underrun
+### 3. ReadStr: one syscall per char + uninitialized char on underrun — ✅ RESOLVED (fix/ipc-framing)
 
 `IPCDecoder.cpp:21-30` reads a `uint16_t` length then calls `ReadU8` in a loop;
 each `ReadU8` is a separate `read()` (and a `poll()` via `Available()`). Besides
@@ -47,7 +52,7 @@ the loop keeps going.
 
 - Read the whole `len`-byte payload in one call into a buffer (with #1's retry)
 
-### 4. ReadObject: missing null-check before Unmarshal
+### 4. ReadObject: missing null-check before Unmarshal — ✅ RESOLVED (fix/ipc-framing)
 
 `IPCDecoder.cpp:71-72` calls `handler->Unmarshal(*this)` without checking
 `GetDeserializerForObject` for null (unlike `Process` and `ReadArray`, which do).
@@ -91,7 +96,7 @@ so the parent's report under-counts/under-reports.
 `kMsgType_AssertError` (copy/paste). Latent today (assert errors are read via
 `ReadObject` with an explicit expected id) but wrong.
 
-### 9. ReadArray error vs empty-array ambiguity
+### 9. ReadArray error vs empty-array ambiguity — ✅ RESOLVED (fix/ipc-framing)
 
 `IPCDecoder.cpp` `ReadArray` returns `int32_t` (a count) but `return false;` /
 `return -1;` on error. `false` == 0 is indistinguishable from a valid empty
