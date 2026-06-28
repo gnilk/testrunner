@@ -15,6 +15,7 @@ DLL_EXPORT int test_ipcmsg(ITesting *t);
 DLL_EXPORT int test_ipcmsg_resultsummary(ITesting *t);
 DLL_EXPORT int test_ipcmsg_testresults(ITesting *t);
 DLL_EXPORT int test_ipcmsg_summary_with_testres(ITesting *t);
+DLL_EXPORT int test_ipcmsg_multiassert(ITesting *t);
 }
 
 DLL_EXPORT int test_ipcmsg(ITesting *t) {
@@ -147,4 +148,62 @@ DLL_EXPORT int test_ipcmsg_summary_with_testres(ITesting *t) {
 
     return kTR_Pass;
 
+}
+
+// A test case may record more than one assert error; all of them must survive
+// the trip back from a forked child (previously only the first was serialized).
+DLL_EXPORT int test_ipcmsg_multiassert(ITesting *t) {
+    trun::AssertError assertError;
+    assertError.Add(trun::AssertError::kAssert_Error, 10, "file_a.cpp", "first failure");
+    assertError.Add(trun::AssertError::kAssert_Error, 20, "file_b.cpp", "second failure");
+    assertError.Add(trun::AssertError::kAssert_Fatal, 30, "file_c.cpp", "third failure");
+
+    auto tr = trun::TestResult::Create("multi_case");
+    tr->SetResult(trun::kTestResult::kTestResult_Pass);
+    tr->SetAssertError(assertError);
+    tr->SetNumberOfAsserts((int)assertError.NumErrors());
+
+    auto testResultsOut = new trun::IPCTestResults(tr);
+    testResultsOut->symbolName = "multi_case";
+
+    trun::IPCResultSummary summaryOut;
+    summaryOut.testsExecuted = 1;
+    summaryOut.testsFailed = 1;
+    summaryOut.durationSec = 1.0;
+    summaryOut.testResults.push_back(testResultsOut);
+
+    // Serialize (encoder-owned framing - no buffered writer needed)
+    UTest_IPC_VectorWriter vectorWriter;
+    gnilk::IPCBinaryEncoder encoder(vectorWriter);
+    TR_ASSERT(t, summaryOut.Marshal(encoder));
+
+    // Deserialize
+    UTest_IPC_VectorReader vectorReader(vectorWriter.Data());
+    trun::IPCResultSummary summaryIn;
+    gnilk::IPCBinaryDecoder decoder(vectorReader, summaryIn);
+    TR_ASSERT(t, decoder.Process());
+
+    TR_ASSERT(t, summaryIn.testResults.size() == 1);
+    auto first = summaryIn.testResults[0];
+    auto &errors = first->testResult->AssertError().Errors();
+
+    // All three asserts must round-trip, in order, with their fields intact.
+    TR_ASSERT(t, errors.size() == 3);
+    TR_ASSERT(t, first->testResult->Asserts() == 3);
+
+    TR_ASSERT(t, errors[0].line == 10);
+    TR_ASSERT(t, errors[0].file == "file_a.cpp");
+    TR_ASSERT(t, errors[0].message == "first failure");
+    TR_ASSERT(t, errors[0].assertClass == trun::AssertError::kAssert_Error);
+
+    TR_ASSERT(t, errors[1].line == 20);
+    TR_ASSERT(t, errors[1].file == "file_b.cpp");
+    TR_ASSERT(t, errors[1].message == "second failure");
+
+    TR_ASSERT(t, errors[2].line == 30);
+    TR_ASSERT(t, errors[2].file == "file_c.cpp");
+    TR_ASSERT(t, errors[2].message == "third failure");
+    TR_ASSERT(t, errors[2].assertClass == trun::AssertError::kAssert_Fatal);
+
+    return kTR_Pass;
 }

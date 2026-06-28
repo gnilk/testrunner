@@ -105,26 +105,36 @@ IPCDeserializer *IPCTestResults::GetDeserializerForObject(uint8_t idObject) {
 }
 
 bool IPCAssertError::Marshal(IPCEncoderBase &encoder) const {
-    auto &aerr = assertError.Errors().front();
+    // A test case can record several asserts - serialize the whole list,
+    // length-prefixed, so none are lost crossing the fork boundary.
+    const auto &errors = assertError.Errors();
     encoder.BeginObject(kMsgType_AssertError);
-    encoder.WriteU8(aerr.assertClass);
-    encoder.WriteStr(aerr.file);
-    encoder.WriteI32(aerr.line);
-    encoder.WriteStr(aerr.message);
+    encoder.WriteU16((uint16_t)errors.size());
+    for (const auto &aerr : errors) {
+        encoder.WriteU8(aerr.assertClass);
+        encoder.WriteStr(aerr.file);
+        encoder.WriteI32(aerr.line);
+        encoder.WriteStr(aerr.message);
+    }
     encoder.EndObject();
     return true;
 }
 bool IPCAssertError::Unmarshal(IPCDecoderBase &decoder) {
-    trun::AssertError::AssertErrorItem item;
-    uint8_t assertClass;
-    decoder.ReadU8(assertClass);
-    item.assertClass = static_cast<trun::AssertError::kAssertClass>(assertClass);
+    uint16_t count = 0;
+    decoder.ReadU16(count);
 
-    decoder.ReadStr(item.file);
-    decoder.ReadI32(item.line);
-    decoder.ReadStr(item.message);
+    for (uint16_t i = 0; i < count; i++) {
+        trun::AssertError::AssertErrorItem item;
+        uint8_t assertClass = 0;
+        decoder.ReadU8(assertClass);
+        item.assertClass = static_cast<trun::AssertError::kAssertClass>(assertClass);
 
-    assertError.Add(item);
+        decoder.ReadStr(item.file);
+        decoder.ReadI32(item.line);
+        decoder.ReadStr(item.message);
+
+        assertError.Add(item);
+    }
 
     return true;
 }
