@@ -17,35 +17,6 @@ using namespace gnilk;
 //   can be skipped simply by consuming (and discarding) its body.
 //
 
-int32_t IPCBinaryDecoder::ReadFromTransport(void *out, size_t nBytes) {
-    auto ptr = static_cast<uint8_t *>(out);
-    size_t total = 0;
-    while (total < nBytes) {
-        int32_t res = reader.Read(ptr + total, nBytes - total);
-        if (res < 0) {
-            return -1;          // hard error
-        }
-        if (res == 0) {
-            break;              // no more data right now (would-block / EOF)
-        }
-        total += (size_t)res;
-    }
-    return (int32_t)total;
-}
-
-int32_t IPCBinaryDecoder::Read(void *out, size_t nBytes) {
-    if (frameActive) {
-        if (frameOffset + nBytes > frameBuf.size()) {
-            return -1;          // would read past the framed message - corrupt/short
-        }
-        memcpy(out, frameBuf.data() + frameOffset, nBytes);
-        frameOffset += nBytes;
-        return (int32_t)nBytes;
-    }
-    // No active frame (e.g. reading the header itself) - go to the transport.
-    return ReadFromTransport(out, nBytes);
-}
-
 bool IPCBinaryDecoder::Process() {
     frameActive = false;
 
@@ -137,4 +108,35 @@ IPCObject *IPCBinaryDecoder::ReadObject(uint8_t expectedMsgId) {
         return nullptr;
     }
     return handler;
+}
+
+// Serves field reads from the in-memory frame while a message is being parsed,
+// otherwise falls back to the transport (used when reading the header itself).
+int32_t IPCBinaryDecoder::Read(void *out, size_t nBytes) {
+    if (frameActive) {
+        if (frameOffset + nBytes > frameBuf.size()) {
+            return -1;          // would read past the framed message - corrupt/short
+        }
+        memcpy(out, frameBuf.data() + frameOffset, nBytes);
+        frameOffset += nBytes;
+        return (int32_t)nBytes;
+    }
+    return ReadFromTransport(out, nBytes);
+}
+
+// Loop until nBytes are read from the transport (handles short/partial reads).
+int32_t IPCBinaryDecoder::ReadFromTransport(void *out, size_t nBytes) {
+    auto ptr = static_cast<uint8_t *>(out);
+    size_t total = 0;
+    while (total < nBytes) {
+        int32_t res = reader.Read(ptr + total, nBytes - total);
+        if (res < 0) {
+            return -1;          // hard error
+        }
+        if (res == 0) {
+            break;              // no more data right now (would-block / EOF)
+        }
+        total += (size_t)res;
+    }
+    return (int32_t)total;
 }
