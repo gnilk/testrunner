@@ -100,7 +100,6 @@ add_executable(trun
 target_link_libraries(trun PUBLIC trun_common_options)
 
 target_compile_definitions(trun PUBLIC TRUN_HAVE_EXT_REPORTING)
-target_compile_definitions(trun PUBLIC TRUN_HAVE_THREADS)
 target_compile_definitions(trun PUBLIC TRUN_VERSION="${TRUN_VERSION_STR}")
 target_compile_definitions(trun PUBLIC TRUN_HAVE_EXCEPTIONS)
 
@@ -134,7 +133,6 @@ add_library(trun_utests SHARED
 target_link_libraries(trun_utests PUBLIC trun_common_options)
 
 target_compile_definitions(trun_utests PUBLIC TRUN_HAVE_EXT_REPORTING)
-target_compile_definitions(trun_utests PUBLIC TRUN_HAVE_THREADS)
 target_compile_definitions(trun_utests PUBLIC TRUN_HAVE_EXCEPTIONS)
 
 target_include_directories(trun_utests PUBLIC ${FMT_HOME}/include)
@@ -157,14 +155,18 @@ add_library(trv2_utest SHARED ${CMAKE_SOURCE_DIR}/src/testv2/test_v2module.cpp)
 target_link_libraries(trv2_utest PUBLIC trun_common_options ${platformlibs})
 
 add_library(trunlib STATIC ${srcfiles} ${embedsrc} ${sharedsrcfiles})
-target_compile_features(trunlib PUBLIC cxx_std_17)
+# Desktop-embedded: same C++20 baseline as trun (ArgParser/std::span etc.).
+target_compile_features(trunlib PUBLIC cxx_std_20)
 target_include_directories(trunlib PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_include_directories(trunlib PRIVATE ${CMAKE_SOURCE_DIR}/src/shared)
 target_include_directories(trunlib PRIVATE ${CMAKE_SOURCE_DIR}/src/testrunner)
 target_include_directories(trunlib PRIVATE ${CMAKE_SOURCE_DIR}/src/testrunner/ext_testinterface)
 target_include_directories(trunlib PRIVATE ${CMAKE_SOURCE_DIR}/src/testrunner/embedded)
-target_compile_definitions(trunlib PUBLIC TRUN_SINGLE_THREAD)
-target_compile_definitions(trunlib PUBLIC TRUN_EMBEDDED)
+# trunlib is the desktop-embedded engine: threaded (isolation + mid-body termination),
+# no fork. Forced termination throws/catches TestAbortException, so it needs exceptions;
+# fmt + cpptrace come along via the shared core (config arg-parsing / exception unwinding).
+target_compile_definitions(trunlib PUBLIC TRUN_HAVE_EXCEPTIONS)
+target_link_libraries(trunlib PUBLIC fmt cpptrace::cpptrace)
 
 if(CMAKE_BUILD_TYPE STREQUAL Debug)
     target_compile_definitions(trunlib PUBLIC DEBUG)

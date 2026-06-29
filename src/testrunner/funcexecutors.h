@@ -31,11 +31,9 @@ namespace trun {
         int Execute(TestFunc *testFunc, const CBPrePostHook &cbPreHook, const CBPrePostHook &cbPostHook) override;
     };
 
-    // Only available if compiled with thread support.
     // The single threaded executor: each test case runs in its own thread for isolation
     // and mid-body termination. A failing/aborting test unwinds via a thrown
     // TestAbortException, caught in TestFuncExecutorSequential::Execute.
-#ifdef TRUN_HAVE_THREADS
     class TestFuncExecutorThreaded : public TestFuncExecutorSequential {
     public:
         TestFuncExecutorThreaded() = default;
@@ -43,7 +41,6 @@ namespace trun {
 
         int Execute(TestFunc *testFunc, const CBPrePostHook &cbPreHook, const CBPrePostHook &cbPostHook) override;
     };
-#endif
 
     class TestFuncExecutorFactory {
     public:

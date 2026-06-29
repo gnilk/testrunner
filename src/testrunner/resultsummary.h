@@ -37,9 +37,7 @@ namespace trun {
         void SendResultToParentProc();
 
     private:
-#ifdef TRUN_HAVE_THREADS
         std::mutex lock;
-#endif
         std::vector<TestResult::Ref> results;
         std::vector<TestFunc::Ref > testFunctions;
         std::unordered_set<std::string> seenSymbols;    // de-dup key: test symbol name

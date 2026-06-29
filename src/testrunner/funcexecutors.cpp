@@ -27,9 +27,7 @@
 #include <cpptrace/from_current.hpp>
 #endif
 
-#ifdef TRUN_HAVE_THREADS
-    #include <thread>
-#endif
+#include <thread>
 
 
 using namespace trun;
@@ -40,22 +38,17 @@ using namespace trun;
 //
 TestFuncExecutorBase &TestFuncExecutorFactory::Create(IDynLibrary::Ref library) {
     static TestFuncExecutorSequential sequentialExecutor;
-#ifdef TRUN_HAVE_THREADS
     static TestFuncExecutorThreaded threadedExecutor;
-#endif
 
     switch(Config::Instance().testExecutionType) {
         case TestExecutiontype::kSequential :
             // In case we are a sub-process, we run in threads anyway  <- should we?
-#ifdef TRUN_HAVE_THREADS
             if (Config::Instance().isSubProcess) {
                 threadedExecutor.SetLibrary(library);
                 return threadedExecutor;
             }
-#endif
             sequentialExecutor.SetLibrary(library);
             return sequentialExecutor;
-#ifdef TRUN_HAVE_THREADS
         // kThreaded (V2 default) and kThreadedWithExit (V1 / --allow-thread-exit) share one
         // executor; the distinction is read only by TerminateThreadIfNeeded to decide whether
         // Error/Assert force-terminate (Abort/Fatal always do).
@@ -63,7 +56,6 @@ TestFuncExecutorBase &TestFuncExecutorFactory::Create(IDynLibrary::Ref library) 
         case TestExecutiontype::kThreadedWithExit :
             threadedExecutor.SetLibrary(library);
             return threadedExecutor;
-#endif
         default:
             printf("Unknown or unsupported test execution model, using default\n");
             break;
@@ -230,16 +222,15 @@ int TestFuncExecutorSequential::Execute(TestFunc *testFunc, const CBPrePostHook 
 }
 
 //
-// Threaded execution - NOT available on embedded (by default).
+// Threaded execution.
 //
 // Each test case runs in its own std::thread for isolation. Forced mid-body termination
 // (V1 asserts, Fatal/Abort, --allow-thread-exit) is realised by throwing TestAbortException
 // from inside the test, which unwinds the thread and is caught in
 // TestFuncExecutorSequential::Execute. (Without exceptions the fallback in
-// TestResponseProxy::TerminateThreadIfNeeded uses pthread_exit - no current target builds
-// threads-without-exceptions.)
+// TestResponseProxy::TerminateThreadIfNeeded uses pthread_exit - the no-exceptions / no-thread
+// case is a swapped-in implementation, not a compile-time conditional here.)
 //
-#ifdef TRUN_HAVE_THREADS
 struct ThreadArg {
     TestFunc *testFunc;
     TestModule::Ref testModule;
@@ -271,5 +262,3 @@ int TestFuncExecutorThreaded::Execute(TestFunc *testFunc, const CBPrePostHook &c
     thread.join();
     return threadArg.returnValue;
 }
-
-#endif  // TRUN_HAVE_THREADS

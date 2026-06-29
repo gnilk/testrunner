@@ -31,8 +31,8 @@ namespace trun {
 
     // NOTE: a thread-per-module executor used to live here (TestModuleExecutorParallel).
     // It was unreachable in every build: on desktop TRUN_HAVE_FORK is always set, so the
-    // factory maps kParallel -> fork; on embedded TRUN_HAVE_THREADS is undefined, so it
-    // never compiled. The fork executor superseded it. Removed deliberately.
+    // factory maps kParallel -> fork; without fork the module loop runs sequentially.
+    // The fork executor superseded it. Removed deliberately.
 
 #ifdef TRUN_HAVE_FORK
     class TestModuleExecutorFork : public TestModuleExecutorBase {

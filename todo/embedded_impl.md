@@ -43,21 +43,24 @@ and let the absence of `#ifdef`s be the readability win.
 Folded in from `open-bugs.md` during the dead-code sweep, because the embedded
 cleanup overlaps this rewrite and should be driven from here, not piecemeal.
 
-### Build / define matrix
+### Build / define matrix  (updated — step 2, 2026-06-30)
 
-`TRUN_HAVE_FORK` is set in `cmake/TrunCommonOptions.cmake` (APPLE + UNIX), **not**
-per-target. The embedded targets deliberately don't link `trun_common_options`,
-so they get neither FORK nor THREADS.
+`TRUN_HAVE_FORK` is set in `cmake/TrunCommonOptions.cmake` (APPLE + UNIX). After step 2,
+**threading is unconditional** (every target is threaded) — `TRUN_HAVE_THREADS`,
+`TRUN_EMBEDDED`, and `TRUN_SINGLE_THREAD` are gone. Targets now differ only by FORK +
+EXCEPTIONS + the per-target source/CMake wiring.
 
-| Target          | THREADS | FORK | EMBEDDED | SINGLE_THREAD | common_options |
-|-----------------|:-------:|:----:|:--------:|:-------------:|:--------------:|
-| `trun`          | ✓       | ✓    | —        | —             | ✓              |
-| `trun_utests`   | ✓       | ✓    | —        | —             | ✓              |
-| `trunlib`       | —       | —    | ✓        | ✓             | ✗              |
-| `trunembedded`  | —       | —    | ✓        | ✓             | ✗ (links trunlib) |
+| Target          | threaded | FORK | EXCEPTIONS | common_options | C++ |
+|-----------------|:--------:|:----:|:----------:|:--------------:|:---:|
+| `trun`          | ✓        | ✓    | ✓          | ✓              | 20  |
+| `trun_utests`   | ✓        | ✓    | ✓          | ✓              | 20  |
+| `trunlib`       | ✓        | —    | ✓          | ✗ (links fmt+cpptrace) | 20 |
+| `trunembedded`  | ✓        | —    | ✓          | ✗ (links trunlib)      | 20 |
 
-Consequences that matter: **no build ever has `THREADS && !FORK`**, and **none has
-`FORK && EMBEDDED`**. That single fact makes several things dead (below).
+`trunlib` is the desktop-embedded engine: threaded (isolation + mid-body termination),
+no fork. It now links fmt + cpptrace (the shared core's arg-parsing + exception unwind)
+and is C++20. The genuinely lean, no-thread/no-exception path is the step-3 MCU engine
+(`TRUN_EMBEDDED_MCU`), to be a swapped-in implementation rather than `#ifdef`s here.
 
 ### Current reality: embedded == the full engine with threads/fork #ifdef'd out
 
@@ -86,9 +89,16 @@ doesn't even use `Config::FromArguments` — it sets `Config` directly via `RunT
 2. **`trunlib` (embedded-for-desktop)** — purpose-built, no fork, but *uses the
    threaded function executor* (isolation + mid-body termination). For regular
    Linux/macOS/Windows "trun-as-library" use (memory model + speed).
+   **[! DONE 2026-06-30, branch `rewrite/embedded-engine-step2`]** trunlib is now
+   threaded (+exceptions, links fmt+cpptrace, C++20); removed the `TRUN_HAVE_THREADS`,
+   `TRUN_EMBEDDED`, `TRUN_SINGLE_THREAD` macros (threading is unconditional, targets
+   differ by impl-swap + CMake wiring, not `#ifdef`); deleted the dead
+   `old_Config_FromArguments` + `ParseNumber`. Suite still 102/15; trunembedded runs
+   threaded; trv1/trv2 libs pass.
 3. **Embedded MCU** — thin, zero-alloc, compile-time buffers. The `TRUN_EMBEDDED_MCU`
-   stubs (`responseproxy.cpp:383`, `reportingbase.cpp:16`) are the only forward-looking
-   hooks today; the macro is defined by no target yet.
+   stubs (`responseproxy.cpp`, `reportingbase.cpp`) are the only forward-looking
+   hooks today; the macro is defined by no target yet. This is where
+   `TRUN_HAVE_EXCEPTIONS` / `TRUN_HAVE_FORK` get the same impl-swap treatment.
 
 ### Key design decision to settle BEFORE coding the sweep  ✅ RESOLVED (branch `rewrite/func-executor-unification`)
 

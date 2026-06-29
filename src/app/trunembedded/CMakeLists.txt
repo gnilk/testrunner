@@ -1,9 +1,7 @@
 add_executable(trunembedded ${CMAKE_SOURCE_DIR}/src/app/trunembedded/trunembedded.cpp)
 #target_compile_options(trunembedded INTERFACE -Wall -Wpedantic -Wextra -Wno-multichar -Wno-unused-parameter)
 #target_link_libraries(trunembedded PUBLIC trun_common_options)
-target_compile_definitions(trunembedded PUBLIC TRUN_SINGLE_THREAD)
-target_compile_definitions(trunembedded PUBLIC TRUN_EMBEDDED)
-target_compile_features(trunembedded PUBLIC cxx_std_17)
+target_compile_features(trunembedded PUBLIC cxx_std_20)
 
 if(CMAKE_BUILD_TYPE STREQUAL Debug)
     target_compile_definitions(trunembedded PUBLIC DEBUG)

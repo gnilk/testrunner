@@ -71,12 +71,8 @@ namespace trun {
         bool testLogFilter = false;
         bool suppressProgressMsg = false;
 
-        // Default is parallel for v2
-#ifdef TRUN_HAVE_THREADS
+        // Test cases always run in their own thread (isolation + mid-body termination).
         TestExecutiontype testExecutionType = TestExecutiontype::kThreaded;
-#else
-        TestExecutiontype testExecutionType = TestExecutiontype::kSequential;
-#endif
 
 #ifdef TRUN_HAVE_FORK
         ModuleExecutionType moduleExecuteType = ModuleExecutionType::kParallel;
