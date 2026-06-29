@@ -1,16 +1,43 @@
-# Session handoff — 2026-06-29
+# Session handoff — 2026-06-30
 
-Pick-up notes for continuing the bug-fix work on a clean slate.
+Pick-up notes for continuing the engine rewrite on a clean slate.
 
 ## Repo state
-- On branch **`rewrite/func-executor-unification`** (branched off `dev`), with the
-  executor-unification commit. **Not yet merged to `dev` / not pushed** — merge when
-  you're happy with it (follow the merge-to-dev pattern used by prior branches).
+- Engine-rewrite **steps 1 and 2 are done**. Step 1 merged to `dev`; step 2 is on
+  branch **`rewrite/embedded-engine-step2`** (merge to `dev` when happy, per the prior
+  merge pattern). **Nothing pushed to origin yet.**
 - Working tree (intentional / not mine, leave alone):
-  - `src/app/trun/trun.cpp` — uncommitted CLion working-dir debug comment (NOT part of
-    this branch's commit — left unstaged on purpose).
+  - `src/app/trun/trun.cpp` — uncommitted CLion working-dir debug comment (left unstaged
+    on purpose; not part of any rewrite commit).
   - `.DS_Store`, `src/testrunner/.DS_Store` — untracked.
 - Build dir: `cmake-build-debug` (ninja). Artifact: `lib/libtrun_utests.dylib`.
+- **Build gotcha hit this session:** this build dir was stale on fmt v10 (the v12 pin
+  from commit `3c897f3`, 2026-05-12, had never been reconfigured here). After
+  `cmake ..`, gnklog can link-fail with undefined `fmt::v10::vprint/vformat`. Fix:
+  `rm -rf _deps/gnklog-build/CMakeFiles/gnklog.dir && ninja gnklog` (recompiles gnklog
+  against the now-current fmt v12). Not a code issue.
+
+## Done this session — engine rewrite step 2 (threaded trunlib + macro removal)
+Branch `rewrite/embedded-engine-step2`. Plan: `todo/embedded_impl.md` (roadmap step 2,
+build/define matrix updated). Made `trunlib` use the threaded executor (per-case
+isolation + mid-body termination, no fork) and **removed three compile macros** —
+`TRUN_HAVE_THREADS`, `TRUN_EMBEDDED`, `TRUN_SINGLE_THREAD` — replacing them with
+implementation selection per the `prefer-impl-files-over-ifdefs` principle:
+- Threading is now **unconditional** (every target is threaded). Some `THREADS` guards
+  were really FORK guards and were re-attributed (`resultsummary.cpp` IPC includes;
+  `moduleexecutors.cpp` `<thread>`). Fixed the `config.cpp` CTOR coupling bug
+  (exec-type was keyed on FORK; now always `kThreaded`, module-type keys on FORK).
+- Deleted the dead `old_Config_FromArguments` + `ParseNumber` from `config.cpp`;
+  `FromArguments`/`ArgParser` now compile unconditionally (added `#include <fmt/format.h>`).
+- CMake: `trun`/`trun_utests` drop the dead `TRUN_HAVE_THREADS` define; `trunlib` +
+  `trunembedded` drop `SINGLE_THREAD`/`EMBEDDED`, **gain `TRUN_HAVE_EXCEPTIONS`, link
+  `fmt` + `cpptrace::cpptrace`, and move to C++20** (ArgParser needs it). `TRUN_SINGLE_THREAD`
+  still lives in the frozen `testinterface_v1.h` as a user knob — we just stop defining it.
+- **Consequence:** `trunlib` (and embedders) now carry a cpptrace + fmt dependency. The
+  lean no-thread/no-exception path is step 3 (MCU).
+Verified: all six targets build (`trun trun_utests trunlib trunembedded trv1_utest
+trv2_utest`); suite **102/15 fork==sequential**; `trunembedded` runs threaded;
+`exception`/`abortall` modules unchanged; V1 (1.0.0) + V2 (2.0.0) libs pass.
 
 ## Done this session — engine rewrite step 1 (executor unification)
 Branch `rewrite/func-executor-unification`. Plan: `todo/embedded_impl.md`
@@ -82,13 +109,12 @@ remaining live entry there is the coverage `SymbolResolver::IsInProject` no-op,
 which belongs to the deferred coverage sweep below.
 
 1. **Embedded engine rewrite** (`todo/embedded_impl.md`) — multi-step.
-   **Step 1 (desktop executor unification) is DONE this session** (see above).
-   Next steps (still **NOT greenlit** — confirm intent before coding):
-   - **Step 2 — purpose-built `trunlib` engine**: no fork, but uses the threaded
-     executor for isolation + mid-body termination; for "trun-as-library" desktop
-     use (memory model + speed). Includes the embedded dead-code cleanup
-     (`old_Config_FromArguments`, the impossible `FORK && EMBEDDED` blocks).
-   - **Step 3 — thin zero-alloc MCU engine** (`TRUN_EMBEDDED_MCU`).
+   **Steps 1 (executor unification) and 2 (threaded trunlib + macro removal) are
+   DONE** (see above; step 1 merged, step 2 on its branch).
+   - **Step 3 — thin zero-alloc MCU engine** (`TRUN_EMBEDDED_MCU`): the genuinely
+     no-thread, no-exception, zero-alloc swapped implementation. **NOT greenlit** —
+     confirm intent/design before coding. This is where `TRUN_HAVE_EXCEPTIONS` and
+     `TRUN_HAVE_FORK` should get the same impl-swap treatment (no new `#ifdef`s).
 2. **Coverage/tcov sweep** — deferred; experimental, dead code there is
    intentional (see memory `coverage-tcov-experimental`). Includes
    `SymbolResolver::IsInProject` no-op (the last live item in `open-bugs.md`).

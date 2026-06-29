@@ -239,7 +239,6 @@ kTRContinueMode TestResponseProxy::AssertError(const char *exp, const char *file
 // TestFuncExecutorSequential::Execute); without exceptions it falls back to pthread_exit.
 void TestResponseProxy::TerminateThreadIfNeeded(bool alwaysTerminate) {
 
-#ifdef TRUN_HAVE_THREADS
     bool forcedMode = (Config::Instance().testExecutionType == TestExecutiontype::kThreadedWithExit);
     if (!alwaysTerminate && !forcedMode) {
         return;
@@ -253,7 +252,6 @@ void TestResponseProxy::TerminateThreadIfNeeded(bool alwaysTerminate) {
             pthread_exit(NULL);
         #endif
     #endif
-#endif
 
 }
 

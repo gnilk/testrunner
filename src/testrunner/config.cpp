@@ -24,19 +24,15 @@
 #include <functional>
 #include <optional>
 
+#include <fmt/format.h>
+
 #include "config.h"
 #include "logger.h"
 #include "resultsummary.h"
 
-#ifndef TRUN_EMBEDDED
 #include "ArgParser.h"
-#endif
 
 using namespace trun;
-
-#if defined(TRUN_HAVE_FORK) && defined(TRUN_EMBEDDED)
-static std::optional<uint64_t> ParseNumber(const std::string_view &line);
-#endif
 
 Config &Config::Instance() {
     static Config glbConfig;
@@ -54,11 +50,12 @@ Config::Config() {
     version = "<unknown>";
 #endif
     description = "C/C++ Unit Test Runner";
-#ifdef TRUN_HAVE_FORK
+    // Test cases always run in their own thread. Module-level parallelism is fork-only
+    // (one subprocess per module) and desktop-only; without fork the module loop is sequential.
     testExecutionType = TestExecutiontype::kThreaded;
+#ifdef TRUN_HAVE_FORK
     moduleExecuteType = ModuleExecutionType::kParallel;
 #else
-    testExecutionType = TestExecutiontype::kSequential;
     moduleExecuteType = ModuleExecutionType::kSequential;
 #endif
 
@@ -108,19 +105,9 @@ static void ConfigureLogger() {
 }
 */
 
-// In case we are running on embedded, actually I don't think we use this on embedded - at all
-#ifdef TRUN_EMBEDDED
-static Config::FromArgRes old_Config_FromArguments(int argc, char **argv);
-#endif
-
-
-
-// New argument parsing using ArgParser
+// Argument parsing using ArgParser. The embedded front-end doesn't call this (it sets
+// Config directly via RunTests()), but it compiles into every target all the same.
 Config::FromArgRes Config::FromArguments(int argc, const char **argv) {
-#ifdef TRUN_EMBEDDED
-    //return old_Config_FromArguments(argc, const_cast<char**>(argv));
-    return Config::FromArgRes::kError;
-#else
     ArgParser argParser(argc, argv);
     Config::Instance().appName = argv[0];
     if (argParser.IsPresent("-hH?","--help")) {
@@ -201,152 +188,7 @@ Config::FromArgRes Config::FromArguments(int argc, const char **argv) {
     }
 
     return Config::FromArgRes::kSuccess;
-#endif
 }
-// Returns false if we should leave the program directly, true if we are to continue
-#ifdef TRUN_EMBEDDED
-static Config::FromArgRes old_Config_FromArguments(int argc, char **argv) {
-    bool firstInput = true;
-
-    auto result = Config::FromArgRes::kSuccess;
-
-    Config::Instance().appName = argv[0];
-
-    for (int i=1;i<argc;i++) {
-        if (argv[i][0]=='-') {
-            // parse options
-            int j=1;
-            while((argv[i][j]!='\0')) {
-                switch(argv[i][j]) {
-                    case 'r' :
-                        Config::Instance().discardTestReturnCode = true;
-                        break;
-                    case 'l' :
-                        Config::Instance().listTests = true;
-                        break;
-                    case 'x' :
-                        Config::Instance().executeTests = false;
-                        break;
-                    case 'S' :
-                        Config::Instance().printPassSummary = true;
-                        break;
-                    case 'c' :
-                        Config::Instance().skipOnModuleFail = false;
-                        break;
-                    case 'C' :
-                        Config::Instance().stopOnAllFail = false;
-                        break;
-                    case 'd' :
-                        Config::Instance().dumpConfig = true;
-                        break;
-                    case 'D' :
-                        Config::Instance().linuxUseDeepBinding = false;
-                        break;
-                    case 's' :
-                        Config::Instance().testLogFilter = true;
-                        Config::Instance().suppressProgressMsg = true;
-                        break;
-                    case 'g' :
-                        Config::Instance().testModuleGlobals = false;
-                        break;
-                    case 'G' :
-                        Config::Instance().testGlobalMain = false;
-                        break;
-                    case 't' :
-                        ParseTestCaseFilters(argv[++i]);
-                        goto next_argument;
-                    case 'm' :
-                        // Parse library filter
-                        ParseModuleFilters(argv[++i]);
-                        goto next_argument;
-                    case 'v' :
-                        Config::Instance().verbose++;
-                        break;
-                    case 'R' :
-                        Config::Instance().reportingModule = std::string(argv[++i]);
-                        goto next_argument;
-                        break;
-                    case 'O' :
-                        Config::Instance().reportFile = std::string(argv[++i]);
-                        goto next_argument;
-                        break;
-                    case '-' :
-                        // Long argument
-                    {
-                        std::string longArgument = std::string(&argv[i][++j]);
-                        if (longArgument == "version") {
-                            return Config::FromArgRes::kVersion;
-                        }
-                        if (longArgument == "continue_on_assert") {
-                            Config::Instance().continueOnAssert = true;
-                            goto next_argument;
-                        } else if (longArgument == "sequential") {
-                            Config::Instance().moduleExecuteType = trun::ModuleExecutionType::kSequential;
-                            goto next_argument;
-                        } else if (longArgument == "allow-thread-exit") {
-                            Config::Instance().testExecutionType = trun::TestExecutiontype::kThreadedWithExit;
-                            goto next_argument;
-                        } else if (longArgument == "module-timeout") {
-#ifdef TRUN_HAVE_FORK
-                            auto optNum = ParseNumber(argv[++i]);
-                            if (!optNum.has_value()) {
-                                fmt::println(stderr, "module-timeout, '{}' not a number", argv[i]);
-                                return Config::FromArgRes::kHelp;
-                            }
-                            Config::Instance().moduleExecTimeoutSec = (uint16_t)optNum.value();
-#else
-                            fprintf(stderr,"module-timeout only available when compiled with 'TRUN_HAVE_FORK'\n");
-#endif
-                            goto next_argument;
-                        } else if (longArgument == "subprocess") {
-                            // HIDDEN (only used internally) - We are started by another trun process
-                            Config::Instance().isSubProcess = true;
-                            goto next_argument;
-                        } else if (longArgument == "ipc-name") {
-                            // HIDDEN (only used internally) - this is the IPC name we should when in a subprocess
-#ifdef TRUN_HAVE_FORK
-                            Config::Instance().ipcName = argv[++i];
-#else
-                            fprintf(stderr, "ipc-name only available when compiled with 'TRUN_HAVE_FORK'\n");
-#endif
-                            goto next_argument;
-                        } else if (longArgument == "coverage") {
-                            // HIDDEN - we are started from 'tcov' and coverage tracking is enabled
-                            Config::Instance().isCoverageRunning = true;
-                            goto next_argument;
-                        } else if (longArgument == "tcov-ipc-name") {
-                            Config::Instance().coverageIPCName = argv[++i];
-                            goto next_argument;;
-                        }
-                        printf("Unknown long argument: %s\n", longArgument.c_str());
-                        return Config::FromArgRes::kHelp;
-                    }
-                        break;
-                    case '?' :
-                    case 'h' :
-                    case 'H' :
-                        return Config::FromArgRes::kHelp;
-                        break;
-                    default:
-                        return Config::FromArgRes::kHelp;
-                        break;
-
-                }
-                j++;
-            }
-        } else {
-            if (firstInput) {
-                Config::Instance().inputs.clear();
-                firstInput = false;
-            }
-            Config::Instance().inputs.push_back(argv[i]);
-        }
-        // a bit ugly but does the trick in this case
-        next_argument:;
-    }
-    return Config::FromArgRes::kSuccess;
-}
-#endif
 
 
 void Config::Dump() {
@@ -387,88 +229,3 @@ void Config::Dump() {
     printf("\n");
 
 }
-
-//////////////
-///// Helper
-#if defined(TRUN_HAVE_FORK) && defined(TRUN_EMBEDDED)
-static std::optional<uint64_t> ParseNumber(const std::string_view &line) {
-
-    std::string num;
-    auto it = line.begin();
-
-    std::function<bool(const int chr)> isnumber = [](const int chr) -> bool {
-        return std::isdigit(chr);
-    };
-
-    //
-    // We could enhance this with more features normally found in assemblers
-    // $<hex> - for address
-    // #$<hex> - alt. syntax for hex numbers
-    // #<dec>  - alt. syntax for dec numbers
-    //
-    // '#' is a common denominator for numerical values
-    if (*it == '#') {
-        ++it;
-    }
-
-    enum class TNum {
-        Number,
-        NumberHex,
-        NumberBinary,
-        NumberOctal,
-    };
-
-    auto numberType = TNum::Number;
-    if (*it == '0') {
-        num += *it;
-        it++;
-        // Convert number here or during parsing???
-        switch(tolower(*it)) {
-            case 'x' : // hex
-                num += *it;
-                ++it;
-                numberType = TNum::NumberHex;
-                isnumber = [](const int chr) -> bool {
-                    static std::string hexnum = {"abcdef"};
-                    return (std::isdigit(chr) || (hexnum.find(tolower(chr)) != std::string::npos));
-                };
-                break;
-            case 'b' : // binary
-                num += *it;
-                ++it;
-                numberType = TNum::NumberBinary;
-                isnumber = [](const int chr) -> bool {
-                    return (chr=='1' || chr=='0');
-                };
-
-                break;
-            case 'o' : // octal
-                num += *it;
-                ++it;
-                numberType = TNum::NumberOctal;
-                isnumber = [](const int chr) -> bool {
-                    static std::string hexnum = {"01234567"};
-                    return (hexnum.find(tolower(chr)) != std::string::npos);
-                };
-                break;
-            default :
-                if (std::isdigit(*it)) {
-                    fprintf(stderr,"WARNING: Numerical tokens shouldn't start with zero!");
-                }
-                break;
-        }
-    }
-
-    while(it != line.end() && isnumber(*it)) {
-        num += *it;
-        ++it;
-    }
-    if (numberType == TNum::Number) {
-        return {trun::to_int32(num)};
-    } else if (numberType == TNum::NumberHex) {
-        return {uint64_t(trun::hex2dec(num))};
-    }
-
-    return {};
-}
-#endif

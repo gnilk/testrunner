@@ -44,8 +44,8 @@
 #endif
 
 // std::this_thread::yield() in the fork wait-loop needs <thread>; the fork path
-// is the only remaining user now that the thread-per-module executor is gone.
-#if defined(TRUN_HAVE_THREADS) || defined(TRUN_HAVE_FORK)
+// is the only user.
+#ifdef TRUN_HAVE_FORK
 #include <thread>
 #endif
 

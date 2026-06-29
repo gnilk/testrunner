@@ -37,7 +37,8 @@
 #endif
 
 
-#ifdef TRUN_HAVE_THREADS
+// IPC is only used by SendResultToParentProc on the fork path (one subprocess per module).
+#ifdef TRUN_HAVE_FORK
 #ifndef WIN32
     #include "unix/IPCFifoUnix.h"
 #endif
@@ -105,9 +106,7 @@ void ResultSummary::ListReportingModules() {
 void ResultSummary::AddResult(const TestFunc::Ref tfunc) {
     auto result = tfunc->Result();
 
-#ifdef TRUN_HAVE_THREADS
     std::lock_guard<std::mutex> guard(lock);
-#endif
 
     // De-duplicate by test symbol. Under forked execution a module that is pulled
     // in as a dependency runs (and is reported) by several child processes, so the

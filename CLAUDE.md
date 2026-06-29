@@ -101,12 +101,20 @@ cd cmake-build-debug
 
 | Define | Effect |
 |---|---|
-| `TRUN_HAVE_THREADS` | Enables `TestModuleExecutorParallel` (per-module threads) |
-| `TRUN_HAVE_FORK` | Enables `TestModuleExecutorFork` (per-module subprocess via `fork`) |
+| `TRUN_HAVE_FORK` | Enables `TestModuleExecutorFork` (per-module subprocess via `fork`); desktop-only. Without it the module loop runs sequentially. |
+| `TRUN_HAVE_EXCEPTIONS` | Catches C++ exceptions inside test cases (cpptrace unwind); required for the threaded executor's forced-termination throw. |
 | `TRUN_HAVE_EXT_REPORTING` | Enables JSON reporting modules |
-| `TRUN_HAVE_EXCEPTIONS` | Catches C++ exceptions inside test cases |
-| `TRUN_EMBEDDED` / `TRUN_SINGLE_THREAD` | Strips threading and fork; used by `trunlib` |
 | `TRUN_USE_V1` | Forces V1 test interface (needed on Windows) |
+| `TRUN_EMBEDDED_MCU` | (future, step 3) the genuinely no-thread / no-exception / zero-alloc MCU engine |
+
+**Threading is no longer a compile flag.** Test cases always run in their own thread
+(the single `TestFuncExecutorThreaded`); every current target is threaded. The old
+`TRUN_HAVE_THREADS`, `TRUN_EMBEDDED`, and `TRUN_SINGLE_THREAD` macros were removed —
+targets differ by **swapping implementations** (executor / module-executor factories +
+base classes) and per-target CMake wiring, not by `#ifdef`. `trunlib` is the
+threaded-but-no-fork desktop-embedded engine (it links fmt + cpptrace and is C++20).
+`TRUN_SINGLE_THREAD` still exists *only* inside the frozen `testinterface_v1.h` as a
+user-side knob for the V1 assert macro — we no longer define it in any target.
 
 ### IPC between processes
 

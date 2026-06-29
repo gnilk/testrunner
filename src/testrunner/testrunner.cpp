@@ -57,11 +57,7 @@ struct ThreadContext {
     TestRunner *currentTestRunner = nullptr;
 };
 
-#ifdef TRUN_HAVE_THREADS
 static thread_local ThreadContext threadContext;
-#else
-static ThreadContext threadContext;
-#endif
 
 //
 // Static helper for accessing the ThreadContext
