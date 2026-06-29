@@ -3,9 +3,10 @@
 Pick-up notes for continuing the engine rewrite on a clean slate.
 
 ## Repo state
-- Engine-rewrite **steps 1 and 2 are done**. Step 1 merged to `dev`; step 2 is on
-  branch **`rewrite/embedded-engine-step2`** (merge to `dev` when happy, per the prior
-  merge pattern). **Nothing pushed to origin yet.**
+- Engine-rewrite **steps 1 and 2 are done, merged to `dev`, and pushed**. Local `dev`
+  is in sync with `origin/dev` at **`60db04d`** (both merge commits). Both feature
+  branches were deleted. No open work-in-progress branches.
+- **Next: step 3 (zero-alloc MCU engine) — NOT greenlit; confirm intent/design first.**
 - Working tree (intentional / not mine, leave alone):
   - `src/app/trun/trun.cpp` — uncommitted CLion working-dir debug comment (left unstaged
     on purpose; not part of any rewrite commit).
