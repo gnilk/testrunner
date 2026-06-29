@@ -15,7 +15,20 @@ data-loss one (#7) are the most consequential.
 > serializes the full assert list (length-prefixed). See
 > `test_ipcmsg_multiassert` in `src/shared/ipc/tests/test_ipc_messages.cpp`.
 >
-> Remaining: #2, #5, #6, #8.
+> **Status (fix/ipc-robustness-cleanup):** #2, #5, #6 and #8 are RESOLVED.
+> - #2: `Open()` computes `fifoname` before the exists/remove, so a stale fifo
+>   is actually cleaned up. Test: `test_ipcfifo_removestale`
+>   (`src/shared/ipc/tests/test_ipcfifo_nix.cpp`).
+> - #5: both `dynamic_cast`s in `IPCMessages.cpp` are null-checked (array item
+>   dropped on mismatch; assert object guarded).
+> - #6: `IPCResultSummary::testResults` is now
+>   `std::vector<std::unique_ptr<IPCTestResults>>` — owns the array items, so the
+>   producer (`resultsummary.cpp`) and the parent drain
+>   (`moduleexecutors.cpp`) no longer leak.
+> - #8: `IPCAssertError::GetDeserializerForObject` now matches
+>   `kMsgType_AssertError`. Test: `test_ipcmsg_deserializer_ids`.
+>
+> All `ipc_robustness` items are now resolved.
 
 ### 1. No short-read / zero-read framing — ✅ RESOLVED (fix/ipc-framing)
 
@@ -35,7 +48,7 @@ size?` (`IPCEncoder.cpp:19-22`).
 - Distinguish 0 (would-block / EOF) from `< 0` (error) from `< n` (partial)
 - Actually populate and validate `msgSize` so a desync can be detected/skipped
 
-### 2. IPCFifoUnix::Open() leftover-cleanup is dead code
+### 2. IPCFifoUnix::Open() leftover-cleanup is dead code — ✅ RESOLVED (fix/ipc-robustness-cleanup)
 
 `IPCFifoUnix.cpp:30-34`
 ```cpp
@@ -66,7 +79,7 @@ An unknown `msgId` -> null deref.
 
 - Null-check `handler` and return `nullptr`
 
-### 5. Missing dynamic_cast null-checks in message handlers
+### 5. Missing dynamic_cast null-checks in message handlers — ✅ RESOLVED (fix/ipc-robustness-cleanup)
 
 `IPCMessages.cpp:41-42` (`dynamic_cast<IPCTestResults*>` then `push_back`) and
 `:89-90` (`dynamic_cast<IPCAssertError*>(obj)` then deref `->assertError`) assume
@@ -75,7 +88,7 @@ silently pushed into `testResults` that later crashes the drain loop.
 
 - Null-check both casts; drop the item / fail the decode on mismatch
 
-### 6. Leaks in deserialization
+### 6. Leaks in deserialization — ✅ RESOLVED (fix/ipc-robustness-cleanup)
 
 `GetDeserializerForObject` returns `new IPCTestResults()` / `new IPCAssertError()`
 (`IPCMessages.cpp:30,32,102`). The array items are stored as raw pointers in
@@ -96,7 +109,7 @@ so the parent's report under-counts/under-reports.
 
 - Serialize the full list (length-prefixed), mirror on Unmarshal
 
-### 8. IPCAssertError::GetDeserializerForObject matches wrong id
+### 8. IPCAssertError::GetDeserializerForObject matches wrong id — ✅ RESOLVED (fix/ipc-robustness-cleanup)
 
 `IPCMessages.cpp:131-135` returns `this` for `kMsgType_TestResults` instead of
 `kMsgType_AssertError` (copy/paste). Latent today (assert errors are read via

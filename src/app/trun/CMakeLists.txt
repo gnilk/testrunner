@@ -77,6 +77,7 @@ if (UNIX)
 
     list(APPEND testsrc ${CMAKE_SOURCE_DIR}/src/testrunner/tests/test_module_nix.cpp)
     list(APPEND testsrc ${CMAKE_SOURCE_DIR}/src/testrunner/tests/test_dirscanner_nix.cpp)
+    list(APPEND testsrc ${CMAKE_SOURCE_DIR}/src/shared/ipc/tests/test_ipcfifo_nix.cpp)
 elseif(WIN32)
     list(APPEND execsrcfiles ${CMAKE_SOURCE_DIR}/src/testrunner/win32/dynlib_win32.cpp)
     list(APPEND execsrcfiles ${CMAKE_SOURCE_DIR}/src/testrunner/win32/dirscanner_win32.cpp)

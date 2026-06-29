@@ -88,7 +88,7 @@ static std::vector<uint8_t> MarshalSummaryWithResult() {
     summary.testsExecuted = 1;
     summary.testsFailed = 2;
     summary.durationSec = 3.0;
-    summary.testResults.push_back(ipcResult);
+    summary.testResults.push_back(std::unique_ptr<trun::IPCTestResults>(ipcResult));
 
     UTest_IPC_VectorWriter writer;
     gnilk::IPCBinaryEncoder encoder(writer);
@@ -154,7 +154,7 @@ DLL_EXPORT int test_ipcframe_chunked_read(ITesting *t) {
     TR_ASSERT(t, in.testsFailed == 2);
     TR_ASSERT(t, in.testResults.size() == 1);
 
-    auto first = in.testResults[0];
+    auto &first = in.testResults[0];
     TR_ASSERT(t, first->symbolName == "my_test_case");
     auto &err = first->testResult->AssertError().Errors().front();
     TR_ASSERT(t, err.line == 4711);

@@ -38,8 +38,16 @@ bool IPCResultSummary::Unmarshal(IPCDecoderBase &decoder) {
     decoder.ReadI32(testsFailed);
     decoder.ReadDouble(durationSec);
     decoder.ReadArray([this](IPCObject *ptrObject) {
+       // ReadArray hands us ownership of the heap object it built. Take it into
+       // a unique_ptr immediately so it is freed even on a type mismatch.
+       std::unique_ptr<IPCObject> owned(ptrObject);
        auto tr = dynamic_cast<IPCTestResults *>(ptrObject);
-       testResults.push_back(tr);
+       if (tr == nullptr) {
+           // Unexpected/malformed array item - drop it rather than push a null.
+           return;
+       }
+       owned.release();
+       testResults.emplace_back(tr);
     });
 
     return true;
@@ -87,7 +95,9 @@ bool IPCTestResults::Unmarshal(IPCDecoderBase &decoder) {
     if (nAsserts > 0) {
         auto obj = decoder.ReadObject(kMsgType_AssertError);
         auto ptrIPCAssertError = dynamic_cast<IPCAssertError *>(obj);
-        testResult->SetAssertError(ptrIPCAssertError->assertError);
+        if (ptrIPCAssertError != nullptr) {
+            testResult->SetAssertError(ptrIPCAssertError->assertError);
+        }
         delete obj;
     }
 
@@ -139,7 +149,7 @@ bool IPCAssertError::Unmarshal(IPCDecoderBase &decoder) {
     return true;
 }
 IPCDeserializer *IPCAssertError::GetDeserializerForObject(uint8_t idObject) {
-    if (idObject == kMsgType_TestResults) {
+    if (idObject == kMsgType_AssertError) {
         return this;
     }
     return nullptr;
