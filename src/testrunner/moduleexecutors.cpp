@@ -43,7 +43,9 @@
     #include <process.h>
 #endif
 
-#ifdef TRUN_HAVE_THREADS
+// std::this_thread::yield() in the fork wait-loop needs <thread>; the fork path
+// is the only remaining user now that the thread-per-module executor is gone.
+#if defined(TRUN_HAVE_THREADS) || defined(TRUN_HAVE_FORK)
 #include <thread>
 #endif
 
@@ -51,9 +53,6 @@ using namespace trun;
 
 TestModuleExecutorBase &TestModuleExecutorFactory::Create() {
     static TestModuleExecutorSequential sequentialExecutor;
-#ifdef TRUN_HAVE_THREADS
-    static TestModuleExecutorParallel parallelExecutor;     // threaded - that's not good for modules!
-#endif
 #ifdef TRUN_HAVE_FORK
     static TestModuleExecutorFork forkExecutor;
 #endif
@@ -162,56 +161,6 @@ bool TestModuleExecutorSequential::Execute(const IDynLibrary::Ref &library, cons
 
     return bRes;
 }
-
-#ifdef TRUN_HAVE_THREADS
-bool TestModuleExecutorParallel::Execute(const IDynLibrary::Ref &library, const std::map<std::string, TestModule::Ref> &testModules) {
-    //
-    // 3) all modules, executing according to cmd line library specification
-    //
-    pLogger = gnilk::Logger::GetLogger("TestModExePar");
-
-    bool bRes = true;
-    std::vector<std::thread> threads;
-
-    auto currentTestRunner = TestRunner::GetCurrentRunner();
-
-    for (auto &[name, testModule] : testModules) {
-
-        if (!testModule->ShouldExecute()) {
-            // Skip, this is not part of the configured filtered..
-            continue;
-        }
-        // Already executed?
-        if (!testModule->IsIdle()) {
-            //pLogger->Debug("Tests for '%s' already executed, skipping",testModule->name.c_str());
-            continue;
-        }
-
-        pLogger->Info("Executing tests for library: %s", testModule->name.c_str());
-
-        //
-        // Note: G++ allows capturing of structured binding but CLang not - and the standard prohibits it
-        //       But we can use init-bindings (initialize a local variable explicitly during in the capture clause)
-        //       and there we are allowed to use the structured binding...  and I am not versed enough to understand
-        //       the exact problem why this is prohibited...
-        //
-        auto thread = std::thread([&library, &currentTestRunner, &tmpModule = testModule] () {
-            TestRunner::SetCurrentTestRunner(currentTestRunner);
-            TestRunner::SetCurrentTestModule(tmpModule);
-            auto result = tmpModule->Execute(library);
-        });
-        threads.push_back(std::move(thread));
-    } // for modules
-
-    // Did we run them in parallel - wait for termination...
-    pLogger->Debug("Waiting for %zu module threads", threads.size());
-    for (auto &t: threads) {
-        t.join();
-    }
-    return bRes;
-
-}
-#endif
 
 #ifdef TRUN_HAVE_FORK
 

@@ -127,14 +127,12 @@ Config::FromArgRes Config::FromArguments(int argc, const char **argv) {
         return FromArgRes::kHelp;
     }
 
-    Config::Instance().continueOnAssert = argParser.IsPresent("","--continue-on-assert");
-    // support both, as we changed the name with 3.0.2
-    if (argParser.IsPresent("","--continue-on-assert") || argParser.IsPresent("","--continue_on_assert")) {
-        if (argParser.IsPresent("","--continue_on_assert")) {
-            fmt::println(stderr, "Warning: --continue_on_assert is deprecated, use --continue-on-assert instead");
-        }
-        Config::Instance().continueOnAssert = true;
+    // Support both spellings; the underscore form was renamed to the dashed one in 3.0.2.
+    bool deprecatedContinueOnAssert = argParser.IsPresent("","--continue_on_assert");
+    if (deprecatedContinueOnAssert) {
+        fmt::println(stderr, "Warning: --continue_on_assert is deprecated, use --continue-on-assert instead");
     }
+    Config::Instance().continueOnAssert = argParser.IsPresent("","--continue-on-assert") || deprecatedContinueOnAssert;
     Config::Instance().discardTestReturnCode = argParser.IsPresent("-r");
     Config::Instance().dumpConfig = argParser.IsPresent("-d");
     Config::Instance().executeTests = !argParser.IsPresent("-x");

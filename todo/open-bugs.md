@@ -5,15 +5,16 @@ a dedicated doc if a cluster grows around any of them.
 
 ### Dead code drifting from the live paths
 
-- `old_Config_FromArguments` switch-parser (`config.cpp:217-359`) — guarded by
-  `TRUN_EMBEDDED` and the only call site is commented out (`config.cpp:121`).
-  Ironically it has the *correct* `-t`/`-m` handling that the live parser gets
-  wrong (see `config_arg_bugs.md`). Either delete it or make the embedded path
-  actually use it.
-- `TestModuleExecutorParallel` (thread-per-module, `moduleexecutors.cpp:167`) —
-  unreachable whenever `TRUN_HAVE_FORK` is defined (always on macOS/Linux),
-  since the factory maps `kParallel -> forkExecutor`. Superseded by the fork
-  executor on purpose; remove or clearly mark as legacy.
+- ✅ RESOLVED (`cleanup/dead-module-parallel`, 2026-06-29) —
+  `TestModuleExecutorParallel` (thread-per-module, was `moduleexecutors.cpp:167`)
+  deleted. It was unreachable in every build: desktop has `TRUN_HAVE_FORK` so the
+  factory maps `kParallel -> forkExecutor`; embedded lacks `TRUN_HAVE_THREADS` so it
+  never compiled. Suite unchanged (fork == seq == 102/15).
+- [folded into `embedded_impl.md`] `old_Config_FromArguments` switch-parser
+  (`config.cpp`) — guarded by `TRUN_EMBEDDED`, only call site commented out
+  (`config.cpp:121`), returns `kError` under EMBEDDED, never called (embedded uses
+  `RunTests()`). It's embedded-specific dead code living in a file the embedded
+  rewrite will replace, so the cleanup is tracked there, not here.
 
 ### Coverage
 
@@ -26,6 +27,7 @@ a dedicated doc if a cluster grows around any of them.
 
 ### Minor
 
-- `--continue_on_assert` / `--continue-on-assert` deprecation handling
-  (`config.cpp:130-137`) is more convoluted than needed (checks presence three
-  times across two spellings). Simplify.
+- ✅ RESOLVED (`cleanup/dead-module-parallel`, 2026-06-29) —
+  `--continue_on_assert` / `--continue-on-assert` deprecation handling
+  (`config.cpp`) simplified: each spelling is now checked exactly once
+  (was four `IsPresent` calls across two spellings).
