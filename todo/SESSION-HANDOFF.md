@@ -3,11 +3,31 @@
 Pick-up notes for continuing the bug-fix work on a clean slate.
 
 ## Repo state
-- On branch **`dev`**, **in sync with `origin/dev`** (pushed through `6fae78e`).
+- On branch **`rewrite/func-executor-unification`** (branched off `dev`), with the
+  executor-unification commit. **Not yet merged to `dev` / not pushed** — merge when
+  you're happy with it (follow the merge-to-dev pattern used by prior branches).
 - Working tree (intentional / not mine, leave alone):
-  - `src/app/trun/trun.cpp` — uncommitted CLion working-dir debug comment.
+  - `src/app/trun/trun.cpp` — uncommitted CLion working-dir debug comment (NOT part of
+    this branch's commit — left unstaged on purpose).
   - `.DS_Store`, `src/testrunner/.DS_Store` — untracked.
 - Build dir: `cmake-build-debug` (ninja). Artifact: `lib/libtrun_utests.dylib`.
+
+## Done this session — engine rewrite step 1 (executor unification)
+Branch `rewrite/func-executor-unification`. Plan: `todo/embedded_impl.md`
+(roadmap step 1 marked done). Collapsed the three function executors to two
+(`Sequential` + one `TestFuncExecutorThreaded` on `std::thread`); deleted
+`TestFuncExecutorParallelPThread` (redundant — forced termination is a thrown
+`TestAbortException` that unwinds fine on a `std::thread`; no target builds
+threads-without-exceptions). `kThreaded`/`kThreadedWithExit` enum kept as the
+forced-mode signal (V1 auto-promote + `--allow-thread-exit`). Also fixed V2
+`Fatal`/`Abort` to force-terminate mid-body (`Error` stays soft):
+`TerminateThreadIfNeeded(bool alwaysTerminate)` — Abort/Fatal pass `true`,
+Error/Assert pass `false`. Files: `funcexecutors.{h,cpp}`, `responseproxy.{h,cpp}`.
+**No external header touched** (frozen contract — now documented in CLAUDE.md +
+memory `external-interface-frozen`). Verified: trun/utests/trunlib/trunembedded all
+build; canonical suite still **102/15 fork==sequential** (and under
+`--allow-thread-exit`); only `_test_rust_fatal` output changed (stops after the first
+`Fatal`, attributed to the test not the post-hook).
 
 ## How to verify (per CLAUDE.md)
 ```bash
@@ -61,16 +81,14 @@ fixes can go straight to `dev` (see memory `branch-vs-direct-commit`).
 remaining live entry there is the coverage `SymbolResolver::IsInProject` no-op,
 which belongs to the deferred coverage sweep below.
 
-1. **Embedded engine rewrite** (`todo/embedded_impl.md`) — feature-sized, **NOT
-   greenlit**, but now fully planned. Owner's intent: lock down desktop (fork
-   optional/default-on via `--sequential`, tests always in their own thread,
-   collapse to one threaded function executor), then a purpose-built `trunlib`
-   engine (no fork, threaded executor for isolation + mid-body termination),
-   then a thin zero-alloc MCU engine. **Gating decision** documented there:
-   unify the two thread executors (`kThreaded` std::thread + `kThreadedWithExit`
-   pthread) into one "run-in-thread + terminate-via-exception (or `pthread_exit`
-   without exceptions)". Touches the fragile `abortall`/`exception` modules →
-   own branch + careful validation. Confirm the design before coding.
+1. **Embedded engine rewrite** (`todo/embedded_impl.md`) — multi-step.
+   **Step 1 (desktop executor unification) is DONE this session** (see above).
+   Next steps (still **NOT greenlit** — confirm intent before coding):
+   - **Step 2 — purpose-built `trunlib` engine**: no fork, but uses the threaded
+     executor for isolation + mid-body termination; for "trun-as-library" desktop
+     use (memory model + speed). Includes the embedded dead-code cleanup
+     (`old_Config_FromArguments`, the impossible `FORK && EMBEDDED` blocks).
+   - **Step 3 — thin zero-alloc MCU engine** (`TRUN_EMBEDDED_MCU`).
 2. **Coverage/tcov sweep** — deferred; experimental, dead code there is
    intentional (see memory `coverage-tcov-experimental`). Includes
    `SymbolResolver::IsInProject` no-op (the last live item in `open-bugs.md`).

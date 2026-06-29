@@ -120,6 +120,17 @@ When `TRUN_HAVE_FORK` is active (Linux default), the main `trun` process forks o
 
 The public `testinterface.h` uses `__attribute__((weak))` symbols to detect which version a compiled test library was built against. V1 used value-based callbacks; V2 requires pre/post callbacks to return `kTR_xxx` result codes. Windows does not support `weak` symbols so must always use V1.
 
+**FUNDAMENTAL — the external interface headers are a frozen contract.** Both
+`ext_testinterface/testinterface.h` (V2) and `ext_testinterface/testinterface_v1.h` (V1, via
+`TRUN_USE_V1`) are deployed in large real projects running on current `trun`. **Do not change
+either header** — V1 in particular must keep working. This is load-bearing for the execution
+engine: V1's threaded `TR_ASSERT` expands to a bare `AssertError(...)` with **no `return`**
+(`AssertError` is `void` in V1), so the only way a failing V1 assert can stop a test mid-body in
+a threaded build is for the runner to **force-terminate the thread** inside `AssertError`. That
+is why any V1 library is auto-promoted to `kThreadedWithExit` (`testrunner.cpp`) and why forced
+thread termination can never be removed. The cooperative-return (V2) vs forced-kill (V1)
+distinction is interface-version-driven, not an optional runtime flag.
+
 
 ## Coding Standards
 

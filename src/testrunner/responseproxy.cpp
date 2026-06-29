@@ -180,7 +180,9 @@ void TestResponseProxy::Error(int line, const char *file, std::string message) {
     if (testResult < kTestResult_TestFail) {
         testResult = kTestResult_TestFail;
     }
-    TerminateThreadIfNeeded();
+    // Error is the soft one: under V2 it flags and continues; it only force-terminates
+    // in forced mode (V1 / --allow-thread-exit).
+    TerminateThreadIfNeeded(false);
 }
 
 void TestResponseProxy::Fatal(int line, const char *file, std::string message) {
@@ -192,7 +194,8 @@ void TestResponseProxy::Fatal(int line, const char *file, std::string message) {
         testResult = kTestResult_ModuleFail;
     }
     assertError.Add(AssertError::kAssert_Fatal, line, file, message);
-    TerminateThreadIfNeeded();
+    // Fatal means "stop this module" - always terminate the current test.
+    TerminateThreadIfNeeded(true);
 }
 
 void TestResponseProxy::Abort(int line, const char *file, std::string message) {
@@ -204,7 +207,8 @@ void TestResponseProxy::Abort(int line, const char *file, std::string message) {
         testResult = kTestResult_AllFail;
     }
     assertError.Add(AssertError::kAssert_Abort, line, file, message);
-    TerminateThreadIfNeeded();
+    // Abort means "stop execution" - always terminate the current test.
+    TerminateThreadIfNeeded(true);
 }
 
 kTRContinueMode TestResponseProxy::AssertError(const char *exp, const char *file, const int line) {
@@ -219,28 +223,36 @@ kTRContinueMode TestResponseProxy::AssertError(const char *exp, const char *file
     if (Config::Instance().continueOnAssert) {
         return kTRContinueMode::kTRContinue;
     }
-    TerminateThreadIfNeeded();
+    // V2 asserts return cooperatively (the TR_ASSERT macro acts on kTRLeave); only V1 /
+    // --allow-thread-exit force-terminate here.
+    TerminateThreadIfNeeded(false);
     return kTRContinueMode::kTRLeave;
 }
 
-// Terminates the running thread if allowed - i.e. you must have 'allowThreadTermination' enabled...
-void TestResponseProxy::TerminateThreadIfNeeded() {
+// Terminates the running test thread when required.
+//  - alwaysTerminate (Fatal/Abort): terminate whenever running threaded - these calls
+//    semantically mean "stop the module" / "stop execution".
+//  - otherwise (Error/Assert): terminate only in forced mode (kThreadedWithExit), i.e. V1
+//    libraries or --allow-thread-exit. V2 Error stays flag-and-continue and V2 asserts
+//    return cooperatively via the TR_ASSERT macro.
+// Termination unwinds via a thrown TestAbortException (caught in
+// TestFuncExecutorSequential::Execute); without exceptions it falls back to pthread_exit.
+void TestResponseProxy::TerminateThreadIfNeeded(bool alwaysTerminate) {
 
-    // FIXME: In case of V1 we should have this enabled - but we don't know the library at this point
 #ifdef TRUN_HAVE_THREADS
-    if (Config::Instance().testExecutionType == TestExecutiontype::kThreadedWithExit) {
-        #ifdef WIN32
-            TerminateThread(GetCurrentThread(), 0);
-        #else
-            // FIXME: Terminate with exception here!!
+    bool forcedMode = (Config::Instance().testExecutionType == TestExecutiontype::kThreadedWithExit);
+    if (!alwaysTerminate && !forcedMode) {
+        return;
+    }
+    #ifdef WIN32
+        TerminateThread(GetCurrentThread(), 0);
+    #else
         #ifdef TRUN_HAVE_EXCEPTIONS
             throw TestAbortException{"aborted - better reason required"};
         #else
             pthread_exit(NULL);
         #endif
-
-        #endif
-    }
+    #endif
 #endif
 
 }

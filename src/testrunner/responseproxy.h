@@ -66,7 +66,7 @@ namespace trun {
     private:
         static ITestingConfig *GetTRConfigInterface();
         static ITestingCoverage *GetTRCoverageInterface();
-        void TerminateThreadIfNeeded();
+        void TerminateThreadIfNeeded(bool alwaysTerminate);
 
         // Helpers to fetch interface of the correct version
         static ITestingV1 *GetTRTestInterfaceV1();
