@@ -153,10 +153,10 @@ void ResultSummary::SendResultToParentProc() {
     summary.durationSec = durationSec;
     // Create the test results objects
     for(auto res : results) {
-        auto tr = new IPCTestResults(res);
+        auto tr = std::make_unique<IPCTestResults>(res);
         tr->symbolName = res->SymbolName();
         // add to the ipc summary
-        summary.testResults.push_back(tr);
+        summary.testResults.push_back(std::move(tr));
     }
 
         gnilk::IPCBufferedWriter bufferedWriter(ipc);

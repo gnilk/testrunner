@@ -321,7 +321,7 @@ bool TestModuleExecutorFork::Execute(const IDynLibrary::Ref &library, const std:
 
         }
         // Process message
-        for(auto ipcTestResult : summary.testResults) {
+        for(auto &ipcTestResult : summary.testResults) {
             // We need to create a fake test-func here..
             auto tfuncWrapper = TestRunner::CreateTestFunc(ipcTestResult->symbolName);
             tfuncWrapper->SetResultFromSubProcess(ipcTestResult->testResult);

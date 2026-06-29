@@ -16,6 +16,7 @@ DLL_EXPORT int test_ipcmsg_resultsummary(ITesting *t);
 DLL_EXPORT int test_ipcmsg_testresults(ITesting *t);
 DLL_EXPORT int test_ipcmsg_summary_with_testres(ITesting *t);
 DLL_EXPORT int test_ipcmsg_multiassert(ITesting *t);
+DLL_EXPORT int test_ipcmsg_deserializer_ids(ITesting *t);
 }
 
 DLL_EXPORT int test_ipcmsg(ITesting *t) {
@@ -105,7 +106,7 @@ DLL_EXPORT int test_ipcmsg_summary_with_testres(ITesting *t) {
 
     auto testResultsOut = new trun::IPCTestResults(tr);
     testResultsOut->symbolName = "my_test_case";
-    resultSummaryOut.testResults.push_back(testResultsOut);
+    resultSummaryOut.testResults.push_back(std::unique_ptr<trun::IPCTestResults>(testResultsOut));
 
 
     UTest_IPC_VectorWriter vectorWriter;
@@ -133,7 +134,7 @@ DLL_EXPORT int test_ipcmsg_summary_with_testres(ITesting *t) {
     TR_ASSERT(t, resultSummaryIn.testsFailed == resultSummaryOut.testsFailed);
     TR_ASSERT(t, resultSummaryIn.durationSec == resultSummaryOut.durationSec);
     TR_ASSERT(t, resultSummaryIn.testResults.size() == resultSummaryOut.testResults.size());
-    auto first = resultSummaryIn.testResults[0];
+    auto &first = resultSummaryIn.testResults[0];
     TR_ASSERT(t, first->symbolName == testResultsOut->symbolName);
     auto testResultIn = first->testResult;
     TR_ASSERT(t, testResultIn->Asserts() == 1);
@@ -170,7 +171,7 @@ DLL_EXPORT int test_ipcmsg_multiassert(ITesting *t) {
     summaryOut.testsExecuted = 1;
     summaryOut.testsFailed = 1;
     summaryOut.durationSec = 1.0;
-    summaryOut.testResults.push_back(testResultsOut);
+    summaryOut.testResults.push_back(std::unique_ptr<trun::IPCTestResults>(testResultsOut));
 
     // Serialize (encoder-owned framing - no buffered writer needed)
     UTest_IPC_VectorWriter vectorWriter;
@@ -184,7 +185,7 @@ DLL_EXPORT int test_ipcmsg_multiassert(ITesting *t) {
     TR_ASSERT(t, decoder.Process());
 
     TR_ASSERT(t, summaryIn.testResults.size() == 1);
-    auto first = summaryIn.testResults[0];
+    auto &first = summaryIn.testResults[0];
     auto &errors = first->testResult->AssertError().Errors();
 
     // All three asserts must round-trip, in order, with their fields intact.
@@ -205,5 +206,17 @@ DLL_EXPORT int test_ipcmsg_multiassert(ITesting *t) {
     TR_ASSERT(t, errors[2].message == "third failure");
     TR_ASSERT(t, errors[2].assertClass == trun::AssertError::kAssert_Fatal);
 
+    return kTR_Pass;
+}
+
+// #8: a message object's GetDeserializerForObject must claim its own id and
+// reject ids it does not own. IPCAssertError previously matched
+// kMsgType_TestResults (copy/paste) and returned null for its own id.
+DLL_EXPORT int test_ipcmsg_deserializer_ids(ITesting *t) {
+    trun::IPCAssertError assertErr;
+    // Must hand back itself for its own message id...
+    TR_ASSERT(t, assertErr.GetDeserializerForObject(trun::kMsgType_AssertError) == &assertErr);
+    // ...and must NOT claim the unrelated test-results id.
+    TR_ASSERT(t, assertErr.GetDeserializerForObject(trun::kMsgType_TestResults) == nullptr);
     return kTR_Pass;
 }

@@ -25,13 +25,12 @@ bool IPCFifoUnix::Open() {
 
     // Create name with pid - we need to be able to run multiple app's in parallel...
     auto pid = getpid();
+    fifoname = fifoBaseName + "_" + std::to_string(pid);
 
     // if it exists - remove it - as it ought to be a left over from an old process or someone restarted the logger
     if (std::filesystem::exists(fifoname)) {
         std::filesystem::remove(fifoname);
     }
-
-    fifoname = fifoBaseName + "_" + std::to_string(pid);
 
     // Create the fifo
     fifofd = mkfifo(fifoname.c_str(), 0666);
