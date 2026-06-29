@@ -11,6 +11,8 @@
 #include <vector>
 #include <chrono>
 #include <thread>
+#include <atomic>
+#include <memory>
 
 #include "dynlib.h"
 #include "testmodule.h"
@@ -50,7 +52,7 @@ namespace trun {
     class SubProcess {
     public:
         SubProcess() = default;
-        virtual ~SubProcess() = default;
+        virtual ~SubProcess();
 
         void Start(const IDynLibrary::Ref &library, TestModule::Ref useModule, const std::string &ipcName);
         void Wait();
@@ -75,15 +77,18 @@ namespace trun {
             return dataHandler.Data();
         }
     protected:
-        Process *proc = {};
+        std::unique_ptr<Process> proc;
         std::string name = {};
         SubProcessDataHandler dataHandler;
         std::thread thread;
         TestModule::Ref module;
 
         pclock::time_point tStart;
-        SubProcessState state = SubProcessState::kIdle;
-        ProcessExitStatus exitStatus;
+        // state and exitStatus are written by the worker thread and read by the
+        // parent poll loop -> must be atomic. exitStatus needs a defined value
+        // before the worker has produced one.
+        std::atomic<SubProcessState> state = SubProcessState::kIdle;
+        std::atomic<ProcessExitStatus> exitStatus = ProcessExitStatus::kUnknown;
         bool wasProcessExecOk = false;
     };
 

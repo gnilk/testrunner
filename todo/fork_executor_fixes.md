@@ -1,5 +1,18 @@
 ## Bugs: Fork module executor (TestModuleExecutorFork)
 
+> **#1–#4 RESOLVED** (branch `fix/fork-executor-lifetime`), done as one pass.
+> - #1: `subProcesses` is now a local `std::vector<std::unique_ptr<SubProcess>>`
+>   (was `static` + leaked); `SubProcess::proc` is a `unique_ptr<Process>`.
+>   Objects are now actually destroyed at the end of each `Execute()`.
+> - #2: each process' captured output is dumped exactly once, after it finishes
+>   and is joined — measured 6.2M → 84 lines on a 4-module fork run.
+> - #3: `state`/`exitStatus` are `std::atomic` and initialized; `name`/`tStart`/
+>   `proc` are now set in `Start()` *before* the worker thread spawns, so the
+>   parent never reads members mid-write.
+> - #4: `Wait()` joins unconditionally and `~SubProcess()` joins as a safety net.
+> Also removed the `threadDeadCounter` unused-var warning and the dead
+> commented-out wait loop. Suite unchanged (fork == sequential, 99/15).
+
 This is the default module-execution path on macOS/Linux (`moduleExecuteType ==
 kParallel` → `forkExecutor`). Several issues cluster here; #1 and #3 in
 particular can bite intermittently. All references are
