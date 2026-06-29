@@ -231,7 +231,10 @@ bool TestModuleExecutorParallel::Execute(const IDynLibrary::Ref &library, const 
 
 
 bool TestModuleExecutorFork::Execute(const IDynLibrary::Ref &library, const std::map<std::string, TestModule::Ref> &testModules) {
-    static std::vector<SubProcess *> subProcesses;
+    // Owning, local container: the processes belong to *this* Execute() call.
+    // (A static vector survived across libraries and re-iterated finished
+    //  processes from previous libraries.)
+    std::vector<std::unique_ptr<SubProcess>> subProcesses;
 
     pLogger = gnilk::Logger::GetLogger("TestModExeFork");
     pLogger->Debug("Forking module tests");
@@ -256,37 +259,49 @@ bool TestModuleExecutorFork::Execute(const IDynLibrary::Ref &library, const std:
             continue;
         }
 
-        // Need to allocate outside, if passing reference the references is renewed before the capture picks it up..
-        SubProcess *process = new SubProcess();
+        auto process = std::make_unique<SubProcess>();
         printf("Starting module tests '%s' (%d / %zu)\n", module->name.c_str(), threadCounter, testModules.size());
 
-
         process->Start(library, module, ipcServer.FifoName());
-        subProcesses.push_back(process);
+        subProcesses.push_back(std::move(process));
     }
 
-    pLogger->Debug("Waiting for completition - %zu fork threads", subProcesses.size());
-    int threadDeadCounter = 0;
+    pLogger->Debug("Waiting for completion - %zu fork processes", subProcesses.size());
 
-
-    // This is a better loop, doesn't 'block' waiting for long-running processes...
-    //
+    // Poll without blocking on long-running processes. Each process' captured
+    // output is dumped exactly once, after it has finished (and been joined),
+    // not on every spin of the wait loop.
+    std::vector<bool> reaped(subProcesses.size(), false);
     while (true) {
         bool bAllFinished = true;
-        for(auto &p : subProcesses) {
-            if (p->State() != SubProcessState::kFinished) {
-                bAllFinished = false;
+        for (size_t i = 0; i < subProcesses.size(); ++i) {
+            if (reaped[i]) {
+                continue;
             }
-            if (p->Duration() > Config::Instance().moduleExecTimeoutSec) {
-                pLogger->Error("Process for '%s' timed out!",p->Name().c_str());
+            auto &p = subProcesses[i];
+
+            // Stop a runaway module once it exceeds the timeout (0 == infinity)
+            if ((Config::Instance().moduleExecTimeoutSec > 0) &&
+                (p->Duration() > Config::Instance().moduleExecTimeoutSec)) {
+                pLogger->Error("Process for '%s' timed out!", p->Name().c_str());
                 p->Kill();
             }
+
+            if (p->State() != SubProcessState::kFinished) {
+                bAllFinished = false;
+                continue;
+            }
+
+            // Finished: join the worker (publishes its writes) then dump once.
+            p->Wait();
             if (p->GetExitStatus() == ProcessExitStatus::kNormal) {
-                pLogger->Debug("Dumping output");
-                for(auto &s : p->Strings()) {
+                for (auto &s : p->Strings()) {
                     printf("%s", s.c_str());
                 }
+            } else {
+                pLogger->Error("Process for '%s' was abnormally terminated!", p->Name().c_str());
             }
+            reaped[i] = true;
         }
         if (bAllFinished) {
             break;
@@ -296,41 +311,6 @@ bool TestModuleExecutorFork::Execute(const IDynLibrary::Ref &library, const std:
 
     // FIXME: Calculate crash data here!
 
-/*
-    // This works - perhaps not the best way, but still...
-    for(auto &p : subProcesses) {
-        long tLastDuration = 0;
-        while(p->State() != SubProcessState::kFinished) {
-            auto duration = std::chrono::duration_cast<std::chrono::seconds>(pclock::now() - p->StartTime()).count();
-            if (duration != tLastDuration) {
-                printf("\rWaiting for '%s' - %d sec",p->Name().c_str(), (int)duration);
-                fflush(stdout);
-                tLastDuration = duration;
-
-                // Stop process if it reaches timeout - specify 0 as 'infinity'
-                if ((Config::Instance().moduleExecTimeoutSec > 0) && (duration > Config::Instance().moduleExecTimeoutSec)) {
-                    printf("\nTimeout reached - stopping '%s'\n", p->Name().c_str());
-                    p->Kill();
-                }
-            }
-            std::this_thread::yield();
-        }
-        p->Wait();
-        if (p->GetExitStatus() == ProcessExitStatus::kNormal) {
-            pLogger->Debug("Dumping output");
-            for(auto &s : p->Strings()) {
-                printf("%s", s.c_str());
-            }
-        } else {
-            pLogger->Error("Process for '%s' was abnormally terminated!",p->Name().c_str());
-            //printf("\nAbnormal termination for '%s'!\n", p->Name().c_str());
-        }
-
-        pLogger->Debug("%d/%zu - completed", threadDeadCounter, subProcesses.size());
-        printf("\n");
-        threadDeadCounter++;
-    }
-*/
     // Ok, this works - but needs to be formalized...
     while(ipcServer.Available()) {
 
