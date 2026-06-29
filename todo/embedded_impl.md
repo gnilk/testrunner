@@ -19,6 +19,25 @@ Both use cases should be supported - but not necessarily by the same engine..
 
 ---
 
+## Guiding principle — simplify; prefer separate files over #ifdefs
+
+The driving force for this rewrite is **simplification**: better defaults and options
+that actually make sense, with as few compile-time conditionals as possible.
+
+- **Prefer per-target implementation files** (`trun` app / `trunlib` / `trunembedded`)
+  over `#ifdef`-laden shared files. Each target should read as straight, top-down code
+  for *its* use case — not one file you mentally re-compile in your head per macro.
+- **Conditionals are still allowed where they genuinely pull their weight** — small,
+  local, well-justified. The goal is fewer macros, not zero at any cost.
+- **But do not trade #ifdefs for copy-paste.** No ~80% duplicated files. Genuinely
+  shared logic stays factored into a common core; only what actually *differs* per
+  target gets its own concrete implementation.
+
+In short: split on the axis of "what differs between targets", keep the rest shared,
+and let the absence of `#ifdef`s be the readability win.
+
+---
+
 ## Analysis (2026-06-29) — current state of the execution layer
 
 Folded in from `open-bugs.md` during the dead-code sweep, because the embedded
