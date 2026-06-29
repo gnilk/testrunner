@@ -56,6 +56,7 @@ list(APPEND embedsrc ${CMAKE_SOURCE_DIR}/src/testrunner/trunembedded.cpp ${CMAKE
 # add unit tests
 list(APPEND testsrc ${CMAKE_SOURCE_DIR}/src/testrunner/tests/test_assert.cpp)
 list(APPEND testsrc ${CMAKE_SOURCE_DIR}/src/testrunner/tests/test_cdepends.cpp)
+list(APPEND testsrc ${CMAKE_SOURCE_DIR}/src/testrunner/tests/test_config.cpp)
 list(APPEND testsrc ${CMAKE_SOURCE_DIR}/src/testrunner/tests/test_coverage.cpp)
 list(APPEND testsrc ${CMAKE_SOURCE_DIR}/src/testrunner/tests/test_depends.cpp)
 list(APPEND testsrc ${CMAKE_SOURCE_DIR}/src/testrunner/tests/test_execorder.cpp)

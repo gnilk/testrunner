@@ -138,7 +138,7 @@ Config::FromArgRes Config::FromArguments(int argc, const char **argv) {
     Config::Instance().discardTestReturnCode = argParser.IsPresent("-r");
     Config::Instance().dumpConfig = argParser.IsPresent("-d");
     Config::Instance().executeTests = !argParser.IsPresent("-x");
-    Config::Instance().linuxUseDeepBinding = !argParser.IsPresent("-d");
+    Config::Instance().linuxUseDeepBinding = !argParser.IsPresent("-D");
     Config::Instance().listTests = argParser.IsPresent("-l");
     Config::Instance().printPassSummary = argParser.IsPresent("-S");
     Config::Instance().skipOnModuleFail = !argParser.IsPresent("-c");
@@ -159,14 +159,6 @@ Config::FromArgRes Config::FromArguments(int argc, const char **argv) {
         return Config::FromArgRes::kVersion;
     }
 
-
-    if (argParser.IsPresent("-t")) {
-        std::string testModules;
-        testModules = *argParser.TryParse(testModules, "-t");
-        if (!testModules.empty()) {
-            ParseModuleFilters(testModules.c_str());
-        }
-    }
 
     if (argParser.IsPresent("-t")) {
         std::string testCases;

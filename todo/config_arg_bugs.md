@@ -1,4 +1,12 @@
-## Bugs: Command-line argument parsing (Config::FromArguments)
+## Bugs: Command-line argument parsing (Config::FromArguments) — ✅ RESOLVED (dev)
+
+> Both fixed on `dev`. Failing-first tests in
+> `src/testrunner/tests/test_config.cpp` (module `config`): `twithoutm`,
+> `dumponly`, `deepbind`. Suite unchanged otherwise (fork == sequential).
+> #1: deleted the duplicate `-t`→module-filter block. #2: deep-binding now keys
+> off `-D` (`!IsPresent("-D")`), matching the help text and the old switch parser.
+
+
 
 Both bugs are in the live, non-embedded parser
 (`src/testrunner/config.cpp`, the `ArgParser`-based body, lines 119-214). The
