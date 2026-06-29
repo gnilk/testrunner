@@ -29,18 +29,10 @@ namespace trun {
         bool Execute(const IDynLibrary::Ref &library, const std::map<std::string, TestModule::Ref> &testModules) override;
     };
 
-    // Embedded library compiled without threads - could have gotten away without it - but it is needed in several other places (which are not that easy)
-    // so I let's just keep the ifdef here for the time being..
-#ifdef TRUN_HAVE_THREADS
-    // parallel execution - each module in a separate thread
-    class TestModuleExecutorParallel : public TestModuleExecutorBase {
-    public:
-        TestModuleExecutorParallel() = default;
-        virtual ~TestModuleExecutorParallel() = default;
-
-        bool Execute(const IDynLibrary::Ref &library, const std::map<std::string, TestModule::Ref> &testModules) override;
-    };
-#endif
+    // NOTE: a thread-per-module executor used to live here (TestModuleExecutorParallel).
+    // It was unreachable in every build: on desktop TRUN_HAVE_FORK is always set, so the
+    // factory maps kParallel -> fork; on embedded TRUN_HAVE_THREADS is undefined, so it
+    // never compiled. The fork executor superseded it. Removed deliberately.
 
 #ifdef TRUN_HAVE_FORK
     class TestModuleExecutorFork : public TestModuleExecutorBase {
