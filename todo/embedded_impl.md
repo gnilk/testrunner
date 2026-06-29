@@ -69,11 +69,20 @@ doesn't even use `Config::FromArguments` — it sets `Config` directly via `RunT
 
 ### Target engine roadmap (3 engines)
 
-1. **Desktop `trun`** — lock down the use case:
+1. **Desktop `trun`** — lock down the use case:  **[! DONE 2026-06-29, branch
+   `rewrite/func-executor-unification`]**
    - Module-forking is the *only* parallelism, optional, default on; `--sequential`
      turns it off. (The thread-per-module executor is already deleted — it was dead.)
    - Test cases **always** run in their own thread (isolation + mid-body termination).
    - Remove the other per-function execution models — collapse to one threaded executor.
+   - Done: three func executors → `Sequential` + one `TestFuncExecutorThreaded`
+     (`std::thread`); deleted `TestFuncExecutorParallelPThread` (redundant under
+     exceptions). `kThreaded`/`kThreadedWithExit` enum kept as the forced-mode signal
+     (V1 + `--allow-thread-exit`). Also fixed V2 `Fatal`/`Abort` to force-terminate
+     mid-body (`Error` stays soft) via `TerminateThreadIfNeeded(bool alwaysTerminate)`.
+     Suite unchanged (102/15 fork==sequential); only `_test_rust_fatal` output moved
+     (stops after the first `Fatal`). External headers untouched (frozen contract — see
+     CLAUDE.md). Embedded targets still build.
 2. **`trunlib` (embedded-for-desktop)** — purpose-built, no fork, but *uses the
    threaded function executor* (isolation + mid-body termination). For regular
    Linux/macOS/Windows "trun-as-library" use (memory model + speed).
@@ -81,7 +90,15 @@ doesn't even use `Config::FromArguments` — it sets `Config` directly via `RunT
    stubs (`responseproxy.cpp:383`, `reportingbase.cpp:16`) are the only forward-looking
    hooks today; the macro is defined by no target yet.
 
-### Key design decision to settle BEFORE coding the sweep
+### Key design decision to settle BEFORE coding the sweep  ✅ RESOLVED (branch `rewrite/func-executor-unification`)
+
+Resolution: under `TRUN_HAVE_EXCEPTIONS` (every real desktop build) forced termination
+is a thrown `TestAbortException` that unwinds identically on a `std::thread`, so the
+pthread executor was redundant and was deleted. One `std::thread` executor remains; the
+`pthread_exit` fallback survives only as the (currently-unreachable) no-exceptions path
+inside `TerminateThreadIfNeeded`. The forced-vs-cooperative distinction is kept as the
+`kThreadedWithExit` enum value (set by V1 auto-promotion / `--allow-thread-exit`).
+Original analysis kept below for context.
 
 "Always one threaded executor" + "mid-body termination" are coupled. Today there are
 two thread executors *because* of termination:
