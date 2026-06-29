@@ -3,7 +3,7 @@
 Pick-up notes for continuing the bug-fix work on a clean slate.
 
 ## Repo state
-- On branch **`dev`**, **in sync with `origin/dev`** (pushed through `b6b0a20`).
+- On branch **`dev`**, **in sync with `origin/dev`** (pushed through `6fae78e`).
 - Working tree (intentional / not mine, leave alone):
   - `src/app/trun/trun.cpp` — uncommitted CLion working-dir debug comment.
   - `.DS_Store`, `src/testrunner/.DS_Store` — untracked.
@@ -37,6 +37,16 @@ intentional self-failure tests). Fork count is deterministic.
    `testResults` is `vector<unique_ptr<IPCTestResults>>` — no producer/consumer
    leaks (#6); `IPCAssertError` deserializer matches `kMsgType_AssertError`
    (#8). Tests: `test_ipcmsg_deserializer_ids`, `test_ipcfifo_nix.cpp`.
+4. **Dead-code cleanup + embedded roadmap** — branch
+   `cleanup/dead-module-parallel`, merge `6fae78e`. Deleted dead
+   `TestModuleExecutorParallel` (thread-per-module: unreachable in every build —
+   desktop has FORK so factory maps `kParallel→fork`, embedded lacks THREADS so
+   it never compiled); re-guarded the fork-path `<thread>` include on FORK.
+   Simplified `--continue_on_assert` (4 `IsPresent`→2). Folded the embedded
+   analysis (build/define matrix, 3-engine roadmap, executor-unification design,
+   embedded dead-code inventory) into `todo/embedded_impl.md`; updated
+   `open-bugs.md`. Verified trun/utests **and** trunlib/trunembedded build;
+   suite unchanged.
 
 (Both feature branches were merged then deleted. Previous session's work —
 platform macros, IPC framing #1/#3/#4/#9, multi-assert #7, resultsummary
@@ -46,11 +56,24 @@ de-dup, global double-count — is in earlier `dev` history / `todo/done/`.)
 Ranked by impact (1 = next). Branch for multi-file/function; small in-place
 fixes can go straight to `dev` (see memory `branch-vs-direct-commit`).
 
-1. **`todo/open-bugs.md`** — dead code (`old_Config_FromArguments`, legacy
-   `TestModuleExecutorParallel`), `--continue_on_assert` triple-check. Small.
+`todo/open-bugs.md` is now effectively closed: the two dead-code items and the
+`--continue_on_assert` simplification are done (merge `6fae78e`); the only
+remaining live entry there is the coverage `SymbolResolver::IsInProject` no-op,
+which belongs to the deferred coverage sweep below.
+
+1. **Embedded engine rewrite** (`todo/embedded_impl.md`) — feature-sized, **NOT
+   greenlit**, but now fully planned. Owner's intent: lock down desktop (fork
+   optional/default-on via `--sequential`, tests always in their own thread,
+   collapse to one threaded function executor), then a purpose-built `trunlib`
+   engine (no fork, threaded executor for isolation + mid-body termination),
+   then a thin zero-alloc MCU engine. **Gating decision** documented there:
+   unify the two thread executors (`kThreaded` std::thread + `kThreadedWithExit`
+   pthread) into one "run-in-thread + terminate-via-exception (or `pthread_exit`
+   without exceptions)". Touches the fragile `abortall`/`exception` modules →
+   own branch + careful validation. Confirm the design before coding.
 2. **Coverage/tcov sweep** — deferred; experimental, dead code there is
    intentional (see memory `coverage-tcov-experimental`). Includes
-   `SymbolResolver::IsInProject` no-op noted in `open-bugs.md`.
+   `SymbolResolver::IsInProject` no-op (the last live item in `open-bugs.md`).
 3. **`todo/signal_handling.md`** — planning doc, NOT greenlit; feature, not a
    bug. Do not start without explicit go-ahead.
 
