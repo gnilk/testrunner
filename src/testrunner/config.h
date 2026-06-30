@@ -78,6 +78,9 @@ namespace trun {
         ModuleExecutionType moduleExecuteType = ModuleExecutionType::kParallel;
         std::string ipcName = {};
         uint16_t moduleExecTimeoutSec = 30;
+        // Max module subprocesses in flight at once (0 = auto, ~CPU cores).
+        // Bounds oversubscription so the per-module timeout works as intended.
+        uint16_t moduleExecConcurrency = 0;
 #else
         ModuleExecutionType moduleExecuteType = ModuleExecutionType::kSequential;
 #endif
