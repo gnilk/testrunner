@@ -43,8 +43,8 @@
     #include <process.h>
 #endif
 
-// std::this_thread::yield() in the fork wait-loop needs <thread>; the fork path
-// is the only user.
+// std::this_thread::sleep_for() + hardware_concurrency() in the fork wait-loop
+// need <thread>; the fork path is the only user.
 #ifdef TRUN_HAVE_FORK
 #include <thread>
 #endif
@@ -180,104 +180,120 @@ bool TestModuleExecutorSequential::Execute(const IDynLibrary::Ref &library, cons
 
 
 bool TestModuleExecutorFork::Execute(const IDynLibrary::Ref &library, const std::map<std::string, TestModule::Ref> &testModules) {
-    // Owning, local container: the processes belong to *this* Execute() call.
-    // (A static vector survived across libraries and re-iterated finished
-    //  processes from previous libraries.)
-    std::vector<std::unique_ptr<SubProcess>> subProcesses;
-
     pLogger = gnilk::Logger::GetLogger("TestModExeFork");
     pLogger->Debug("Forking module tests");
 
-    int threadCounter = 0;
-
     gnilk::IPCFifoUnix ipcServer;
-
     if (!ipcServer.Open()) {
         pLogger->Error("Unable to create IPC server!");
         return false;
     }
 
-    for (auto &[name, module] : testModules) {
-        if (!module->ShouldExecute()) {
-            // Skip, this is not part of the configured filtered..
-            continue;
-        }
-        // Already executed?
-        if (!module->IsIdle()) {
-            //pLogger->Debug("Tests for '%s' already executed, skipping",testModule->name.c_str());
-            continue;
-        }
-
-        auto process = std::make_unique<SubProcess>();
-        printf("Starting module tests '%s' (%d / %zu)\n", module->name.c_str(), threadCounter, testModules.size());
-
-        process->Start(library, module, ipcServer.FifoName());
-        subProcesses.push_back(std::move(process));
-    }
-
-    pLogger->Debug("Waiting for completion - %zu fork processes", subProcesses.size());
-
-    // Poll without blocking on long-running processes. Each process' captured
-    // output is dumped exactly once, after it has finished (and been joined),
-    // not on every spin of the wait loop.
-    std::vector<bool> reaped(subProcesses.size(), false);
-    while (true) {
-        bool bAllFinished = true;
-        for (size_t i = 0; i < subProcesses.size(); ++i) {
-            if (reaped[i]) {
+    // Drain whatever results the children have written so far. Called repeatedly
+    // during the run (not only at the end): with a bounded window the run is
+    // long-lived, and unread results could back up the FIFO and stall a writer.
+    auto drainResults = [&ipcServer]() {
+        while (ipcServer.Available()) {
+            IPCResultSummary summary;
+            gnilk::IPCBinaryDecoder decoder(ipcServer, summary);
+            if (!decoder.Process()) {
                 continue;
             }
-            auto &p = subProcesses[i];
+            for (auto &ipcTestResult : summary.testResults) {
+                // We need to create a fake test-func here..
+                auto tfuncWrapper = TestRunner::CreateTestFunc(ipcTestResult->symbolName);
+                tfuncWrapper->SetResultFromSubProcess(ipcTestResult->testResult);
+                ResultSummary::Instance().AddResult(tfuncWrapper);
+            }
+        }
+    };
 
-            // Stop a runaway module once it exceeds the timeout (0 == infinity)
-            if ((Config::Instance().moduleExecTimeoutSec > 0) &&
-                (p->Duration() > Config::Instance().moduleExecTimeoutSec)) {
-                pLogger->Error("Process for '%s' timed out!", p->Name().c_str());
+    // Deterministic list of modules to run (std::map iterates name-sorted).
+    std::vector<TestModule::Ref> pending;
+    for (auto &[name, module] : testModules) {
+        if (!module->ShouldExecute()) {
+            // Skip, this is not part of the configured filter..
+            continue;
+        }
+        if (!module->IsIdle()) {
+            // Already executed (e.g. pulled in as a dependency)
+            continue;
+        }
+        pending.push_back(module);
+    }
+
+    // Bound how many module subprocesses run at once. Each child re-runs the
+    // (heavy) global test_main; forking one per module all at once oversubscribes
+    // the machine and makes every process cross the timeout deadline together.
+    unsigned int maxConcurrency = Config::Instance().moduleExecConcurrency;
+    if (maxConcurrency == 0) {
+        maxConcurrency = std::max(1u, std::thread::hardware_concurrency());
+    }
+    const long timeoutSec = Config::Instance().moduleExecTimeoutSec;
+
+    // Only live processes; reaped ones are erased. 'timedOut' makes the timeout
+    // log/kill/record happen exactly once per process.
+    struct Running {
+        std::unique_ptr<SubProcess> proc;
+        bool timedOut = false;
+    };
+    std::vector<Running> inflight;
+    size_t nextIdx = 0;
+    size_t started = 0;
+
+    pLogger->Debug("Running %zu modules, max %u concurrent", pending.size(), maxConcurrency);
+
+    while ((nextIdx < pending.size()) || !inflight.empty()) {
+        // Top up the window with the next pending modules.
+        while ((inflight.size() < maxConcurrency) && (nextIdx < pending.size())) {
+            auto &module = pending[nextIdx++];
+            auto process = std::make_unique<SubProcess>();
+            started++;
+            printf("Starting module tests '%s' (%zu / %zu)\n", module->name.c_str(), started, pending.size());
+            process->Start(library, module, ipcServer.FifoName());
+            inflight.push_back({std::move(process), false});
+        }
+
+        // Poll the window: reap finished, time out runaways (once each).
+        for (auto it = inflight.begin(); it != inflight.end(); ) {
+            auto &p = it->proc;
+
+            // Stop a runaway module once it exceeds the timeout (0 == infinity).
+            // Log/kill/record exactly once; the killed process reaches kFinished
+            // on a later spin when its worker observes the SIGKILL.
+            if (!it->timedOut && (timeoutSec > 0) && (p->Duration() > timeoutSec)) {
+                pLogger->Error("Process for '%s' timed out after %lds, killing", p->Name().c_str(), timeoutSec);
                 p->Kill();
+                it->timedOut = true;
+                ResultSummary::Instance().AddIncompleteModule(p->Name(), "timed out");
             }
 
             if (p->State() != SubProcessState::kFinished) {
-                bAllFinished = false;
+                ++it;
                 continue;
             }
 
-            // Finished: join the worker (publishes its writes) then dump once.
+            // Finished: join the worker (publishes its writes) then handle once.
             p->Wait();
-            if (p->GetExitStatus() == ProcessExitStatus::kNormal) {
+            if (it->timedOut) {
+                // Already logged + recorded; drop the partial output.
+            } else if (p->GetExitStatus() == ProcessExitStatus::kNormal) {
                 for (auto &s : p->Strings()) {
                     printf("%s", s.c_str());
                 }
             } else {
-                pLogger->Error("Process for '%s' was abnormally terminated!", p->Name().c_str());
+                pLogger->Error("Process for '%s' crashed (abnormal exit)", p->Name().c_str());
+                ResultSummary::Instance().AddIncompleteModule(p->Name(), "crashed");
             }
-            reaped[i] = true;
+            it = inflight.erase(it);
         }
-        if (bAllFinished) {
-            break;
-        }
-        std::this_thread::yield();
+
+        drainResults();
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
     }
 
-    // FIXME: Calculate crash data here!
-
-    // Ok, this works - but needs to be formalized...
-    while(ipcServer.Available()) {
-
-        IPCResultSummary summary;
-        gnilk::IPCBinaryDecoder decoder(ipcServer, summary);
-        if (!decoder.Process()) {
-            continue;
-
-        }
-        // Process message
-        for(auto &ipcTestResult : summary.testResults) {
-            // We need to create a fake test-func here..
-            auto tfuncWrapper = TestRunner::CreateTestFunc(ipcTestResult->symbolName);
-            tfuncWrapper->SetResultFromSubProcess(ipcTestResult->testResult);
-
-            ResultSummary::Instance().AddResult(tfuncWrapper);
-        }
-    }
+    // Final drain for results written between the last poll and the last reap.
+    drainResults();
     ipcServer.Close();
 
     return true;

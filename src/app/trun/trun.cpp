@@ -125,7 +125,9 @@ static void Help() {
 #ifdef TRUN_HAVE_FORK    
     printf("  --module-timeout <sec>\n");
     printf("      Set timeout (in seconds) for forked execution, 0 - infinity (default: 30)\n");
-#endif    
+    printf("  --max-concurrency <n>\n");
+    printf("      Max module subprocesses running at once (0 = auto, ~CPU cores)\n");
+#endif
     printf("  --allow-thread-exit\n");
     printf("      Test cases execution thread will self-terminate on assert/error/fatal\n");
 
@@ -350,7 +352,11 @@ int main(int argc, const char **argv) {
     // Need to clear this in order to invoke DTOR on scanner as an instance is kept from 'scanlibraries'
     // Would not have been required if the App would have been contained in a class...  anyway...
     librariesToTest.clear();
-    return 0;
+
+    // Non-zero exit when the runner couldn't finish work (a module timed out or
+    // crashed). Ordinary test-assertion failures still exit 0 - that path feeds
+    // the JSON-consumed CI workflow and must not change.
+    return ResultSummary::Instance().incompleteModules.empty() ? 0 : 1;
 }
 
 static void PrintSummaryIfNeeded() {

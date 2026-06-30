@@ -170,6 +170,7 @@ Config::FromArgRes Config::FromArguments(int argc, const char **argv) {
     }
 #ifdef TRUN_HAVE_FORK
     Config::Instance().moduleExecTimeoutSec = *argParser.TryParse(Config::Instance().moduleExecTimeoutSec, "", "--module-timeout");
+    Config::Instance().moduleExecConcurrency = *argParser.TryParse(Config::Instance().moduleExecConcurrency, "", "--max-concurrency");
     Config::Instance().ipcName = *argParser.TryParse(Config::Instance().ipcName, "", "--ipc-name");
 #endif
 
@@ -210,6 +211,10 @@ void Config::Dump() {
     printf("  Reporting module: %s\n", reportingModule.c_str());
     printf("  Reporting indent size: %d\n", reportIndent);
     printf("  Module execution policy: %s\n", ModuleExecutionTypeToStr(moduleExecuteType).c_str());
+#ifdef TRUN_HAVE_FORK
+    printf("  Module exec timeout (sec): %d\n", moduleExecTimeoutSec);
+    printf("  Module exec concurrency: %d (0 = auto)\n", moduleExecConcurrency);
+#endif
     printf("  Testcase execution policy: %s\n", TestExecutionTypeToStr(testExecutionType).c_str());
     printf("  Continue on assert: %s\n", continueOnAssert?"yes":"no");
     printf("  Modules:\n");
