@@ -4,11 +4,11 @@ Pick-up notes for continuing the engine rewrite on a clean slate.
 
 ## Repo state
 - Engine-rewrite **steps 1 and 2** and the **fork-executor concurrency fix** are all done,
-  merged to `dev`, and **pushed**. Local `dev` == `origin/dev` at **`c0fdb55`** (no
-  divergence). Branch `fix/fork-executor-concurrency` was merged `--no-ff` and deleted.
-  No open work-in-progress branches. Recent `dev` tip, newest first: `c0fdb55` (docs:
-  roadmap step-3 status), `b512430` (docs: handoff), `d7c455d` (merge fork fix),
-  `cfbd04a` (fork-executor windowing fix).
+  merged to `dev`, and **pushed**. **Local `dev` is in sync with `origin/dev` (no
+  divergence)** — verify with `git status -sb`. Branch `fix/fork-executor-concurrency`
+  was merged `--no-ff` and deleted; no open work-in-progress branches. The fork fix is
+  commit **`cfbd04a`** (stable); anything newer on `dev` is just `docs:` handoff/roadmap
+  refreshes.
 - **Next: step 3 (zero-alloc MCU engine) — NOT greenlit; confirm intent/design first.**
 - Working tree (intentional / not mine, leave alone):
   - `src/app/trun/trun.cpp` — uncommitted CLion working-dir debug comment (left unstaged
