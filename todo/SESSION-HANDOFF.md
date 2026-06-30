@@ -3,9 +3,11 @@
 Pick-up notes for continuing the engine rewrite on a clean slate.
 
 ## Repo state
-- Engine-rewrite **steps 1 and 2 are done, merged to `dev`, and pushed**. Local `dev`
-  is in sync with `origin/dev` at **`60db04d`** (both merge commits). Both feature
-  branches were deleted. No open work-in-progress branches.
+- Engine-rewrite **steps 1 and 2 are done, merged to `dev`, and pushed** (origin/dev at
+  `60db04d`). **The fork-executor concurrency fix is merged to local `dev` but NOT yet
+  pushed** — local `dev` is at **`d7c455d`** (merge of `cfbd04a`), **2 commits ahead of
+  `origin/dev`**. Branch `fix/fork-executor-concurrency` was merged `--no-ff` and deleted.
+  No open work-in-progress branches.
 - **Next: step 3 (zero-alloc MCU engine) — NOT greenlit; confirm intent/design first.**
 - Working tree (intentional / not mine, leave alone):
   - `src/app/trun/trun.cpp` — uncommitted CLion working-dir debug comment (left unstaged
@@ -17,6 +19,33 @@ Pick-up notes for continuing the engine rewrite on a clean slate.
   `cmake ..`, gnklog can link-fail with undefined `fmt::v10::vprint/vformat`. Fix:
   `rm -rf _deps/gnklog-build/CMakeFiles/gnklog.dir && ninja gnklog` (recompiles gnklog
   against the now-current fmt v12). Not a code issue.
+
+## Done this session — fork module-executor windowing (merged, NOT pushed)
+Branch `fix/fork-executor-concurrency`, merge `d7c455d`. Triggered by running `trun`
+(no args) against an external lib (`…/PuckoNew/…/libpucko_utests.dylib`), which exposed
+the fork executor forking **one subprocess per module for all modules at once**: 98 forks
+oversubscribed the box, ~65% "timed out" at the same instant, each re-logged+re-killed
+every poll spin (one module 298×, 205s system time), and killed/crashed modules vanished
+from the counts while trun exited 0.
+- `moduleexecutors.cpp::TestModuleExecutorFork::Execute` — rewrote "fork all then spin"
+  into a **bounded window** (`maxConcurrency`, default ≈ CPU cores via
+  `std::thread::hardware_concurrency()`). Per-module timeout now staggers correctly;
+  timeout/crash logged + `Kill()`ed + recorded **once** (`struct Running{proc,timedOut}`);
+  `yield()` → `sleep_for(5ms)`; IPC FIFO drained **incrementally** via a `drainResults`
+  lambda (long-lived run must not let unread results back up the pipe).
+- `config.{h,cpp}` + `trun.cpp` — new `moduleExecConcurrency` (0 = auto) + `--max-concurrency`
+  CLI/Dump/help (under `TRUN_HAVE_FORK`).
+- `resultsummary.{h,cpp}` — `incompleteModules` (name, reason) + `AddIncompleteModule()` +
+  a "Modules incomplete: N" summary section (grouped `[timeout]`/`[crashed]`).
+- `trun.cpp::main()` — exit **non-zero when modules don't complete**; ordinary
+  test-assertion failures still exit 0 (unchanged — feeds the JSON-consumed CI flow).
+Verified: canonical suite unchanged (**102/15 fork==sequential**, exit 0);
+`--max-concurrency 1`/`4` deterministic. Pucko repro: sys time **205s→36s**, zero timeout
+cascade, each event logged once, the 2 genuinely-crashing modules (`fatfs`, `pfsblkread`)
+surfaced + **exit 1** (was silently 166/10, exit 0). The `fatfs` "crash" is a **pucko bug**
+not a trun bug: a failing `TR_ASSERT` force-terminates the V1 test thread, the unwind runs
+`StorageFatFS::~StorageFatFS()` which does `driver->Sync()` on a never-`Begin()`'d (null)
+`driver` → ASan SEGV → process abort. Pucko is queued for its own deep-dive.
 
 ## Done this session — engine rewrite step 2 (threaded trunlib + macro removal)
 Branch `rewrite/embedded-engine-step2`. Plan: `todo/embedded_impl.md` (roadmap step 2,
