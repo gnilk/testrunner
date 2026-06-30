@@ -86,6 +86,11 @@ doesn't even use `Config::FromArguments` — it sets `Config` directly via `RunT
      Suite unchanged (102/15 fork==sequential); only `_test_rust_fatal` output moved
      (stops after the first `Fatal`). External headers untouched (frozen contract — see
      CLAUDE.md). Embedded targets still build.
+   - **Follow-on [! 2026-06-30, `dev` `cfbd04a`]:** the desktop fork module-executor was
+     hardened — bounded-window concurrency (`--max-concurrency`, default ≈ CPU cores)
+     instead of fork-all-then-spin, one log+`Kill()` per timeout/crash, incremental IPC
+     drain, and a "Modules incomplete: N" summary section with non-zero exit when a module
+     can't finish. Suite still 102/15 (fork==sequential).
 2. **`trunlib` (embedded-for-desktop)** — purpose-built, no fork, but *uses the
    threaded function executor* (isolation + mid-body termination). For regular
    Linux/macOS/Windows "trun-as-library" use (memory model + speed).
@@ -95,10 +100,13 @@ doesn't even use `Config::FromArguments` — it sets `Config` directly via `RunT
    differ by impl-swap + CMake wiring, not `#ifdef`); deleted the dead
    `old_Config_FromArguments` + `ParseNumber`. Suite still 102/15; trunembedded runs
    threaded; trv1/trv2 libs pass.
-3. **Embedded MCU** — thin, zero-alloc, compile-time buffers. The `TRUN_EMBEDDED_MCU`
-   stubs (`responseproxy.cpp`, `reportingbase.cpp`) are the only forward-looking
-   hooks today; the macro is defined by no target yet. This is where
-   `TRUN_HAVE_EXCEPTIONS` / `TRUN_HAVE_FORK` get the same impl-swap treatment.
+3. **Embedded MCU** — thin, zero-alloc, compile-time buffers.
+   **[- NOT STARTED — not greenlit; confirm intent/design before coding.]** The
+   `TRUN_EMBEDDED_MCU` stubs (`responseproxy.cpp`, `reportingbase.cpp`) are the only
+   forward-looking hooks today; the macro is defined by no target yet. This is where
+   `TRUN_HAVE_EXCEPTIONS` / `TRUN_HAVE_FORK` get the same impl-swap treatment — the MCU
+   engine simply won't include the fork path (impl-swap, no new `#ifdef`s). The desktop
+   fork path it swaps *out* is now the hardened, windowed one (see engine #1 follow-on).
 
 ### Key design decision to settle BEFORE coding the sweep  ✅ RESOLVED (branch `rewrite/func-executor-unification`)
 
