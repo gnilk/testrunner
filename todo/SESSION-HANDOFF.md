@@ -4,11 +4,12 @@ Pick-up notes for continuing the engine rewrite on a clean slate.
 
 ## Repo state
 - Engine-rewrite **steps 1, 2, and step-3 Phase A** are all implemented. Steps 1+2 and the
-  fork-executor fix are merged to `dev` and pushed. **Step-3 Phase A is committed on branch
-  `rewrite/embedded-engine-step3` (commit `ffd6814`) but NOT pushed and NOT merged** —
-  awaiting maintainer review.
+  fork-executor fix are merged to `dev` and pushed. **Step-3 Phase A lives on branch
+  `rewrite/embedded-engine-step3` (Phase A feature commit `ffd6814`, plus doc follow-ups on
+  top). It is pushed to `origin` but NOT merged** — awaiting maintainer review.
 - `dev` is unchanged this session (still in sync with `origin/dev`). Verify with
-  `git status -sb` and `git log --oneline dev..rewrite/embedded-engine-step3`.
+  `git status -sb` and `git log --oneline dev..rewrite/embedded-engine-step3` (the branch
+  tracks `origin/rewrite/embedded-engine-step3`).
 - Working tree (intentional / not mine, leave alone):
   - `src/app/trun/trun.cpp` — uncommitted CLion working-dir debug comment (left unstaged on
     purpose; NOT part of the step-3 commit).

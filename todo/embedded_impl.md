@@ -103,9 +103,9 @@ doesn't even use `Config::FromArguments` — it sets `Config` directly via `RunT
    `old_Config_FromArguments` + `ParseNumber`. Suite still 102/15; trunembedded runs
    threaded; trv1/trv2 libs pass.
 3. **Embedded MCU** — thin, zero-alloc, compile-time buffers.
-   **[+ PHASE A IMPLEMENTED 2026-06-30, branch `rewrite/embedded-engine-step3`, commit
-   `ffd6814` (committed, not pushed/merged). Full design + impl notes in
-   `todo/embedded_mcu_step3.md`. Phase B (cross toolchain/board) deferred.]** The
+   **[+ PHASE A IMPLEMENTED 2026-06-30, branch `rewrite/embedded-engine-step3`, feature
+   commit `ffd6814` (pushed to `origin`, not merged; doc follow-ups on top). Full design +
+   impl notes in `todo/embedded_mcu_step3.md`. Phase B (cross toolchain/board) deferred.]** The
    self-contained engine lives in `src/testrunner/mcu/` (mcu_static / mcu_config /
    mcu_report / mcu_testing / mcu_runner / trunmcu) with demo + CMake in `src/app/trunmcu/`,
    selected by CMake wiring not `#ifdef`s in the desktop core. Delivered per the settled

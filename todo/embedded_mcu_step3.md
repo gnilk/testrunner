@@ -1,8 +1,9 @@
 # Step 3 — thin zero-alloc MCU engine (design)
 
 Design settled 2026-06-30. **Phase A implemented 2026-06-30** — branch
-`rewrite/embedded-engine-step3`, commit `ffd6814` (committed, not pushed/merged); see the
-TODO + "Implementation notes" below. Phase B (cross toolchain/board) deferred. Companion to
+`rewrite/embedded-engine-step3`, feature commit `ffd6814` (pushed to `origin`, not merged;
+doc follow-ups committed on top); see the TODO + "Implementation notes" below. Phase B
+(cross toolchain/board) deferred. Companion to
 `todo/embedded_impl.md` (roadmap engine #3). Guiding principle: simplify; prefer separate
 per-target files over `#ifdef`s (see `embedded_impl.md` "Guiding principle" + memory
 `prefer-impl-files-over-ifdefs`).
