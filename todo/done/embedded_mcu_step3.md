@@ -4,7 +4,7 @@
 > feature commit `ffd6814`; branch `rewrite/embedded-engine-step3` deleted). This is the Phase A
 > design + implementation record. The still-open follow-ons that used to live here — **easy
 > consumption (FetchContent)** and the **trunembedded split** — were extracted to
-> `todo/mcu_consumption.md`. **Phase B** (cross toolchain/board) stays deferred and gets its own
+> `todo/library_consumption.md`. **Phase B** (cross toolchain/board) stays deferred and gets its own
 > doc when greenlit (see "Deferred to Phase B" below).
 
 Design settled 2026-06-30, Phase A implemented 2026-06-30. Companion to
@@ -27,7 +27,7 @@ per-target files over `#ifdef`s (see `embedded_impl.md` "Guiding principle" + me
   - desktop suite 102/15: NOT runnable in the dev sandbox (fmt not fetchable here);
     run it where the FetchContent deps exist. The edited shared files compile clean.
 ! Merge Phase A to dev  [merge 197f090, branch deleted]
-> Easy consumption (FetchContent) + trunembedded split — extracted to todo/mcu_consumption.md
+> Easy consumption (FetchContent) + trunembedded split — extracted to todo/library_consumption.md
 - Phase B: cross toolchain + real board (deferred — gets its own doc when greenlit)
 ```
 
@@ -223,7 +223,7 @@ building); `"-"` = all; comma-separated names; `Glob::Match` for patterns.
 
 The two open follow-ons that used to live in this doc — **easy consumption (FetchContent)**
 and the **trunembedded split** (trunmcu = embedded vs trunlib = desktop-embed) — moved to
-`todo/mcu_consumption.md` when this doc was archived. They are not Phase A work; they are how
+`todo/library_consumption.md` when this doc was archived. They are not Phase A work; they are how
 the delivered engines get shipped as first-class, easily-consumable libraries.
 
 ## Deferred to Phase B

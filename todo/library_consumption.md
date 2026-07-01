@@ -1,0 +1,123 @@
+# Consuming the trun libraries — trunmcu (FetchContent) + trunlib (find_package)
+
+Extracted 2026-07-01 from `todo/done/embedded_mcu_step3.md` (archived) and broadened 2026-07-02
+to cover **both** consumable trun libraries. Unifying goal: make the trun test libraries **easy
+to pull into a downstream project** instead of the current copy-the-files approach. Both stories
+touch the build/packaging of the libs, so they live together.
+
+Two libraries, two delivery mechanisms — because they have genuinely different natures (see the
+trunembedded split, §3):
+- **`trunmcu`** (engine #3, embedded/MCU) — shipped as **source**, compiled *for the embedder's
+  target*; consumed via **`FetchContent`** / `add_subdirectory`. Nothing installed.
+- **`trunlib`** (engine #2, desktop-embed) — a normal desktop static lib built with the host
+  toolchain; shipped as an **installed `-dev` package** and consumed via **`find_package`**.
+
+Context: all three engines are implemented and merged to `dev`. Design/roadmap:
+`todo/done/embedded_impl.md`, `todo/done/embedded_mcu_step3.md`. None of the items below is
+greenlit — **capture only**. (MCU Phase B — cross-toolchain / real board — is validated on
+hardware *outside* this repo and is out of scope here.)
+
+## TODO  [ -:open  +:in progress  !:done ]
+```
+- trunmcu consumption: first-class FetchContent dependency (source, compile-for-target)
+- trunlib consumption: install as a versioned -dev package (.deb) + find_package(testrunner)
+- trunembedded split: finish trunmcu (embedded) vs trunlib (desktop-embed); retire trunembedded
+- Consider a clearer name for trunlib (the desktop-embed library)
+```
+
+## 1. trunmcu — FetchContent (source, compile-for-target)
+
+**Motivation:** the current embedded engine is *not* easy to embed. In practice the maintainer
+has "faked" inclusion by cloning the repo and hand-copying/including the required files into the
+target project. To be genuinely useful the MCU engine must be **easy to include *and* use** — a
+first-class dependency, not a copy job. This is the driving requirement for the whole doc.
+
+**Target ergonomics:** a project pulls in trunmcu via `FetchContent` (or a vendored submodule)
+and links one CMake target, no file cherry-picking:
+```cmake
+FetchContent_Declare(trunmcu GIT_REPOSITORY <...> GIT_TAG <...>)
+FetchContent_MakeAvailable(trunmcu)
+target_link_libraries(my_tests PRIVATE trun::mcu)
+```
+
+**Design constraints / open questions to settle at impl time:**
+- The engine is **compiled *for the embedder's target*** with *their* cross-toolchain + flags —
+  so a prebuilt host static lib is the wrong artifact to ship. Prefer an **`INTERFACE` (or
+  `OBJECT`) library** target that exposes the `src/testrunner/mcu/` sources + the frozen
+  `ext_testinterface` include dir, so the parent build compiles them in the target's context.
+  (The existing host `trunmcu` static lib stays as the validation build — separate, not installed.)
+- Expose the `TRUN_MCU_*` capacities (`MAX_TESTFUNCS`/`MAX_MODULES`/`MSG_BUF_LEN`/`SINK_MAX_RETRY`)
+  and `TRUN_USE_V1` as **CMake cache options** on that target so the embedder sets them from the
+  parent project (no editing engine headers).
+- Provide a namespaced alias (`trun::mcu`) and, for vendored use, keep `add_subdirectory()`
+  working too — the same target, two entry paths.
+- Decide what (if anything) gets `install(EXPORT)`'d. For MCU the answer is likely "nothing
+  installed" (it's compiled-for-target); the FetchContent/`add_subdirectory` path is the whole
+  story. Contrast `trunlib` (§2), which *is* an installed dev package.
+
+## 2. trunlib — installed `-dev` package + `find_package`
+
+**Nature:** unlike trunmcu, `trunlib` is a *desktop* library built with the host toolchain
+(threaded, links fmt + cpptrace, C++20). A prebuilt binary is exactly the right artifact, so its
+consumption story is the standard **install → `find_package`** flow, not FetchContent-source.
+
+**Target ergonomics:** install a versioned dev package, then downstream:
+```cmake
+find_package(testrunner 1.2 REQUIRED)
+target_link_libraries(my_app PRIVATE trun::lib)
+```
+
+**What to build (explore):**
+- **`find_package` support** — export an installed CMake **config-file package** so downstream
+  `find_package(testrunner)` just works:
+  - `install(TARGETS trunlib EXPORT testrunnerTargets ...)` + `install(EXPORT testrunnerTargets
+    NAMESPACE trun:: DESTINATION lib/cmake/testrunner)`.
+  - Generate `testrunnerConfig.cmake` + `testrunnerConfigVersion.cmake` via
+    `CMakePackageConfigHelpers` (`configure_package_config_file` +
+    `write_basic_package_version_file`), installed to `lib/cmake/testrunner/`.
+  - Namespaced imported target `trun::lib`; carry public include dirs + transitive deps
+    (fmt, cpptrace) as usage requirements so downstream links them automatically. The config
+    file must `find_dependency(fmt)` / `find_dependency(cpptrace)` so a consumer resolves them.
+- **Versioned `-dev` package** — ship the lib + public headers + the CMake config as a distro
+  dev package, e.g. `testrunner-<x.y.z>-dev.deb`. The repo already produces a `.deb` via CPack
+  (`ninja package`, see CLAUDE.md) and installs on Linux (`sudo ninja install`); the new work is
+  (a) the EXPORT/config-file package above so `find_package` resolves, and (b) shaping a **`-dev`
+  component** (headers + static lib + cmake config) distinct from the runtime `trun` CLI.
+- **Public headers to install:** the frozen `ext_testinterface` headers (V1 + V2) + the trunlib
+  facade header. Keep the frozen contract intact (memory `external-interface-frozen`).
+- **Single version source:** drive both the package version and the `find_package` version off
+  `project(... VERSION x.y.z)` / `testlibversion` — no second place to bump.
+
+**Open questions:**
+- Package layout: one `testrunner` package with a `-dev` component, vs separate `testrunner`
+  (CLI runtime) and `testrunner-dev` (lib + headers + cmake) packages.
+- Do we also offer trunlib via `FetchContent`/`add_subdirectory` for source consumers, or is
+  install + `find_package` the only supported path? (trunmcu stays source-only regardless.)
+- macOS/Windows equivalents of the `.deb` (Homebrew tap? plain `cmake --install` prefix +
+  `find_package`?). Linux `-dev` package first; the CMake config-file package is portable.
+
+## 3. trunembedded split — trunmcu (embedded) vs trunlib (desktop-embed)
+
+This is **not a new decision** — it completes the objective stated in the very opening of the
+(archived) `todo/done/embedded_impl.md`: *"There are actually two types of embedded engines …
+Both use cases should be supported — but not necessarily by the same engine."* The old
+`trunembedded` conflated those two into one project: (1) genuine embedded/MCU use, and (2)
+desktop "trun-as-library" — link the runner into a desktop app so it has no external runner
+(reasons: memory model across Linux/macOS/Windows + execution speed). That conflation is what
+made it awkward — and it's also why the two consumption stories above differ.
+
+Per that objective they are **two separate engines**:
+- **`trunmcu`** — engine #1, proper embedded / MCU. Owns the *embedded* facade + the source /
+  FetchContent consumption story (§1).
+- **`trunlib`** — engine #2, the desktop-embed library. Owns the *desktop-embed* role + the
+  installed `-dev` package / `find_package` story (§2). Candidate for a **clearer name** than
+  `trunlib`.
+
+Follow-on work:
+- Retire the old two-in-one `trunembedded` once trunlib fully covers the desktop-embed role —
+  one atomic push (per the archived roadmap's sequencing), keeping the current engine as the
+  baseline until then.
+- Rename `trunlib` to something that reads as "embed the runner in your desktop app" (bikeshed
+  at retirement time).
+- Keep the two consumption stories distinct: trunmcu = source / FetchContent / compile-for-target
+  (§1); trunlib = installed `-dev` package / `find_package` (§2).

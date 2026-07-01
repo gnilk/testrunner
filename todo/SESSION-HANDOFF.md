@@ -9,9 +9,10 @@ Pick-up notes for continuing the engine rewrite on a clean slate.
   branch was **deleted** (local + `origin`). No open rewrite branches remain.
 - `dev` is in sync with `origin/dev` (verify with `git status -sb`). `dev` is far ahead of
   `master`; a `dev → master` release promotion is a separate, still-outstanding step.
-- Remaining open embedded work — **easy consumption (FetchContent)** + the **trunembedded
-  split** — is now its own active doc: `todo/mcu_consumption.md`. The design/roadmap docs were
-  archived to `todo/done/` (see below).
+- Remaining open work — **library consumption** (trunmcu via FetchContent; **trunlib** via an
+  installed `-dev` package + `find_package`) + the **trunembedded split** — is now its own
+  active doc: `todo/library_consumption.md`. The design/roadmap docs were archived to
+  `todo/done/` (see below).
 - Working tree (intentional / not mine, leave alone):
   - `src/app/trun/trun.cpp` — uncommitted CLion working-dir debug comment (left unstaged on
     purpose; NOT part of the step-3 commit).
@@ -85,11 +86,12 @@ ninja trun trun_utests
    dead). Small follow-ups noted in `todo/done/embedded_mcu_step3.md`: glob/negation (`!mod`)
    in the filter matcher; whether `RunTests` returning `RunResult` (vs the old `void`) should
    also flow into the trunembedded facade.
-2. **Consumption / easy inclusion** + **3. trunembedded split** — both now live in
-   `todo/mcu_consumption.md` (extracted when the design docs were archived). Make trunmcu a
-   first-class `FetchContent` dependency (INTERFACE/OBJECT target, `TRUN_MCU_*`/`TRUN_USE_V1`
-   as cache options, `trun::mcu` alias); and finish the trunmcu (embedded) vs trunlib
-   (desktop-embed) split, retiring the old two-in-one `trunembedded`. NOT greenlit — capture.
+2. **Library consumption** + **3. trunembedded split** — both now live in
+   `todo/library_consumption.md` (extracted when the design docs were archived). Make trunmcu a
+   first-class `FetchContent` dependency (INTERFACE/OBJECT source target, compile-for-target);
+   make **trunlib** consumable as an installed versioned `-dev` package + `find_package(testrunner)`
+   → `trun::lib` (CMake config-file package via CPack `.deb`); and finish the trunmcu (embedded)
+   vs trunlib (desktop-embed) split, retiring the old two-in-one `trunembedded`. NOT greenlit.
 4. **Step-3 Phase B** — cross toolchain + real board (e.g. `arm-none-eabi-gcc`,
    `-ffreestanding`, no-libc considerations: the host phase leans on `<cstdio>`/`vsnprintf`;
    freestanding must swap those for the sink + a tiny formatter). NOT greenlit — its own plan.
