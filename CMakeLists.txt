@@ -46,6 +46,7 @@ endif()
 # FIXME: This should be 'off' by default
 option(BUILD_TCOV "Build tcov coverage tool" ON)
 option(BUILD_TRUNEMBEDDED "Build embedded library" ON)
+option(BUILD_TRUNMCU "Build the zero-alloc MCU engine + demos (engine #3)" ON)
 option(BUILD_OTHER "Build other exec" ON)
 
 # External dependencies (FetchContent etc.)
@@ -70,6 +71,10 @@ endif()
 
 if(BUILD_TRUNEMBEDDED)
     add_subdirectory(${CMAKE_SOURCE_DIR}/src/app/trunembedded)
+endif()
+
+if(BUILD_TRUNMCU)
+    add_subdirectory(${CMAKE_SOURCE_DIR}/src/app/trunmcu)
 endif()
 
 if (BUILD_OTHER)

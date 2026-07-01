@@ -101,12 +101,21 @@ doesn't even use `Config::FromArguments` — it sets `Config` directly via `RunT
    `old_Config_FromArguments` + `ParseNumber`. Suite still 102/15; trunembedded runs
    threaded; trv1/trv2 libs pass.
 3. **Embedded MCU** — thin, zero-alloc, compile-time buffers.
-   **[- NOT STARTED — not greenlit; confirm intent/design before coding.]** The
-   `TRUN_EMBEDDED_MCU` stubs (`responseproxy.cpp`, `reportingbase.cpp`) are the only
-   forward-looking hooks today; the macro is defined by no target yet. This is where
-   `TRUN_HAVE_EXCEPTIONS` / `TRUN_HAVE_FORK` get the same impl-swap treatment — the MCU
-   engine simply won't include the fork path (impl-swap, no new `#ifdef`s). The desktop
-   fork path it swaps *out* is now the hardened, windowed one (see engine #1 follow-on).
+   **[+ DESIGN SETTLED 2026-06-30 — full design in `todo/embedded_mcu_step3.md`; impl not
+   started.]** Settled with maintainer: (a) **host-validated, architecture-first** —
+   separate engine under `src/testrunner/mcu/` that builds/runs on macOS/Linux behind the
+   existing facade, cross-toolchain is Phase B; (b) **`setjmp`/`longjmp`** mid-body abort
+   (no threads/exceptions; required by frozen V1 header, also serves V2 Fatal/Abort);
+   (c) **fixed-count constants** (`TRUN_MCU_MAX_TESTFUNCS`/`_MAX_MODULES`/`_MSG_BUF_LEN`) +
+   **name-by-pointer** into caller-owned literals (no copies, no `MAX_NAME_LEN`, no arena) +
+   a `constexpr kStaticFootprintBytes`; (d) **drop** deps / JSON+file reporting / heap
+   var-args logging / `FromArguments`; (e) console output via an overridable
+   `SetOutputSink` callback (default stdout). The two `TRUN_EMBEDDED_MCU` `#ifdef` stubs
+   (`responseproxy.cpp`, `reportingbase.cpp`) get **removed** — the MCU engine doesn't
+   compile those files (impl-swap, no new `#ifdef`s). This is where `TRUN_HAVE_EXCEPTIONS` /
+   `TRUN_HAVE_FORK` get the same impl-swap treatment — the engine simply won't include the
+   fork path. The desktop fork path it swaps *out* is now the hardened, windowed one (see
+   engine #1 follow-on).
 
 ### Key design decision to settle BEFORE coding the sweep  ✅ RESOLVED (branch `rewrite/func-executor-unification`)
 

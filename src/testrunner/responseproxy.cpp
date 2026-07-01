@@ -390,12 +390,6 @@ ITestingV2 *TestResponseProxy::GetTRTestInterfaceV2() {
 // wrappers for pure C call's (no this) - only one call per thread allowed.
 //
 
-#if defined(TRUN_EMBEDDED_MCU)
-    #define CREATE_REPORT_STRING() \
-    const char *newstr="";               \
-
-#else
-
 #define CREATE_REPORT_STRING() \
 	va_list	values;													\
 	char * newstr = NULL;											\
@@ -414,8 +408,6 @@ ITestingV2 *TestResponseProxy::GetTRTestInterfaceV2() {
             break;                                                  \
         }                                                           \
     } while(res < 0);												\
-
-#endif
 
 static bool IsMsgSizeOk(uint32_t szbuf) {
     if (szbuf > Config::Instance().responseMsgByteLimit) {
