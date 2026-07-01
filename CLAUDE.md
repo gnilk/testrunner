@@ -92,6 +92,7 @@ cd cmake-build-debug
 | `src/testrunner/ext_testinterface/` | Public headers installed alongside `trun`: `testinterface.h` (V2), `testinterface_v1.h` |
 | `src/testrunner/reporting/` | `reportconsole`, `reportjson`, `reportjsonext` — implement `ResultsReportPinterBase` |
 | `src/testrunner/embedded/` | `dynlib_embedded`, stripped logger — only compiled into `trunlib` |
+| `src/testrunner/mcu/` | Self-contained zero-alloc MCU engine (engine #3): `StaticVector`/`StrView`, registry, `setjmp`/`longjmp` `ITesting`, console+sink reporter, `trunmcu` facade — compiled into `trunmcu`/demos only, never the desktop core |
 | `src/testrunner/tests/` | Internal unit tests (compiled into `trun_utests.so`) |
 | `src/coverage/` | `CoverageRunner`, `BreakpointManager`, `SymbolResolver` — LLDB-based coverage logic |
 | `src/shared/` | Cross-cutting utilities: `strutil`, `timer`, `glob`, `dirscanner`, `testlibversion` |
@@ -104,8 +105,9 @@ cd cmake-build-debug
 | `TRUN_HAVE_FORK` | Enables `TestModuleExecutorFork` (per-module subprocess via `fork`); desktop-only. Without it the module loop runs sequentially. |
 | `TRUN_HAVE_EXCEPTIONS` | Catches C++ exceptions inside test cases (cpptrace unwind); required for the threaded executor's forced-termination throw. |
 | `TRUN_HAVE_EXT_REPORTING` | Enables JSON reporting modules |
-| `TRUN_USE_V1` | Forces V1 test interface (needed on Windows) |
-| `TRUN_EMBEDDED_MCU` | (future, step 3) the genuinely no-thread / no-exception / zero-alloc MCU engine |
+| `TRUN_USE_V1` | Forces V1 test interface (needed on Windows; also selects V1 for the MCU engine, e.g. `trunmcu_demo_v1`) |
+| `TRUN_MCU_MAX_TESTFUNCS` / `TRUN_MCU_MAX_MODULES` / `TRUN_MCU_MSG_BUF_LEN` / `TRUN_MCU_SINK_MAX_RETRY` | MCU engine (engine #3) compile-time capacities; sane defaults, override per project. See `src/testrunner/mcu/mcu_config.h`. |
+| ~~`TRUN_EMBEDDED_MCU`~~ | **Removed** in step 3. The zero-alloc MCU engine is a separate `src/testrunner/mcu/` implementation selected by CMake wiring, not a define (impl-swap, no `#ifdef`). |
 
 **Threading is no longer a compile flag.** Test cases always run in their own thread
 (the single `TestFuncExecutorThreaded`); every current target is threaded. The old
@@ -113,6 +115,10 @@ cd cmake-build-debug
 targets differ by **swapping implementations** (executor / module-executor factories +
 base classes) and per-target CMake wiring, not by `#ifdef`. `trunlib` is the
 threaded-but-no-fork desktop-embedded engine (it links fmt + cpptrace and is C++20).
+The **MCU engine** (`trunmcu`, engine #3, step 3 Phase A) is the genuinely no-thread /
+no-exception / no-heap / zero-alloc path — a separate `src/testrunner/mcu/` implementation
+compiled *for the target* by the embedder (a host-validation lib only; **not installed**).
+See `todo/embedded_mcu_step3.md`.
 `TRUN_SINGLE_THREAD` still exists *only* inside the frozen `testinterface_v1.h` as a
 user-side knob for the V1 assert macro — we no longer define it in any target.
 
@@ -184,8 +190,8 @@ I would suggest avoiding the following modules.
 * abortall, various execution abort tests
 * exception, various exception stressing tests
 
-When running the full test-suite (28.06.2026) with the following parameters:
+When running the full test-suite (01.07.2026) with the following parameters:
 ```shell
    trun -m !abortall,!exception,- lib/libtrun_utests.dylib
 ```
-It will execute 93 tests and fail 15
+It will execute 102 tests and fail 15 (fork == sequential; the 15 are intentional self-fails)
