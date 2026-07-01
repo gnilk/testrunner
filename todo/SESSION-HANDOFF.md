@@ -82,12 +82,24 @@ ninja trun trun_utests
    branches were dead). Possible small follow-ups noted in `embedded_mcu_step3.md`:
    glob/negation (`!mod`) in the filter matcher; whether `RunTests` returning `RunResult`
    (vs the old `void`) should also flow into the trunembedded facade.
-2. **Step-3 Phase B** — cross toolchain + real board (e.g. `arm-none-eabi-gcc`,
+2. **Consumption / easy inclusion** — make trunmcu trivial to pull into a real project via
+   `FetchContent` (an `INTERFACE`/`OBJECT` target that compiles the `mcu/` sources in the
+   embedder's target context; `TRUN_MCU_*` + `TRUN_USE_V1` as CMake cache options; `trun::mcu`
+   alias; `add_subdirectory` also works). Today the engine is *not* easy to embed — the
+   maintainer has been hand-copying files after cloning. Details in `embedded_mcu_step3.md`
+   ("Consumption / easy inclusion"). NOT greenlit yet — capture-only.
+3. **trunembedded split / retirement** — the old `trunembedded` was two-in-one (embedded +
+   desktop-embed). That's now split: **`trunmcu`** = proper embedded facade, **`trunlib`** =
+   desktop-embed lib (link into a desktop app, no external runner; candidate for a clearer
+   name). Answers the old "is `trunmcu.h` the new `trunembedded.h`?" question via the split,
+   not a rename. Retire the old two-in-one atomically once trunmcu is merged and trunlib
+   covers the desktop-embed role. Details in `embedded_mcu_step3.md` ("trunembedded split").
+4. **Step-3 Phase B** — cross toolchain + real board (e.g. `arm-none-eabi-gcc`,
    `-ffreestanding`, no-libc considerations: the host phase leans on `<cstdio>`/`vsnprintf`;
    freestanding must swap those for the sink + a tiny formatter). NOT greenlit — its own plan.
-3. **Coverage/tcov sweep** — deferred; experimental, dead code there is intentional (memory
+5. **Coverage/tcov sweep** — deferred; experimental, dead code there is intentional (memory
    `coverage-tcov-experimental`). Includes the `SymbolResolver::IsInProject` no-op.
-4. **`todo/signal_handling.md`** — planning doc, NOT greenlit; feature, not a bug.
+6. **`todo/signal_handling.md`** — planning doc, NOT greenlit; feature, not a bug.
 
 ## Key decisions / gotchas to remember
 - **External interface headers are frozen** (`ext_testinterface/testinterface.h` V2 +
