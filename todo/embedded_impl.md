@@ -101,21 +101,27 @@ doesn't even use `Config::FromArguments` — it sets `Config` directly via `RunT
    `old_Config_FromArguments` + `ParseNumber`. Suite still 102/15; trunembedded runs
    threaded; trv1/trv2 libs pass.
 3. **Embedded MCU** — thin, zero-alloc, compile-time buffers.
-   **[+ DESIGN SETTLED 2026-06-30 — full design in `todo/embedded_mcu_step3.md`; impl not
-   started.]** Settled with maintainer: (a) **host-validated, architecture-first** —
-   separate engine under `src/testrunner/mcu/` that builds/runs on macOS/Linux behind the
-   existing facade, cross-toolchain is Phase B; (b) **`setjmp`/`longjmp`** mid-body abort
-   (no threads/exceptions; required by frozen V1 header, also serves V2 Fatal/Abort);
-   (c) **fixed-count constants** (`TRUN_MCU_MAX_TESTFUNCS`/`_MAX_MODULES`/`_MSG_BUF_LEN`) +
-   **name-by-pointer** into caller-owned literals (no copies, no `MAX_NAME_LEN`, no arena) +
-   a `constexpr kStaticFootprintBytes`; (d) **drop** deps / JSON+file reporting / heap
-   var-args logging / `FromArguments`; (e) console output via an overridable
-   `SetOutputSink` callback (default stdout). The two `TRUN_EMBEDDED_MCU` `#ifdef` stubs
-   (`responseproxy.cpp`, `reportingbase.cpp`) get **removed** — the MCU engine doesn't
-   compile those files (impl-swap, no new `#ifdef`s). This is where `TRUN_HAVE_EXCEPTIONS` /
-   `TRUN_HAVE_FORK` get the same impl-swap treatment — the engine simply won't include the
-   fork path. The desktop fork path it swaps *out* is now the hardened, windowed one (see
-   engine #1 follow-on).
+   **[+ PHASE A IMPLEMENTED 2026-06-30, branch `rewrite/embedded-engine-step3`, commit
+   `ffd6814` (committed, not pushed/merged). Full design + impl notes in
+   `todo/embedded_mcu_step3.md`. Phase B (cross toolchain/board) deferred.]** The
+   self-contained engine lives in `src/testrunner/mcu/` (mcu_static / mcu_config /
+   mcu_report / mcu_testing / mcu_runner / trunmcu) with demo + CMake in `src/app/trunmcu/`,
+   selected by CMake wiring not `#ifdef`s in the desktop core. Delivered per the settled
+   design: (a) **host-validated** — builds/runs on macOS/Linux behind the existing facade;
+   (b) **`setjmp`/`longjmp`** mid-body abort (V1 forced assert + Fatal/Abort; V2
+   cooperative); (c) **fixed-count constants** + **name-by-pointer** into caller-owned
+   literals (no copy, no `MAX_NAME_LEN`, no arena) + `constexpr kStaticFootprintBytes`
+   (4136 B defaults); (d) dropped deps / JSON+file reporting / heap var-args logging /
+   `FromArguments` (pre/post hooks kept); (e) overridable `SetOutputSink` (default stdout,
+   `OutputSinkResult` return). V1 vs V2 is compile-time (`TRUN_USE_V1`), like trv1/trv2.
+   No heap/threads/exceptions/RTTI (verified: `nm` shows no `operator new`/`malloc`, builds
+   `-fno-exceptions -fno-rtti` clean). The two `TRUN_EMBEDDED_MCU` `#ifdef` stubs
+   (`responseproxy.cpp`, `reportingbase.cpp`) were **removed** (impl-swap, no new `#ifdef`s).
+   `trunmcu` is a **host-validation lib only — NOT installed**; the engine is compiled for
+   the target by the embedder. This is where `TRUN_HAVE_EXCEPTIONS` / `TRUN_HAVE_FORK` get
+   the same impl-swap treatment — the engine simply doesn't include the fork path. The
+   desktop fork path it swaps *out* is now the hardened, windowed one (see engine #1
+   follow-on).
 
 ### Key design decision to settle BEFORE coding the sweep  ✅ RESOLVED (branch `rewrite/func-executor-unification`)
 

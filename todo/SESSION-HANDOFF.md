@@ -1,175 +1,114 @@
-# Session handoff — 2026-06-30
+# Session handoff — 2026-07-01
 
 Pick-up notes for continuing the engine rewrite on a clean slate.
 
 ## Repo state
-- Engine-rewrite **steps 1 and 2** and the **fork-executor concurrency fix** are all done,
-  merged to `dev`, and **pushed**. **Local `dev` is in sync with `origin/dev` (no
-  divergence)** — verify with `git status -sb`. Branch `fix/fork-executor-concurrency`
-  was merged `--no-ff` and deleted; no open work-in-progress branches. The fork fix is
-  commit **`cfbd04a`** (stable); anything newer on `dev` is just `docs:` handoff/roadmap
-  refreshes.
-- **Next: step 3 (zero-alloc MCU engine) — NOT greenlit; confirm intent/design first.**
+- Engine-rewrite **steps 1, 2, and step-3 Phase A** are all implemented. Steps 1+2 and the
+  fork-executor fix are merged to `dev` and pushed. **Step-3 Phase A is committed on branch
+  `rewrite/embedded-engine-step3` (commit `ffd6814`) but NOT pushed and NOT merged** —
+  awaiting maintainer review.
+- `dev` is unchanged this session (still in sync with `origin/dev`). Verify with
+  `git status -sb` and `git log --oneline dev..rewrite/embedded-engine-step3`.
 - Working tree (intentional / not mine, leave alone):
-  - `src/app/trun/trun.cpp` — uncommitted CLion working-dir debug comment (left unstaged
-    on purpose; not part of any rewrite commit).
+  - `src/app/trun/trun.cpp` — uncommitted CLion working-dir debug comment (left unstaged on
+    purpose; NOT part of the step-3 commit).
   - `.DS_Store`, `src/testrunner/.DS_Store` — untracked.
-- Build dir: `cmake-build-debug` (ninja). Artifact: `lib/libtrun_utests.dylib`.
-- **Build gotcha hit this session:** this build dir was stale on fmt v10 (the v12 pin
-  from commit `3c897f3`, 2026-05-12, had never been reconfigured here). After
-  `cmake ..`, gnklog can link-fail with undefined `fmt::v10::vprint/vformat`. Fix:
-  `rm -rf _deps/gnklog-build/CMakeFiles/gnklog.dir && ninja gnklog` (recompiles gnklog
-  against the now-current fmt v12). Not a code issue.
+- Build dir: `cmake-build-debug` (ninja).
+- **Sandbox build caveat (this environment only):** `cmake-build-debug/_deps/fmt-src` was
+  never fully fetched here and there is no network, so the **desktop** targets
+  (`trun`/`trun_utests`/`trunlib`) can't build/link in this sandbox (fmt/gnklog). The MCU
+  engine is self-contained (no fmt/cpptrace) and builds fine. To build the MCU targets
+  through CMake here I configured with `-DFETCHCONTENT_FULLY_DISCONNECTED=ON`; **drop that
+  flag when reconfiguring with network**: `cmake -U FETCHCONTENT_FULLY_DISCONNECTED ..`.
+  (Historic gotcha still applies elsewhere: a stale fmt v10 vs the v12 pin can make gnklog
+  link-fail with undefined `fmt::v10::vprint/vformat`; fix is
+  `rm -rf _deps/gnklog-build/CMakeFiles/gnklog.dir && ninja gnklog`.)
 
-## Done this session — fork module-executor windowing (merged, NOT pushed)
-Branch `fix/fork-executor-concurrency`, merge `d7c455d`. Triggered by running `trun`
-(no args) against an external lib (`…/PuckoNew/…/libpucko_utests.dylib`), which exposed
-the fork executor forking **one subprocess per module for all modules at once**: 98 forks
-oversubscribed the box, ~65% "timed out" at the same instant, each re-logged+re-killed
-every poll spin (one module 298×, 205s system time), and killed/crashed modules vanished
-from the counts while trun exited 0.
-- `moduleexecutors.cpp::TestModuleExecutorFork::Execute` — rewrote "fork all then spin"
-  into a **bounded window** (`maxConcurrency`, default ≈ CPU cores via
-  `std::thread::hardware_concurrency()`). Per-module timeout now staggers correctly;
-  timeout/crash logged + `Kill()`ed + recorded **once** (`struct Running{proc,timedOut}`);
-  `yield()` → `sleep_for(5ms)`; IPC FIFO drained **incrementally** via a `drainResults`
-  lambda (long-lived run must not let unread results back up the pipe).
-- `config.{h,cpp}` + `trun.cpp` — new `moduleExecConcurrency` (0 = auto) + `--max-concurrency`
-  CLI/Dump/help (under `TRUN_HAVE_FORK`).
-- `resultsummary.{h,cpp}` — `incompleteModules` (name, reason) + `AddIncompleteModule()` +
-  a "Modules incomplete: N" summary section (grouped `[timeout]`/`[crashed]`).
-- `trun.cpp::main()` — exit **non-zero when modules don't complete**; ordinary
-  test-assertion failures still exit 0 (unchanged — feeds the JSON-consumed CI flow).
-Verified: canonical suite unchanged (**102/15 fork==sequential**, exit 0);
-`--max-concurrency 1`/`4` deterministic. Pucko repro: sys time **205s→36s**, zero timeout
-cascade, each event logged once, the 2 genuinely-crashing modules (`fatfs`, `pfsblkread`)
-surfaced + **exit 1** (was silently 166/10, exit 0). The `fatfs` "crash" is a **pucko bug**
-not a trun bug: a failing `TR_ASSERT` force-terminates the V1 test thread, the unwind runs
-`StorageFatFS::~StorageFatFS()` which does `driver->Sync()` on a never-`Begin()`'d (null)
-`driver` → ASan SEGV → process abort. Pucko is queued for its own deep-dive.
+## Done this session — engine rewrite step 3 Phase A (MCU engine)
+Branch `rewrite/embedded-engine-step3`, commit `ffd6814`. Design + impl notes:
+`todo/embedded_mcu_step3.md` (roadmap: `todo/embedded_impl.md` engine #3). A brand-new,
+**self-contained zero-alloc engine** under `src/testrunner/mcu/` (7 files) + demo/CMake in
+`src/app/trunmcu/`, selected by CMake wiring — NOT `#ifdef`s in the desktop core. No heap,
+no threads, no exceptions, no RTTI, no fmt/cpptrace/STL-containers/`std::string`.
+- **Files:** `mcu_static.h` (StaticVector/StrView), `mcu_config.h` (constants),
+  `mcu_report.{h,cpp}` (console + output sink), `mcu_testing.{h,cpp}` (ITesting vtable +
+  setjmp/longjmp), `mcu_runner.{h,cpp}` (registry + run loop + `kStaticFootprintBytes`),
+  `trunmcu.{h,cpp}` (public facade). Demo: `src/app/trunmcu/trunmcu_demo.cpp` + CMake.
+- **Design (settled with maintainer):** fixed-count capacities
+  (`TRUN_MCU_MAX_TESTFUNCS`=64/`_MAX_MODULES`=16/`_MSG_BUF_LEN`=128/`_SINK_MAX_RETRY`=8)
+  backing in-house containers; **names stored by pointer** into caller-owned literals (no
+  copy, no `MAX_NAME_LEN`, no arena) — footprint is `trun::mcu::kStaticFootprintBytes`
+  (**4136 B** with defaults), static_assert-able against a RAM budget. Mid-body abort via
+  **setjmp/longjmp** (V1 bare-void assert + Fatal/Abort force-stop; V2 assert/Error
+  cooperate). Console output drains through an overridable `SetOutputSink` returning
+  `OutputSinkResult{kOk,kRetry,kErrorContinue,kErrorAbort}` (default stdout; bounded
+  retries). Dropped: deps (CaseDepends/ModuleDepends no-op), JSON/file reporting, heap
+  var-args logging, `Config::FromArguments`. **Kept:** pre/post-case hooks. `RunTests`
+  now returns `RunResult` (was `void` on trunembedded).
+- **V1 vs V2 is compile-time** (`TRUN_USE_V1`), like trv1/trv2 — the ITesting struct layout
+  differs so the engine is recompiled per version; trampolines branch on a small, local
+  `#ifdef` (justified by the frozen header's own versioning). `trunmcu` static lib = V2
+  (**host-validation only — NOT installed**; the engine is compiled for the target by the
+  embedder). `trunmcu_demo` = V2; `trunmcu_demo_v1` recompiles the engine with `TRUN_USE_V1`.
+- **Also removed** the two now-dead `TRUN_EMBEDDED_MCU` `#ifdef` stubs
+  (`responseproxy.cpp`, `reporting/reportingbase.cpp`) — impl-swap, not `#ifdef`. Both
+  edited files compile clean (their `.o`s built before the unrelated sandbox fmt failure).
+- **Verified (host):** V1 + V2 demos build and run **identically** — a failing assert stops
+  its case mid-body (V2 cooperative return / V1 longjmp), `Fatal` stops the module's
+  remaining cases but module exit + sibling cases still run. Built `-fno-exceptions
+  -fno-rtti -Wall -Wextra` with zero warnings; `nm` shows no `operator new`/`malloc` in the
+  engine objects. Footprint 4136 B.
 
-## Done this session — engine rewrite step 2 (threaded trunlib + macro removal)
-Branch `rewrite/embedded-engine-step2`. Plan: `todo/embedded_impl.md` (roadmap step 2,
-build/define matrix updated). Made `trunlib` use the threaded executor (per-case
-isolation + mid-body termination, no fork) and **removed three compile macros** —
-`TRUN_HAVE_THREADS`, `TRUN_EMBEDDED`, `TRUN_SINGLE_THREAD` — replacing them with
-implementation selection per the `prefer-impl-files-over-ifdefs` principle:
-- Threading is now **unconditional** (every target is threaded). Some `THREADS` guards
-  were really FORK guards and were re-attributed (`resultsummary.cpp` IPC includes;
-  `moduleexecutors.cpp` `<thread>`). Fixed the `config.cpp` CTOR coupling bug
-  (exec-type was keyed on FORK; now always `kThreaded`, module-type keys on FORK).
-- Deleted the dead `old_Config_FromArguments` + `ParseNumber` from `config.cpp`;
-  `FromArguments`/`ArgParser` now compile unconditionally (added `#include <fmt/format.h>`).
-- CMake: `trun`/`trun_utests` drop the dead `TRUN_HAVE_THREADS` define; `trunlib` +
-  `trunembedded` drop `SINGLE_THREAD`/`EMBEDDED`, **gain `TRUN_HAVE_EXCEPTIONS`, link
-  `fmt` + `cpptrace::cpptrace`, and move to C++20** (ArgParser needs it). `TRUN_SINGLE_THREAD`
-  still lives in the frozen `testinterface_v1.h` as a user knob — we just stop defining it.
-- **Consequence:** `trunlib` (and embedders) now carry a cpptrace + fmt dependency. The
-  lean no-thread/no-exception path is step 3 (MCU).
-Verified: all six targets build (`trun trun_utests trunlib trunembedded trv1_utest
-trv2_utest`); suite **102/15 fork==sequential**; `trunembedded` runs threaded;
-`exception`/`abortall` modules unchanged; V1 (1.0.0) + V2 (2.0.0) libs pass.
-
-## Done this session — engine rewrite step 1 (executor unification)
-Branch `rewrite/func-executor-unification`. Plan: `todo/embedded_impl.md`
-(roadmap step 1 marked done). Collapsed the three function executors to two
-(`Sequential` + one `TestFuncExecutorThreaded` on `std::thread`); deleted
-`TestFuncExecutorParallelPThread` (redundant — forced termination is a thrown
-`TestAbortException` that unwinds fine on a `std::thread`; no target builds
-threads-without-exceptions). `kThreaded`/`kThreadedWithExit` enum kept as the
-forced-mode signal (V1 auto-promote + `--allow-thread-exit`). Also fixed V2
-`Fatal`/`Abort` to force-terminate mid-body (`Error` stays soft):
-`TerminateThreadIfNeeded(bool alwaysTerminate)` — Abort/Fatal pass `true`,
-Error/Assert pass `false`. Files: `funcexecutors.{h,cpp}`, `responseproxy.{h,cpp}`.
-**No external header touched** (frozen contract — now documented in CLAUDE.md +
-memory `external-interface-frozen`). Verified: trun/utests/trunlib/trunembedded all
-build; canonical suite still **102/15 fork==sequential** (and under
-`--allow-thread-exit`); only `_test_rust_fatal` output changed (stops after the first
-`Fatal`, attributed to the test not the post-hook).
-
-## How to verify (per CLAUDE.md)
+## How to verify
 ```bash
-cd cmake-build-debug && ninja trun trun_utests
-# Canonical suite (excludes abortall/exception which break full execution):
-./trun -m '!abortall,!exception,-' lib/libtrun_utests.dylib       # fork (default)
+# MCU engine (self-contained; builds even without the desktop deps):
+cd cmake-build-debug
+cmake -DFETCHCONTENT_FULLY_DISCONNECTED=ON ..     # only needed if desktop deps missing
+ninja trunmcu trunmcu_demo trunmcu_demo_v1
+./trunmcu_demo        # V2 - expect: 9 executed / 2 failed, footprint 4136 bytes
+./trunmcu_demo_v1     # V1 - identical output (validates the forced-longjmp assert path)
+
+# Desktop canonical suite (needs fmt/cpptrace fetched - NOT runnable in the dev sandbox):
+ninja trun trun_utests
+./trun -m '!abortall,!exception,-' lib/libtrun_utests.dylib          # fork (default)
 ./trun --sequential -m '!abortall,!exception,-' lib/libtrun_utests.dylib
+# Expected: fork == sequential == 102 executed / 15 failed (15 are intentional self-fails).
 ```
-Expected now: **fork == sequential == 102 executed / 15 failed** (15 are
-intentional self-failure tests). Fork count is deterministic.
-
-## Done 2026-06-29 (all merged to `dev` and pushed)
-1. **Config arg bugs** (`done/config_arg_bugs.md`) — `1affcd7`, direct to dev.
-   `-t` without `-m` no longer clobbers the module filter (deleted duplicate
-   block); `-d` (dump) decoupled from `-D` (disable RTLD_DEEPBIND). Tests:
-   `test_config.cpp` (module `config`).
-2. **Fork executor cluster #1–#4** (`done/fork_executor_fixes.md`) — branch
-   `fix/fork-executor-lifetime`, merge `dd8337c`. Local owning
-   `vector<unique_ptr<SubProcess>>` + `unique_ptr<Process>` (no static
-   accumulation / leaks); output dumped once after finish (measured 6.2M → 84
-   lines); `state`/`exitStatus` atomic + initialized, `name`/`tStart`/`proc`
-   set before the worker spawns; `Wait()`/dtor always join. Removed the
-   `threadDeadCounter` warning and dead commented loop.
-3. **IPC robustness #2/#5/#6/#8** (`done/ipc_robustness.md`, now fully closed)
-   — branch `fix/ipc-robustness-cleanup`, merge `b6b0a20`. FIFO stale-cleanup
-   computes name first (#2); both `dynamic_cast`s null-checked (#5);
-   `testResults` is `vector<unique_ptr<IPCTestResults>>` — no producer/consumer
-   leaks (#6); `IPCAssertError` deserializer matches `kMsgType_AssertError`
-   (#8). Tests: `test_ipcmsg_deserializer_ids`, `test_ipcfifo_nix.cpp`.
-4. **Dead-code cleanup + embedded roadmap** — branch
-   `cleanup/dead-module-parallel`, merge `6fae78e`. Deleted dead
-   `TestModuleExecutorParallel` (thread-per-module: unreachable in every build —
-   desktop has FORK so factory maps `kParallel→fork`, embedded lacks THREADS so
-   it never compiled); re-guarded the fork-path `<thread>` include on FORK.
-   Simplified `--continue_on_assert` (4 `IsPresent`→2). Folded the embedded
-   analysis (build/define matrix, 3-engine roadmap, executor-unification design,
-   embedded dead-code inventory) into `todo/embedded_impl.md`; updated
-   `open-bugs.md`. Verified trun/utests **and** trunlib/trunembedded build;
-   suite unchanged.
-
-(Both feature branches were merged then deleted. Previous session's work —
-platform macros, IPC framing #1/#3/#4/#9, multi-assert #7, resultsummary
-de-dup, global double-count — is in earlier `dev` history / `todo/done/`.)
 
 ## Open work — suggested order
-Ranked by impact (1 = next). Branch for multi-file/function; small in-place
-fixes can go straight to `dev` (see memory `branch-vs-direct-commit`).
-
-`todo/open-bugs.md` is now effectively closed: the two dead-code items and the
-`--continue_on_assert` simplification are done (merge `6fae78e`); the only
-remaining live entry there is the coverage `SymbolResolver::IsInProject` no-op,
-which belongs to the deferred coverage sweep below.
-
-1. **Embedded engine rewrite** (`todo/embedded_impl.md`) — multi-step.
-   **Steps 1 (executor unification) and 2 (threaded trunlib + macro removal) are
-   DONE** (see above; step 1 merged, step 2 on its branch).
-   - **Step 3 — thin zero-alloc MCU engine** (`TRUN_EMBEDDED_MCU`): the genuinely
-     no-thread, no-exception, zero-alloc swapped implementation. **NOT greenlit** —
-     confirm intent/design before coding. This is where `TRUN_HAVE_EXCEPTIONS` and
-     `TRUN_HAVE_FORK` should get the same impl-swap treatment (no new `#ifdef`s).
-2. **Coverage/tcov sweep** — deferred; experimental, dead code there is
-   intentional (see memory `coverage-tcov-experimental`). Includes
-   `SymbolResolver::IsInProject` no-op (the last live item in `open-bugs.md`).
-3. **`todo/signal_handling.md`** — planning doc, NOT greenlit; feature, not a
-   bug. Do not start without explicit go-ahead.
+1. **Review + merge step-3 Phase A** (`rewrite/embedded-engine-step3`, `ffd6814`). Before
+   merge, **run the desktop 102/15 suite** somewhere the deps exist to confirm no regression
+   from the two shared-file stub removals (they compile; behavior is unchanged since the MCU
+   branches were dead). Possible small follow-ups noted in `embedded_mcu_step3.md`:
+   glob/negation (`!mod`) in the filter matcher; whether `RunTests` returning `RunResult`
+   (vs the old `void`) should also flow into the trunembedded facade.
+2. **Step-3 Phase B** — cross toolchain + real board (e.g. `arm-none-eabi-gcc`,
+   `-ffreestanding`, no-libc considerations: the host phase leans on `<cstdio>`/`vsnprintf`;
+   freestanding must swap those for the sink + a tiny formatter). NOT greenlit — its own plan.
+3. **Coverage/tcov sweep** — deferred; experimental, dead code there is intentional (memory
+   `coverage-tcov-experimental`). Includes the `SymbolResolver::IsInProject` no-op.
+4. **`todo/signal_handling.md`** — planning doc, NOT greenlit; feature, not a bug.
 
 ## Key decisions / gotchas to remember
-- **Module dependencies must be declared in `test_main`**, never in the module
-  main (`test_<module>`) — declaring in module main would force a
-  mid-execution rollback/abort, deliberately rejected. Deps are
-  discouraged-but-supported.
-- Fork still **re-executes** dependency modules in multiple children (benign
-  perf cost); only the duplicate **reporting** was the bug (de-duped earlier).
-- Forked mode is for CI/CD speed (large suites), usually `-r json` consumed by
-  a web-app. `--sequential` is for debugging through tests (CLion owns
-  execution).
-- macOS `trun` is built with ASan; macOS has no LSan, so leaks aren't caught
-  automatically — lifetime fixes were verified by exercising the now-destroyed
-  objects through the ASan-clean fork run, not by a leak report.
+- **External interface headers are frozen** (`ext_testinterface/testinterface.h` V2 +
+  `testinterface_v1.h` V1). Don't edit them. V1's threaded assert has no `return`, so a
+  failing V1 assert can only stop mid-body via forced termination — thread-kill on desktop,
+  **`longjmp` on MCU**. (CLAUDE.md + memory `external-interface-frozen`.)
+- **Module dependencies must be declared in `test_main`**, never in module main — declaring
+  in module main forces a mid-execution rollback/abort (deliberately rejected). Deps are
+  discouraged-but-supported on desktop; **dropped entirely on MCU**.
+- Forked mode is for CI/CD speed (large suites), usually `-r json` consumed by a web-app;
+  `--sequential` is for debugging through tests (CLion owns execution).
+- macOS `trun` is built with ASan; macOS has no LSan, so leaks aren't caught automatically —
+  lifetime fixes are verified by exercising the objects under the ASan-clean run.
+- Branch vs direct-commit rule: multi-file/function work gets its own branch; small in-place
+  fixes go straight to `dev` (memory `branch-vs-direct-commit`).
 
 ## Conventions captured (memory + CLAUDE.md)
-- Resolved todo docs get an inline `✅ RESOLVED (branch)` tag **and** are moved
-  to `todo/done/` once fully closed.
-- Top-down code ordering; project CMake platform defines (`APPLE`/`LINUX`).
-- TDD: write the failing test first where the code is unit-testable; lifetime/
-  threading/UB fixes are verified via suite + ASan instead.
-- Branch vs direct-commit rule (above).
+- Resolved todo docs get an inline `✅ RESOLVED (branch)` tag and move to `todo/done/` once
+  fully closed. TODO markers: `-` open, `+` in progress, `!` done.
+- Simplify: prefer per-target implementation files over `#ifdef`-laden shared files (memory
+  `prefer-impl-files-over-ifdefs`); the MCU engine is the clearest example so far.
+- Top-down code ordering; project CMake platform defines (`APPLE`/`LINUX`), not compiler
+  builtins.
+- TDD where unit-testable; lifetime/threading/UB fixes verified via suite + ASan instead.
