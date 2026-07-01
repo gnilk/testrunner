@@ -248,17 +248,20 @@ target_link_libraries(my_tests PRIVATE trun::mcu)
   "nothing installed" (it's compiled-for-target); the FetchContent/`add_subdirectory`
   path is the whole story. Contrast `trunlib`, which *is* an installed desktop lib.
 
-## trunembedded split (open — resolves the "one facade or sibling" question)
+## trunembedded split (open — completes embedded_impl.md's founding objective)
 
-The old `trunembedded` was **two projects in one**: (1) genuine embedded/MCU use, and
-(2) desktop "trun-as-library" — link the runner into a desktop app so it has no external
-runner (reasons: memory model across Linux/macOS/Windows + execution speed; see
-`embedded_impl.md` intro). That conflation is what made it awkward.
+This is **not a new decision** — it is the completion of the objective stated in the very
+opening of `embedded_impl.md`: *"There are actually two types of embedded engines … Both use
+cases should be supported — but not necessarily by the same engine."* The old `trunembedded`
+conflated those two into one project: (1) genuine embedded/MCU use, and (2) desktop
+"trun-as-library" — link the runner into a desktop app so it has no external runner (reasons:
+memory model across Linux/macOS/Windows + execution speed). That conflation is what made it
+awkward.
 
-**Resolution (maintainer, 2026-07-01):** these are now **two separate projects**, and the
-"is `trunmcu.h` the new `trunembedded.h`?" question is answered by the split, not a rename:
-- **`trunmcu`** — proper embedded / MCU engine (this doc). Owns the *embedded* facade.
-- **`trunlib`** — the desktop-embed library (link into a desktop app, no external
+Per that stated objective they are **two separate engines**, which also settles the leftover
+"is `trunmcu.h` the new `trunembedded.h`?" packaging note — it's a split, not a rename:
+- **`trunmcu`** — engine #1, proper embedded / MCU (this doc). Owns the *embedded* facade.
+- **`trunlib`** — engine #2, the desktop-embed library (link into a desktop app, no external
   runner). Owns the *desktop-embed* role. Candidate for a **clearer name** than `trunlib`.
 
 Follow-on work:

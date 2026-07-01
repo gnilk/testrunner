@@ -90,11 +90,13 @@ ninja trun trun_utests
    maintainer has been hand-copying files after cloning. Details in `embedded_mcu_step3.md`
    ("Consumption / easy inclusion"). NOT greenlit yet — capture-only.
 3. **trunembedded split / retirement** — the old `trunembedded` was two-in-one (embedded +
-   desktop-embed). That's now split: **`trunmcu`** = proper embedded facade, **`trunlib`** =
-   desktop-embed lib (link into a desktop app, no external runner; candidate for a clearer
-   name). Answers the old "is `trunmcu.h` the new `trunembedded.h`?" question via the split,
-   not a rename. Retire the old two-in-one atomically once trunmcu is merged and trunlib
-   covers the desktop-embed role. Details in `embedded_mcu_step3.md` ("trunembedded split").
+   desktop-embed). Splitting it is **`embedded_impl.md`'s founding objective** (opening: two
+   embedded engines, *"not necessarily the same engine"*), not a new decision: **`trunmcu`** =
+   engine #1, proper embedded facade; **`trunlib`** = engine #2, desktop-embed lib (link into a
+   desktop app, no external runner; candidate for a clearer name). That also settles the
+   leftover "is `trunmcu.h` the new `trunembedded.h`?" packaging note — a split, not a rename.
+   Retire the old two-in-one atomically once trunmcu is merged and trunlib covers the
+   desktop-embed role. Details in `embedded_mcu_step3.md` ("trunembedded split").
 4. **Step-3 Phase B** — cross toolchain + real board (e.g. `arm-none-eabi-gcc`,
    `-ffreestanding`, no-libc considerations: the host phase leans on `<cstdio>`/`vsnprintf`;
    freestanding must swap those for the sink + a tiny formatter). NOT greenlit — its own plan.
