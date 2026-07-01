@@ -56,11 +56,13 @@ EXCEPTIONS + the per-target source/CMake wiring.
 | `trun_utests`   | ✓        | ✓    | ✓          | ✓              | 20  |
 | `trunlib`       | ✓        | —    | ✓          | ✗ (links fmt+cpptrace) | 20 |
 | `trunembedded`  | ✓        | —    | ✓          | ✗ (links trunlib)      | 20 |
+| `trunmcu` (#3)  | —        | —    | — (`-fno-exceptions -fno-rtti`) | ✗ (no libs) | 20 |
 
 `trunlib` is the desktop-embedded engine: threaded (isolation + mid-body termination),
 no fork. It now links fmt + cpptrace (the shared core's arg-parsing + exception unwind)
-and is C++20. The genuinely lean, no-thread/no-exception path is the step-3 MCU engine
-(`TRUN_EMBEDDED_MCU`), to be a swapped-in implementation rather than `#ifdef`s here.
+and is C++20. The genuinely lean, no-thread/no-exception/no-heap path is the step-3 MCU
+engine (`trunmcu`, Phase A implemented) — a separate `src/testrunner/mcu/` implementation
+selected by CMake wiring, **not** the old `TRUN_EMBEDDED_MCU` define (which was removed).
 
 ### Current reality: embedded == the full engine with threads/fork #ifdef'd out
 
@@ -160,6 +162,10 @@ them piecemeal:
 
 Keep the current embedded engine as the working baseline (it's the only producer of
 `trunlib`/`trunembedded`). Build the new engine(s) alongside; retire the old in one
-atomic push once the replacement passes the suite. This is a feature-sized branch —
-not greenlit for the dead-code-cleanup session.
+atomic push once the replacement passes the suite.
+
+**Status 2026-06-30:** the MCU engine (engine #3) Phase A is now built *alongside* per this
+plan (branch `rewrite/embedded-engine-step3`, `ffd6814`) — `trunlib`/`trunembedded` remain
+the untouched baseline. No retirement yet; that stays deferred (and trunlib is a shipped
+desktop lib, so it is not going away — only the *old MCU stubs* were removed).
 
