@@ -190,8 +190,8 @@ I would suggest avoiding the following modules.
 * abortall, various execution abort tests
 * exception, various exception stressing tests
 
-When running the full test-suite (28.06.2026) with the following parameters:
+When running the full test-suite (01.07.2026) with the following parameters:
 ```shell
    trun -m !abortall,!exception,- lib/libtrun_utests.dylib
 ```
-It will execute 93 tests and fail 15
+It will execute 102 tests and fail 15 (fork == sequential; the 15 are intentional self-fails)
