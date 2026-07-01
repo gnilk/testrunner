@@ -1,10 +1,14 @@
-# Step 3 — thin zero-alloc MCU engine (design)
+# Step 3 — thin zero-alloc MCU engine (design)  [ARCHIVED — Phase A done + merged]
 
-Design settled 2026-06-30. **Phase A implemented 2026-06-30** — branch
-`rewrite/embedded-engine-step3`, feature commit `ffd6814` (pushed to `origin`, not merged;
-doc follow-ups committed on top); see the TODO + "Implementation notes" below. Phase B
-(cross toolchain/board) deferred. Companion to
-`todo/embedded_impl.md` (roadmap engine #3). Guiding principle: simplify; prefer separate
+> **ARCHIVED 2026-07-01.** Phase A is implemented and **merged to `dev`** (merge `197f090`,
+> feature commit `ffd6814`; branch `rewrite/embedded-engine-step3` deleted). This is the Phase A
+> design + implementation record. The still-open follow-ons that used to live here — **easy
+> consumption (FetchContent)** and the **trunembedded split** — were extracted to
+> `todo/mcu_consumption.md`. **Phase B** (cross toolchain/board) stays deferred and gets its own
+> doc when greenlit (see "Deferred to Phase B" below).
+
+Design settled 2026-06-30, Phase A implemented 2026-06-30. Companion to
+`todo/done/embedded_impl.md` (roadmap engine #3). Guiding principle: simplify; prefer separate
 per-target files over `#ifdef`s (see `embedded_impl.md` "Guiding principle" + memory
 `prefer-impl-files-over-ifdefs`).
 
@@ -22,11 +26,9 @@ per-target files over `#ifdef`s (see `embedded_impl.md` "Guiding principle" + me
     (nm: no operator new/malloc); footprint 4136 bytes; -fno-exceptions -fno-rtti clean
   - desktop suite 102/15: NOT runnable in the dev sandbox (fmt not fetchable here);
     run it where the FetchContent deps exist. The edited shared files compile clean.
-- Consumption / easy inclusion (open): make trunmcu trivial to pull into a real
-  project (FetchContent) — see "Consumption / easy inclusion" below.
-- trunembedded split / retirement (open): finish splitting the old two-in-one facade
-  into trunmcu (embedded) + trunlib (desktop-embed) — see "trunembedded split" below.
-- Phase B: cross toolchain + real board (deferred — separate plan)
+! Merge Phase A to dev  [merge 197f090, branch deleted]
+> Easy consumption (FetchContent) + trunembedded split — extracted to todo/mcu_consumption.md
+- Phase B: cross toolchain + real board (deferred — gets its own doc when greenlit)
 ```
 
 ### Implementation notes (2026-06-30, branch rewrite/embedded-engine-step3)
@@ -217,61 +219,12 @@ building); `"-"` = all; comma-separated names; `Glob::Match` for patterns.
   feature-sized branch (`rewrite/embedded-engine-step3`), built alongside the existing
   embedded engine, which stays the baseline until the new one passes.
 
-## Consumption / easy inclusion (open — follow-on to Phase A)
+## Follow-on work (extracted — no longer tracked here)
 
-**Motivation:** the current embedded engine is *not* easy to embed. In practice the
-maintainer has "faked" inclusion by cloning the repo and hand-copying/including the
-required files into the target project. To be genuinely useful the MCU engine must be
-**easy to include *and* use** — a first-class dependency, not a copy job.
-
-**Target ergonomics:** a project pulls in trunmcu via `FetchContent` (or vendored
-submodule) and links one CMake target, no file cherry-picking:
-```cmake
-FetchContent_Declare(trunmcu GIT_REPOSITORY <...> GIT_TAG <...>)
-FetchContent_MakeAvailable(trunmcu)
-target_link_libraries(my_tests PRIVATE trun::mcu)
-```
-
-**Design constraints / open questions to settle at impl time:**
-- The engine is **compiled *for the embedder's target*** with *their* cross-toolchain +
-  flags — so a prebuilt host static lib is the wrong artifact to ship. Prefer an
-  **`INTERFACE` (or `OBJECT`) library** target that exposes the `src/testrunner/mcu/`
-  sources + the frozen `ext_testinterface` include dir, so the parent build compiles them
-  in the target's context. (The existing host `trunmcu` static lib stays as the
-  validation build — separate, still not installed.)
-- Expose the `TRUN_MCU_*` capacities (`MAX_TESTFUNCS`/`MAX_MODULES`/`MSG_BUF_LEN`/
-  `SINK_MAX_RETRY`) and `TRUN_USE_V1` as **CMake cache options** on that target so the
-  embedder sets them from the parent project (no editing engine headers).
-- Provide a namespaced alias (`trun::mcu`) and, for vendored use, keep
-  `add_subdirectory()` working too — the same target, two entry paths.
-- Decide what (if anything) gets `install(EXPORT)`'d. For MCU the answer is likely
-  "nothing installed" (it's compiled-for-target); the FetchContent/`add_subdirectory`
-  path is the whole story. Contrast `trunlib`, which *is* an installed desktop lib.
-
-## trunembedded split (open — completes embedded_impl.md's founding objective)
-
-This is **not a new decision** — it is the completion of the objective stated in the very
-opening of `embedded_impl.md`: *"There are actually two types of embedded engines … Both use
-cases should be supported — but not necessarily by the same engine."* The old `trunembedded`
-conflated those two into one project: (1) genuine embedded/MCU use, and (2) desktop
-"trun-as-library" — link the runner into a desktop app so it has no external runner (reasons:
-memory model across Linux/macOS/Windows + execution speed). That conflation is what made it
-awkward.
-
-Per that stated objective they are **two separate engines**, which also settles the leftover
-"is `trunmcu.h` the new `trunembedded.h`?" packaging note — it's a split, not a rename:
-- **`trunmcu`** — engine #1, proper embedded / MCU (this doc). Owns the *embedded* facade.
-- **`trunlib`** — engine #2, the desktop-embed library (link into a desktop app, no external
-  runner). Owns the *desktop-embed* role. Candidate for a **clearer name** than `trunlib`.
-
-Follow-on work:
-- Retire the old two-in-one `trunembedded` once trunmcu is reviewed/merged **and** trunlib
-  fully covers the desktop-embed role — one atomic push (per `embedded_impl.md`
-  sequencing), keeping the current engine as the baseline until then.
-- Consider renaming `trunlib` to something that reads as "embed the runner in your desktop
-  app" (bikeshed at retirement time).
-- Keep the two consumption stories distinct: trunmcu = FetchContent/compile-for-target
-  (above); trunlib = installed desktop lib.
+The two open follow-ons that used to live in this doc — **easy consumption (FetchContent)**
+and the **trunembedded split** (trunmcu = embedded vs trunlib = desktop-embed) — moved to
+`todo/mcu_consumption.md` when this doc was archived. They are not Phase A work; they are how
+the delivered engines get shipped as first-class, easily-consumable libraries.
 
 ## Deferred to Phase B
 

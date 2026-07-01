@@ -1,5 +1,12 @@
 ## New implementation for embedded applications - TRUN only
 
+> **ARCHIVED 2026-07-01 — 3-engine roadmap delivered + merged to `dev`.** All three engines
+> (desktop `trun`, `trunlib`, MCU `trunmcu`) are implemented and merged. This is the rewrite
+> roadmap/design record. Remaining open *delivery* work — easy consumption (FetchContent) and
+> the trunembedded split/retirement (trunmcu vs trunlib) — is tracked in
+> `todo/mcu_consumption.md`. Phase B of the MCU engine (cross toolchain/board) gets its own doc
+> when greenlit. The guiding principle + build/define matrix below stay valid for reference.
+
 The embedded API is thin. But behind the scenes most of the core concepts are reused. These core concepts are not designed
 for embedded use - even if they work. 
 A new 'engine' is required. Using zero allocation principles, static buffers etc (compile time changed).
@@ -103,9 +110,10 @@ doesn't even use `Config::FromArguments` — it sets `Config` directly via `RunT
    `old_Config_FromArguments` + `ParseNumber`. Suite still 102/15; trunembedded runs
    threaded; trv1/trv2 libs pass.
 3. **Embedded MCU** — thin, zero-alloc, compile-time buffers.
-   **[+ PHASE A IMPLEMENTED 2026-06-30, branch `rewrite/embedded-engine-step3`, feature
-   commit `ffd6814` (pushed to `origin`, not merged; doc follow-ups on top). Full design +
-   impl notes in `todo/embedded_mcu_step3.md`. Phase B (cross toolchain/board) deferred.]** The
+   **[! PHASE A DONE + MERGED 2026-07-01, merge `197f090` (feature commit `ffd6814`; branch
+   `rewrite/embedded-engine-step3` deleted). Full design + impl notes in
+   `todo/done/embedded_mcu_step3.md`. Easy-consumption + trunembedded-split follow-ons in
+   `todo/mcu_consumption.md`. Phase B (cross toolchain/board) deferred — own doc when greenlit.]** The
    self-contained engine lives in `src/testrunner/mcu/` (mcu_static / mcu_config /
    mcu_report / mcu_testing / mcu_runner / trunmcu) with demo + CMake in `src/app/trunmcu/`,
    selected by CMake wiring not `#ifdef`s in the desktop core. Delivered per the settled
@@ -164,8 +172,9 @@ Keep the current embedded engine as the working baseline (it's the only producer
 `trunlib`/`trunembedded`). Build the new engine(s) alongside; retire the old in one
 atomic push once the replacement passes the suite.
 
-**Status 2026-06-30:** the MCU engine (engine #3) Phase A is now built *alongside* per this
-plan (branch `rewrite/embedded-engine-step3`, `ffd6814`) — `trunlib`/`trunembedded` remain
-the untouched baseline. No retirement yet; that stays deferred (and trunlib is a shipped
-desktop lib, so it is not going away — only the *old MCU stubs* were removed).
+**Status 2026-07-01:** the MCU engine (engine #3) Phase A is built *alongside* per this plan
+and **merged to `dev`** (merge `197f090`) — `trunlib`/`trunembedded` remain the untouched
+baseline. No retirement yet; that stays deferred (and trunlib is a shipped desktop lib, so it
+is not going away — only the *old MCU stubs* were removed). The retirement/split is now tracked
+in `todo/mcu_consumption.md`.
 

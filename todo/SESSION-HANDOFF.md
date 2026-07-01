@@ -3,13 +3,15 @@
 Pick-up notes for continuing the engine rewrite on a clean slate.
 
 ## Repo state
-- Engine-rewrite **steps 1, 2, and step-3 Phase A** are all implemented. Steps 1+2 and the
-  fork-executor fix are merged to `dev` and pushed. **Step-3 Phase A lives on branch
-  `rewrite/embedded-engine-step3` (Phase A feature commit `ffd6814`, plus doc follow-ups on
-  top). It is pushed to `origin` but NOT merged** — awaiting maintainer review.
-- `dev` is unchanged this session (still in sync with `origin/dev`). Verify with
-  `git status -sb` and `git log --oneline dev..rewrite/embedded-engine-step3` (the branch
-  tracks `origin/rewrite/embedded-engine-step3`).
+- Engine-rewrite **steps 1, 2, and step-3 Phase A** are all implemented **and merged to `dev`
+  and pushed** — all three roadmap engines are now in `dev`. Step-3 Phase A landed via
+  `--no-ff` merge **`197f090`** (feature commit `ffd6814`); the `rewrite/embedded-engine-step3`
+  branch was **deleted** (local + `origin`). No open rewrite branches remain.
+- `dev` is in sync with `origin/dev` (verify with `git status -sb`). `dev` is far ahead of
+  `master`; a `dev → master` release promotion is a separate, still-outstanding step.
+- Remaining open embedded work — **easy consumption (FetchContent)** + the **trunembedded
+  split** — is now its own active doc: `todo/mcu_consumption.md`. The design/roadmap docs were
+  archived to `todo/done/` (see below).
 - Working tree (intentional / not mine, leave alone):
   - `src/app/trun/trun.cpp` — uncommitted CLion working-dir debug comment (left unstaged on
     purpose; NOT part of the step-3 commit).
@@ -25,9 +27,9 @@ Pick-up notes for continuing the engine rewrite on a clean slate.
   link-fail with undefined `fmt::v10::vprint/vformat`; fix is
   `rm -rf _deps/gnklog-build/CMakeFiles/gnklog.dir && ninja gnklog`.)
 
-## Done this session — engine rewrite step 3 Phase A (MCU engine)
-Branch `rewrite/embedded-engine-step3`, commit `ffd6814`. Design + impl notes:
-`todo/embedded_mcu_step3.md` (roadmap: `todo/embedded_impl.md` engine #3). A brand-new,
+## Done this session — engine rewrite step 3 Phase A (MCU engine)  [MERGED 197f090]
+Merged to `dev` via `197f090` (feature commit `ffd6814`; branch deleted). Design + impl notes:
+`todo/done/embedded_mcu_step3.md` (roadmap: `todo/done/embedded_impl.md` engine #3). A brand-new,
 **self-contained zero-alloc engine** under `src/testrunner/mcu/` (7 files) + demo/CMake in
 `src/app/trunmcu/`, selected by CMake wiring — NOT `#ifdef`s in the desktop core. No heap,
 no threads, no exceptions, no RTTI, no fmt/cpptrace/STL-containers/`std::string`.
@@ -77,26 +79,17 @@ ninja trun trun_utests
 ```
 
 ## Open work — suggested order
-1. **Review + merge step-3 Phase A** (`rewrite/embedded-engine-step3`, `ffd6814`). Before
-   merge, **run the desktop 102/15 suite** somewhere the deps exist to confirm no regression
-   from the two shared-file stub removals (they compile; behavior is unchanged since the MCU
-   branches were dead). Possible small follow-ups noted in `embedded_mcu_step3.md`:
-   glob/negation (`!mod`) in the filter matcher; whether `RunTests` returning `RunResult`
-   (vs the old `void`) should also flow into the trunembedded facade.
-2. **Consumption / easy inclusion** — make trunmcu trivial to pull into a real project via
-   `FetchContent` (an `INTERFACE`/`OBJECT` target that compiles the `mcu/` sources in the
-   embedder's target context; `TRUN_MCU_*` + `TRUN_USE_V1` as CMake cache options; `trun::mcu`
-   alias; `add_subdirectory` also works). Today the engine is *not* easy to embed — the
-   maintainer has been hand-copying files after cloning. Details in `embedded_mcu_step3.md`
-   ("Consumption / easy inclusion"). NOT greenlit yet — capture-only.
-3. **trunembedded split / retirement** — the old `trunembedded` was two-in-one (embedded +
-   desktop-embed). Splitting it is **`embedded_impl.md`'s founding objective** (opening: two
-   embedded engines, *"not necessarily the same engine"*), not a new decision: **`trunmcu`** =
-   engine #1, proper embedded facade; **`trunlib`** = engine #2, desktop-embed lib (link into a
-   desktop app, no external runner; candidate for a clearer name). That also settles the
-   leftover "is `trunmcu.h` the new `trunembedded.h`?" packaging note — a split, not a rename.
-   Retire the old two-in-one atomically once trunmcu is merged and trunlib covers the
-   desktop-embed role. Details in `embedded_mcu_step3.md` ("trunembedded split").
+1. **Post-merge verification (step-3)** — the merge is done (`197f090`); still **run the
+   desktop 102/15 suite** somewhere the deps exist to confirm no regression from the two
+   shared-file stub removals (they compile; behavior unchanged since the MCU branches were
+   dead). Small follow-ups noted in `todo/done/embedded_mcu_step3.md`: glob/negation (`!mod`)
+   in the filter matcher; whether `RunTests` returning `RunResult` (vs the old `void`) should
+   also flow into the trunembedded facade.
+2. **Consumption / easy inclusion** + **3. trunembedded split** — both now live in
+   `todo/mcu_consumption.md` (extracted when the design docs were archived). Make trunmcu a
+   first-class `FetchContent` dependency (INTERFACE/OBJECT target, `TRUN_MCU_*`/`TRUN_USE_V1`
+   as cache options, `trun::mcu` alias); and finish the trunmcu (embedded) vs trunlib
+   (desktop-embed) split, retiring the old two-in-one `trunembedded`. NOT greenlit — capture.
 4. **Step-3 Phase B** — cross toolchain + real board (e.g. `arm-none-eabi-gcc`,
    `-ffreestanding`, no-libc considerations: the host phase leans on `<cstdio>`/`vsnprintf`;
    freestanding must swap those for the sink + a tiny formatter). NOT greenlit — its own plan.
