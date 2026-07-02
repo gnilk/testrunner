@@ -32,11 +32,14 @@ set(TRUN_MCU_MAX_TESTFUNCS  "" CACHE STRING "MCU engine: max registered test_* f
 set(TRUN_MCU_MAX_MODULES    "" CACHE STRING "MCU engine: max distinct modules (header default 16)")
 set(TRUN_MCU_MSG_BUF_LEN    "" CACHE STRING "MCU engine: message/report scratch buffer length (header default 128)")
 set(TRUN_MCU_SINK_MAX_RETRY "" CACHE STRING "MCU engine: max consecutive output-sink retries (header default 8)")
-option(TRUN_MCU_USE_V1 "MCU engine: compile against the V1 test interface (defines TRUN_USE_V1)" OFF)
 
-# Collect the capacity overrides that were actually set into a reusable define list. The V1
-# switch is deliberately NOT in here: the host-validation targets below build BOTH V1 and V2
-# on purpose, so V1 is applied only to the consumption target (trun::mcu).
+# Interface version (V1 vs V2) is NOT an MCU-specific knob - it is the frozen header's universal
+# TRUN_USE_V1 (testinterface.h reverts to testinterface_v1.h when it is defined). trun::mcu ships
+# the engine as INTERFACE sources compiled INSIDE the consumer's target, so an embedder that defines
+# TRUN_USE_V1 (globally, or on the target that links trun::mcu) applies it to BOTH the engine
+# sources and their own test code - no separate MCU option needed.
+
+# Collect the capacity overrides that were actually set into a reusable define list.
 set(mcu_capacity_defs)
 foreach(_cap MAX_TESTFUNCS MAX_MODULES MSG_BUF_LEN SINK_MAX_RETRY)
     if(NOT "${TRUN_MCU_${_cap}}" STREQUAL "")
@@ -65,9 +68,8 @@ target_include_directories(trunmcu_iface INTERFACE
 if(mcu_capacity_defs)
     target_compile_definitions(trunmcu_iface INTERFACE ${mcu_capacity_defs})
 endif()
-if(TRUN_MCU_USE_V1)
-    target_compile_definitions(trunmcu_iface INTERFACE TRUN_USE_V1)
-endif()
+# V1 vs V2: the embedder defines the universal TRUN_USE_V1 in their build (see the note above) -
+# it flows to the engine sources (compiled in the consumer's target) and to their test code alike.
 
 #
 # 2. Host-validation build of the engine (V2 / default interface version).

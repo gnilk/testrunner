@@ -98,10 +98,12 @@ Pass options to the configure step, e.g. `cmake -B build -DBUILD_TCOV=OFF -DCMAK
 | `TRUN_MCU_MAX_MODULES` | `16` | Max distinct test modules. |
 | `TRUN_MCU_MSG_BUF_LEN` | `128` | Size of the single message/report scratch buffer. |
 | `TRUN_MCU_SINK_MAX_RETRY` | `8` | Max consecutive output-sink retries before giving up. |
-| `TRUN_MCU_USE_V1` | `OFF` | Compile the MCU engine against the V1 test interface (defines `TRUN_USE_V1`). |
 
-**Test-code flag** (for *your* unit-test library, not the runner): compile your test code with
-`-DTRUN_USE_V1` to use the frozen V1 interface. Required on Windows (V2 relies on `weak` symbols).
+**Interface version** (`TRUN_USE_V1`) — the one universal knob: `testinterface.h` is always the
+current (V2) interface and reverts to `testinterface_v1.h` when `TRUN_USE_V1` is defined. Define it
+(e.g. `add_compile_definitions(TRUN_USE_V1)`) to build your test code — and the embedded `trun::mcu`
+engine sources — against V1. Required on Windows (V2 relies on `weak` symbols). There is no separate
+MCU-specific V1 option; `trun::mcu`'s sources compile in your target, so they honour the same flag.
 
 ## What gets built
 | Target | Kind | Purpose |
@@ -217,8 +219,9 @@ FetchContent_Declare(trunmcu
 FetchContent_MakeAvailable(trunmcu)
 target_link_libraries(my_tests PRIVATE trun::mcu)
 ```
-Include `<trunmcu.h>` and use the same small API. Set `-DTRUN_MCU_USE_V1=ON` if your test code
-uses the V1 interface.
+Include `<trunmcu.h>` and use the same small API. To build against the V1 interface, define the
+universal `TRUN_USE_V1` (e.g. `add_compile_definitions(TRUN_USE_V1)`) — it applies to both the
+engine sources and your test code.
 
 ### Embedded with PlatformIO
 <b>Embedded systems have only been tested with PlatformIO as build system</b>

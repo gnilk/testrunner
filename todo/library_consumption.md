@@ -20,7 +20,8 @@ hardware *outside* this repo and is out of scope here.)
 ## TODO  [ -:open  +:in progress  !:done ]
 ```
 ! trunmcu consumption: first-class FetchContent dependency (source, compile-for-target)
-!   -> trun::mcu INTERFACE source target + SOURCE_SUBDIR; TRUN_MCU_* + V1 cache options
+!   -> trun::mcu INTERFACE source target + SOURCE_SUBDIR; TRUN_MCU_* capacity cache options
+!      (V1 via the universal TRUN_USE_V1 - no MCU-specific option)
 ! trunlib consumption: install as a versioned -dev package (.deb) + find_package(testrunner)
 !   -> trun::lib EXPORT + config-file package; two-component CPACK (testrunner / testrunner-dev)
 + trunembedded split: engines already split (merged); CPACK two-package split done.
@@ -48,7 +49,7 @@ so fmt/cpptrace/gnklog are never fetched and the desktop core never builds:
 ```cmake
 include(FetchContent)
 # (optional) tune capacities from the parent build - no header edits:
-set(TRUN_MCU_MAX_TESTFUNCS 128)   # + _MAX_MODULES / _MSG_BUF_LEN / _SINK_MAX_RETRY, TRUN_MCU_USE_V1
+set(TRUN_MCU_MAX_TESTFUNCS 128)   # + _MAX_MODULES / _MSG_BUF_LEN / _SINK_MAX_RETRY  (V1: define TRUN_USE_V1)
 FetchContent_Declare(trunmcu
     GIT_REPOSITORY https://github.com/gnilk/testrunner
     GIT_TAG        <tag>
