@@ -17,6 +17,12 @@ include(FetchContent)
 set(FMT_GIT_REPOSITORY "https://github.com/fmtlib/fmt")
 set(FMT_GIT_TAG "12.1.0")
 
+# Install fmt's own export/config even though it is a FetchContent subproject, so a downstream
+# find_package(testrunner) -> find_dependency(fmt) resolves against the co-installed fmtConfig.
+# (cpptrace only self-installs when top-level, so on a source build it stays a system/find_package
+# concern - see cmake/testrunnerConfig.cmake.in and todo/library_consumption.md.)
+set(FMT_INSTALL ON CACHE BOOL "" FORCE)
+
 FetchContent_Declare(
         fmt
         GIT_REPOSITORY ${FMT_GIT_REPOSITORY}

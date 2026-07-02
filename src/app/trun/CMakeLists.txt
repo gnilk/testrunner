@@ -155,18 +155,34 @@ add_library(trv2_utest SHARED ${CMAKE_SOURCE_DIR}/src/testv2/test_v2module.cpp)
 target_link_libraries(trv2_utest PUBLIC trun_common_options ${platformlibs})
 
 add_library(trunlib STATIC ${srcfiles} ${embedsrc} ${sharedsrcfiles})
+# Namespaced alias so an in-tree consumer links the same name a find_package() consumer does.
+add_library(trun::lib ALIAS trunlib)
+# The install(EXPORT) namespace is trun::; export the target as "lib" (not "trunlib") so
+# downstream find_package(testrunner) links trun::lib, matching the in-tree alias above.
+set_target_properties(trunlib PROPERTIES EXPORT_NAME lib)
 # Desktop-embedded: same C++20 baseline as trun (ArgParser/std::span etc.).
 target_compile_features(trunlib PUBLIC cxx_std_20)
+# Private include dirs: needed to COMPILE trunlib's own sources, not exported to consumers.
 target_include_directories(trunlib PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_include_directories(trunlib PRIVATE ${CMAKE_SOURCE_DIR}/src/shared)
 target_include_directories(trunlib PRIVATE ${CMAKE_SOURCE_DIR}/src/testrunner)
 target_include_directories(trunlib PRIVATE ${CMAKE_SOURCE_DIR}/src/testrunner/ext_testinterface)
 target_include_directories(trunlib PRIVATE ${CMAKE_SOURCE_DIR}/src/testrunner/embedded)
+# Consumer-facing (find_package) usage requirement: the installed flat include dir carries the
+# public headers (trunembedded.h + the frozen testinterface.h / testinterface_v1.h).
+target_include_directories(trunlib INTERFACE $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 # trunlib is the desktop-embedded engine: threaded (isolation + mid-body termination),
 # no fork. Forced termination throws/catches TestAbortException, so it needs exceptions;
 # fmt + cpptrace come along via the shared core (config arg-parsing / exception unwinding).
 target_compile_definitions(trunlib PUBLIC TRUN_HAVE_EXCEPTIONS)
-target_link_libraries(trunlib PUBLIC fmt cpptrace::cpptrace)
+# fmt + cpptrace are FetchContent deps that do NOT export themselves as subprojects (cpptrace
+# only installs when PROJECT_IS_TOP_LEVEL), so they cannot appear in trunlib's *installed* export
+# interface. Guard them behind BUILD_INTERFACE: in-tree consumers (the trunembedded demo) link
+# them normally, while the installed testrunnerTargets omits them. testrunnerConfig then
+# find_dependency()'s fmt/cpptrace and re-attaches them to trun::lib for downstream consumers.
+target_link_libraries(trunlib PUBLIC
+        "$<BUILD_INTERFACE:fmt::fmt>"
+        "$<BUILD_INTERFACE:cpptrace::cpptrace>")
 
 if(CMAKE_BUILD_TYPE STREQUAL Debug)
     target_compile_definitions(trunlib PUBLIC DEBUG)

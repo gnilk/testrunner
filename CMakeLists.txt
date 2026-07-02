@@ -58,11 +58,21 @@ include(${CMAKE_SOURCE_DIR}/cmake/TrunCommonOptions.cmake)
 # Shared source lists (used by multiple targets)
 include(${CMAKE_SOURCE_DIR}/cmake/CMakeShared.cmake)
 
+# Standard install dirs - included early so targets (e.g. trunlib's INSTALL_INTERFACE include
+# dir) can reference CMAKE_INSTALL_INCLUDEDIR while the subdirectories are processed.
+include(GNUInstallDirs)
+
 message(STATUS "source: ${CMAKE_SOURCE_DIR}")
 
 #
 # Targets
 #
+
+# Marks this as testrunner's OWN build (vs. a downstream that pulls a subdir in via
+# FetchContent/add_subdirectory). Lets consumption-only targets (e.g. trun::mcu) skip our
+# host-validation lib + demos when they are embedded elsewhere. See src/app/trunmcu/CMakeLists.txt.
+set(TRUN_IS_HOST_BUILD ON)
+
 add_subdirectory(${CMAKE_SOURCE_DIR}/src/app/trun)
 
 if(BUILD_TCOV)
@@ -82,38 +92,79 @@ if (BUILD_OTHER)
 endif()
 
 #
-# Install + packaging (kept aligned with previous behavior)
+# Install + packaging
 #
-include(GNUInstallDirs)
+# Two delivery roles (see todo/library_consumption.md):
+#   * runtime component  -> the trun/tcov CLI tools + manpage  (Debian package: testrunner)
+#   * dev component      -> trunlib (trun::lib) + public headers + the find_package config
+#                           (Debian package: testrunner-dev)
+# trunmcu is NOT installed - it is consumed from source via FetchContent (src/app/trunmcu).
+#
+# GNUInstallDirs was included earlier (before the subdirectories).
+include(CMakePackageConfigHelpers)
 
+set(TRUN_PKG_VERSION "${TRUN_VERSION_MAJOR}.${TRUN_VERSION_MINOR}.${TRUN_VERSION_PATCH}")
+set(TRUN_CMAKE_CONFIG_DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/testrunner")
+
+#
+# --- runtime component: the CLI tools ---
+#
+install(TARGETS trun RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT runtime)
+if (BUILD_TCOV AND TARGET tcov)
+    install(TARGETS tcov RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT runtime)
+endif()
+
+#
+# --- dev component: the desktop-embed library + find_package(testrunner) support ---
+#
+# trunlib is STATIC, so the artifact is an ARCHIVE (libtrunlib.a) - the previous
+# `install(TARGETS trunlib LIBRARY)` installed nothing for a static lib.
+# (trunlib's public include dir is carried by its own INTERFACE $<INSTALL_INTERFACE:include>,
+#  so no INCLUDES DESTINATION here - that would duplicate the entry.)
+install(TARGETS trunlib
+        EXPORT testrunnerTargets
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT dev
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT dev)
+
+# Public headers: the desktop-embed facade + the frozen V1/V2 test interface (flat include dir).
+install(FILES
+        "${CMAKE_SOURCE_DIR}/src/testrunner/trunembedded.h"
+        "${CMAKE_SOURCE_DIR}/src/testrunner/ext_testinterface/testinterface.h"
+        "${CMAKE_SOURCE_DIR}/src/testrunner/ext_testinterface/testinterface_v1.h"
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+        COMPONENT dev)
+
+# Export set -> namespaced imported target trun::lib for downstream find_package.
+install(EXPORT testrunnerTargets
+        NAMESPACE trun::
+        DESTINATION ${TRUN_CMAKE_CONFIG_DESTINATION}
+        COMPONENT dev)
+
+# Config-file package (resolves fmt/cpptrace via find_dependency) + version file.
+configure_package_config_file(
+        "${CMAKE_SOURCE_DIR}/cmake/testrunnerConfig.cmake.in"
+        "${CMAKE_CURRENT_BINARY_DIR}/testrunnerConfig.cmake"
+        INSTALL_DESTINATION "${TRUN_CMAKE_CONFIG_DESTINATION}")
+write_basic_package_version_file(
+        "${CMAKE_CURRENT_BINARY_DIR}/testrunnerConfigVersion.cmake"
+        VERSION "${TRUN_PKG_VERSION}"
+        COMPATIBILITY SameMajorVersion)
+install(FILES
+        "${CMAKE_CURRENT_BINARY_DIR}/testrunnerConfig.cmake"
+        "${CMAKE_CURRENT_BINARY_DIR}/testrunnerConfigVersion.cmake"
+        DESTINATION "${TRUN_CMAKE_CONFIG_DESTINATION}"
+        COMPONENT dev)
+
+#
+# --- manpage (runtime component) ---
+#
 if (APPLE)
-    install(TARGETS trun RUNTIME DESTINATION bin)
-    install(TARGETS tcov RUNTIME DESTINATION bin)
-    install(TARGETS trunlib LIBRARY)
-    install(FILES "src/testrunner/ext_testinterface/testinterface.h" TYPE INCLUDE)
-    install(FILES "src/testrunner/trunembedded.h" TYPE INCLUDE)
-    install(FILES "src/testrunner/ext_testinterface/testinterface_v1.h" TYPE INCLUDE)
-
     if (NOT ${CMAKE_VERSION} VERSION_LESS "3.18.0")
         file(ARCHIVE_CREATE OUTPUT trun.1.gz PATHS "${PROJECT_SOURCE_DIR}/docs/trun.manpage" FORMAT raw COMPRESSION GZip)
-        install(FILES ${CMAKE_CURRENT_BINARY_DIR}/trun.1.gz TYPE MAN RENAME "man1/trun.1.gz")
+        install(FILES ${CMAKE_CURRENT_BINARY_DIR}/trun.1.gz TYPE MAN RENAME "man1/trun.1.gz" COMPONENT runtime)
     endif()
-
 elseif (UNIX)
-    install(TARGETS trun RUNTIME DESTINATION bin)
-    install(TARGETS tcov RUNTIME DESTINATION bin)
-    install(TARGETS trunlib LIBRARY)
-    install(FILES "src/testrunner/ext_testinterface/testinterface.h" TYPE INCLUDE)
-    install(FILES "src/testrunner/trunembedded.h" TYPE INCLUDE)
-    install(FILES "src/testrunner/ext_testinterface/testinterface_v1.h" TYPE INCLUDE)
-
-#    if (NOT ${CMAKE_VERSION} VERSION_LESS "3.18.0")
-#        file(ARCHIVE_CREATE OUTPUT trun.1.gz PATHS "${PROJECT_SOURCE_DIR}/docs/trun.manpage" FORMAT raw COMPRESSION GZip)
-#        install(FILES ${CMAKE_CURRENT_BINARY_DIR}/trun.1.gz TYPE MAN RENAME "man1/trun.1.gz")
-#    endif()
-
     if (NOT ${CMAKE_VERSION} VERSION_LESS "3.18.0")
-
         set(MANPAGE_SRC "${PROJECT_SOURCE_DIR}/docs/trun.manpage")
         set(MANPAGE_OUT "${CMAKE_CURRENT_BINARY_DIR}/trun.1.gz")
 
@@ -121,16 +172,18 @@ elseif (UNIX)
                 OUTPUT ${MANPAGE_OUT}
                 COMMAND gzip -c ${MANPAGE_SRC} > ${MANPAGE_OUT}
                 DEPENDS ${MANPAGE_SRC}
-                COMMENT "Compressing man page"
-        )
+                COMMENT "Compressing man page")
         add_custom_target(manpage ALL DEPENDS ${MANPAGE_OUT})
 
-        install(FILES ${MANPAGE_OUT} DESTINATION share/man/man1)
-
+        install(FILES ${MANPAGE_OUT} DESTINATION ${CMAKE_INSTALL_MANDIR}/man1 COMPONENT runtime)
     endif()
+endif()
 
-
-    message(STATUS "Linux target - setting up CPACK")
+#
+# --- Debian packaging: two component packages (Linux only) ---
+#
+if (UNIX AND NOT APPLE)
+    message(STATUS "Linux target - setting up CPACK (component packages: testrunner + testrunner-dev)")
 
     set(CPACK_GENERATOR "DEB")
 
@@ -145,6 +198,14 @@ elseif (UNIX)
     set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Heavily GoLang inspired unit testing for C/C++")
     set(CPACK_PACKAGE_HOMEPAGE_URL "https://github.com/gnilk/testrunner")
     set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS YES)
+
+    # One .deb per component: testrunner (runtime CLI) and testrunner-dev (lib + headers + cmake).
+    set(CPACK_DEB_COMPONENT_INSTALL ON)
+    set(CPACK_COMPONENTS_ALL runtime dev)
+    set(CPACK_DEBIAN_RUNTIME_PACKAGE_NAME "testrunner")
+    set(CPACK_DEBIAN_DEV_PACKAGE_NAME "testrunner-dev")
+    # The -dev package ships the static lib + headers; it pulls the CLI runtime alongside.
+    set(CPACK_DEBIAN_DEV_PACKAGE_DEPENDS "testrunner (= ${TRUN_PKG_VERSION})")
 
     include(CPack)
 endif()
