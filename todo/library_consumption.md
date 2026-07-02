@@ -101,12 +101,25 @@ are FetchContent deps here and are **guarded out of trunlib's installed export**
 `$<BUILD_INTERFACE:...>`, because a non-exported build target can't appear in an installed export
 set); `testrunnerConfig.cmake` then `find_dependency(fmt)`/`find_dependency(cpptrace)` and
 re-attaches them. For that to resolve downstream, fmt + cpptrace configs must be on
-`CMAKE_PREFIX_PATH` - i.e. **system packages** in the real distro `-dev` scenario. Gotchas found:
-- `cpptrace` only installs its own config when `PROJECT_IS_TOP_LEVEL`, so a FetchContent build
-  does NOT co-install it - the Linux `-dev` package must depend on a system/`find_package` cpptrace
-  (and fmt). `FMT_INSTALL` is forced ON so fmt at least co-installs.
+`CMAKE_PREFIX_PATH`. How that plays out:
+Controlled by the **`TRUN_BUNDLE_DEPS`** option (default **OFF**):
+- **OFF (default) - clean install.** fmt is not installed (`FMT_INSTALL OFF`) and cpptrace +
+  libdwarf are added `EXCLUDE_FROM_ALL` so their install rules detach from testrunner's. A full
+  `cmake --install` / `sudo ninja install` then lays down **only** testrunner's own files
+  (trun/tcov, 3 headers, `libtrunlib.a`, the cmake config, manpage) - no third-party headers/libs/
+  cmake in e.g. `/usr/local`. Downstream `find_package(testrunner)` then relies on **system**
+  fmt/cpptrace (the real distro `-dev` scenario). Verified on macOS: clean tree, install succeeds.
+- **ON - self-contained.** fmt + cpptrace + libdwarf co-install with their own configs, so the
+  prefix resolves `find_package(testrunner)` -> `find_dependency` out of the box with no system
+  deps. Verified on macOS: clean consumer (no hand-provided deps) builds+runs against the prefix.
+- `EXCLUDE_FROM_ALL` in `FetchContent_Declare` needs CMake >= 3.28; older CMake falls back to
+  bundling (guarded by `CMAKE_VERSION` check). cpptrace still BUILDS on demand (trun links it) -
+  EXCLUDE_FROM_ALL only detaches it from the ALL target + install.
 - The config skips `find_dependency` if the consumer already defines `fmt::fmt`/`cpptrace::cpptrace`
   (e.g. their own FetchContent), so it composes rather than double-finds.
+
+(Also fixed in passing: the macOS manpage `file(ARCHIVE_CREATE)` used a relative OUTPUT that didn't
+land where `install()` looked, failing `cmake --install` on a fresh build - now an absolute path.)
 
 **What to build (explore):**
 - **`find_package` support** — export an installed CMake **config-file package** so downstream

@@ -49,6 +49,12 @@ option(BUILD_TRUNEMBEDDED "Build embedded library" ON)
 option(BUILD_TRUNMCU "Build the zero-alloc MCU engine + demos (engine #3)" ON)
 option(BUILD_OTHER "Build other exec" ON)
 
+# When ON, a full `cmake --install` also installs the bundled FetchContent deps
+# (fmt/cpptrace/libdwarf) into the prefix, making it self-contained for find_package(testrunner)
+# without system deps. Default OFF keeps the install clean (no third-party headers/libs/cmake in
+# e.g. /usr/local) - the -dev package then relies on system fmt/cpptrace. See cmake/CMakeDeps.cmake.
+option(TRUN_BUNDLE_DEPS "Install bundled fmt/cpptrace/libdwarf into the prefix (self-contained find_package)" OFF)
+
 # External dependencies (FetchContent etc.)
 include(${CMAKE_SOURCE_DIR}/cmake/CMakeDeps.cmake)
 
@@ -160,7 +166,9 @@ install(FILES
 #
 if (APPLE)
     if (NOT ${CMAKE_VERSION} VERSION_LESS "3.18.0")
-        file(ARCHIVE_CREATE OUTPUT trun.1.gz PATHS "${PROJECT_SOURCE_DIR}/docs/trun.manpage" FORMAT raw COMPRESSION GZip)
+        # Absolute OUTPUT so it lands exactly where install() looks (a relative OUTPUT resolved
+        # elsewhere on a fresh build, making `cmake --install` fail to find trun.1.gz).
+        file(ARCHIVE_CREATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/trun.1.gz" PATHS "${PROJECT_SOURCE_DIR}/docs/trun.manpage" FORMAT raw COMPRESSION GZip)
         install(FILES ${CMAKE_CURRENT_BINARY_DIR}/trun.1.gz TYPE MAN RENAME "man1/trun.1.gz" COMPONENT runtime)
     endif()
 elseif (UNIX)
