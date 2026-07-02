@@ -1,0 +1,29 @@
+@PACKAGE_INIT@
+
+# CMake config-file package for testrunner's desktop-embed library (trun::lib).
+# Generated from cmake/testrunnerConfig.cmake.in - see the root CMakeLists install section.
+#
+# trunlib is a static archive of its OWN objects only; fmt + cpptrace symbols resolve at the
+# consumer's final link, so they must be discoverable. In a distro -dev package these are the
+# system fmt/cpptrace; find_dependency locates whichever configs are on CMAKE_PREFIX_PATH.
+# If the consumer already provides those targets (e.g. via their own FetchContent), we don't
+# re-find them.
+
+include(CMakeFindDependencyMacro)
+if(NOT TARGET fmt::fmt)
+    find_dependency(fmt)
+endif()
+if(NOT TARGET cpptrace::cpptrace)
+    find_dependency(cpptrace)
+endif()
+
+include("${CMAKE_CURRENT_LIST_DIR}/testrunnerTargets.cmake")
+
+# fmt/cpptrace are guarded out of trunlib's installed export interface (they are FetchContent
+# deps that don't self-export). Re-attach them now that the imported targets exist, so linking
+# trun::lib transitively pulls them in.
+if(TARGET trun::lib)
+    set_property(TARGET trun::lib APPEND PROPERTY INTERFACE_LINK_LIBRARIES fmt::fmt cpptrace::cpptrace)
+endif()
+
+check_required_components(testrunner)

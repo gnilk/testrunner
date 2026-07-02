@@ -17,6 +17,11 @@ include(FetchContent)
 set(FMT_GIT_REPOSITORY "https://github.com/fmtlib/fmt")
 set(FMT_GIT_TAG "12.1.0")
 
+# Only co-install fmt's own export/config when bundling deps (TRUN_BUNDLE_DEPS). Then a downstream
+# find_package(testrunner) -> find_dependency(fmt) resolves against the co-installed fmtConfig.
+# Default OFF keeps a `cmake --install` from dumping fmt into the prefix (e.g. /usr/local).
+set(FMT_INSTALL ${TRUN_BUNDLE_DEPS} CACHE BOOL "" FORCE)
+
 FetchContent_Declare(
         fmt
         GIT_REPOSITORY ${FMT_GIT_REPOSITORY}
@@ -70,10 +75,22 @@ set(CPPTRACE_USE_EXTERNAL_ZSTD ON)
 set(CPPTRACE_USE_EXTERNAL_LIBDWARF OFF)
 set(CPPTRACE_BUILD_SHARED OFF)
 
+# cpptrace (and the libdwarf it fetches) self-install into the prefix. Unless the embedder opts
+# into bundling, add cpptrace with EXCLUDE_FROM_ALL so its (and nested libdwarf's) install rules
+# are detached from testrunner's install - a default `cmake --install` then won't dump
+# cpptrace/libdwarf headers+libs+cmake into e.g. /usr/local. cpptrace still BUILDS on demand (trun
+# links it). EXCLUDE_FROM_ALL in FetchContent_Declare needs CMake >= 3.28; on older CMake we fall
+# back to bundling (deps install) - noted in todo/library_consumption.md.
+if(NOT TRUN_BUNDLE_DEPS AND CMAKE_VERSION VERSION_GREATER_EQUAL "3.28")
+    set(_trun_cpptrace_exclude EXCLUDE_FROM_ALL)
+else()
+    set(_trun_cpptrace_exclude "")
+endif()
 FetchContent_Declare(
         cpptrace
         GIT_REPOSITORY https://github.com/jeremy-rifkin/cpptrace.git
         GIT_TAG        v0.7.1
+        ${_trun_cpptrace_exclude}
 )
 FetchContent_MakeAvailable(cpptrace)
 

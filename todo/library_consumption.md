@@ -19,11 +19,21 @@ hardware *outside* this repo and is out of scope here.)
 
 ## TODO  [ -:open  +:in progress  !:done ]
 ```
-- trunmcu consumption: first-class FetchContent dependency (source, compile-for-target)
-- trunlib consumption: install as a versioned -dev package (.deb) + find_package(testrunner)
-- trunembedded split: finish trunmcu (embedded) vs trunlib (desktop-embed); retire trunembedded
-- Consider a clearer name for trunlib (the desktop-embed library)
+! trunmcu consumption: first-class FetchContent dependency (source, compile-for-target)
+!   -> trun::mcu INTERFACE source target + SOURCE_SUBDIR; TRUN_MCU_* capacity cache options
+!      (V1 via the universal TRUN_USE_V1 - no MCU-specific option)
+! trunlib consumption: install as a versioned -dev package (.deb) + find_package(testrunner)
+!   -> trun::lib EXPORT + config-file package; two-component CPACK (testrunner / testrunner-dev)
++ trunembedded split: engines already split (merged); CPACK two-package split done.
+    Retiring the old `trunembedded` name/facade is coupled to the trunlib rename -> DEFERRED.
+- Consider a clearer name for trunlib (the desktop-embed library)   [DEFERRED - keep trunlib for now]
 ```
+
+**Status (feature/library-consumption, 2026-07-02):** §1 + §2 implemented and verified on macOS
+end-to-end (standalone consumers build/link/run; version gating checked). CPACK two-package
+split authored + component assignment verified via `--component dev|runtime` installs; the `.deb`
+generator itself is Linux-only (author-verified, not run here). Decisions taken: keep `trunlib`
+name, two separate packages, trunlib = find_package only, Linux `.deb` + portable CMake config.
 
 ## 1. trunmcu — FetchContent (source, compile-for-target)
 
@@ -32,13 +42,27 @@ has "faked" inclusion by cloning the repo and hand-copying/including the require
 target project. To be genuinely useful the MCU engine must be **easy to include *and* use** — a
 first-class dependency, not a copy job. This is the driving requirement for the whole doc.
 
-**Target ergonomics:** a project pulls in trunmcu via `FetchContent` (or a vendored submodule)
-and links one CMake target, no file cherry-picking:
+**Target ergonomics (IMPLEMENTED):** a project pulls in trunmcu via `FetchContent` (or a vendored
+submodule) and links one CMake target, no file cherry-picking. **Use `SOURCE_SUBDIR
+src/app/trunmcu`** so only that self-contained subdir is added — the repo root is NOT processed,
+so fmt/cpptrace/gnklog are never fetched and the desktop core never builds:
 ```cmake
-FetchContent_Declare(trunmcu GIT_REPOSITORY <...> GIT_TAG <...>)
+include(FetchContent)
+# (optional) tune capacities from the parent build - no header edits:
+set(TRUN_MCU_MAX_TESTFUNCS 128)   # + _MAX_MODULES / _MSG_BUF_LEN / _SINK_MAX_RETRY  (V1: define TRUN_USE_V1)
+FetchContent_Declare(trunmcu
+    GIT_REPOSITORY https://github.com/gnilk/testrunner
+    GIT_TAG        <tag>
+    SOURCE_SUBDIR  src/app/trunmcu)
 FetchContent_MakeAvailable(trunmcu)
 target_link_libraries(my_tests PRIVATE trun::mcu)
 ```
+`trun::mcu` is an INTERFACE library carrying the `src/testrunner/mcu/*.cpp` sources +
+`mcu/`/`ext_testinterface/` include dirs, so the parent build compiles them in ITS toolchain.
+The host-validation lib + demos are guarded by `TRUN_IS_HOST_BUILD` (set only in our own root),
+so a consumer that pulls the subdir does NOT inherit them. `add_subdirectory(.../src/app/trunmcu)`
+is the same target for vendored use. (Verified: standalone consumer builds/runs 4/1;
+`-DTRUN_MCU_MAX_TESTFUNCS=2` correctly makes the 3rd/4th registrations fail.)
 
 **Design constraints / open questions to settle at impl time:**
 - The engine is **compiled *for the embedder's target*** with *their* cross-toolchain + flags —
@@ -61,11 +85,42 @@ target_link_libraries(my_tests PRIVATE trun::mcu)
 (threaded, links fmt + cpptrace, C++20). A prebuilt binary is exactly the right artifact, so its
 consumption story is the standard **install → `find_package`** flow, not FetchContent-source.
 
-**Target ergonomics:** install a versioned dev package, then downstream:
+**Target ergonomics (IMPLEMENTED):** install a versioned dev package, then downstream:
 ```cmake
-find_package(testrunner 1.2 REQUIRED)
+find_package(testrunner 3.0 REQUIRED)      # SameMajorVersion compat
 target_link_libraries(my_app PRIVATE trun::lib)
 ```
+Verified end-to-end on macOS: `cmake --install --component dev` lays down `lib/libtrunlib.a`,
+the 3 public headers, and `lib/cmake/testrunner/{testrunnerConfig,ConfigVersion,Targets}.cmake`;
+a downstream `find_package(testrunner 3.0 CONFIG REQUIRED)` yields `trun::lib`, compiles against
+the installed `<trunembedded.h>`, links, and runs (4/1). Version gating checked (3.0 ✓; 3.9/4.0/99
+rejected).
+
+**IMPORTANT caveat - fmt/cpptrace resolution.** trunlib is a static archive of its OWN objects;
+fmt + cpptrace symbols resolve at the CONSUMER's final link, so they must be discoverable. They
+are FetchContent deps here and are **guarded out of trunlib's installed export** (via
+`$<BUILD_INTERFACE:...>`, because a non-exported build target can't appear in an installed export
+set); `testrunnerConfig.cmake` then `find_dependency(fmt)`/`find_dependency(cpptrace)` and
+re-attaches them. For that to resolve downstream, fmt + cpptrace configs must be on
+`CMAKE_PREFIX_PATH`. How that plays out:
+Controlled by the **`TRUN_BUNDLE_DEPS`** option (default **OFF**):
+- **OFF (default) - clean install.** fmt is not installed (`FMT_INSTALL OFF`) and cpptrace +
+  libdwarf are added `EXCLUDE_FROM_ALL` so their install rules detach from testrunner's. A full
+  `cmake --install` / `sudo ninja install` then lays down **only** testrunner's own files
+  (trun/tcov, 3 headers, `libtrunlib.a`, the cmake config, manpage) - no third-party headers/libs/
+  cmake in e.g. `/usr/local`. Downstream `find_package(testrunner)` then relies on **system**
+  fmt/cpptrace (the real distro `-dev` scenario). Verified on macOS: clean tree, install succeeds.
+- **ON - self-contained.** fmt + cpptrace + libdwarf co-install with their own configs, so the
+  prefix resolves `find_package(testrunner)` -> `find_dependency` out of the box with no system
+  deps. Verified on macOS: clean consumer (no hand-provided deps) builds+runs against the prefix.
+- `EXCLUDE_FROM_ALL` in `FetchContent_Declare` needs CMake >= 3.28; older CMake falls back to
+  bundling (guarded by `CMAKE_VERSION` check). cpptrace still BUILDS on demand (trun links it) -
+  EXCLUDE_FROM_ALL only detaches it from the ALL target + install.
+- The config skips `find_dependency` if the consumer already defines `fmt::fmt`/`cpptrace::cpptrace`
+  (e.g. their own FetchContent), so it composes rather than double-finds.
+
+(Also fixed in passing: the macOS manpage `file(ARCHIVE_CREATE)` used a relative OUTPUT that didn't
+land where `install()` looked, failing `cmake --install` on a fresh build - now an absolute path.)
 
 **What to build (explore):**
 - **`find_package` support** — export an installed CMake **config-file package** so downstream
@@ -89,12 +144,17 @@ target_link_libraries(my_app PRIVATE trun::lib)
   `project(... VERSION x.y.z)` / `testlibversion` — no second place to bump.
 
 **Open questions:**
-- Package layout: one `testrunner` package with a `-dev` component, vs separate `testrunner`
-  (CLI runtime) and `testrunner-dev` (lib + headers + cmake) packages.
-- Do we also offer trunlib via `FetchContent`/`add_subdirectory` for source consumers, or is
-  install + `find_package` the only supported path? (trunmcu stays source-only regardless.)
-- macOS/Windows equivalents of the `.deb` (Homebrew tap? plain `cmake --install` prefix +
-  `find_package`?). Linux `-dev` package first; the CMake config-file package is portable.
+- ~~Package layout~~ **DECIDED: two separate packages** (`testrunner` CLI runtime +
+  `testrunner-dev` lib/headers/cmake), via `CPACK_DEB_COMPONENT_INSTALL` + per-component names.
+- ~~trunlib via FetchContent too?~~ **DECIDED: find_package only** (trunmcu stays source-only).
+- ~~macOS/Windows equivalents of the `.deb`~~ **DECIDED: Linux `.deb` + portable CMake config**
+  now; macOS/Windows consume via `cmake --install <prefix>` + `find_package` (no new mac/win pkg).
+- **NEW follow-up (header namespace):** public headers install FLAT into `include/` (`trunembedded.h`
+  etc.), matching the old install. On a machine with a stale `sudo ninja install` in
+  `/usr/local/include`, that old header shadowed the new one (macOS searches `/usr/local/include`
+  ahead of imported `-isystem` dirs). Harmless on a clean box, but installing under
+  `include/testrunner/` would remove the flat-namespace collision risk. Not done (would change the
+  include style from `<trunembedded.h>` to `<testrunner/trunembedded.h>`; couple with the rename).
 
 ## 3. trunembedded split — trunmcu (embedded) vs trunlib (desktop-embed)
 

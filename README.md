@@ -61,79 +61,169 @@ will be used instead of the new version.
 <b>Note:</b> Versioning is not supported on Windows. You must compile your tests with `TRUN_USE_V1`.
 
 # Building
-You need CMake and GCC/Clang or Visual Studio (Windows). Tested with Visual Studio 19 and 2022.
-The Windows version can be built in a 32 or 64 bit mode. Do note that the 32 bit don't support 64 bit DLL's and vice verse.
+You need CMake (3.16+, 3.28+ recommended) and a C++20 compiler: GCC or Clang on Linux/macOS,
+or Visual Studio 2019/2022 on Windows. All third-party dependencies are fetched automatically
+by CMake (see [Dependencies](#dependencies)) — nothing to install by hand.
 
-1) Clone repository 'git clone https://github.com/gnilk/testrunner.git'
-2) Create build directory (mkdir build)
-3) Enter build directory (cd build)
-4) Run cmake `cmake ..`
-5) Run `make` or `msbuild ALL_BUILD.vcxproj`
+```shell
+git clone https://github.com/gnilk/testrunner.git
+cd testrunner
+cmake -B build                 # configure (add options below, e.g. -DCMAKE_BUILD_TYPE=Release)
+cmake --build build -j         # build (or run ninja / make from inside build/)
+sudo cmake --install build     # install (see Installing)
+```
+
+> The project defaults `CMAKE_BUILD_TYPE` to **Debug**. Pass `-DCMAKE_BUILD_TYPE=Release` for
+> an optimized build (a Debug build also installs Debug-built dependencies).
+
+## Build options
+Pass options to the configure step, e.g. `cmake -B build -DBUILD_TCOV=OFF -DCMAKE_BUILD_TYPE=Release`.
+
+| Option | Default | Description |
+|---|---|---|
+| `CMAKE_BUILD_TYPE` | `Debug` | Standard CMake build type. Use `Release` for optimized builds. |
+| `CMAKE_INSTALL_PREFIX` | `/usr/local` | Where `cmake --install` puts files. |
+| `BUILD_TCOV` | `ON` | Build the `tcov` code-coverage tool (needs `liblldb-dev` on Linux). |
+| `BUILD_TRUNMCU` | `ON` | Build the zero-alloc **MCU** engine (`trunmcu`) and its demos. |
+| `BUILD_TRUNEMBEDDED` | `ON` | Build the `trunembedded` desktop-embed demo executable. |
+| `BUILD_OTHER` | `ON` | Build extra example executables. |
+| `TRUN_BUNDLE_DEPS` | `OFF` | `ON` also installs the bundled fmt/cpptrace/libdwarf so the prefix is self-contained for `find_package`. `OFF` installs only testrunner's own files and relies on system fmt/cpptrace. See [Installing](#installing). |
+
+**MCU engine capacities** — only relevant when you compile the embedded `trun::mcu` engine
+(see [Consuming the libraries](#consuming-the-libraries)). They size fixed, no-heap storage:
+
+| Option | Default | Description |
+|---|---|---|
+| `TRUN_MCU_MAX_TESTFUNCS` | `64` | Max registered `test_*` functions. |
+| `TRUN_MCU_MAX_MODULES` | `16` | Max distinct test modules. |
+| `TRUN_MCU_MSG_BUF_LEN` | `128` | Size of the single message/report scratch buffer. |
+| `TRUN_MCU_SINK_MAX_RETRY` | `8` | Max consecutive output-sink retries before giving up. |
+
+**Interface version** (`TRUN_USE_V1`) — the one universal knob: `testinterface.h` is always the
+current (V2) interface and reverts to `testinterface_v1.h` when `TRUN_USE_V1` is defined. Define it
+(e.g. `add_compile_definitions(TRUN_USE_V1)`) to build your test code — and the embedded `trun::mcu`
+engine sources — against V1. Required on Windows (V2 relies on `weak` symbols). There is no separate
+MCU-specific V1 option; `trun::mcu`'s sources compile in your target, so they honour the same flag.
+
+## What gets built
+| Target | Kind | Purpose |
+|---|---|---|
+| `trun` | executable | The test-runner CLI (loads `.so`/`.dylib`, runs exported `test_*`). |
+| `tcov` | executable | LLDB-based line-coverage tool. |
+| `trunlib` (`trun::lib`) | static lib | Desktop **in-process** engine — threaded, no fork; links fmt + cpptrace. |
+| `trunmcu` (`trun::mcu`) | source lib | Zero-alloc **MCU** engine, compiled for the target (host-validated here). |
+| `trun_utests` | shared lib | testrunner's own unit tests (it tests itself). |
 
 ## Dependencies
-On Linux and macOS you need 'nm' installed - and the development headers - this come from binutils. On Linux just do:
+On Linux and macOS the runner uses `nm` (from **binutils**) to scan a library for `test_*`
+symbols. On Linux also install the binutils headers:
 ```shell
 sudo apt install binutils binutils-dev
 ```
 
-The following libraries are fetched when running cmake:
-* cpptrace (https://github.com/jeremy-rifkin/cpptrace.git) - v0.7.1
-* fmtlib (https://github.com/fmtlib/fmt) - fetching version 10.1.1
-* gnklog (https://github.com/gnilk/gnklog) - new logging library which is interface compatible on embedded
+The following are fetched automatically by CMake (FetchContent) — no manual install:
+* **fmt** (https://github.com/fmtlib/fmt) — 12.1.0
+* **cpptrace** (https://github.com/jeremy-rifkin/cpptrace) — v0.7.1 (pulls in libdwarf)
+* **gnklog** (https://github.com/gnilk/gnklog) — logging library, interface-compatible on embedded
 
-To build the coverage tool, on Linux, you also need:
-* liblldb-dev
+To build the coverage tool (`tcov`) on Linux you also need `liblldb-dev`. On macOS install LLDB
+via Homebrew (see [Platform notes](#platform-notes)).
+
+The **MCU** engine (`trunmcu`) is self-contained: it does **not** use fmt/cpptrace/gnklog.
 
 <b>Note:</b>
-<b>fmtlib</b> is Copyright (c) 2012 - present, Victor Zverovich and {fmt} contributors. (see: https://github.com/fmtlib/fmt for more details).
+<b>fmt</b> is Copyright (c) 2012 - present, Victor Zverovich and {fmt} contributors. (see: https://github.com/fmtlib/fmt for more details).
 
-## Apple macOS
-First you need XCode installed and then you need homebrew and install lldb:
+## Installing
+`cmake --install build` (add `--prefix <dir>` to override `CMAKE_INSTALL_PREFIX`) installs two
+logical component sets:
+- **runtime** — the `trun` and `tcov` CLI tools + the man page.
+- **dev** — `libtrunlib.a`, the public headers (`trunembedded.h`, `testinterface.h`,
+  `testinterface_v1.h`), and a CMake package config so downstream projects can
+  `find_package(testrunner)` (see [Consuming the libraries](#consuming-the-libraries)).
+
+A default install (`TRUN_BUNDLE_DEPS=OFF`) lays down **only** testrunner's own files, e.g. under
+`/usr/local`:
+```text
+bin/trun  bin/tcov
+include/trunembedded.h  include/testinterface.h  include/testinterface_v1.h
+lib/libtrunlib.a
+lib/cmake/testrunner/testrunnerConfig.cmake   (+ ConfigVersion / Targets)
+share/man/man1/trun.1.gz
+```
+It does **not** install fmt/cpptrace — a downstream `find_package(testrunner)` then expects those
+from the system. Configure with `-DTRUN_BUNDLE_DEPS=ON` to also install the bundled
+fmt/cpptrace/libdwarf and make the prefix self-contained. You can install one set only with
+`cmake --install build --component runtime` (or `dev`).
+
+### Debian package (Linux)
+From `build/`, `cpack` (or `make package` / `ninja package`) produces two `.deb`s:
+- **testrunner** — the runtime CLI tools.
+- **testrunner-dev** — the library, headers and CMake config.
+
+Install with `sudo apt install ./testrunner-<version>-*.deb`.
+
+## Platform notes
+### macOS
+Install Xcode, then LLDB via Homebrew (needed for `tcov`):
 ```shell
 brew update
-brew install lldb`
+brew install lldb
 ```
-Then, just run `make; sudo make install`. The binary (trun) will be installed in /usr/local/bin and the testinterface.h in /usr/local/include.
-<b>Note:</b> The macOs version depends on 'nm' (from binutils) when scanning a library for test functions.
+Then `cmake -B build && cmake --build build -j && sudo cmake --install build` (default prefix
+`/usr/local`). macOS depends on `nm` (binutils) when scanning a library for test functions.
 
-## Linux
-Just run `make -j; sudo make install`. The binary (trun) will be installed in `/usr/bin` and the `testinterface.h` in `/usr/include`
-<b>Note:</b> The linux version depends on 'nm' (from binutils) when scanning a library for test functions.
+### Linux
+`cmake -B build && cmake --build build -j && sudo cmake --install build`. Install `liblldb-dev`
+for the coverage tool. The `.deb` packages install under `/usr`. Linux also depends on `nm`.
 
-You can also run `make -j package` to generate a `.deb` package. Which you can install with `sudo apt install ./testrunner-<version>-Linux.deb`.
+### Windows
+<b>Note:</b> V2 should compile (`trunwindows` updated and tested on VS 2022) but is not fully
+tested; parallel/fork execution is not available on Windows.
 
-## Windows
-<b>Note:</b> V2 should compile (`trunwindows` has been updated and tested on VS 2022) but it has not been tested. Also parallel features are not available on Windows.
+Launch a *Developer Command Prompt* and build with
+`msbuild ALL_BUILD.vcxproj -p:Configuration=Release` (default: 64-bit on VS 2019/2022, 32-bit on
+VS 2017). There is no common system include dir, so copy `testinterface.h` somewhere your test
+project can include it. `testinterface` versioning relies on `weak` symbols, which Windows lacks —
+always compile your test code with `-DTRUN_USE_V1`.
 
-Launch a 'Developer Command Prompt' from your Visual Studio installation.
-To build release version: `msbuild ALL_BUILD.vcxproj -p:Configuration=Release`.
-The default will build 64bit with Visual Studio 2019/2022 and 32bit with Visual Studio 2017.
+## Consuming the libraries
+Instead of running the external `trun` CLI you can link a testrunner library into your own
+project and run tests **in-process** (~100k tests/sec on a modern machine). There are two
+libraries with different natures and different consumption paths. Both expose the same small
+API — register test cases and run them — see `app/trunembedded` and `app/trunmcu` for examples.
 
-As Windows don't have a default place to store 3rd party include files you need to copy the `testinterface.h` file somewhere common on your environment.
-You want to include this file in your unit tests (note: It's optional).
+### Desktop / in-process — `trun::lib` via find_package
+`trunlib` is the desktop in-process engine (threaded, no fork; links fmt + cpptrace). Use it to
+run tests *inside* your application — handy when memory layout or speed matters, or on platforms
+without the external runner. Install testrunner (above), then in your project:
+```cmake
+find_package(testrunner 3.0 REQUIRED)
+target_link_libraries(my_tests PRIVATE trun::lib)
+```
+Include `<trunembedded.h>` and use the API (`trun::Initialize`, `trun::AddTestCase`,
+`trun::RunTests`). fmt + cpptrace must be resolvable — from the system, or install testrunner
+with `-DTRUN_BUNDLE_DEPS=ON` for a self-contained prefix.
 
-Also, `testinterface` versioning does not work on Windows (relies on `weak` symbols) - instead you must use the old version; always compile your test-code with `-DTRUN_USE_V1`
+### Embedded / MCU — `trun::mcu` via FetchContent
+The MCU engine is a separate, zero-alloc implementation (no heap / threads / exceptions / RTTI,
+no fmt/cpptrace). It is **compiled for your target** from source, so you pull it in with
+FetchContent (or a vendored `add_subdirectory`) rather than installing a prebuilt lib:
+```cmake
+include(FetchContent)
+set(TRUN_MCU_MAX_TESTFUNCS 128)      # optional: size the fixed storage (see Build options)
+FetchContent_Declare(trunmcu
+    GIT_REPOSITORY https://github.com/gnilk/testrunner
+    GIT_TAG        <tag>
+    SOURCE_SUBDIR  src/app/trunmcu)  # only this subdir — no fmt/cpptrace, no desktop core
+FetchContent_MakeAvailable(trunmcu)
+target_link_libraries(my_tests PRIVATE trun::mcu)
+```
+Include `<trunmcu.h>` and use the same small API. To build against the V1 interface, define the
+universal `TRUN_USE_V1` (e.g. `add_compile_definitions(TRUN_USE_V1)`) — it applies to both the
+engine sources and your test code.
 
-## Embedded or In-Process version
-The in-process main purpose is to be used in embedded systems. But it can also be used as an in-process test runner.
-See the 'app/trunembedded' directory for an example of how to use the embedded version.
-
-If you are worried about the speed and/or about memory layout differences when running the normal (external) test runner,
-you can use the embedded version.
-
-The embedded version is stripped down in comparison to the normal version. It is also very fast - around 100k tests per second on a 
-decently modern machine.
-
-### Building on Linux/macOS with trunlib
-Part of the installation package you also have these files:
-- `trunembedded.h` - header file for the embedded version
-- `libtrunlib.a` - static library for the embedded version
-
-You need to link your test cases against this library. And use the `trunembedded.h` header file to access the small API.
-
-<b>Linux has only been tested with PlatformIO as build system</b>
-Clone the repository into your `lib_extras_dir`,
-### Building on embedded systems
+### Embedded with PlatformIO
 <b>Embedded systems have only been tested with PlatformIO as build system</b>
 Clone the repository into your `lib_extras_dir`, if you use Arduino as underlying framework this is the library
 directory for Arduino. Add it as a dependency in your `platformio.ini` file.
@@ -160,12 +250,14 @@ void setup() {
 }
 ``` 
 
-### Limitations on embedded/inprocess
-- No parallel execution of test modules
-- No threading, all tests are executed on the main thread
-- Internal logging has been disabled (not possible to execute in verbose mode)
-- Assumes `stdout` is mapped to console serial port (or similar) - embedded systems
-- Only console reporting available
+### Limitations of the in-process engines
+Compared to the external `trun` CLI:
+- No fork/subprocess isolation, and no parallel execution of test *modules*.
+- The **MCU** engine (`trun::mcu`) additionally runs everything on the main thread — no threading,
+  no exceptions, no heap. (`trun::lib` *is* threaded: it isolates each case in its own thread.)
+- Internal logging is stripped down (the MCU engine has no verbose var-args logging).
+- Assumes `stdout` is mapped to a console/serial port (embedded systems).
+- Console reporting only (no JSON reporting).
 
 # Unit-testing Usage
 
