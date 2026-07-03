@@ -287,6 +287,11 @@ int main(int argc, const char **argv) {
         exit(0);
     }
 
+    // Keep this - CLion has an odd build directory since I splitted the app into different paths
+    // char cwd[PATH_MAX+1] = {};
+    // getcwd(cwd, 1024);
+    // printf("Working directory: %s\n", cwd);
+
 #ifdef _WIN64
 	pLogger->Info("Windows x64 (64 bit) build");
 #elif WIN32
