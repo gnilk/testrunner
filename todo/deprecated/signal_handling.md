@@ -1,4 +1,25 @@
-## Feature: Proper signal handling (crash isolation for the no-fork path)
+## Feature: Proper signal handling (crash isolation for the no-fork path)  [!] DEPRECATED
+
+> **[!] DEPRECATED 2026-07-03 — decided against; not building it.** Crash isolation is
+> already provided by the per-module `fork` (`TestModuleExecutorFork`), the **default on both
+> macOS and Linux** (`cmake/TrunCommonOptions.cmake:24,28` set `TRUN_HAVE_FORK`). A fatal
+> signal in a test kills only that module's child; the parent detects the abnormal exit and
+> continues. The only path without fork is `--sequential`, which is the *debugging* use-case —
+> and there a debugger (CLion/lldb/gdb) already traps the signal first and gives a live,
+> fully-symbolized stack, strictly better than any async-signal-safe `write(2)` handler could.
+> Phase 2 (recover & continue) would duplicate fork's job less safely (malloc-lock deadlock,
+> tainted globals — fork stays the gold standard). Net: technically valid but low-ROI, and its
+> one beneficiary (the debug session) mostly gets the benefit for free from the debugger.
+>
+> **If ever revived**, refresh these references — they drifted in the executor refactor:
+> `TestFuncExecutorParallel` no longer exists → it's `TestFuncExecutorThreaded` (derives from
+> `TestFuncExecutorSequential`, which remains the correct wiring class). `--sequential` now
+> sets only `moduleExecuteType = kSequential` (disables fork) and no longer touches
+> `testExecutionType`, so the test body **still runs in a worker thread** even in the no-fork
+> path — the Phase-2 checkpoint/active-test pointer must stay `thread_local` (the plan already
+> says this). The `InvokeTestCase(proxy)` wiring point (doc says "~line 193") is now **two**
+> call sites in `TestFuncExecutorSequential::Execute`: `funcexecutors.cpp:182` (inside the
+> `TRUN_HAVE_EXCEPTIONS` try) and `:203` (the `#else` branch).
 
 ### Background / motivation
 

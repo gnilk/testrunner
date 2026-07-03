@@ -106,7 +106,9 @@ ninja trun trun_utests
    freestanding must swap those for the sink + a tiny formatter). NOT greenlit — its own plan.
 4. **Coverage/tcov sweep** — deferred; experimental, dead code there is intentional (memory
    `coverage-tcov-experimental`). Includes the `SymbolResolver::IsInProject` no-op.
-5. **`todo/signal_handling.md`** — planning doc, NOT greenlit; feature, not a bug.
+5. **`todo/deprecated/signal_handling.md`** — DEPRECATED 2026-07-03 (decided against; fork
+   already provides crash isolation, and the `--sequential` gap is covered by the debugger).
+   Moved out of the active set into `todo/deprecated/`.
 
 ## Key decisions / gotchas to remember
 - **External interface headers are frozen** (`ext_testinterface/testinterface.h` V2 +
