@@ -3,7 +3,7 @@
 
 Single header C/C++ Unit Test and Coverage 'Framework'
 
-<b>Note:</b> This is V3 of the testrunner - the old V1 is in branch `trun_v1_main`.
+<b>Note:</b> This is V4 of the testrunner - the old V1 is in branch `trun_v1_main`.
 
 <b>The coverage tool 'tcov' works with any executable</b>
 You do not need to use the unit-test framework for the coverage tool to work. This should work even if you use CTest/GTest/Catch2/etc.
@@ -19,6 +19,15 @@ The testing framework comes with two parts.
  
 See [Usage](#Usage) for more details on how to write test cases and execute them.
 
+# Important changes between V4.x and V3.0
+
+Used AI (Claude) to hunt for bugs and supervise some long required larger rewrites.
+Lot's of bugs fixed. 'trunmbedded' is split into 'trunlib' and 'mculib'. One for embedded
+projects and one for statical linkage use on regular machines.
+The MCU execution engine was completely rewritten (by Claude). It is now a zero-allocation,
+minimal C/C++ library overhead (vsnprintf still used). 
+
+
 # Important changes between V2.x and V3.0
 
 Experimental test coverage tool included. Will instrument the code being tested and generate a coverage report.
@@ -28,37 +37,6 @@ fine on new versions of the testrunner. However, v2 and v3 of the testinterface 
 
 See documentation at the bottom for Test Coverage tool.
 
-## Trun Execution
-Parallel execution of test modules. This brings (depending on project) a massive speed-up (about 10x) for medium-sized
-projects. Testing on a project with ~90 modules and around a total of 500 test-cases completes within 6 seconds instead
-of 60-70 seconds using V1.6.2 on the same hardware.
-
-If you need extreme speeds you should use the in-process version of the testrunner. It can handle 100k tests per second
-on a decently modern machine. While the out-of-process version is much slower (~100 tests per second). The intended use
-for the out-of-process version is for TDD-dev loops where a focused number of tests can be executed quickly. 
-
-The testrunner will determine which modules to execute and then internally spin up
-separate test-runners in parallel to execute the tests. This improves performance (_alot_) for larger projects.
-However, it does limit the ability to debug through through the testrunner. As such - if you write your code in a type
-of TDD fashion you should execute the testrunner with `--sequential` and this will disable the parallel execution.
-
-Testrunner ASSERT macro will not terminate threads. Instead it will return. This assumes that the ASSERT macro is only
-called from within the main-body of the testable code (i.e. the body of `test_module_func`). IF you use the ASSERT macro
-elsewhere - you should run tests with `--allow-thread-exit`.
-
-## Versions
-Version 2.x introduces new features in the test interface, effectively deprecating the old interface. If you don't want
-to upgrade your unit tests you need to compile your tests with `-D TRUN_USE_V1` to revert back to the old V1 interface.
-
-Old code is still supported (i.e. if you have a local fork of the `testinterface.h`) this will still work properly.
-
-When you install you will always get the latest version of the `testinterface.h` file. This means if you upgrade from V1.x to V2.x there will
-be API breaking changes to your tests. However, the testrunner itself can handle both new and old test-interface usage.
-
-The old testinterface is still available under the name `testinterface_v1.h` and if you compile with `TRUN_USE_V1` it
-will be used instead of the new version.
-
-<b>Note:</b> Versioning is not supported on Windows. You must compile your tests with `TRUN_USE_V1`.
 
 # Building
 You need CMake (3.16+, 3.28+ recommended) and a C++20 compiler: GCC or Clang on Linux/macOS,
@@ -402,9 +380,11 @@ Similar to case-dependencies, you can control/override module execution order by
 This allows for overriding module execution order and other thins. While it also allows for separation when configuring
 modules with side-effects, for example integration testing, where one module might initialize a full system.
 
+Note: Module dependencies must be handled in 'test_main'.
+
 Like:
 ```c++
-int test_mymodule(ITesting *t) {
+int test_main(ITesting *t) {
     t->ModuleDepends("dbwrite", "dbconfigure, dbconnect");
     t->ModuleDepends("dbconnect", "dbconfigure);
     t->ModuleDepends("dbread", "dbwrite");
@@ -579,7 +559,7 @@ See *exshared* library for an example.
 <b>Note:</b> TestRunner default input is the current directory. It will search recursively for any testable functions.
 
 ```
-TestRunner v2.1.0 - macOS - C/C++ Unit Test Runner
+TestRunner v4.0.0-dev - macOS - C/C++ Unit Test Runner
 Usage: trun [options] input
 Options: 
   -v  Verbose, increase for more!
@@ -598,11 +578,13 @@ Options:
   -m  <list> List of modules to test (default: '-' (all))
   -t  <list> List of test cases to test (default: '-' (all))
   --sequential
-      Disable any parallel execution of modules
-  --continue_on_assert
+      Disable parallel execution (use this if you debug through trun, default: off)
+  --continue-on-assert
       Continue test execution on assert errors (default: off)
   --module-timeout <sec>
       Set timeout (in seconds) for forked execution, 0 - infinity (default: 30)
+  --max-concurrency <n>
+      Max module subprocesses running at once (0 = auto, ~CPU cores)
   --allow-thread-exit
       Test cases execution thread will self-terminate on assert/error/fatal
 
@@ -827,6 +809,24 @@ Coverage is more of a dev-tool than a `generate coverage for this project` tool.
 It is very helpful when you are writing unit-tests and want to see exactly which lines are being hit and not.
 
 # Version history
+## v4.0.0
+- AI Cleanup release
+- New MCU variant with dedicated zero allocation engine (API compatible with V1/2/3)
+- Installation handling
+  - CMake compatible ('find_package', 'fetch_content' for MCU variant)
+  - Release has two variants 'regular' and '-dev' (full library version)
+- Lot's of bugs fixed
+  - Better installation on Linux
+  - Forking improved
+    - Conservative starting of sub-processes, observe max concurrency settings
+    - IPC was spamming the console by re-printing all output
+    - IPC framing of messages
+    - Double counting results
+    - Global 'test_main'/'test_exit' counted one (was per fork)
+  - Argument parsing was overwriting modules
+  - Teardown during Assert
+  - V1 using setjmp/longjmp instead of just killing the execution thread
+  - Threads for single test-function are now always enabled
 ## v3.0.4
 - Embedded (or in-process) version of the library
 ## v3.0.3
