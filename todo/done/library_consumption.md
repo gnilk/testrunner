@@ -1,5 +1,12 @@
 # Consuming the trun libraries — trunmcu (FetchContent) + trunlib (find_package)
 
+> ✅ RESOLVED (feature/library-consumption, merged `9f494fe`, 2026-07-02). Both headline
+> deliverables shipped: §1 trunmcu FetchContent (`trun::mcu` source target) and §2 trunlib
+> `find_package(testrunner)` (`trun::lib` + config package + two-component CPACK). Verified on
+> macOS end-to-end. The **deferred** tail — trunlib rename + trunembedded facade retirement (§3),
+> `include/testrunner/` header layout, and the Linux `.deb` **build** — was extracted to the
+> active `todo/embedded_delivery_followups.md`. Archived here for the record.
+
 Extracted 2026-07-01 from `todo/done/embedded_mcu_step3.md` (archived) and broadened 2026-07-02
 to cover **both** consumable trun libraries. Unifying goal: make the trun test libraries **easy
 to pull into a downstream project** instead of the current copy-the-files approach. Both stories

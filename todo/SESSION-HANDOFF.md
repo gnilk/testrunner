@@ -1,21 +1,31 @@
-# Session handoff — 2026-07-01
+# Session handoff — 2026-07-02
 
-Pick-up notes for continuing the engine rewrite on a clean slate.
+Pick-up notes for continuing on a clean slate.
 
 ## Repo state
-- Engine-rewrite **steps 1, 2, and step-3 Phase A** are all implemented **and merged to `dev`
-  and pushed** — all three roadmap engines are now in `dev`. Step-3 Phase A landed via
-  `--no-ff` merge **`197f090`** (feature commit `ffd6814`); the `rewrite/embedded-engine-step3`
-  branch was **deleted** (local + `origin`). No open rewrite branches remain.
+- Engine-rewrite **steps 1, 2, and step-3 Phase A** are all merged to `dev` (step-3 via `--no-ff`
+  merge **`197f090`**, feature commit `ffd6814`; branch deleted). All three roadmap engines are
+  in `dev`.
+- **Library consumption + trunembedded split — DONE and merged** (2026-07-02). Landed via
+  `--no-ff` merge **`9f494fe`** (branch `feature/library-consumption`, 4 commits
+  `628c24d`..`cd65820`, pushed to `origin/dev`). Delivered: `trun::mcu` FetchContent source
+  target (`SOURCE_SUBDIR src/app/trunmcu`, `TRUN_MCU_*` capacity options, V1 via the universal
+  `TRUN_USE_V1`); `trun::lib` installed dev package (`find_package(testrunner)` + config-file
+  package); `TRUN_BUNDLE_DEPS` (default OFF, no `/usr/local` pollution); two-component CPACK
+  (`testrunner` / `testrunner-dev`); README "Building" rewritten. Verified on macOS end-to-end
+  (both consumption paths build/link/run; desktop suite 102/15). Design doc archived to
+  `todo/done/library_consumption.md`.
+  - **NOTE:** `feature/library-consumption` still exists locally + on `origin` — prior convention
+    deletes merged branches; offer to delete it.
 - `dev` is in sync with `origin/dev` (verify with `git status -sb`). `dev` is far ahead of
-  `master`; a `dev → master` release promotion is a separate, still-outstanding step.
-- Remaining open work — **library consumption** (trunmcu via FetchContent; **trunlib** via an
-  installed `-dev` package + `find_package`) + the **trunembedded split** — is now its own
-  active doc: `todo/library_consumption.md`. The design/roadmap docs were archived to
-  `todo/done/` (see below).
+  `master`; a `dev → master` release promotion is a separate, still-outstanding step (needs a
+  version bump + cross-project validation per the release-flow rule — never promote unprompted).
+- Remaining open work — the **deferred delivery tail** (trunlib rename + trunembedded facade
+  retirement, `include/testrunner/` header layout, Linux `.deb` **build** validation) — is its
+  own active doc: `todo/embedded_delivery_followups.md`. NOT greenlit — capture only.
 - Working tree (intentional / not mine, leave alone):
   - `src/app/trun/trun.cpp` — uncommitted CLion working-dir debug comment (left unstaged on
-    purpose; NOT part of the step-3 commit).
+    purpose; NOT part of any commit).
   - `.DS_Store`, `src/testrunner/.DS_Store` — untracked.
 - Build dir: `cmake-build-debug` (ninja).
 - **Sandbox build caveat (this environment only):** `cmake-build-debug/_deps/fmt-src` was
@@ -28,7 +38,7 @@ Pick-up notes for continuing the engine rewrite on a clean slate.
   link-fail with undefined `fmt::v10::vprint/vformat`; fix is
   `rm -rf _deps/gnklog-build/CMakeFiles/gnklog.dir && ninja gnklog`.)
 
-## Done this session — engine rewrite step 3 Phase A (MCU engine)  [MERGED 197f090]
+## Prior session — engine rewrite step 3 Phase A (MCU engine)  [MERGED 197f090]
 Merged to `dev` via `197f090` (feature commit `ffd6814`; branch deleted). Design + impl notes:
 `todo/done/embedded_mcu_step3.md` (roadmap: `todo/done/embedded_impl.md` engine #3). A brand-new,
 **self-contained zero-alloc engine** under `src/testrunner/mcu/` (7 files) + demo/CMake in
@@ -80,24 +90,23 @@ ninja trun trun_utests
 ```
 
 ## Open work — suggested order
-1. **Post-merge verification (step-3)** — the merge is done (`197f090`); still **run the
-   desktop 102/15 suite** somewhere the deps exist to confirm no regression from the two
-   shared-file stub removals (they compile; behavior unchanged since the MCU branches were
-   dead). Small follow-ups noted in `todo/done/embedded_mcu_step3.md`: glob/negation (`!mod`)
-   in the filter matcher; whether `RunTests` returning `RunResult` (vs the old `void`) should
-   also flow into the trunembedded facade.
-2. **Library consumption** + **3. trunembedded split** — both now live in
-   `todo/library_consumption.md` (extracted when the design docs were archived). Make trunmcu a
-   first-class `FetchContent` dependency (INTERFACE/OBJECT source target, compile-for-target);
-   make **trunlib** consumable as an installed versioned `-dev` package + `find_package(testrunner)`
-   → `trun::lib` (CMake config-file package via CPack `.deb`); and finish the trunmcu (embedded)
-   vs trunlib (desktop-embed) split, retiring the old two-in-one `trunembedded`. NOT greenlit.
-4. **Step-3 Phase B** — cross toolchain + real board (e.g. `arm-none-eabi-gcc`,
+1. **Deferred delivery tail** — `todo/embedded_delivery_followups.md` (extracted when
+   `library_consumption.md` was archived). Three items, none greenlit: (a) rename `trunlib` +
+   retire the old two-in-one `trunembedded` facade (coupled — one atomic push; maintainer chose
+   to keep `trunlib` for now); (b) `include/testrunner/` header layout (couple with the rename);
+   (c) run the Linux `.deb` **build** (`ninja package`) — the config/export/CPACK split is
+   authored + verified on macOS, but the `.deb` generator itself is Linux-only and unrun.
+2. **Post-merge verification (step-3)** — the merge is done (`197f090`); the desktop 102/15 suite
+   was re-run green during the consumption work, so this is effectively covered. Small follow-ups
+   still noted in `todo/done/embedded_mcu_step3.md`: glob/negation (`!mod`) in the filter matcher;
+   whether `RunTests` returning `RunResult` (vs the old `void`) should also flow into the
+   trunembedded facade.
+3. **Step-3 Phase B** — cross toolchain + real board (e.g. `arm-none-eabi-gcc`,
    `-ffreestanding`, no-libc considerations: the host phase leans on `<cstdio>`/`vsnprintf`;
    freestanding must swap those for the sink + a tiny formatter). NOT greenlit — its own plan.
-5. **Coverage/tcov sweep** — deferred; experimental, dead code there is intentional (memory
+4. **Coverage/tcov sweep** — deferred; experimental, dead code there is intentional (memory
    `coverage-tcov-experimental`). Includes the `SymbolResolver::IsInProject` no-op.
-6. **`todo/signal_handling.md`** — planning doc, NOT greenlit; feature, not a bug.
+5. **`todo/signal_handling.md`** — planning doc, NOT greenlit; feature, not a bug.
 
 ## Key decisions / gotchas to remember
 - **External interface headers are frozen** (`ext_testinterface/testinterface.h` V2 +
