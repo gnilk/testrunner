@@ -1,8 +1,13 @@
-# Session handoff — 2026-07-02
+# Session handoff — 2026-07-03
 
 Pick-up notes for continuing on a clean slate.
 
 ## Repo state
+- **This session (2026-07-03):** reviewed `signal_handling.md` after the executor refactor and
+  **deprecated** it — fork already isolates crashes on both platforms and the `--sequential`
+  gap is covered by the debugger, so it's valid-but-low-ROI. Moved to
+  `todo/deprecated/signal_handling.md` with a `[!] DEPRECATED` header + revival note; updated the
+  inbound reference below. Committed `405e229`, pushed to `origin/dev`.
 - Engine-rewrite **steps 1, 2, and step-3 Phase A** are all merged to `dev` (step-3 via `--no-ff`
   merge **`197f090`**, feature commit `ffd6814`; branch deleted). All three roadmap engines are
   in `dev`.
@@ -15,18 +20,20 @@ Pick-up notes for continuing on a clean slate.
   (`testrunner` / `testrunner-dev`); README "Building" rewritten. Verified on macOS end-to-end
   (both consumption paths build/link/run; desktop suite 102/15). Design doc archived to
   `todo/done/library_consumption.md`.
-  - **NOTE:** `feature/library-consumption` still exists locally + on `origin` — prior convention
-    deletes merged branches; offer to delete it.
-- `dev` is in sync with `origin/dev` (verify with `git status -sb`). `dev` is far ahead of
-  `master`; a `dev → master` release promotion is a separate, still-outstanding step (needs a
-  version bump + cross-project validation per the release-flow rule — never promote unprompted).
+  - `feature/library-consumption` has since been **deleted** (local + `origin`), per the
+    merged-branch convention.
+- `dev` HEAD is **`405e229`**, in sync with `origin/dev`. Since the 07-02 handoff `dev` also
+  gained: version **bumped to 4.0.0** (`a6a9a82`; version string `4.0.0-dev` off-tag, `4.0.0`
+  from a release tag), CWD debug-print removed (`606522e`), README updated (`18cf569`).
+- `dev` is far ahead of `master`; a `dev → master` release promotion is still outstanding. The
+  version-bump prerequisite is now **done on `dev` (4.0.0)**; cross-project validation is still
+  required and the maintainer never promotes unprompted (release-flow rule).
 - Remaining open work — the **deferred delivery tail** (trunlib rename + trunembedded facade
   retirement, `include/testrunner/` header layout, Linux `.deb` **build** validation) — is its
   own active doc: `todo/embedded_delivery_followups.md`. NOT greenlit — capture only.
-- Working tree (intentional / not mine, leave alone):
-  - `src/app/trun/trun.cpp` — uncommitted CLion working-dir debug comment (left unstaged on
-    purpose; NOT part of any commit).
-  - `.DS_Store`, `src/testrunner/.DS_Store` — untracked.
+- Working tree clean except untracked `.DS_Store`, `src/testrunner/.DS_Store` (leave alone).
+  The old uncommitted `trun.cpp` CLion debug comment is gone (the CWD debug print was removed in
+  `606522e`).
 - Build dir: `cmake-build-debug` (ninja).
 - **Sandbox build caveat (this environment only):** `cmake-build-debug/_deps/fmt-src` was
   never fully fetched here and there is no network, so the **desktop** targets
@@ -106,9 +113,9 @@ ninja trun trun_utests
    freestanding must swap those for the sink + a tiny formatter). NOT greenlit — its own plan.
 4. **Coverage/tcov sweep** — deferred; experimental, dead code there is intentional (memory
    `coverage-tcov-experimental`). Includes the `SymbolResolver::IsInProject` no-op.
-5. **`todo/deprecated/signal_handling.md`** — DEPRECATED 2026-07-03 (decided against; fork
-   already provides crash isolation, and the `--sequential` gap is covered by the debugger).
-   Moved out of the active set into `todo/deprecated/`.
+
+(`signal_handling` is no longer open work — **deprecated** 2026-07-03, moved to
+`todo/deprecated/signal_handling.md`; see Repo state above.)
 
 ## Key decisions / gotchas to remember
 - **External interface headers are frozen** (`ext_testinterface/testinterface.h` V2 +
@@ -128,6 +135,9 @@ ninja trun trun_utests
 ## Conventions captured (memory + CLAUDE.md)
 - Resolved todo docs get an inline `✅ RESOLVED (branch)` tag and move to `todo/done/` once
   fully closed. TODO markers: `-` open, `+` in progress, `!` done.
+- **Decided-against** docs get a `[!] DEPRECATED <date>` blockquote header (rationale + revival
+  note) and move to `todo/deprecated/` — new bucket added 2026-07-03 for `signal_handling.md`,
+  distinct from `todo/done/` (= completed/archived).
 - Simplify: prefer per-target implementation files over `#ifdef`-laden shared files (memory
   `prefer-impl-files-over-ifdefs`); the MCU engine is the clearest example so far.
 - Top-down code ordering; project CMake platform defines (`APPLE`/`LINUX`), not compiler
