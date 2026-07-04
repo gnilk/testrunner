@@ -3,13 +3,31 @@
 Pick-up notes for continuing on a clean slate.
 
 ## Repo state
-- **Latest (post-merge):** Windows V4 support is **fully merged to `dev`** — merge `012994c` brought
-  branch `feature/windows-phase0` (**all four phases**) into `dev`; the branch is deleted. A
-  follow-up fix `bb43867` (pushed to `origin/dev`) repaired the **unix build** after Phase 3's
+- **Latest (this session) — CI: Windows release publishing.** `.github/workflows/cmake.yml` now
+  builds and publishes **both** platforms. New `build-windows` job (windows-latest): installs NSIS
+  via choco, builds Release (tcov auto-off on WIN32, no liblldb), smoke-tests `trun.exe -lx` on a
+  real DLL, and `cpack -G NSIS` produces `testrunner-<ver>-win64.exe`. Linux job modernized:
+  `actions/checkout` **v2→v5**, and the **vestigial `ctest` step** (the project registers **no**
+  CTest tests) replaced with a `trun -lx` smoke test mirroring Windows. Publishing was refactored
+  to a **single `release` job** (`needs: [build, build-windows]`, tag-gated, `contents: write`):
+  each build job uploads its package as a workflow artifact (`deb-package` / `windows-installer`,
+  on **every** build — grabbable from any run page for beta testers), and the release job downloads
+  both and does **one** `action-gh-release` upload — removing the create-release race two parallel
+  upload steps would hit, and blocking the release if either platform fails.
+  **Verified end-to-end** by cutting a throwaway `v0.0.0-ci-test` tag: all 3 jobs green, one Release
+  with `testrunner-4.0.0-Linux-runtime.deb` + `-Linux-dev.deb` + `-win64.exe`; then release+tag
+  deleted. **Gotcha found:** package version is CMake-driven (`TRUN_VERSION` hardcoded 4.0.0), **not**
+  the tag string — a `v4.1.0` tag without bumping `CMakeLists.txt` would still emit `4.0.0` packages.
+  Commits `14dcefa` (win job + checkout/ctest), `55feb62` (checkout→v5), `2e44f0f` (single release
+  job); the temporary `dev` CI trigger added (`3daae5d`) then reverted (`4a9ab58`) — workflow fires
+  on `master` pushes + `v*` tags only. **`dev` HEAD = `2e44f0f`, in sync with `origin/dev`.**
+- **Windows V4 merge + unix build fix (2026-07-05):** Windows V4 support is **fully merged to `dev`**
+  — merge `012994c` brought branch `feature/windows-phase0` (**all four phases**) into `dev`; the
+  branch is deleted. A follow-up fix `bb43867` repaired the **unix build** after Phase 3's
   `Process`/`procspawn` split — `dynlib_unix.cpp` had lost its `#include "procspawn.h"` and `tcov`
-  wasn't linking `procspawn.cpp`; both were Windows-invisible breaks. macOS build now green
+  wasn't linking `procspawn.cpp`; both were Windows-invisible breaks. macOS build green
   (176/176 ninja targets), self-suite 102 executed / 15 expected self-fails. The plan doc is
-  archived to `todo/done/windows_support.md`. **`dev` HEAD = `bb43867`, in sync with `origin/dev`.**
+  archived to `todo/done/windows_support.md`.
 - **Windows V4 implementation (2026-07-05, branch `feature/windows-phase0`, now merged):** the hardware blocker below is resolved — this session ran natively
   on Windows 11 (Visual Studio Community 2026 / MSVC 19.51.36248.0, CMake 4.3.1 + Ninja bundled
   with VS). On branch `feature/windows-phase0` (off `dev`, not yet merged): completed **Phase 0**
@@ -64,14 +82,17 @@ Pick-up notes for continuing on a clean slate.
   `todo/done/library_consumption.md`.
   - `feature/library-consumption` has since been **deleted** (local + `origin`), per the
     merged-branch convention.
-- `dev` HEAD is **`bb43867`** (Windows Phases 0–4 merged via `012994c`, then the unix-build fix),
+- `dev` HEAD is **`2e44f0f`** (Windows Phases 0–4 merged via `012994c`, then the unix-build fix
+  `bb43867`, then the CI/release-publishing work — see the CI bullet at the top of Repo state),
   in sync with `origin/dev`. Earlier,
   since the 07-02 handoff `dev` also gained: version **bumped to 4.0.0** (`a6a9a82`; version string
   `4.0.0-dev` off-tag, `4.0.0` from a release tag), CWD debug-print removed (`606522e`), README
   updated (`18cf569`), SESSION-HANDOFF refreshed + `signal_handling` deprecated (`405e229`).
 - `dev` is far ahead of `master`; a `dev → master` release promotion is still outstanding. The
   version-bump prerequisite is now **done on `dev` (4.0.0)**; cross-project validation is still
-  required and the maintainer never promotes unprompted (release-flow rule).
+  required and the maintainer never promotes unprompted (release-flow rule). Once promoted, the
+  first `v4.0.0` tag will auto-publish a Release with the two `.deb`s + the `win64.exe` (CI proven,
+  see the CI bullet) — tag it **`v4.0.0`** to match the CMake-driven package version.
 - Remaining open work — the **deferred delivery tail** (trunlib rename + trunembedded facade
   retirement, `include/testrunner/` header layout, Linux `.deb` **build** validation) — is its
   own active doc: `todo/embedded_delivery_followups.md`. NOT greenlit — capture only.
@@ -138,6 +159,15 @@ ninja trun trun_utests
 ./trun -m '!abortall,!exception,-' lib/libtrun_utests.dylib          # fork (default)
 ./trun --sequential -m '!abortall,!exception,-' lib/libtrun_utests.dylib
 # Expected: fork == sequential == 102 executed / 15 failed (15 are intentional self-fails).
+```
+CI (`.github/workflows/cmake.yml`) only runs on `master` pushes + `v*` tags, so `dev` pushes do NOT
+trigger it. To exercise the release pipeline before a real tag, push a throwaway tag (fires on any
+branch) and inspect/clean up:
+```bash
+git tag v0.0.0-ci-test && git push origin v0.0.0-ci-test
+gh run watch <id> --exit-status                       # 3 jobs: build, build-windows, release
+gh release view v0.0.0-ci-test --json assets --jq '.assets[].name'   # 2 .deb + 1 win64.exe
+gh release delete v0.0.0-ci-test --cleanup-tag --yes  # tears down release + remote tag
 ```
 
 ## Open work — suggested order
