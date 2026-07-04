@@ -13,7 +13,8 @@ env:
 
 jobs:
   build:
-    # Linux build: produces the two Debian component packages (testrunner + testrunner-dev).
+    # Linux build: produces the two Debian component packages (testrunner + testrunner-dev)
+    # and uploads them as a workflow artifact (consumed by the release job on tag builds).
     runs-on: ubuntu-latest
 
     steps:
@@ -42,15 +43,16 @@ jobs:
     - name: Package (.deb)
       run: cmake --build ${{github.workspace}}/build --target package
 
-    - name: Create Release and Upload .deb
-      if: startsWith(github.ref, 'refs/tags/')
-      uses: softprops/action-gh-release@v2
+    - name: Upload .deb artifact
+      uses: actions/upload-artifact@v4
       with:
-        files: ${{github.workspace}}/build/*.deb
+        name: deb-package
+        path: ${{github.workspace}}/build/*.deb
+        if-no-files-found: error
 
   build-windows:
-    # Windows build: tcov is skipped (no debug-engine backend yet); produces the NSIS
-    # installer (testrunner-<version>-win64.exe) with the runtime + dev components.
+    # Windows build: tcov is skipped (no debug-engine backend yet); produces the NSIS installer
+    # (testrunner-<version>-win64.exe) and uploads it as a workflow artifact for the release job.
     runs-on: windows-latest
 
     steps:
@@ -80,8 +82,33 @@ jobs:
       working-directory: ${{github.workspace}}/build
       run: cpack -G NSIS -C ${{env.BUILD_TYPE}}
 
-    - name: Create Release and Upload installer
-      if: startsWith(github.ref, 'refs/tags/')
+    - name: Upload installer artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: windows-installer
+        path: ${{github.workspace}}/build/testrunner-*.exe
+        if-no-files-found: error
+
+  release:
+    # Single publisher: only after BOTH platform builds succeed, and only on tag pushes.
+    # One writer to the GitHub Release avoids the create-release race two parallel jobs would
+    # hit, and a broken build on either platform blocks the release instead of shipping half of it.
+    needs: [build, build-windows]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: dist
+
+    - name: Create Release and upload packages
       uses: softprops/action-gh-release@v2
       with:
-        files: ${{github.workspace}}/build/testrunner-*.exe
+        files: |
+          dist/**/*.deb
+          dist/**/testrunner-*.exe
+        fail_on_unmatched_files: true
