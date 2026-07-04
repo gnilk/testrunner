@@ -3,16 +3,23 @@
 Pick-up notes for continuing on a clean slate.
 
 ## Repo state
-- **This session (2026-07-05):** the hardware blocker below is resolved — this session ran natively
+- **Latest (post-merge):** Windows V4 support is **fully merged to `dev`** — merge `012994c` brought
+  branch `feature/windows-phase0` (**all four phases**) into `dev`; the branch is deleted. A
+  follow-up fix `bb43867` (pushed to `origin/dev`) repaired the **unix build** after Phase 3's
+  `Process`/`procspawn` split — `dynlib_unix.cpp` had lost its `#include "procspawn.h"` and `tcov`
+  wasn't linking `procspawn.cpp`; both were Windows-invisible breaks. macOS build now green
+  (176/176 ninja targets), self-suite 102 executed / 15 expected self-fails. The plan doc is
+  archived to `todo/done/windows_support.md`. **`dev` HEAD = `bb43867`, in sync with `origin/dev`.**
+- **Windows V4 implementation (2026-07-05, branch `feature/windows-phase0`, now merged):** the hardware blocker below is resolved — this session ran natively
   on Windows 11 (Visual Studio Community 2026 / MSVC 19.51.36248.0, CMake 4.3.1 + Ninja bundled
   with VS). On branch `feature/windows-phase0` (off `dev`, not yet merged): completed **Phase 0**
-  (CMake unblock) of the Windows V4 plan — all bugs in `todo/windows_support.md` §5 fixed, plus
+  (CMake unblock) of the Windows V4 plan — all bugs in `todo/done/windows_support.md` §5 fixed, plus
   several more found only by actually compiling under MSVC (fork-only `subprocess.cpp` unconditionally
   pulling in UNIX-only `process.h`; fmt needing `/utf-8`; `<Windows.h>` `min`/`max` macro collisions
   needing project-wide `NOMINMAX`; a pre-existing missing include dir on `trun_utests`; a
   `std::erase_if` shim guarded on raw `__cplusplus` instead of `_MSVC_LANG`; POSIX-only
   `SIGUSR1`/`PATH_MAX`/`getcwd` in `trun.cpp`). Full details + file list in
-  `todo/windows_support.md` Phase 0 section. Verified: clean `cmake-build-win` from scratch builds
+  `todo/done/windows_support.md` Phase 0 section. Verified: clean `cmake-build-win` from scratch builds
   all 162 ninja targets with zero errors; `trun.exe -h`/`-lx` work correctly on a real DLL. Went on
   to finish **Phase 1** (MSVC V2 version-symbol detection — `__declspec(selectany)` +
   `/export:...,DATA` linker pragma, since MSVC rejects `selectany` combined with `dllexport`
@@ -21,11 +28,15 @@ Pick-up notes for continuing on a clean slate.
   issues: V1 fallback forcing `TerminateThread` instead of cooperative asserts, and the project's
   pre-existing static-CRT (`/MTd`) setting giving `trun.exe`/loaded test DLLs independently-buffered
   stdout streams; switched to the DLL CRT. Sequential run now completes cleanly, exit 0, 15/15
-  documented self-fails match exactly). **Core milestone (Phase 0–2) is DONE.** Branch
-  `feature/windows-phase0` not merged to `dev` pending maintainer review. Phase 3 (fork/IPC parity)
-  and Phase 4 (packaging) remain later/not greenlit.
+  documented self-fails match exactly). The **core milestone (Phase 0–2) was DONE** here; **Phase 3
+  (fork/IPC parity) and Phase 4 (NSIS packaging) followed and are also DONE** — all four phases are
+  now merged to `dev` (see "Latest" above). Phase 3 also fixed two genuine runtime bugs surfaced
+  only once fork mode ran on Windows: `Process::AddArgument`'s variadic overload never resized its
+  scratch buffer after `vsnprintf` (corrupting every subprocess command line on Windows), and a
+  `PeekNamedPipe`/`ReadFile` visibility race in the post-exit stdout drain. Per-phase details in
+  `todo/done/windows_support.md`.
 - **Prior session (2026-07-04):** committed the analyzed, phased **Windows V4 plan**
-  (`todo/windows_support.md`, commit **`1351b88`**, pushed to `origin/dev`). Decision settled:
+  (`todo/done/windows_support.md`, commit **`1351b88`**, pushed to `origin/dev`). Decision settled:
   **Windows (first-class V2, not a new interface version) is a committed 4.0 release-story
   deliverable** — the MCU/Desktop-library split *plus* Windows are jointly what justify the major
   bump over the prior bug-fix-only 3.x line. It is **not** demand-triggered/low-priority; it is
@@ -53,7 +64,8 @@ Pick-up notes for continuing on a clean slate.
   `todo/done/library_consumption.md`.
   - `feature/library-consumption` has since been **deleted** (local + `origin`), per the
     merged-branch convention.
-- `dev` HEAD is **`1351b88`**, in sync with `origin/dev` (the Windows-plan commit above). Earlier,
+- `dev` HEAD is **`bb43867`** (Windows Phases 0–4 merged via `012994c`, then the unix-build fix),
+  in sync with `origin/dev`. Earlier,
   since the 07-02 handoff `dev` also gained: version **bumped to 4.0.0** (`a6a9a82`; version string
   `4.0.0-dev` off-tag, `4.0.0` from a release tag), CWD debug-print removed (`606522e`), README
   updated (`18cf569`), SESSION-HANDOFF refreshed + `signal_handling` deprecated (`405e229`).
@@ -129,13 +141,12 @@ ninja trun trun_utests
 ```
 
 ## Open work — suggested order
-0. **Windows V4 support** — `todo/windows_support.md`. A committed 4.0 release-story deliverable.
-   The hardware blocker is resolved and the **core milestone (Phase 0 + 1 + 2) is DONE** on branch
-   `feature/windows-phase0` (not yet merged to `dev`) — `trun.exe` builds under MSVC, correctly
-   detects V2 test DLLs, and its own sequential self-test suite runs clean (15/15 documented
-   self-fails, no crash). Next: merge/review the branch, then (not greenlit yet) **Phase 3**
-   (fork/IPC parity — `process_win32.{h,cpp}`, `IPCPipeWin`, `TRUN_HAVE_FORK` for Windows) and
-   **Phase 4** (packaging).
+0. ~~**Windows V4 support**~~ — ✅ **DONE & merged** (all four phases, merge `012994c`; doc archived
+   to `todo/done/windows_support.md`). `trun.exe` builds under MSVC, detects V2 DLLs, and runs its
+   self-test suite clean in **both** sequential and fork mode (`process_win32` + `IPCPipeWin`,
+   `TRUN_HAVE_FORK` live for Windows). Explicitly **out of scope** (recorded in the archived doc):
+   `tcov` on Windows (needs an SEH / `AddVectoredExceptionHandler` / DbgHelp debug backend) and
+   retiring the legacy `trunwindows/` VS solution.
 1. **Deferred delivery tail** — `todo/embedded_delivery_followups.md` (extracted when
    `library_consumption.md` was archived). Three items, none greenlit: (a) rename `trunlib` +
    retire the old two-in-one `trunembedded` facade (coupled — one atomic push; maintainer chose

@@ -58,7 +58,8 @@ mid-`malloc` while the allocator lock was held). `fork` remains the gold
 standard for isolation; signal handling is a quality-of-life improvement for the
 single-process debugging workflow, not a replacement.
 
-POSIX only for now (Windows support was dropped — see `windows_support.md`).
+POSIX only for now (Windows support was dropped when this was written; it has since been
+re-introduced for V4 — see `todo/done/windows_support.md`).
 Gate everything behind `#ifndef WIN32`. A future Windows path would use SEH /
 `AddVectoredExceptionHandler`.
 

@@ -1,12 +1,18 @@
-## Feature: Re-introduce Windows support (V4 milestone)
+## Feature: Re-introduce Windows support (V4 milestone) — ✅ RESOLVED (`feature/windows-phase0`)
+
+> ✅ **RESOLVED 2026-07-05** — all four phases complete and **merged to `dev`** via merge commit
+> `012994c` (branch `feature/windows-phase0`, since deleted). Archived to `todo/done/`. A follow-up
+> fix on `dev` (`bb43867`) repaired the unix build after Phase 3's `Process`/`procspawn` split
+> (`dynlib_unix.cpp` had lost its process include; `tcov` wasn't linking `procspawn.cpp`) — both
+> breaks were Windows-invisible. See `todo/SESSION-HANDOFF.md`.
 
 Windows support was dropped after V1. This document is the analyzed, phased plan to bring it back
 under the V4 product line. **"V4" is the product/release milestone — NOT a new interface version.**
 The Windows fix changes no interface signature, so the external interface stays **V2**; Windows
 simply becomes a first-class V2 platform.
 
-> Status: **All four phases DONE** (2026-07-05, branch `feature/windows-phase0`, not yet merged to
-> `dev`). Built and verified end-to-end on a real MSVC target (Visual Studio Community 2026 / MSVC
+> Status: **All four phases DONE** (2026-07-05) and **merged to `dev`** (merge `012994c`, branch
+> `feature/windows-phase0` deleted). Built and verified end-to-end on a real MSVC target (Visual Studio Community 2026 / MSVC
 > 19.51, Windows 11). `trun.exe` builds, correctly detects V2, and its own self-test suite runs clean
 > in **both** sequential and parallel/fork mode (15/15 documented self-fails, no crash, no hang,
 > identical `90`/`15` counts in both modes) — the fork executor (`process_win32` + `IPCPipeWin`,
