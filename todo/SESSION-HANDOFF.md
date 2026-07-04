@@ -1,9 +1,19 @@
-# Session handoff — 2026-07-03
+# Session handoff — 2026-07-04
 
 Pick-up notes for continuing on a clean slate.
 
 ## Repo state
-- **This session (2026-07-03):** reviewed `signal_handling.md` after the executor refactor and
+- **This session (2026-07-04):** committed the analyzed, phased **Windows V4 plan**
+  (`todo/windows_support.md`, commit **`1351b88`**, pushed to `origin/dev`). Decision settled:
+  **Windows (first-class V2, not a new interface version) is a committed 4.0 release-story
+  deliverable** — the MCU/Desktop-library split *plus* Windows are jointly what justify the major
+  bump over the prior bug-fix-only 3.x line. It is **not** demand-triggered/low-priority; it is
+  gated only on hardware — the maintainer has an older laptop (at work) to update, or a
+  `windows-latest` GitHub Actions MSVC runner is the cheaper path for the Phase 0–2 verification
+  loop. Core milestone = Phase 0 (CMake unblock) → 1 (MSVC V2 detection) → 2 (sequential self-test
+  green); Phase 3 fork/IPC parity + Phase 4 packaging deferred; `tcov` out of scope. See memory
+  `four-oh-release-story`.
+- **Prior session (2026-07-03):** reviewed `signal_handling.md` after the executor refactor and
   **deprecated** it — fork already isolates crashes on both platforms and the `--sequential`
   gap is covered by the debugger, so it's valid-but-low-ROI. Moved to
   `todo/deprecated/signal_handling.md` with a `[!] DEPRECATED` header + revival note; updated the
@@ -22,9 +32,10 @@ Pick-up notes for continuing on a clean slate.
   `todo/done/library_consumption.md`.
   - `feature/library-consumption` has since been **deleted** (local + `origin`), per the
     merged-branch convention.
-- `dev` HEAD is **`405e229`**, in sync with `origin/dev`. Since the 07-02 handoff `dev` also
-  gained: version **bumped to 4.0.0** (`a6a9a82`; version string `4.0.0-dev` off-tag, `4.0.0`
-  from a release tag), CWD debug-print removed (`606522e`), README updated (`18cf569`).
+- `dev` HEAD is **`1351b88`**, in sync with `origin/dev` (the Windows-plan commit above). Earlier,
+  since the 07-02 handoff `dev` also gained: version **bumped to 4.0.0** (`a6a9a82`; version string
+  `4.0.0-dev` off-tag, `4.0.0` from a release tag), CWD debug-print removed (`606522e`), README
+  updated (`18cf569`), SESSION-HANDOFF refreshed + `signal_handling` deprecated (`405e229`).
 - `dev` is far ahead of `master`; a `dev → master` release promotion is still outstanding. The
   version-bump prerequisite is now **done on `dev` (4.0.0)**; cross-project validation is still
   required and the maintainer never promotes unprompted (release-flow rule).
@@ -97,6 +108,11 @@ ninja trun trun_utests
 ```
 
 ## Open work — suggested order
+0. **Windows V4 support** — `todo/windows_support.md` (committed `1351b88`). A committed 4.0
+   release-story deliverable, **blocked on a Windows build target** (update the old laptop, or add a
+   `windows-latest` MSVC CI leg — the latter verifies Phase 0–2 headlessly, no physical machine).
+   Analysis is complete; when a target exists, start at Phase 0 (CMake unblock: §5 bugs 1–6 +
+   `win32srcfiles` + per-compiler flags + `WINDOWS` macro + the `responseproxy` guard restructure).
 1. **Deferred delivery tail** — `todo/embedded_delivery_followups.md` (extracted when
    `library_consumption.md` was archived). Three items, none greenlit: (a) rename `trunlib` +
    retire the old two-in-one `trunembedded` facade (coupled — one atomic push; maintainer chose
