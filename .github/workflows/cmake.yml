@@ -13,16 +13,11 @@ env:
 
 jobs:
   build:
-    # The CMake configure and build commands are platform agnostic and should work equally well on Windows or Mac.
-    # You can convert this to a matrix build if you need cross-platform coverage.
-    # See: https://docs.github.com/en/free-pro-team@latest/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest]
-        
+    # Linux build: produces the two Debian component packages (testrunner + testrunner-dev).
+    runs-on: ubuntu-latest
+
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
 
     - name: Install dependencies
       run: |
@@ -38,11 +33,11 @@ jobs:
       # Build your program with the given configuration
       run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
 
-    - name: Test
+    - name: Smoke test (load a real shared library and list its exported tests)
       working-directory: ${{github.workspace}}/build
-      # Execute tests defined by the CMake configuration.  
-      # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
-      run: ctest -C ${{env.BUILD_TYPE}}
+      # The project registers no CTest tests; this exercises the loader/nm export scan and exits 0.
+      # A full self-run is not used as a gate: the suite intentionally fails 15 self-tests (non-zero).
+      run: ./trun -lx lib/libtrun_utests.so
 
     - name: Package (.deb)
       run: cmake --build ${{github.workspace}}/build --target package
@@ -52,4 +47,41 @@ jobs:
       uses: softprops/action-gh-release@v2
       with:
         files: ${{github.workspace}}/build/*.deb
-      
+
+  build-windows:
+    # Windows build: tcov is skipped (no debug-engine backend yet); produces the NSIS
+    # installer (testrunner-<version>-win64.exe) with the runtime + dev components.
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install NSIS (CPack installer generator)
+      # NSIS is not reliably pre-installed on the runner image; installing it ourselves keeps
+      # the packaging step deterministic and puts makensis on PATH for CPack to find.
+      run: choco install nsis -y --no-progress
+
+    - name: Configure CMake
+      # Default generator on the runner is the Visual Studio multi-config generator; MSVC is
+      # already present. tcov auto-disables on WIN32 (needs an SEH/DbgHelp backend that does
+      # not exist yet), so liblldb is not required here.
+      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+
+    - name: Build
+      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
+
+    - name: Smoke test (load a real DLL and list its exported tests)
+      working-directory: ${{github.workspace}}/build
+      # Exercises the Windows-specific PE-export-parsing load path and exits 0. A full self-run
+      # is not used as a gate: the suite intentionally fails 15 self-tests and so returns non-zero.
+      run: ./trun.exe -lx trun_utests.dll
+
+    - name: Package (NSIS installer)
+      working-directory: ${{github.workspace}}/build
+      run: cpack -G NSIS -C ${{env.BUILD_TYPE}}
+
+    - name: Create Release and Upload installer
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v2
+      with:
+        files: ${{github.workspace}}/build/testrunner-*.exe
