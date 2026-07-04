@@ -2,9 +2,7 @@ name: Build
 
 on:
   push:
-    # TEMPORARY: `dev` added to exercise the Windows job before promotion/tagging. Revert to
-    # `[ master ]` once the Windows build/package is confirmed green.
-    branches: [ master, dev ]
+    branches: [ master ]
     tags: [ "v*" ]
   pull_request:
     branches: [ master ]
