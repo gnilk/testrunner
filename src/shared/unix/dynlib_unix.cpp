@@ -29,6 +29,7 @@
 #include "strutil.h"
 #include "logger.h"
 
+#include "procspawn.h"
 #include "dynlib_unix.h"
 
 #include <dlfcn.h>

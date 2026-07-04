@@ -16,6 +16,7 @@ add_executable(tcov
         ${CMAKE_SOURCE_DIR}/src/app/tcov/tcov.cpp
         ${ipcsrcfiles}
         ${unixsrcfiles}
+        ${processsrcfiles}
         ${tcovsrcfiles}
         ${sharedsrcfiles}
 )

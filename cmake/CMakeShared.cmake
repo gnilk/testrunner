@@ -37,9 +37,9 @@ endif()
 # platform ProcessImpl (unix/process_unix.* or win32/process_win32.*, above) via one #ifdef.
 # Named "procspawn", not "process": a shared/process.h shadows the CRT's own <process.h>
 # (declares _beginthreadex) for any Windows TU compiled with shared/ on its include path.
-# Only trun/trun_utests link this today (it backs subprocess.cpp / TestModuleExecutorFork);
-# deliberately NOT added to sharedsrcfiles - trunlib is the no-fork embedded engine and must
-# stay free of process-spawn code.
+# trun/trun_utests link this to back subprocess.cpp / TestModuleExecutorFork, and tcov links
+# it because dynlib_unix.cpp spawns 'nm' via Process to scan exports. Deliberately NOT added to
+# sharedsrcfiles - trunlib is the no-fork embedded engine and must stay free of process-spawn code.
 list(APPEND processsrcfiles ${CMAKE_SOURCE_DIR}/src/shared/procspawn.h ${CMAKE_SOURCE_DIR}/src/shared/procspawn.cpp)
 
 list(APPEND sharedsrcfiles ${CMAKE_SOURCE_DIR}/src/shared/CoverageIPCMessages.cpp ${CMAKE_SOURCE_DIR}/src/shared/CoverageIPCMessages.h)
