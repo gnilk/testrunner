@@ -19,7 +19,7 @@ Phase 0 — CMake unblock (build)
 - Add `WINDOWS` project macro in `cmake/TrunCommonOptions.cmake`; normalize `#elif __linux` → `LINUX` in `trun.cpp`
 - Force `BUILD_TCOV OFF` on WIN32
 - Restructure `responseproxy.cpp` `TerminateThreadIfNeeded` guard (exceptions-first)
-- Validate cpptrace/libdwarf builds under MSVC (top build risk)
+- Check whether cpptrace builds under MSVC; gate it out if it resists (nice-to-have crash-location diagnostics only, not a blocker). libdwarf is not a Windows concern (cpptrace's ELF/DWARF backend; Windows uses DbgHelp/PDB)
 
 Phase 1 — V2 detection on Windows
 - Add MSVC `__declspec(selectany)` version symbol branch in `testinterface.h` (additive, guarded)
@@ -191,8 +191,12 @@ milestone.
    but (unlike APPLE/LINUX) defines no `WINDOWS` project macro. Add one; normalize the
    `#elif __linux` builtin in `trun.cpp:50,190` to the `LINUX` macro.
 6. **Force `BUILD_TCOV OFF` on WIN32** — no Windows debug backend.
-7. **cpptrace/libdwarf on MSVC is the top build risk.** Validate early; if it fails, gate cpptrace
-   out on Windows (the Windows assert path uses `TerminateThread`, not exception unwinding).
+7. **cpptrace under MSVC — check it, but it is a nice-to-have, not a blocker.** cpptrace only
+   enriches crash *diagnostics* (telling the user where their code faulted); the test engine runs
+   fine without it (the Windows assert path uses `TerminateThread`, not exception unwinding). If it
+   builds cleanly under MSVC, keep it; if it resists, gate it out on Windows with no functional
+   loss. **libdwarf is not a Windows concern at all** — it is cpptrace's ELF/DWARF backend; on
+   Windows cpptrace symbolizes via DbgHelp/PDB, so there is nothing to port.
 
 ---
 
