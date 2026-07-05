@@ -32,7 +32,8 @@ namespace gnilk {
 
         std::string fifoname = {};
 
-        int fifofd = -1;
+        // The only real descriptor: opened R/W in ConnectTo. (mkfifo in Open() creates a
+        // filesystem object and returns 0/-1, not an fd - so there is no second fd to track.)
         int rwfd = -1;
 
     };

@@ -32,9 +32,9 @@ bool IPCFifoUnix::Open() {
         std::filesystem::remove(fifoname);
     }
 
-    // Create the fifo
-    fifofd = mkfifo(fifoname.c_str(), 0666);
-    if (fifofd < 0) {
+    // Create the fifo. mkfifo returns 0 on success (it makes a filesystem object, not a file
+    // descriptor) - the only real descriptor is rwfd, opened in ConnectTo below.
+    if (mkfifo(fifoname.c_str(), 0666) < 0) {
         perror("IPCFifoUnix::Open, mkfifo");
         return false;
     }
@@ -48,10 +48,13 @@ bool IPCFifoUnix::ConnectTo(const std::string name) {
     // Open it in Read/Write mode - note: this might not be supported everywhere
     rwfd = open(fifoname.c_str(), O_RDWR);
     if (rwfd < 0) {
-        if (isOwner) {
-            close(fifofd);
+        perror("IPCFifoUnix::ConnectTo, open");
+        // If we (the owner) created the fifo in Open() but can't open it, remove it so it does
+        // not leak. There is no descriptor from mkfifo to close here - the old close(fifofd) was
+        // close(0), which silently closed our own stdin.
+        if (isOwner && std::filesystem::exists(fifoname)) {
+            std::filesystem::remove(fifoname);
         }
-        perror("IPCFifoUnix::Open, open");
         return false;
     }
 
@@ -69,10 +72,9 @@ void IPCFifoUnix::Close() {
 
     close(rwfd);
 
-
-    // remove the remaining fifo file - if we created it..
+    // Remove the remaining fifo file - if we created it. mkfifo did not open a descriptor, so
+    // there is nothing else to close here; the old close(fifofd) was close(0) -> closed stdin.
     if (isOwner && std::filesystem::exists(fifoname)) {
-        close(fifofd);
         std::filesystem::remove(fifoname);
     }
 

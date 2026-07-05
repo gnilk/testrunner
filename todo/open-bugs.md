@@ -87,11 +87,15 @@ real: #1, #2, #3.
   `-t <cases>` when spawning the child (the trivial default `{"-"}` is skipped to keep the child cmdline
   clean). Verified `-t split` / `-t '!spl*,-'` / `-t 'trim,split'` now give identical results in fork and
   `--sequential`; full suite fork == seq == 107/13.
-- **[#3] `close(fifofd)` closes the parent's stdin (fd 0).** `IPCFifoUnix.cpp:36-42, 49-56,
-  70-77`: `fifofd = mkfifo(...)`, but `mkfifo` returns **0 on success**, not a descriptor (the
-  real fd is `rwfd`, closed separately). Every `close(fifofd)` in `Close()` / the `ConnectTo`
-  error path is `close(0)`. Low real-world impact (runner doesn't read stdin) but a real
-  fd-table/double-close bug. Fix: drop the `close(fifofd)` calls.
+- ✅ RESOLVED (`fix/fatal-abort-result-decision`) — **[#3] `close(fifofd)` closed the owner's stdin
+  (fd 0).** `mkfifo` returns **0 on success** (it makes a filesystem object, not a descriptor), so
+  `fifofd` was always 0 and both `close(fifofd)` calls (in `Close()` and the `ConnectTo` error path)
+  were `close(0)` - silently closing the owner's stdin. Removed both; `mkfifo`'s return is now just a
+  success check, the `fifofd` member is gone (the only real fd is `rwfd`), and the `ConnectTo` error
+  path now removes the fifo file it created (previously leaked). Regression test
+  `test_ipcfifo_keepstdin` points fd 0 at `/dev/null`, runs an owner `Open()/Close()`, and asserts fd 0
+  is still open (then restores real stdin) - verified it fails on the old code and passes on the fix.
+  Full suite fork == seq == 108/13.
 - **[latent, low priority] Large IPC frames > PIPE_BUF can interleave/tear on the shared FIFO.**
   `IPCFifoUnix.cpp:97-109`, `resultsummary.cpp:156-189`, `moduleexecutors.cpp:235-260`: a child
   flushes its whole `IPCResultSummary` as one `write()`, only atomic up to `PIPE_BUF` (4096
