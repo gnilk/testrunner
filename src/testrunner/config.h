@@ -16,8 +16,11 @@ namespace trun {
         kSequential,
         kParallel,
     };
+    // Case-execution policy. Note there is deliberately no "sequential" (inline, non-threaded)
+    // value: test cases always run in their own thread. --sequential is module-scope (run modules
+    // in one process, no fork) and does NOT change how a case runs. kThreadedWithExit only differs
+    // from kThreaded in that Error/Assert force-terminate the case (V1 / --allow-thread-exit).
     enum class TestExecutiontype {
-        kSequential,
         kThreaded,
         kThreadedWithExit,
     };
@@ -105,7 +108,6 @@ namespace trun {
         }
         static const std::string &TestExecutionTypeToStr(TestExecutiontype type) {
             static std::unordered_map<TestExecutiontype, std::string> type2str = {
-                    {TestExecutiontype::kSequential, "Sequential"},
                     {TestExecutiontype::kThreaded, "Threaded"},
                     {TestExecutiontype::kThreadedWithExit, "Threaded w. exit allowed"},
             };

@@ -131,9 +131,16 @@ kill by name, and one still mid-run is killed cleanly (it had written nothing ye
   rides that existing gate (same path Fatal/Abort already used). Regression test
   `test_resultdecision_errordetail`; end-to-end verified an `Error`-only failure shows identical detail in
   sequential and fork.
-- `-` **Dead sequential case-executor + naming** — `TestFuncExecutorSequential` is unreachable
-  (no flag sets `testExecutionType = kSequential`; the factory always returns the threaded one).
-  Either remove it or clarify that `--sequential` is module-scope, not case-scope.
+- `!` **Dead sequential case-executor + naming** — DONE. Removed the unreachable case-sequential
+  *selection*: no flag ever set `testExecutionType = kSequential`, so the factory's `case kSequential`
+  branch and the `kSequential` enum value (+ its "Sequential" display string) were dead and misleading
+  (they read as if `--sequential` ran cases inline). `TestExecutiontype` is now just
+  `{kThreaded, kThreadedWithExit}`, and `TestFuncExecutorFactory::Create` unconditionally returns the
+  threaded executor. Kept the class `TestFuncExecutorSequential` — it is NOT dead: it is the shared
+  case-running body (pre-hook, invoke, exception handling, post-hook) that `TestFuncExecutorThreaded`
+  calls inside its worker thread. `--sequential` remains module-scope (`moduleExecuteType`), documented
+  at the enum. Verified: config dump still prints "Testcase execution policy: Threaded", full suite
+  fork == seq == 107/13, V1 `kThreadedWithExit` promotion path intact.
 - `-` **Codify A-vs-B authority** — when the return code and the callbacks disagree, the current rule
   is an implicit monotonic-max blend (a flagged `Error` overrides `kTR_Pass`; `discard` silences the
   return code entirely). Worth writing down as an intended contract rather than emergent behavior.
