@@ -112,7 +112,7 @@ void ResultsReportJSON::PrintTestResult(const TestResult::Ref result) {
     WriteLine("{");
     PushIndent();
     WriteLine(R"("Status" : "%s",)", resultToName[result->Result()].c_str());
-    WriteLine(R"("Symbol" : "%s",)", result->SymbolName().c_str());
+    WriteLine(R"("Symbol" : "%s",)", EscapeString(result->SymbolName()).c_str());
     WriteLine(R"("DurationSec" : %f,)", result->ElapsedTimeSec());
     if (result->Result() != kTestResult_Pass) {
         WriteLine(R"("ExecutionState": "%s",)", result->FailStateName().c_str());
@@ -163,23 +163,40 @@ void ResultsReportJSON::PrintAssertArray(const TestResult::Ref result) {
 
 void ResultsReportJSON::PrintAssert(const AssertError::AssertErrorItem &aerr) {
     PushIndent();
-    WriteLine(R"("File" : "%s",)", aerr.file.c_str());
+    WriteLine(R"("File" : "%s",)", EscapeString(aerr.file).c_str());
     WriteLine(R"("Line" : %d,)", aerr.line);
     WriteLine(R"("Message" : "%s")", EscapeString(aerr.message).c_str());
     PopIndent();
 }
 
-// Quick and dirty escaping special json chars..
+// Escape a string so it is a valid JSON string body (the text between the quotes).
+// Escapes the two chars that are illegal raw in JSON (" and \), converts control
+// chars (< 0x20) to their JSON escape, and passes bytes >= 0x80 through untouched so
+// UTF-8 text survives - the old code treated 'char' as signed, so every byte >= 0x80
+// compared < 31 and was silently dropped, mangling any non-ASCII message.
 std::string ResultsReportJSON::EscapeString(const std::string &str) {
-    std::string strIllegal = "\"\\";
     std::string strEscaped;
-    for(auto c : str) {
-        // Just skip this - we do not forward tab's, bells, new lines and whatever...
-        if (c < 31) continue;
-        if (strIllegal.find(c) != std::string::npos) {
-            strEscaped += '\\';
+    for(unsigned char c : str) {
+        switch (c) {
+            case '"'  : strEscaped += "\\\""; break;
+            case '\\' : strEscaped += "\\\\"; break;
+            case '\b' : strEscaped += "\\b"; break;
+            case '\f' : strEscaped += "\\f"; break;
+            case '\n' : strEscaped += "\\n"; break;
+            case '\r' : strEscaped += "\\r"; break;
+            case '\t' : strEscaped += "\\t"; break;
+            default :
+                if (c < 0x20) {
+                    // Any other control char -> \u00XX (JSON requires < 0x20 be escaped)
+                    char buf[8];
+                    snprintf(buf, sizeof(buf), "\\u%04x", c);
+                    strEscaped += buf;
+                } else {
+                    // Printable ASCII and raw UTF-8 continuation/lead bytes pass through
+                    strEscaped += static_cast<char>(c);
+                }
+                break;
         }
-        strEscaped += c;
     }
 
     return strEscaped;
