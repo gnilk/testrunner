@@ -9,7 +9,13 @@ set(CMAKE_OSX_ARCHITECTURES "arm64" CACHE STRING "")
 set(CMAKE_OSX_SYSROOT /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk)
 
 if(WIN32)
-    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+    # DLL (shared) CRT, not the static one: trun.exe dynamically loads test-case DLLs
+    # (LoadLibrary) at runtime, and a statically-linked CRT gives each binary its OWN
+    # stdout FILE* buffer sharing one OS pipe underneath - two independently-buffered
+    # streams flush independently, so combined output interleaves out of chronological
+    # order (test-body printf output appearing bunched up after the run summary). The
+    # shared CRT DLL gives every loaded module the same stdout buffer instance.
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
 endif()
 
 project(testrunner)
