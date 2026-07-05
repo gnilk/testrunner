@@ -20,7 +20,9 @@ if (WIN32)
     # NOMINMAX/WIN32_LEAN_AND_MEAN here (not just in the headers that already guard their own
     # <Windows.h>) because several shared headers (e.g. src/shared/dynlib.h) include it too -
     # defining these project-wide means include order no longer matters for the min/max macro clash.
-    target_compile_definitions(trun_common_options INTERFACE _CRT_SECURE_NO_WARNINGS _SBCS WINDOWS NOMINMAX WIN32_LEAN_AND_MEAN)
+    # TRUN_HAVE_FORK: Phase 3 gave Windows its own process_win32/IPCPipeWin backends
+    # (mirroring APPLE/UNIX below), so TestModuleExecutorFork can run there too.
+    target_compile_definitions(trun_common_options INTERFACE _CRT_SECURE_NO_WARNINGS _SBCS WINDOWS NOMINMAX WIN32_LEAN_AND_MEAN TRUN_HAVE_FORK)
 elseif(APPLE)
     target_compile_options(trun_common_options INTERFACE -Wall -Wpedantic -Wextra -Wno-multichar -Wno-unused-parameter)
     # Project-controlled platform macro (deliberately not the compiler builtin __APPLE__).

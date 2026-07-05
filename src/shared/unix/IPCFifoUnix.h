@@ -14,11 +14,11 @@ namespace gnilk {
         virtual ~IPCFifoUnix() = default;
 
         bool Open() override;
-        bool ConnectTo(const std::string name);
+        bool ConnectTo(const std::string name) override;
         void Close() override;
         bool Available() override;
 
-        const std::string &FifoName() {
+        const std::string &EndpointName() const override {
             return fifoname;
         }
 

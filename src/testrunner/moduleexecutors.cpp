@@ -29,18 +29,15 @@
 #include <chrono>
 #include "std_backport.h"
 
-#ifndef WIN32
-    #ifdef TRUN_HAVE_FORK
-        #include "unix/process.h"
-        #include "subprocess.h"
+#ifdef TRUN_HAVE_FORK
+    #include "subprocess.h"
+    #include "IPCMessages.h"
+    #include "ipc/IPCDecoder.h"
+    #ifdef WIN32
+        #include "win32/IPCPipeWin.h"
+    #else
         #include "unix/IPCFifoUnix.h"
-        #include "IPCMessages.h"
-#include "ipc/IPCDecoder.h"
     #endif
-#endif
-
-#ifdef WIN32
-    #include <process.h>
 #endif
 
 // std::this_thread::sleep_for() + hardware_concurrency() in the fork wait-loop
@@ -179,12 +176,22 @@ bool TestModuleExecutorSequential::Execute(const IDynLibrary::Ref &library, cons
 
 
 
+// The only OS seam in this file: everything below routes through the portable
+// IPCBase interface, so the concrete transport (FIFO vs named pipe) is chosen here.
+static gnilk::IPCBase::Ref CreateModuleIPCServer() {
+#ifdef WIN32
+    return std::make_shared<gnilk::IPCPipeWin>();
+#else
+    return std::make_shared<gnilk::IPCFifoUnix>();
+#endif
+}
+
 bool TestModuleExecutorFork::Execute(const IDynLibrary::Ref &library, const std::map<std::string, TestModule::Ref> &testModules) {
     pLogger = gnilk::Logger::GetLogger("TestModExeFork");
     pLogger->Debug("Forking module tests");
 
-    gnilk::IPCFifoUnix ipcServer;
-    if (!ipcServer.Open()) {
+    auto ipcServer = CreateModuleIPCServer();
+    if (!ipcServer->Open()) {
         pLogger->Error("Unable to create IPC server!");
         return false;
     }
@@ -193,9 +200,9 @@ bool TestModuleExecutorFork::Execute(const IDynLibrary::Ref &library, const std:
     // during the run (not only at the end): with a bounded window the run is
     // long-lived, and unread results could back up the FIFO and stall a writer.
     auto drainResults = [&ipcServer]() {
-        while (ipcServer.Available()) {
+        while (ipcServer->Available()) {
             IPCResultSummary summary;
-            gnilk::IPCBinaryDecoder decoder(ipcServer, summary);
+            gnilk::IPCBinaryDecoder decoder(*ipcServer, summary);
             if (!decoder.Process()) {
                 continue;
             }
@@ -250,7 +257,7 @@ bool TestModuleExecutorFork::Execute(const IDynLibrary::Ref &library, const std:
             auto process = std::make_unique<SubProcess>();
             started++;
             printf("Starting module tests '%s' (%zu / %zu)\n", module->name.c_str(), started, pending.size());
-            process->Start(library, module, ipcServer.FifoName());
+            process->Start(library, module, ipcServer->EndpointName());
             inflight.push_back({std::move(process), false});
         }
 
@@ -294,7 +301,7 @@ bool TestModuleExecutorFork::Execute(const IDynLibrary::Ref &library, const std:
 
     // Final drain for results written between the last poll and the last reap.
     drainResults();
-    ipcServer.Close();
+    ipcServer->Close();
 
     return true;
 }

@@ -586,9 +586,12 @@ static void int_tcfg_get(const char *key, TRUN_ConfigItem *outValue) {
 }
 
 // CITestingCoverage_IFace_ID
-static void int_tcov_begincov(const char *symbol) {
+static void int_tcov_begincov([[maybe_unused]] const char *symbol) {
     // FIXME: Not sure this actually needed
-#ifdef TRUN_HAVE_FORK
+    // tcov/coverage has no Windows backend (see "Out of scope" in windows_support.md) - isCoverageRunning
+    // can never be true there, so this body (IPCFifoUnix, raise(SIGUSR1), <thread>) stays Unix-only
+    // rather than growing an IPCPipeWin round-trip for functionality that can never run on Windows.
+#if defined(TRUN_HAVE_FORK) && !defined(WIN32)
     printf("BeginCoverage called for '%s'\n", symbol);
     if (!Config::Instance().isCoverageRunning) {
         printf("TCOV is not running!");

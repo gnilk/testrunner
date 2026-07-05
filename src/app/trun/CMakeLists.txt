@@ -17,12 +17,10 @@ list(APPEND srcfiles ${CMAKE_SOURCE_DIR}/src/testrunner/responseproxy.cpp)
 list(APPEND srcfiles ${CMAKE_SOURCE_DIR}/src/testrunner/resultsummary.cpp)
 #list(APPEND srcfiles ${CMAKE_SOURCE_DIR}/src/testrunner/strutil.cpp)
 # subprocess.cpp only backs TestModuleExecutorFork (guarded by TRUN_HAVE_FORK, see
-# moduleexecutors.cpp) and unconditionally includes the UNIX-only Process type
-# (src/shared/unix/process.h). Not yet defined for WIN32 (Phase 3: process_win32.{h,cpp} +
-# TRUN_HAVE_FORK), so exclude it there rather than fail on spawn.h.
-if(UNIX)
-    list(APPEND srcfiles ${CMAKE_SOURCE_DIR}/src/testrunner/subprocess.cpp)
-endif()
+# moduleexecutors.cpp), but Process itself (src/shared/procspawn.h) is portable as of
+# Phase 3b, so subprocess.cpp compiles standalone on every platform now (it just isn't
+# reachable yet on Windows until TRUN_HAVE_FORK is defined there too - Phase 3d).
+list(APPEND srcfiles ${CMAKE_SOURCE_DIR}/src/testrunner/subprocess.cpp)
 #list(APPEND srcfiles ${CMAKE_SOURCE_DIR}/src/testrunner/timer.cpp)
 #list(APPEND srcfiles ${CMAKE_SOURCE_DIR}/src/testrunner/testlibversion.cpp ${CMAKE_SOURCE_DIR}/src/testrunner/testlibversion.h)
 list(APPEND srcfiles ${CMAKE_SOURCE_DIR}/src/testrunner/testfunc.cpp ${CMAKE_SOURCE_DIR}/src/testrunner/testfunc.h)
@@ -96,6 +94,7 @@ add_executable(trun
         ${srcfiles}
         ${unixsrcfiles}
         ${win32srcfiles}
+        ${processsrcfiles}
         ${execsrcfiles}
         ${rprtsrcfiles}
         ${ipcsrcfiles}
@@ -137,6 +136,7 @@ add_library(trun_utests SHARED
         ${ipcsrcfiles}
         ${unixsrcfiles}
         ${win32srcfiles}
+        ${processsrcfiles}
         ${sharedsrcfiles}
 )
 target_link_libraries(trun_utests PUBLIC trun_common_options)

@@ -85,7 +85,7 @@ bool CoverageRunner::PrepareTrunExecution() {
     }
     trunArgsVectorInternal.push_back("--coverage");
     trunArgsVectorInternal.push_back("--tcov-ipc-name");
-    trunArgsVectorInternal.push_back(ipcServer.FifoName());
+    trunArgsVectorInternal.push_back(ipcServer.EndpointName());
     Config::Instance().target_args.insert(Config::Instance().target_args.begin(), trunArgsVectorInternal.begin(), trunArgsVectorInternal.end());
 
 
@@ -137,7 +137,7 @@ bool CoverageRunner::StartLLDBDebugger() {
     std::vector<char *> trunArgs;
     ConvertArgs(trunArgs, Config::Instance().target_args);
 
-    //const char *target_argv[]={"--sequential", "--coverage","--tcov-ipc-name",tcovIPCServer.FifoName().c_str(),"-vvv", "-m", "coverage", nullptr};
+    //const char *target_argv[]={"--sequential", "--coverage","--tcov-ipc-name",tcovIPCServer.EndpointName().c_str(),"-vvv", "-m", "coverage", nullptr};
     lldb::SBLaunchInfo launch_info(const_cast<const char **>(trunArgs.data()));
     launch_info.SetWorkingDirectory(workingDirectory.c_str());   // se should be here and not where the target is located
 
@@ -268,7 +268,7 @@ bool CoverageRunner::CreateIPCServer() {
     if (!ipcServer.Open()) {
         return false;
     }
-    logger->Info("IPC Server at: %s", ipcServer.FifoName().c_str());
+    logger->Info("IPC Server at: %s", ipcServer.EndpointName().c_str());
     return true;
 }
 
