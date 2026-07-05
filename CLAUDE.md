@@ -190,8 +190,10 @@ I would suggest avoiding the following modules.
 * abortall, various execution abort tests
 * exception, various exception stressing tests
 
-When running the full test-suite (01.07.2026) with the following parameters:
+When running the full test-suite (05.07.2026) with the following parameters:
 ```shell
    trun -m !abortall,!exception,- lib/libtrun_utests.dylib
 ```
-It will execute 102 tests and fail 15 (fork == sequential; the 15 are intentional self-fails)
+It will execute 110 tests and fail 13 (fork == sequential; the 13 are intentional self-fails).
+(Was 102/15 before the testrunner-core bug-fix merge 0a7989d — the extra tests are the
+new regression cases and the Fatal/Abort fix legitimately un-fails a couple of cases.)

@@ -4,28 +4,30 @@ Pick-up notes for continuing on a clean slate.
 
 ---
 
-## ⭐ CURRENT WORK — testrunner-core bug-fix branch (RESUME HERE, next: **reporting**)
+## ⭐ CURRENT WORK — testrunner-core bug-fixes (MERGED to `dev`; next: **reporting** on a fresh branch)
 
-> This is the active thread as of the latest 2026-07-05 session. The "Repo state" and everything
-> below it describe the **`dev`** line (CI/Windows/engine work) and is still valid background — but
-> the current work lives on a **feature branch off `dev`**, not yet merged.
+> The testrunner-core audit bug-fix series is **MERGED to `dev`** (`--no-ff` merge **`0a7989d`**,
+> 2026-07-05); the `fix/fatal-abort-result-decision` branch is **deleted** (local + `origin`) per the
+> merged-branch convention. The "Repo state" and everything below describe the rest of the `dev` line
+> (CI/Windows/engine work) and remain valid background.
 
-### Resume from any machine
+### Resume from any machine (start reporting on a FRESH branch off `dev`)
 ```bash
 git fetch origin
-git checkout fix/fatal-abort-result-decision        # pushed, tracks origin
-cd cmake-build-debug && ninja                        # or configure fresh: mkdir build && cd build && cmake .. && ninja
+git checkout dev && git pull --ff-only               # dev now includes merge 0a7989d
+git checkout -b fix/reporting-hardening              # fresh branch for the reporting batch
+cd cmake-build-debug && ninja                         # or configure fresh: mkdir build && cd build && cmake .. && ninja
 ```
-- **Branch:** `fix/fatal-abort-result-decision` — **13 commits ahead of `dev`, all pushed to
-  `origin`, NOT merged, NOT reviewed** (maintainer will review later; never promote unprompted).
-  Nothing is on `dev`/`master`, so the whole branch is cheaply revert-able.
-- Scope was a **testrunner-core audit** (coverage/`tcov` explicitly out of scope). Findings +
-  status live in **`todo/open-bugs.md`** (section "testrunner core — audit 2026-07-05"; **10 items
-  now `✅ RESOLVED`**). The result-model design doc **`todo/result_model.md`** is the reference for
-  the failure-signalling model and **all its open items are now done** (incl. the codified
-  "Authority contract").
+- **Merged:** 14 commits (13 fixes/docs + the merge commit) landed on `dev` via `0a7989d`. Reviewed
+  informally as it went; a `dev → master` release promotion is still separate (unchanged — needs the
+  version story + cross-project validation, never unprompted).
+- Scope was a **testrunner-core audit** (coverage/`tcov` explicitly out of scope). Findings + status
+  live in **`todo/open-bugs.md`** (section "testrunner core — audit 2026-07-05"; **10 items now
+  `✅ RESOLVED`**, reporting items still open). The result-model design doc **`todo/result_model.md`**
+  is the reference for the failure-signalling model and **all its open items are done** (incl. the
+  codified "Authority contract").
 
-### What's DONE on this branch (13 commits, newest first)
+### What LANDED in the merge (13 commits, newest first)
 - `ee8cb73` docs — flip the stale "IN PROGRESS" marker (was #1) to RESOLVED.
 - `0563df1` **IPC hardening** (#5 + #6): decoder `Unmarshal`s now check every `Read*` return
   (corrupt frame → reject, not fabricate); `WriteStr`/`ReadStr` length 16→**32-bit** (+ pre-`resize`
@@ -46,7 +48,7 @@ cd cmake-build-debug && ninja                        # or configure fresh: mkdir
   (was clobbered to `TestFail` by the exception path). Tests in module `resultdecision`.
 - `c0955c3` docs — the audit record itself.
 
-### Current baseline on this branch (NOT the 102/15 quoted in older sections below)
+### Current baseline on `dev` after the merge (supersedes the 102/15 in older sections below)
 ```bash
 cd cmake-build-debug && ninja
 LIB=lib/libtrun_utests.dylib
@@ -88,10 +90,8 @@ regression test where unit-testable and **proven to fail on the pre-fix code** (
 watch it fail, restore) — see `test_ipcfifo_keepstdin` / `_truncated` for the pattern. Commit + push
 each item; mark it `✅ RESOLVED` in `open-bugs.md`. Frozen external headers stay untouched.
 
-**At merge time (`fix/fatal-abort-result-decision` → `dev`):** bump CLAUDE.md's "Running unit-tests"
-note (currently `102 executed / 15 fail`) to the branch baseline **`110 executed / 13 fail`** (grows
-further as reporting tests are added). That number is intentionally left un-edited on the branch so it
-stays accurate for `dev` until the merge actually happens.
+**CLAUDE.md test count:** bumped to **`110 executed / 13 fail`** as part of the merge (was `102/15`).
+It grows further as reporting tests are added — update it again when the reporting branch merges.
 
 ### Gotchas for the reporting work
 - Behaviour-changing changes already on the branch that a reviewer should know: filter-matcher
