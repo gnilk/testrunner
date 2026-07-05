@@ -95,7 +95,7 @@ means *modules run in one process*, not *cases run inline*. So Channels A/B → 
 |---|---|---|
 | within-module (`DoExecute` case loop) | stop remaining cases, run module exit | **same** — child runs its one module via the same `DoExecute` |
 | `kAbortModule` (`Fatal`) | move to next module | child ends; parent starts next — **same effect** |
-| `kAbortAll` (`Abort`) | module executor **breaks** the loop → no further modules (but only for a single arg matching many modules — an explicit `-m a,b` list keeps going, see open items) | **honoured** — parent's `drainResults` flags `abortAll`, stops launching, and kills in-flight siblings (`run aborted`) |
+| `kAbortAll` (`Abort`) | module executor **breaks** both loops → no further modules (inner `matches` *and* the outer `-m` arg loop) | **honoured** — parent's `drainResults` flags `abortAll`, stops launching, and kills in-flight siblings (`run aborted`) |
 
 The child is launched `trun --sequential --subprocess -m <module> <lib>` and forwards `-c`/`-C`, so
 its own `CheckIfContinue` matches the parent — a child owns one module, so `kAbortAll` there just ends
@@ -115,11 +115,12 @@ kill by name, and one still mid-run is killed cleanly (it had written nothing ye
   own result is not mislabelled). Verified: fork `--max-concurrency 1 -m -` now matches sequential exactly
   (only `abortall` runs, then stop); auto-concurrency kills the in-flight siblings (`[run aborted]`) and the
   run exits non-zero without hanging.
-  - **Nuance found:** sequential's own `kAbortAll` handling only truly stops the run when a single `-m`
-    arg matches many modules (`-m -`, a glob). Its `break` escapes only the inner `matches` loop, so an
-    explicit `-m a,b,c` list keeps iterating the outer arg loop and runs `b,c` anyway. The fork path now
-    stops *completely* (better than sequential's explicit-list case). Aligning sequential's explicit-list
-    break is a separate, smaller follow-up (`moduleexecutors.cpp:151`, break the outer loop too).
+  - **Sequential explicit-list break — FIXED** (same commit series). Sequential's `kAbortAll` `break`
+    used to escape only the inner `matches` loop, so it truly stopped only when a single `-m` arg matched
+    many modules (`-m -`, a glob); an explicit `-m a,b,c` list kept iterating the outer arg loop and ran
+    `b,c` anyway. `TestModuleExecutorSequential::Execute` now sets an `abortAll` flag on `kAbortAll` and
+    breaks the outer arg loop too. Verified `--sequential -m abortall,strutil` now stops after `abortall`
+    (matches fork), while a non-abort list (`-m strutil,timer`) still runs both.
   - Granularity is still end-of-module (a child reports once, at end of its module); a tighter
     "immediate `Abort` → parent kill" would need an early streaming IPC signal (bigger change).
 - `-` **`Error` adds no `assertError` detail** — it's the only failing callback that records no

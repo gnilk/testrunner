@@ -121,6 +121,7 @@ bool TestModuleExecutorSequential::Execute(const IDynLibrary::Ref &library, cons
 
 
     // For every argument on the command line
+    bool abortAll = false;
     for(auto argModuleName : Config::Instance().modules) {
         // Match cases
         std::vector<TestModule::Ref> matches;
@@ -150,11 +151,19 @@ bool TestModuleExecutorSequential::Execute(const IDynLibrary::Ref &library, cons
             TestRunner::SetCurrentTestModule(testModule);
             auto result = testModule->Execute(library);
             if ((result != nullptr) && (result->CheckIfContinue() == TestResult::kRunResultAction::kAbortAll)) {
+                // A module signalled "stop the whole run" (Abort / kTR_FailAll). Stop the
+                // remaining matches AND the remaining -m arguments: this break used to escape
+                // only the inner loop, so an explicit -m a,b,c list kept running b,c after a
+                // aborted (a single arg matching many modules - -m -, a glob - did stop).
+                abortAll = true;
                 break;
             }
             TestRunner::SetCurrentTestModule(nullptr);
         } // for modules
 
+        if (abortAll) {
+            break;
+        }
     }
 
     return bRes;

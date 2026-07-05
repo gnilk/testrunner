@@ -99,9 +99,11 @@ real: #1, #2, #3.
   reusing the timeout path), sparing the reporting child (recorded in `abortingModules`, reaped
   normally). Verified fork `--max-concurrency 1 -m -` matches sequential exactly; auto-concurrency
   kills the running siblings and exits non-zero without hanging. See `todo/result_model.md`.
-  - **Follow-up (smaller, separate):** sequential's own `kAbortAll` `break` (`moduleexecutors.cpp:151`)
-    only escapes the inner `matches` loop, so it truly stops only when one `-m` arg matches many modules
-    (`-m -`/glob); an explicit `-m a,b,c` list keeps running `b,c`. Break the outer arg loop too.
+  - **Follow-up — DONE (same series):** sequential's own `kAbortAll` `break` only escaped the inner
+    `matches` loop, so it truly stopped only when one `-m` arg matched many modules (`-m -`/glob); an
+    explicit `-m a,b,c` list kept running `b,c`. `TestModuleExecutorSequential::Execute` now sets an
+    `abortAll` flag and breaks the outer `-m` arg loop too (verified `-m abortall,strutil` stops after
+    `abortall`; a non-abort `-m strutil,timer` still runs both).
   - `Fatal`/`ModuleFail` "stop this module's remaining cases" holds in both modes (unchanged).
 - **[IPC hardening] Decoders ignore all read-error returns** — `IPCMessages.cpp:36-54, 74-105`
   discard every `Read*` return and `return true`, so a corrupt/short frame (`Read` returns `-1`)
