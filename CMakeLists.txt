@@ -236,4 +236,43 @@ if (UNIX AND NOT APPLE)
     set(CPACK_DEBIAN_DEV_PACKAGE_DEPENDS "testrunner (= ${TRUN_PKG_VERSION})")
 
     include(CPack)
+elseif (WIN32)
+    message(STATUS "Windows target - setting up CPACK (NSIS installer, components: runtime + dev)")
+
+    # NSIS over WiX/MSI: CPack's NSIS generator has CPACK_NSIS_MODIFY_PATH built in (an
+    # installer page offering to add the install dir to PATH) - WiX has no equivalent without
+    # hand-writing an <Environment> element via a patch file. trun/tcov are CLI-only with no
+    # COM/registry/enterprise-deployment need that would favour MSI instead.
+    set(CPACK_GENERATOR "NSIS")
+
+    set(CPACK_PACKAGE_VERSION_MAJOR ${TRUN_VERSION_MAJOR})
+    set(CPACK_PACKAGE_VERSION_MINOR ${TRUN_VERSION_MINOR})
+    set(CPACK_PACKAGE_VERSION_PATCH ${TRUN_VERSION_PATCH})
+
+    set(CPACK_PACKAGE_VENDOR "gnilk")
+    set(CPACK_PACKAGE_NAME "testrunner")
+    set(CPACK_PACKAGE_INSTALL_DIRECTORY "testrunner")
+    set(CPACK_PACKAGE_DESCRIPTION "C/C++ Unit Test Framework")
+    set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Heavily GoLang inspired unit testing for C/C++")
+    set(CPACK_PACKAGE_HOMEPAGE_URL "https://github.com/gnilk/testrunner")
+    set(CPACK_NSIS_CONTACT "gnilk")
+    set(CPACK_NSIS_URL_INFO_ABOUT "${CPACK_PACKAGE_HOMEPAGE_URL}")
+    # Silently remove a previous install first on upgrade, instead of leaving stale files/
+    # registry entries or forcing the user to uninstall manually first.
+    set(CPACK_NSIS_ENABLE_UNINSTALL_BEFORE_INSTALL ON)
+
+    # One installer, two selectable components - mirrors the Linux runtime/-dev split:
+    # runtime = trun.exe CLI, dev = trunlib.lib + headers + find_package(testrunner) config.
+    set(CPACK_NSIS_COMPONENT_INSTALL ON)
+    set(CPACK_COMPONENTS_ALL runtime dev)
+    set(CPACK_COMPONENT_RUNTIME_DISPLAY_NAME "trun command-line tool")
+    set(CPACK_COMPONENT_RUNTIME_DESCRIPTION "trun.exe - the test runner CLI")
+    set(CPACK_COMPONENT_DEV_DISPLAY_NAME "Development files")
+    set(CPACK_COMPONENT_DEV_DESCRIPTION "trunlib static library, headers, and CMake find_package(testrunner) support")
+
+    # Offer (default: on) to add the install dir's bin/ to PATH, since this is a CLI tool
+    # meant to be run from any shell - not a silent PATH edit, NSIS adds a page for it.
+    set(CPACK_NSIS_MODIFY_PATH ON)
+
+    include(CPack)
 endif()
