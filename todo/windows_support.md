@@ -5,12 +5,17 @@ under the V4 product line. **"V4" is the product/release milestone — NOT a new
 The Windows fix changes no interface signature, so the external interface stays **V2**; Windows
 simply becomes a first-class V2 platform.
 
-> Status: Core milestone (Phase 0 + 1 + 2) DONE (2026-07-05, branch `feature/windows-phase0`, not yet
-> merged to `dev`). Built and verified end-to-end on a real MSVC target (Visual Studio Community
-> 2026 / MSVC 19.51, Windows 11) — the hardware blocker noted below is resolved. `trun.exe` builds,
-> correctly detects V2, and its own sequential self-test suite runs clean (15/15 documented
-> self-fails, no crash, no hang). Phase 3 (fork/IPC parity) and Phase 4 (packaging) remain later/
-> not greenlit, per the plan below.
+> Status: Core milestone (Phase 0 + 1 + 2) **and** Phase 3 (fork/IPC parity) DONE (2026-07-05, branch
+> `feature/windows-phase0`, not yet merged to `dev`). Built and verified end-to-end on a real MSVC
+> target (Visual Studio Community 2026 / MSVC 19.51, Windows 11). `trun.exe` builds, correctly
+> detects V2, and its own self-test suite runs clean in **both** sequential and parallel/fork mode
+> (15/15 documented self-fails, no crash, no hang, identical `90`/`15` counts in both modes) — the
+> fork executor (`process_win32` + `IPCPipeWin`, `TRUN_HAVE_FORK` live for Windows) spawns real
+> per-module subprocesses and captures their output/results correctly, verified at default and
+> forced `--max-concurrency 1`. Two genuine runtime bugs were found and fixed getting here (a
+> pre-existing `AddArgument` truncation bug that corrupted every subprocess's command line, and a
+> `PeekNamedPipe`/`ReadFile` visibility race in the post-exit stdout drain) — see 3d below. Phase 4
+> (packaging) remains later/not greenlit.
 > Related: `todo/SESSION-HANDOFF.md`, `README.md` (Building / Windows §158-166),
 > `todo/deprecated/signal_handling.md`.
 
@@ -120,10 +125,240 @@ dependency-execution counting behavior above; every one of the 94 tests that *sh
 this platform's build did run (diffed the full `-lx` symbol list against every `=== RUN` line -
 zero missing). Full rebuild clean across all targets after the CRT change.
 
-Phase 3 — subprocess parity (later)
-- Decompose `TestModuleExecutorFork::Execute` into helpers + `CreateModuleIPCServer` seam + `IPCBase::EndpointName()`
-- New `src/shared/win32/process_win32.{h,cpp}` (`CreateProcess`); make `Process` impl-member a CMake-selected pimpl
-- New `src/shared/win32/IPCPipeWin.{h,cpp}` (`IPCBase` over named pipes); define `TRUN_HAVE_FORK` for Windows
+Phase 3 — subprocess parity  [! DONE 2026-07-05]
+- ! 3a: Decompose `TestModuleExecutorFork::Execute` OS seam into `CreateModuleIPCServer()` factory (pulled `IPCBase::EndpointName()` forward from 3c - needed for the `->` call site to compile)
+- ! 3b: Split `Process`/`Process_Unix` into portable `Process` (`src/shared/procspawn.{h,cpp}`) + `ProcessImpl` per OS (`unix/process_unix.{h,cpp}`, **new** `win32/process_win32.{h,cpp}`)
+- ! 3c: `IPCPipeWin : IPCBase` over named pipes (+ the reconnect-cycle it needs, see below)
+- ! 3d: Define `TRUN_HAVE_FORK` for Windows (final switch) — found and fixed two real runtime bugs getting fork mode to actually work (see below)
+
+**Analyzed and implemented 2026-07-05. Split-vs-guard decision per sub-system, applying §3's own
+metric — all four sub-phases done and verified below:**
+
+### 3a. `TestModuleExecutorFork::Execute` — guard, not a split  [! DONE 2026-07-05]
+
+Re-confirmed directly in the current `moduleexecutors.cpp:182-300` (the file has grown since §3 was
+first written — a concurrency window + timeout/reap loop were added later — but the analysis still
+holds): the *only* OS-specific line remains `gnilk::IPCFifoUnix ipcServer;` (line 186) plus its one
+use of `.FifoName()` (line 253). Everything else (`drainResults` lambda, the `pending` module list,
+the concurrency window, timeout/reap) already routes through portable types (`SubProcess`,
+`gnilk::IPCBinaryDecoder`, `ResultSummary`) — zero large blocks to duplicate.
+
+- Add a tiny factory directly in `moduleexecutors.cpp` (1-line body per branch, well under the
+  ~5-line split threshold — a guard, not a new file):
+  ```cpp
+  static IPCBase::Ref CreateModuleIPCServer() {
+  #ifdef WIN32
+      return std::make_shared<gnilk::IPCPipeWin>();
+  #else
+      return std::make_shared<gnilk::IPCFifoUnix>();
+  #endif
+  }
+  ```
+  `ipcServer` becomes `IPCBase::Ref` (a pointer) — call sites change `.` → `->`.
+- The file-top `#ifndef WIN32 #ifdef TRUN_HAVE_FORK #include "unix/process.h" ... #endif #endif`
+  block (lines 32-40) loses its `#ifndef WIN32` wrapper — Windows will define `TRUN_HAVE_FORK` too,
+  just with different concrete headers — becoming a plain `#ifdef WIN32` branch selecting
+  `win32/IPCPipeWin.h` vs `unix/IPCFifoUnix.h`.
+- **Dead code found in passing:** the existing `#ifdef WIN32 #include <process.h> #endif`
+  (lines 42-44 — the **CRT** header, not ours) is unused — nothing in the file calls
+  `_getpid`/`_spawn*`. Leftover from the stale prior port; delete it during this pass.
+- The `drainResults` lambda → `DrainResults(IPCBase &ipc)`, `CollectPendingModules(testModules)`,
+  `StartPending(window)`/`ReapAndTimeout(window)` extraction (readability only, zero platform
+  coupling) is independent of the win32 work and may land as its own hygiene pass first or be
+  folded into this one — maintainer's call, not gating.
+
+**Implemented as analyzed, with one pull-forward from §3c:** `.FifoName()` on a concrete
+`IPCFifoUnix` has no equivalent on the `IPCBase::Ref` the factory returns, so the `.` → `->` call-site
+change couldn't compile without the interface actually having a name accessor. Added
+`virtual const std::string &EndpointName() const` to `IPCBase` (default: empty string) now, and
+renamed `IPCFifoUnix::FifoName()` to override it — the 4 call sites (`moduleexecutors.cpp` +
+3 in `Coverage.cpp`, tcov-only) all updated. This is the *rename* half of §3c's generalization;
+§3c itself still owns creating `IPCPipeWin` as a second override. The dead
+`#ifdef WIN32 #include <process.h> #endif` (CRT header) was deleted from `moduleexecutors.cpp` as
+planned — this specific file never needed it (confirmed by a clean MSVC build); it turned out a
+*different* file did, see 3b's build-fix note below.
+
+**Verified (2026-07-05, MSVC 19.51 / VS 2026, `cmake-build-win`):** `moduleexecutors.cpp` compiles
+clean for `trun`/`trun_utests`/`trunlib` — the `#ifdef WIN32` branch referencing `win32/IPCPipeWin.h`
+and `gnilk::IPCPipeWin` (neither exists yet, that's 3c) is inert dead code on today's Windows build:
+`TRUN_HAVE_FORK` is only defined for `APPLE`/`UNIX` in `TrunCommonOptions.cmake` (3d hasn't flipped
+it for `WIN32` yet), so the entire `#ifdef TRUN_HAVE_FORK` block — factory included — is never
+preprocessed under `WIN32` until 3d lands. Safe by construction, not by luck.
+
+### 3b. Process spawn (`Process`/`Process_Unix` → `Process`/`ProcessImpl`) — split  [! DONE 2026-07-05]
+
+Read `src/shared/unix/process.h/.cpp` in full. Finding: the portable `Process` wrapper
+(`SetCallback`/`AddArgument`/`ExecuteAndWait`/`Kill`/`GetExitStatus`, ~80 lines, zero POSIX
+dependency) is currently **colocated** with the POSIX-only `Process_Unix` impl in the same `unix/`
+files — so today any file including it (e.g. `subprocess.h`, included widely) drags in `<spawn.h>`
+even where nothing POSIX is used. Pre-existing smell, not something Windows introduces, but worth
+fixing while touching this code.
+
+- **`src/shared/process.h`/`.cpp`** (new, portable) — `ProcessCallbackInterface`,
+  `ProcessCallbackBase`, `ProcessExitStatus`, `Process`. `Process` holds
+  `std::unique_ptr<ProcessImpl> impl;` — `ProcessImpl` is only forward-declared here (true pointer
+  pimpl, so the portable header pulls in neither `<spawn.h>` nor `<Windows.h>`).
+- **`src/shared/unix/process_unix.h/.cpp`** (renamed from today's `unix/process.h/.cpp`) —
+  `class ProcessImpl` with the exact same POSIX guts (`posix_spawn`, pipes, `poll`, `waitpid`), just
+  renamed from `Process_Unix`.
+- **`src/shared/win32/process_win32.h/.cpp`** (new) — `class ProcessImpl` via `CreateProcess` +
+  anonymous pipes (`CreatePipe`/`SetHandleInformation` for inheritance), non-blocking read via
+  `PeekNamedPipe`+`ReadFile`, `IsFinished` via `GetExitCodeProcess`, `Kill` via `TerminateProcess`.
+
+Zero shared logic between the two impls (POSIX spawn/poll vs. Win32 `CreateProcess`/pipes are
+unrelated APIs) — a guard would mean ~150 duplicated lines per branch, so this is the textbook split
+case per §3's own metric. `subprocess.h/.cpp` needs exactly one include-path fix
+(`"../shared/unix/process.h"` → `"../shared/process.h"`) and nothing else — it already only touches
+`Process`'s portable public surface.
+
+**Implemented largely as analyzed, with two corrections found only by actually building under MSVC
+(not visible from the design alone) and one CMake-wiring refinement:**
+
+1. **Renamed the new portable file from `process.h`/`.cpp` to `procspawn.h`/`.cpp`.** A file named
+   `process.h` sitting in a directory that's already on the include path (`src/shared`, via
+   `target_include_directories`) **shadows the CRT's own `<process.h>`** — the header that declares
+   `_beginthreadex`, which MSVC's `<thread>` needs whenever a TU constructs a `std::thread` with a
+   callable. Found the hard way: `subprocess.cpp` (see point 2) compiled on Windows for the first
+   time as a direct result of 3b, its `std::thread thread{...}` construction triggered
+   `<thread>`'s internal `_beginthreadex` call, and the angle-bracket lookup resolved to *our*
+   `shared/process.h` instead of the toolchain's, producing `error C2039: '_beginthreadex' is not a
+   member of the global namespace`. Renaming sidesteps the collision entirely and also retroactively
+   protects two *pre-existing* same-shaped landmines that never fired only because nothing had
+   exercised that code path on Windows yet: `src/testrunner/platform.h`'s own `WIN32`-guarded
+   `#include <process.h>`, and a dead `#include "process.h"` in `src/shared/unix/dynlib_unix.cpp`
+   that — now confirmed via grep — referenced nothing in the file it pointed at and was deleted
+   outright (a quote-include picking up the sibling `unix/process.h` purely by directory-relative
+   lookup, broken by the 3b rename since nothing in `dynlib_unix.cpp` actually used it).
+2. **`subprocess.cpp` needs an explicit `#ifdef WIN32 #include <process.h> #endif`.** Once `Process`
+   became portable, nothing prevented `subprocess.cpp` (previously excluded from the Windows build
+   entirely, see Phase 0) from compiling there too — and per point 1, it's the one file that actually
+   needs the *real* CRT `<process.h>` for `_beginthreadex`, since it's the only Windows caller that
+   constructs a `std::thread` with a callable (`SubProcess::Start`'s worker thread).
+3. **CMake wiring refinement vs. this doc's own original 3d text:** the new portable
+   `procspawn.cpp` is **not** added to `sharedsrcfiles` (which the original 3d draft assumed) —
+   `sharedsrcfiles` also feeds `trunlib`, and `trunlib` is deliberately the no-fork embedded engine
+   (see root `CLAUDE.md`); giving it process-spawn code it will never call is unwanted scope creep.
+   Instead added a dedicated `processsrcfiles` list (`cmake/CMakeShared.cmake`) containing
+   `procspawn.{h,cpp}`, linked only into `trun`/`trun_utests` (`src/app/trun/CMakeLists.txt`) — the
+   same scope `unixsrcfiles`/`win32srcfiles` already have, so `trunlib`'s existing “no fork” boundary
+   is unchanged, just now explicit instead of accidental. `process_win32.cpp` joins `win32srcfiles`
+   (compiles now, even though nothing calls it until 3d flips `TRUN_HAVE_FORK` for Windows) and
+   `process_unix.cpp` replaces `unix/process.cpp` in `unixsrcfiles`, both mechanical renames.
+   Additionally flipped the Phase-0 `if(UNIX)` guard around `subprocess.cpp` in
+   `src/app/trun/CMakeLists.txt` to unconditional now (rather than waiting for 3d) — the only reason
+   it was guarded was `Process` being Unix-only, which 3b resolves directly; it's still unreachable
+   at runtime on Windows until `TRUN_HAVE_FORK` is defined there (3d), but it compiles standalone now
+   and doing so is what surfaced point 2.
+
+**Verified (2026-07-05, MSVC 19.51 / VS 2026, `cmake-build-win`, full reconfigure + rebuild):**
+`trun`, `trun_utests`, `trunlib`, `trunembedded` all build clean (14/14 ninja steps on the affected
+targets; `ninja -t` confirms nothing else needed rebuilding) — `process_win32.cpp`, `procspawn.cpp`,
+and `subprocess.cpp` all now compile under MSVC for the first time. Ran the sequential self-test
+baseline afterward as a regression check (3a/3b touch only dead-until-3d code paths on Windows, so
+no behavior change is expected): `trun.exe --sequential -m "!abortall,!exception,-" trun_utests.dll`
+→ exit 0, `Tests Executed: 90` / `Tests Failed: 15`, identical to the Phase 2 baseline above.
+
+### 3c. IPC transport (`IPCFifoUnix` → + `IPCPipeWin`) — split, following an existing pattern  [! DONE 2026-07-05]
+
+`IPCBase` (`src/shared/ipc/IPCBase.h`) is already a clean virtual interface (`Open`/`Close`/
+`Available`/`Write`/`Read`) — the same pattern `IDynLibrary` already uses elsewhere, so
+`IPCPipeWin : public IPCBase` is a zero-invention addition: named pipes via `CreateNamedPipe`+
+`ConnectNamedPipe` mirroring `IPCFifoUnix::Open()`/`ConnectTo()`, `PeekNamedPipe` for `Available()`.
+
+One generalization: add `virtual const std::string &EndpointName() const` to `IPCBase` (replacing
+`IPCFifoUnix::FifoName()`, not currently part of the base interface). Grepped every call site — only
+4 total: `moduleexecutors.cpp` (1, the one that matters for Windows) and `Coverage.cpp` (3, tcov-only,
+never compiled on Windows) — small, safe rename across both.
+
+**Implemented as analyzed, plus one structural difference the analysis didn't call out and a second
+generalization it needed:**
+
+- **A named pipe instance is a 1:1 server/client connection; a POSIX FIFO path is not.**
+  `TestModuleExecutorFork` opens one `IPCBase` up front and feeds it one module-subprocess client
+  after another for the whole run — trivial for a FIFO (any process can `open()` the same path any
+  number of times), but a Win32 named pipe needs an explicit `DisconnectNamedPipe` +
+  `ConnectNamedPipe` cycle between clients. `IPCPipeWin` hides this inside `Open()`/`Available()`
+  (`ResetForNextClient()` on broken-pipe detection) so the caller never sees the difference.
+  `Open()`'s `ConnectNamedPipe` is posted overlapped/asynchronous (`BeginConnect()`/`PollConnect()`)
+  because `Open()` is called before any module subprocess exists yet and must return immediately
+  rather than block waiting for a client that isn't spawned.
+- **Second real consumer found beyond the one the analysis named:** `resultsummary.cpp`'s
+  `SendResultToParentProc()` — the **client** side, run inside every module subprocess to report its
+  results back — directly instantiated `gnilk::IPCFifoUnix` too (`#ifndef WIN32`-guarded include).
+  Given the OS-conditional treatment alongside `moduleexecutors.cpp`'s server side.
+- **`responseproxy.cpp`'s `int_tcov_begincov()`** (tcov coverage-signal IPC, unrelated to the fork
+  executor) also unconditionally used `IPCFifoUnix` under `#ifdef TRUN_HAVE_FORK` with no `WIN32`
+  guard — would have failed to compile once 3d defines `TRUN_HAVE_FORK` for Windows. Since tcov has
+  no Windows backend (`isCoverageRunning` can never be true there — "Out of scope" above), guarded
+  the whole body `#if defined(TRUN_HAVE_FORK) && !defined(WIN32)` rather than porting it to
+  `IPCPipeWin` for functionality that can never run.
+
+### 3d. `TRUN_HAVE_FORK` for Windows — last step  [! DONE 2026-07-05]
+
+Once `process_win32` + `IPCPipeWin` exist and compile, define `TRUN_HAVE_FORK` in
+`cmake/TrunCommonOptions.cmake`'s WIN32 branch alongside `WINDOWS`/`NOMINMAX` — the switch that turns
+`TestModuleExecutorFork` on for Windows (the existing `#ifdef TRUN_HAVE_FORK` guard around the whole
+class needs no change). This define lives on the `trun_common_options` INTERFACE target, which
+`trunlib` deliberately does **not** link — so `trunlib` stays fork-free automatically, no extra
+guarding needed. CMake wiring matched 3b's already-corrected shape: `procspawn.{h,cpp}` via the
+dedicated `processsrcfiles` list (trun/trun_utests only); `process_unix.cpp`/`IPCFifoUnix.cpp` in the
+`if(UNIX)` branch; `process_win32.cpp`/`IPCPipeWin.cpp` in the `elseif(WIN32)` branch; `subprocess.cpp`
+already unconditional since 3b (no further change needed there).
+
+**This is where the two real, previously-invisible runtime bugs surfaced — both only reachable once
+`TRUN_HAVE_FORK` was actually live and a real parent→child→parent round trip ran on Windows for the
+first time:**
+
+1. **`Process::AddArgument(const char *format, ...)` (`procspawn.cpp`) silently truncated the
+   Windows command line, corrupting every module subprocess's arguments.** The variadic overload
+   builds a fixed `std::string newstr(1024, ' ')`, `vsnprintf`s into it, but never resizes it to the
+   actual formatted length — the *string* stays 1024 characters (real text, an embedded early `\0`,
+   then ~1000 bytes of leftover space padding). Harmless on POSIX: `posix_spawnp` takes an `argv`
+   array of separate `.c_str()` pointers, each read only up to its own embedded `\0` — the trailing
+   garbage is simply invisible. Fatal on Windows: `subprocess.cpp` calls
+   `AddArgument("--sequential")`/`"--subprocess"`/`"--ipc-name"`/`"-m"` with **string literals**,
+   which C++ overload resolution binds to this variadic overload (`const char*` is an exact match,
+   beating the user-defined conversion `const char* → std::string` that the other `AddArgument(std::string)`
+   overload would need) — and `process_win32.cpp`'s `SpawnAndLoop` concatenates all arguments into
+   **one** Win32 command-line string via ordinary (length-based) `std::string` `+=`. The embedded
+   `\0` from the *first* affected argument then truncates everything `CreateProcess` and any `%s`-style
+   diagnostic ever sees (confirmed via a temporary debug print: the "full" command line read as
+   `"...trun.exe" "--sequential` — cut off mid-argument, no closing quote, nothing after it). Net
+   effect: every module subprocess ran with silently mangled arguments (wrong/no module filter, wrong
+   IPC endpoint name) — it still executed *something* and exited 0, which is why this stayed hidden
+   through a routine "does it crash" check. **Fix:** `newstr.resize(std::min<size_t>(res, newstr.size()))`
+   after `vsnprintf`, using its own returned length — a one-line, root-cause, both-platforms fix (no
+   call-site changes; harmless memory bloat removed on POSIX too).
+2. **`process_win32.cpp`'s post-exit stdout/stderr drain had a `PeekNamedPipe`/`ReadFile` visibility
+   race.** The live monitoring loop (`while (!IsFinished()) ConsumePipes(...)`) correctly polls
+   non-blocking via `PeekNamedPipe` before every `ReadFile` — necessary there, since the child may run
+   for a while and blocking would stall the timeout/reap logic. The original post-exit drain reused
+   the same Peek-gated `ConsumePipes()` once child exit was detected — but empirically,
+   `PeekNamedPipe`'s "bytes available" count could still read 0 for a moment even though the data was
+   already fully written and a direct blocking `ReadFile` on the very same handle immediately returned
+   it (confirmed by bypassing `ConsumePipes` with a raw `ReadFile` call: it returned real, correct
+   captured text — `"=== RUN test_main\n\n=== PASS: test_main..."` — right after the Peek-gated drain
+   had already given up reporting nothing left). **Fix:** once the child is confirmed exited there is
+   no reason left to avoid blocking — added `DrainAfterExit()`, a plain `while (ReadFile(...) &&
+   bytesRead > 0)` loop per stream. Safe unconditionally: the child is gone and the parent's own
+   write-end copies are already closed, so the read either returns the last buffered bytes or an
+   immediate EOF/broken-pipe — never hangs.
+
+Bug 1 alone was enough to make every subprocess run with corrupted arguments (module filter and IPC
+name both silently wrong) while still *looking* healthy (clean exit, no error path hit) — the parallel
+run's test counts stayed stuck at the 2 tests belonging to the top-level global module (`test_main`/
+`test_exit`) with zero contribution from any of the 25 real modules, and zero captured subprocess
+stdout, until this was found and fixed via a temporary debug print of the actual command line.
+Bug 2 surfaced immediately afterward as the last remaining "stdout capture is silent" gap once
+arguments were correct, and was root-caused via a temporary raw-`ReadFile` bypass of the drain path.
+
+**Verified (2026-07-05, MSVC 19.51 / VS 2026, `cmake-build-win`):** full rebuild clean across all
+targets. Sequential baseline unchanged: `Tests Executed: 90` / `Tests Failed: 15`. **Parallel/fork
+mode (the actual `TestModuleExecutorFork` path, exercised on Windows for the first time) now matches
+the sequential baseline exactly** — same `90`/`15`, same failed-test list, all 25 module subprocesses
+spawn via `process_win32`, report through `IPCPipeWin`, and their live stdout (`=== RUN`/`=== PASS`/
+`=== FAIL`) is correctly captured and forwarded by the parent — verified at both default concurrency
+(`hardware_concurrency()`, ~6.9s) and forced `--max-concurrency 1`.
 
 Phase 4 — packaging (later)
 - WIN32 CPACK branch (WIX/NSIS)
