@@ -5,17 +5,19 @@ under the V4 product line. **"V4" is the product/release milestone — NOT a new
 The Windows fix changes no interface signature, so the external interface stays **V2**; Windows
 simply becomes a first-class V2 platform.
 
-> Status: Core milestone (Phase 0 + 1 + 2) **and** Phase 3 (fork/IPC parity) DONE (2026-07-05, branch
-> `feature/windows-phase0`, not yet merged to `dev`). Built and verified end-to-end on a real MSVC
-> target (Visual Studio Community 2026 / MSVC 19.51, Windows 11). `trun.exe` builds, correctly
-> detects V2, and its own self-test suite runs clean in **both** sequential and parallel/fork mode
-> (15/15 documented self-fails, no crash, no hang, identical `90`/`15` counts in both modes) — the
-> fork executor (`process_win32` + `IPCPipeWin`, `TRUN_HAVE_FORK` live for Windows) spawns real
-> per-module subprocesses and captures their output/results correctly, verified at default and
-> forced `--max-concurrency 1`. Two genuine runtime bugs were found and fixed getting here (a
-> pre-existing `AddArgument` truncation bug that corrupted every subprocess's command line, and a
-> `PeekNamedPipe`/`ReadFile` visibility race in the post-exit stdout drain) — see 3d below. Phase 4
-> (packaging) remains later/not greenlit.
+> Status: **All four phases DONE** (2026-07-05, branch `feature/windows-phase0`, not yet merged to
+> `dev`). Built and verified end-to-end on a real MSVC target (Visual Studio Community 2026 / MSVC
+> 19.51, Windows 11). `trun.exe` builds, correctly detects V2, and its own self-test suite runs clean
+> in **both** sequential and parallel/fork mode (15/15 documented self-fails, no crash, no hang,
+> identical `90`/`15` counts in both modes) — the fork executor (`process_win32` + `IPCPipeWin`,
+> `TRUN_HAVE_FORK` live for Windows) spawns real per-module subprocesses and captures their
+> output/results correctly, verified at default and forced `--max-concurrency 1`. Two genuine runtime
+> bugs were found and fixed getting here (a pre-existing `AddArgument` truncation bug that corrupted
+> every subprocess's command line, and a `PeekNamedPipe`/`ReadFile` visibility race in the post-exit
+> stdout drain) — see 3d below. Phase 4 (packaging) is a working NSIS installer (`runtime`/`dev`
+> components, "Add to PATH" page) — built, silently installed, and uninstalled clean on this box; see
+> Phase 4 below for the one correction found along the way (CPack's PATH page defaults unchecked,
+> not checked as first assumed).
 > Related: `todo/SESSION-HANDOFF.md`, `README.md` (Building / Windows §158-166),
 > `todo/deprecated/signal_handling.md`.
 
@@ -360,8 +362,43 @@ spawn via `process_win32`, report through `IPCPipeWin`, and their live stdout (`
 `=== FAIL`) is correctly captured and forwarded by the parent — verified at both default concurrency
 (`hardware_concurrency()`, ~6.9s) and forced `--max-concurrency 1`.
 
-Phase 4 — packaging (later)
-- WIN32 CPACK branch (WIX/NSIS)
+Phase 4 — packaging  [! DONE 2026-07-05, full smoke test incl. real installer + install/uninstall]
+- ! WIN32 CPACK branch — NSIS generator (`CMakeLists.txt`), reusing the existing `runtime`/`dev`
+  component split (no manpage/`.dll` handling needed - Windows already skips the Unix manpage
+  block, and `trunlib` is `STATIC` everywhere so the existing `ARCHIVE DESTINATION` install rule
+  already covers its `.lib` on Windows too, no separate `.dll`/import-lib case to add).
+
+**Chose NSIS over WiX/MSI:** CPack's NSIS generator has `CPACK_NSIS_MODIFY_PATH` built in - an
+installer page offering to add the install directory to `PATH` - vs. WiX, which has no equivalent
+without hand-authoring an `<Environment>` element via a `CPACK_WIX_PATCH_FILE`. Neither `trun` nor
+`tcov` need MSI-specific capabilities (COM registration, GPO-driven enterprise deployment), so the
+simpler generator wins. Component packaging mirrors the Linux DEB split: `runtime` (`trun.exe`) and
+`dev` (`trunlib.lib` + headers + the `find_package(testrunner)` CMake config), both selectable via
+`CPACK_NSIS_COMPONENT_INSTALL`.
+
+**Correction found via actually building and running the installer (not just reading CPack docs):**
+`CPACK_NSIS_MODIFY_PATH` does **not** default to checked - there is no CMake variable to change
+which radio button is pre-selected. Confirmed by inspecting the generated
+`_CPack_Packages/win64/NSIS/NSIS.InstallOptions.ini`: "Do not add testrunner to the system PATH" is
+`State=1` (pre-selected), both "Add to PATH" options are `State=0`, hard-coded by CMake's NSIS
+generator. A silent install (`/S`) confirmed this empirically: `HKCU\Environment\Path` was untouched
+afterward. Getting "optional, checked by default" instead would require a hand-rolled NSIS page
+(nsDialogs + custom `.nsh`) that the project would then own and maintain, replacing CPack's built-in
+mechanism — discussed with the maintainer, who chose to **keep CPack's built-in page as-is**
+(unchecked default, standard/zero-maintenance) over that added complexity.
+
+**Verified (2026-07-05, MSVC 19.51 / VS 2026, NSIS 3.12 installed via `winget install NSIS.NSIS`):**
+- `cmake ..` configures cleanly with the new `elseif(WIN32)` CPack branch.
+- `cpack -G NSIS` builds a real installer: `testrunner-4.0.0-win64.exe`.
+- Silent install (`testrunner-4.0.0-win64.exe /S /D=<dir>`) lays out both components correctly:
+  `bin\trun.exe` (runtime), `include\{testinterface.h, testinterface_v1.h, trunembedded.h}`,
+  `lib\trunlib.lib`, `lib\cmake\testrunner\{testrunnerConfig,testrunnerConfigVersion,testrunnerTargets}*.cmake`
+  (dev) — matches the `install(...)` rules exactly.
+- `Uninstall.exe /S` removes the install directory and the
+  `HKCU\...\Uninstall\testrunner`/`HKLM\...\Uninstall\testrunner` registry keys cleanly - verified
+  both are absent afterward.
+- PATH-page default behavior confirmed empirically (see correction above) rather than assumed from
+  documentation.
 
 Out of scope
 - [!] `tcov` on Windows — needs a full debug-engine backend (SEH / `AddVectoredExceptionHandler` / DbgHelp)
