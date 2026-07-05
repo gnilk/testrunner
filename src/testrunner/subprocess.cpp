@@ -3,6 +3,14 @@
 //
 #include "subprocess.h"
 
+// MSVC's <thread> calls the CRT's _beginthreadex when std::thread is constructed with
+// a callable (as Start() does below), but doesn't pull in its declaration itself -
+// only surfaces when a TU actually instantiates that constructor, which subprocess.cpp
+// is the only Windows caller of.
+#ifdef WIN32
+#include <process.h>
+#endif
+
 using namespace trun;
 
 SubProcess::~SubProcess() {

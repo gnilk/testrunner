@@ -29,7 +29,6 @@
 #include "strutil.h"
 #include "logger.h"
 
-#include "process.h"
 #include "dynlib_unix.h"
 
 #include <dlfcn.h>

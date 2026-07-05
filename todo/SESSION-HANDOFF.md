@@ -1,9 +1,30 @@
-# Session handoff — 2026-07-04
+# Session handoff — 2026-07-05
 
 Pick-up notes for continuing on a clean slate.
 
 ## Repo state
-- **This session (2026-07-04):** committed the analyzed, phased **Windows V4 plan**
+- **This session (2026-07-05):** the hardware blocker below is resolved — this session ran natively
+  on Windows 11 (Visual Studio Community 2026 / MSVC 19.51.36248.0, CMake 4.3.1 + Ninja bundled
+  with VS). On branch `feature/windows-phase0` (off `dev`, not yet merged): completed **Phase 0**
+  (CMake unblock) of the Windows V4 plan — all bugs in `todo/windows_support.md` §5 fixed, plus
+  several more found only by actually compiling under MSVC (fork-only `subprocess.cpp` unconditionally
+  pulling in UNIX-only `process.h`; fmt needing `/utf-8`; `<Windows.h>` `min`/`max` macro collisions
+  needing project-wide `NOMINMAX`; a pre-existing missing include dir on `trun_utests`; a
+  `std::erase_if` shim guarded on raw `__cplusplus` instead of `_MSVC_LANG`; POSIX-only
+  `SIGUSR1`/`PATH_MAX`/`getcwd` in `trun.cpp`). Full details + file list in
+  `todo/windows_support.md` Phase 0 section. Verified: clean `cmake-build-win` from scratch builds
+  all 162 ninja targets with zero errors; `trun.exe -h`/`-lx` work correctly on a real DLL. Went on
+  to finish **Phase 1** (MSVC V2 version-symbol detection — `__declspec(selectany)` +
+  `/export:...,DATA` linker pragma, since MSVC rejects `selectany` combined with `dllexport`
+  directly; `trv2_utest.dll`/`trun_utests.dll` now correctly report 2.0.0) and **Phase 2**
+  (sequential self-test green — root cause of the earlier crash/garbled-output was two separate
+  issues: V1 fallback forcing `TerminateThread` instead of cooperative asserts, and the project's
+  pre-existing static-CRT (`/MTd`) setting giving `trun.exe`/loaded test DLLs independently-buffered
+  stdout streams; switched to the DLL CRT. Sequential run now completes cleanly, exit 0, 15/15
+  documented self-fails match exactly). **Core milestone (Phase 0–2) is DONE.** Branch
+  `feature/windows-phase0` not merged to `dev` pending maintainer review. Phase 3 (fork/IPC parity)
+  and Phase 4 (packaging) remain later/not greenlit.
+- **Prior session (2026-07-04):** committed the analyzed, phased **Windows V4 plan**
   (`todo/windows_support.md`, commit **`1351b88`**, pushed to `origin/dev`). Decision settled:
   **Windows (first-class V2, not a new interface version) is a committed 4.0 release-story
   deliverable** — the MCU/Desktop-library split *plus* Windows are jointly what justify the major
@@ -108,11 +129,13 @@ ninja trun trun_utests
 ```
 
 ## Open work — suggested order
-0. **Windows V4 support** — `todo/windows_support.md` (committed `1351b88`). A committed 4.0
-   release-story deliverable, **blocked on a Windows build target** (update the old laptop, or add a
-   `windows-latest` MSVC CI leg — the latter verifies Phase 0–2 headlessly, no physical machine).
-   Analysis is complete; when a target exists, start at Phase 0 (CMake unblock: §5 bugs 1–6 +
-   `win32srcfiles` + per-compiler flags + `WINDOWS` macro + the `responseproxy` guard restructure).
+0. **Windows V4 support** — `todo/windows_support.md`. A committed 4.0 release-story deliverable.
+   The hardware blocker is resolved and the **core milestone (Phase 0 + 1 + 2) is DONE** on branch
+   `feature/windows-phase0` (not yet merged to `dev`) — `trun.exe` builds under MSVC, correctly
+   detects V2 test DLLs, and its own sequential self-test suite runs clean (15/15 documented
+   self-fails, no crash). Next: merge/review the branch, then (not greenlit yet) **Phase 3**
+   (fork/IPC parity — `process_win32.{h,cpp}`, `IPCPipeWin`, `TRUN_HAVE_FORK` for Windows) and
+   **Phase 4** (packaging).
 1. **Deferred delivery tail** — `todo/embedded_delivery_followups.md` (extracted when
    `library_consumption.md` was archived). Three items, none greenlit: (a) rename `trunlib` +
    retire the old two-in-one `trunembedded` facade (coupled — one atomic push; maintainer chose

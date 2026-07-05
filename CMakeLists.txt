@@ -9,10 +9,23 @@ set(CMAKE_OSX_ARCHITECTURES "arm64" CACHE STRING "")
 set(CMAKE_OSX_SYSROOT /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk)
 
 if(WIN32)
-    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+    # DLL (shared) CRT, not the static one: trun.exe dynamically loads test-case DLLs
+    # (LoadLibrary) at runtime, and a statically-linked CRT gives each binary its OWN
+    # stdout FILE* buffer sharing one OS pipe underneath - two independently-buffered
+    # streams flush independently, so combined output interleaves out of chronological
+    # order (test-body printf output appearing bunched up after the run summary). The
+    # shared CRT DLL gives every loaded module the same stdout buffer instance.
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
 endif()
 
 project(testrunner)
+
+# fmt (12.x) requires /utf-8 on MSVC for its narrow string-literal handling. Applied globally
+# (not via trun_common_options) so it also reaches FetchContent deps (fmt/gnklog/cpptrace)
+# that don't link against that interface target.
+if(MSVC)
+    add_compile_options(/utf-8)
+endif()
 
 # Put all build outputs in the build root (not per-subdirectory)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
@@ -45,7 +58,13 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 # FIXME: This should be 'off' by default
-option(BUILD_TCOV "Build tcov coverage tool" ON)
+# tcov needs a debug-engine backend (LLDB on macOS/Linux); no Windows backend exists yet
+# (would need SEH/AddVectoredExceptionHandler/DbgHelp), so it's forced off on WIN32.
+if(WIN32)
+    option(BUILD_TCOV "Build tcov coverage tool" OFF)
+else()
+    option(BUILD_TCOV "Build tcov coverage tool" ON)
+endif()
 option(BUILD_TRUNEMBEDDED "Build embedded library" ON)
 option(BUILD_TRUNMCU "Build the zero-alloc MCU engine + demos (engine #3)" ON)
 option(BUILD_OTHER "Build other exec" ON)
@@ -215,6 +234,45 @@ if (UNIX AND NOT APPLE)
     set(CPACK_DEBIAN_DEV_PACKAGE_NAME "testrunner-dev")
     # The -dev package ships the static lib + headers; it pulls the CLI runtime alongside.
     set(CPACK_DEBIAN_DEV_PACKAGE_DEPENDS "testrunner (= ${TRUN_PKG_VERSION})")
+
+    include(CPack)
+elseif (WIN32)
+    message(STATUS "Windows target - setting up CPACK (NSIS installer, components: runtime + dev)")
+
+    # NSIS over WiX/MSI: CPack's NSIS generator has CPACK_NSIS_MODIFY_PATH built in (an
+    # installer page offering to add the install dir to PATH) - WiX has no equivalent without
+    # hand-writing an <Environment> element via a patch file. trun/tcov are CLI-only with no
+    # COM/registry/enterprise-deployment need that would favour MSI instead.
+    set(CPACK_GENERATOR "NSIS")
+
+    set(CPACK_PACKAGE_VERSION_MAJOR ${TRUN_VERSION_MAJOR})
+    set(CPACK_PACKAGE_VERSION_MINOR ${TRUN_VERSION_MINOR})
+    set(CPACK_PACKAGE_VERSION_PATCH ${TRUN_VERSION_PATCH})
+
+    set(CPACK_PACKAGE_VENDOR "gnilk")
+    set(CPACK_PACKAGE_NAME "testrunner")
+    set(CPACK_PACKAGE_INSTALL_DIRECTORY "testrunner")
+    set(CPACK_PACKAGE_DESCRIPTION "C/C++ Unit Test Framework")
+    set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Heavily GoLang inspired unit testing for C/C++")
+    set(CPACK_PACKAGE_HOMEPAGE_URL "https://github.com/gnilk/testrunner")
+    set(CPACK_NSIS_CONTACT "gnilk")
+    set(CPACK_NSIS_URL_INFO_ABOUT "${CPACK_PACKAGE_HOMEPAGE_URL}")
+    # Silently remove a previous install first on upgrade, instead of leaving stale files/
+    # registry entries or forcing the user to uninstall manually first.
+    set(CPACK_NSIS_ENABLE_UNINSTALL_BEFORE_INSTALL ON)
+
+    # One installer, two selectable components - mirrors the Linux runtime/-dev split:
+    # runtime = trun.exe CLI, dev = trunlib.lib + headers + find_package(testrunner) config.
+    set(CPACK_NSIS_COMPONENT_INSTALL ON)
+    set(CPACK_COMPONENTS_ALL runtime dev)
+    set(CPACK_COMPONENT_RUNTIME_DISPLAY_NAME "trun command-line tool")
+    set(CPACK_COMPONENT_RUNTIME_DESCRIPTION "trun.exe - the test runner CLI")
+    set(CPACK_COMPONENT_DEV_DISPLAY_NAME "Development files")
+    set(CPACK_COMPONENT_DEV_DESCRIPTION "trunlib static library, headers, and CMake find_package(testrunner) support")
+
+    # Offer (default: on) to add the install dir's bin/ to PATH, since this is a CLI tool
+    # meant to be run from any shell - not a silent PATH edit, NSIS adds a page for it.
+    set(CPACK_NSIS_MODIFY_PATH ON)
 
     include(CPack)
 endif()

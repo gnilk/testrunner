@@ -39,7 +39,9 @@
 
 // IPC is only used by SendResultToParentProc on the fork path (one subprocess per module).
 #ifdef TRUN_HAVE_FORK
-#ifndef WIN32
+#ifdef WIN32
+    #include "win32/IPCPipeWin.h"
+#else
     #include "unix/IPCFifoUnix.h"
 #endif
 #include "ipc/IPCBase.h"
@@ -153,7 +155,11 @@ TTo *PtrAdvanceFromTo(void *base) {
 
 void ResultSummary::SendResultToParentProc() {
 #ifdef TRUN_HAVE_FORK
+#ifdef WIN32
+    gnilk::IPCPipeWin ipc;
+#else
     gnilk::IPCFifoUnix ipc;
+#endif
 
     // Now, try to connect to the other side...
     if (!ipc.ConnectTo(Config::Instance().ipcName)) {
