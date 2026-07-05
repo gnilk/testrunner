@@ -87,6 +87,7 @@ void TestResponseProxy::Begin(const std::string &use_symbolName, const std::stri
     assertCount = 0;
     testResult = kTestResult_Pass;
     exceptionThrown = false;
+    forciblyTerminated = false;
     exceptionString = {};
 
     pLogger = gnilk::Logger::GetLogger("TestResponseProxy");
@@ -155,6 +156,15 @@ kTestResult TestResponseProxy::Result() {
 void TestResponseProxy::SetExceptionError(const std::string &exception) {
     exceptionThrown = true;
     exceptionString = exception;
+}
+
+void TestResponseProxy::SetForciblyTerminated(const char *reason) {
+    // NOTE: deliberately does NOT set exceptionThrown - a forced abort-unwind is our own
+    // control flow, not an escaped user exception. The severity is already in 'testResult'.
+    forciblyTerminated = true;
+    if (reason != nullptr) {
+        exceptionString = reason;
+    }
 }
 
 // ITesting mirror

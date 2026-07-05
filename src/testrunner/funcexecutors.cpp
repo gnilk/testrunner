@@ -184,8 +184,11 @@ int TestFuncExecutorSequential::Execute(TestFunc *testFunc, const CBPrePostHook 
             throw;
         }
     } catch (const TestAbortException &abort_exception) {
-        testReturnCode = kTR_Fail;
-        proxy.SetExceptionError(abort_exception.reason);
+        // Internal forced-termination unwind used to implement Fatal/Abort and V1 asserts.
+        // The proxy already holds the intended severity (ModuleFail/AllFail/TestFail); flag
+        // it as a forced termination so the result is NOT downgraded to a plain TestFail the
+        // way an escaped user exception is.
+        proxy.SetForciblyTerminated(abort_exception.reason);
     } catch (const std::exception &e) {
         auto exception_stacktrace = cpptrace::from_current_exception();
         auto exceptionString = UnwindException(e.what(), exception_stacktrace);
