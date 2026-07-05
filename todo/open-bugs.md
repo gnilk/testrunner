@@ -38,15 +38,18 @@ Focused bug sweep of the runner core (coverage out of scope). The suite stays gr
 because the two worst defects sit on paths the self-suite doesn't exercise. Confirmed
 real: #1, #2, #3.
 
-- 🔧 IN PROGRESS (`fix/fatal-abort-result-decision`) — #1 below. The result decision is
+- ✅ RESOLVED (`fix/fatal-abort-result-decision`, commit 9a3179a) — #1 below. The result decision is
   split out of the thread/exception control flow into a pure `TestResult::DeriveResult(...)`
-  and the forced abort-unwind is now flagged distinctly from a user C++ exception
+  and the forced abort-unwind is flagged distinctly from a user C++ exception
   (`TestResponseProxy::SetForciblyTerminated`), so Fatal keeps ModuleFail / Abort keeps
   AllFail. Covered by pure unit tests (`tests/test_resultdecision.cpp`, module
   `resultdecision`) that assert `DeriveResult`/`CheckIfContinue` without terminating.
   The end-to-end abort fixtures stay excluded from the inline run via `run_test_suite.sh`
   (documented there) rather than a subprocess observer (build/maintenance cost not worth it).
-- **[#1] `t->Fatal()` / `t->Abort()` no longer stop the module / the run** in the
+  Follow-on work in the same branch then aligned fork with sequential for `Abort`/`AllFail`
+  (see the fork-`AllFail` resolved item below).
+- **[#1 — FIXED, see resolved item above] `t->Fatal()` / `t->Abort()` used to not stop the module /
+  the run** in the
   default (threaded + exceptions) build. `testfunc.cpp:162-171`: forced termination
   throws `TestAbortException`; the catch sets `exceptionThrown`, and `CreateTestResult`'s
   `else` branch then overwrites the result with `kTestResult_TestFail`, clobbering the
