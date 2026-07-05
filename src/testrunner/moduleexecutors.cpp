@@ -23,7 +23,6 @@
 #include "moduleexecutors.h"
 #include "resultsummary.h"
 #include "testfunc.h"
-#include <assert.h>
 #include <vector>
 #include <algorithm>
 #include <chrono>
@@ -69,48 +68,12 @@ TestModuleExecutorBase &TestModuleExecutorFactory::Create() {
 }
 
 
-enum class kMatchResult {
-    List,
-    Single,
-    NegativeSingle,
-};
-static kMatchResult ModuleMatch(std::vector<TestModule::Ref> &outMatches, const std::string &tcPattern, const std::vector<TestModule::Ref> &caseList) {
-    kMatchResult result = kMatchResult::List;
-    for (auto &module: caseList) {
-        if (tcPattern == "-") {
-            outMatches.push_back(module);
-            continue;
-        }
-        if (tcPattern[0]=='!') {
-            auto negTC = tcPattern.substr(1);
-            auto isMatch = trun::match(module->name, negTC);
-            if (isMatch) {
-                // not sure...
-                //executeFlag = 0;
-                outMatches.push_back(module);
-                result = kMatchResult::NegativeSingle;
-                goto leave;
-            }
-        } else {
-            auto isMatch = trun::match(module->name, tcPattern);
-            if (isMatch) {
-                outMatches.push_back(module);
-                result = kMatchResult::Single;
-                goto leave;
-            }
-        }
-    }
-    leave:
-    return result;
-}
-
-
-
 bool TestModuleExecutorSequential::Execute(const IDynLibrary::Ref &library, const std::map<std::string, TestModule::Ref> &testModules) {
     bool bRes = true;
     pLogger = gnilk::Logger::GetLogger("TestModExeSeq");
 
-    // Convert to vector and sort..
+    // Deterministic, name-sorted order - matches the fork executor and the listing. std::map is
+    // already name-sorted; keep an explicit vector so the intent is clear.
     std::vector<TestModule::Ref> testModulesList;
     for(auto &[k,v] : testModules) {
         testModulesList.push_back(v);
@@ -119,49 +82,27 @@ bool TestModuleExecutorSequential::Execute(const IDynLibrary::Ref &library, cons
         return (a->name < b->name);
     });
 
-
-    // For every argument on the command line
-    bool abortAll = false;
-    for(auto argModuleName : Config::Instance().modules) {
-        // Match cases
-        std::vector<TestModule::Ref> matches;
-        auto matchResult = ModuleMatch(matches, argModuleName, testModulesList);
-        // In case this is negative (i.e. don't execute) we remove it from the sorted LOCAL list
-        // NOTE: DO NOT change the state - if can be that another module depends on this one - in that case we need to execute...
-        if (matchResult == kMatchResult::NegativeSingle) {
-            assert(matches.size() == 1);
-            auto tmToRemove = matches[0];
-            // Remove this from the execution list...
-            std::erase_if(testModulesList,[tmToRemove](const TestModule::Ref &m)->bool{
-               return (tmToRemove->name == m->name);
-            });
+    for (auto &testModule : testModulesList) {
+        // Shared filter matcher (ShouldExecute -> caseMatch): the same decision the listing and the
+        // fork executor use, so -l and the run agree and a glob like -m 'ipc*' runs EVERY match
+        // (the old per-arg ModuleMatch stopped at the first). A module filtered out here can still
+        // run if pulled in as a dependency - ExecuteDependencies does not consult the filter.
+        if (!testModule->ShouldExecute()) {
+            continue;
+        }
+        // Already executed (e.g. as a dependency of an earlier module).
+        if (!testModule->IsIdle()) {
             continue;
         }
 
-        // If here, we should execute anything in the matches list...
-        for(auto &testModule : matches) {
-            // Already executed?
-            if (!testModule->IsIdle()) {
-                //pLogger->Debug("Tests for '%s' already executed, skipping",testModule->name.c_str());
-                continue;
-            }
+        pLogger->Info("Executing tests for library: %s", testModule->name.c_str());
+        TestRunner::SetCurrentTestModule(testModule);
+        auto result = testModule->Execute(library);
+        TestRunner::SetCurrentTestModule(nullptr);
 
-            pLogger->Info("Executing tests for library: %s", testModule->name.c_str());
-
-            TestRunner::SetCurrentTestModule(testModule);
-            auto result = testModule->Execute(library);
-            if ((result != nullptr) && (result->CheckIfContinue() == TestResult::kRunResultAction::kAbortAll)) {
-                // A module signalled "stop the whole run" (Abort / kTR_FailAll). Stop the
-                // remaining matches AND the remaining -m arguments: this break used to escape
-                // only the inner loop, so an explicit -m a,b,c list kept running b,c after a
-                // aborted (a single arg matching many modules - -m -, a glob - did stop).
-                abortAll = true;
-                break;
-            }
-            TestRunner::SetCurrentTestModule(nullptr);
-        } // for modules
-
-        if (abortAll) {
+        // A module signalling "stop the whole run" (Abort / kTR_FailAll) stops launching any
+        // further module - same as the fork executor now does.
+        if ((result != nullptr) && (result->CheckIfContinue() == TestResult::kRunResultAction::kAbortAll)) {
             break;
         }
     }

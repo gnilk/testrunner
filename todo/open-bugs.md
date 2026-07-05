@@ -63,21 +63,29 @@ real: #1, #2, #3.
   `exceptionThrown`; or only downgrade to `TestFail` when `proxy.Result()` is still `Pass`.
   Add a regression test (`t->Fatal()` ⇒ `ModuleFail` + module stops; `t->Abort()` ⇒
   `AllFail` + run stops), under both `--sequential` and fork.
-- **[#2] Filter glob + negation is broken; a debug build can `assert`-abort the whole run.**
-  Three divergent matchers disagree: `caseMatch` (`strutil.cpp:96`, listing + fork module
-  filter), `ModuleMatch` (`moduleexecutors.cpp:76`, sequential module filter), `TestCaseMatch`
-  (`testmodule.cpp:88`, case filter).
-  - `moduleexecutors.cpp:93-100` — positive module glob `goto leave`s after the first hit, so
-    `--sequential -m "mod*"` runs only the first matching module.
-  - `moduleexecutors.cpp:83-92` — negative module glob also `goto leave`s, so `-m "!mod*,-"`
-    excludes only the first match; the rest run. Silent (only one is ever pushed).
-  - `testmodule.cpp:93-101` + `:130` — negative **case** glob has no `goto`, pushes every match,
-    then `assert(matches.size()==1)` **aborts the run in a debug build** (`-t "!case*,-"`), and
-    in release silently removes only `matches[0]`.
-  - Order-sensitivity: execution applies negation by list position (a `!x` after `-` can't
-    un-run `x`) while `caseMatch` is first-match-wins → `-l` and the real run can disagree.
-  - This is the tracked "glob/negation (!mod)" item (`todo/done/embedded_mcu_step3.md`), now
-    with concrete repros. Fix: collapse to one shared matcher with agreed semantics.
+- ✅ RESOLVED (`fix/fatal-abort-result-decision`) — **[#2] Filter glob + negation unified.** The
+  three divergent matchers (`caseMatch`, `ModuleMatch`, `TestCaseMatch`) are collapsed to the single
+  shared `caseMatch` (`strutil.cpp`), now used by listing and by both execution paths. `caseMatch`
+  keeps its first-match-wins semantics (the documented `!abortall,!exception,-` idiom depends on it)
+  and drops its `goto`. `ModuleMatch` and `TestCaseMatch` (plus their `enum kMatchResult` and the
+  `assert(matches.size()==1)`) are deleted; `TestModuleExecutorSequential::Execute` and
+  `TestModule::DoExecute` now iterate the (name-sorted) candidates and select each via `caseMatch` -
+  exactly what the fork executor already did. Fixes:
+  - `--sequential -m 'ipc*'` now runs **all** matches (was: only the first, name-sorted) → seq == fork.
+  - `-t '!spl*,-'` no longer `assert`-aborts a debug build on a multi-match negation; it excludes
+    every match (verified split+split2 both excluded, exit 0).
+  - `-l` (listing) and the sequential run now use the same matcher, so they agree.
+  - Regression test rewritten from a scratchpad into `test_execorder_match` (pins glob, negated glob,
+    the exclusions-first idiom, plain lists). Filtered-out modules still run as dependencies
+    (`ExecuteDependencies` bypasses the filter - verified `-m mdepmodA` pulls B,C,D). Full suite
+    fork == seq == 107/13.
+- **[filter, separate from #2] Fork does not forward `-t` (case filter) to child processes.**
+  `SubProcess::Start` (`subprocess.cpp`) builds the child args (`-m <module>`, plus `-G/-D/-c/-C`,
+  `--sequential/--subprocess/--ipc-name`) but never forwards `Config::testcases`, so a forked child
+  runs **all** cases of its module regardless of `-t`. Sequential honours `-t` (`DoExecute` →
+  `caseMatch`), so `-t split` diverges: correct in `--sequential`, ignored under the default fork.
+  Discovered while unifying #2 (the matcher itself is now shared; this is a config-forwarding gap).
+  Fix: reconstruct and pass `-t <cases>` (rejoined from `Config::testcases`) when spawning the child.
 - **[#3] `close(fifofd)` closes the parent's stdin (fd 0).** `IPCFifoUnix.cpp:36-42, 49-56,
   70-77`: `fifofd = mkfifo(...)`, but `mkfifo` returns **0 on success**, not a descriptor (the
   real fd is `rwfd`, closed separately). Every `close(fifofd)` in `Close()` / the `ConnectTo`
