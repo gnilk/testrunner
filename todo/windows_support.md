@@ -5,21 +5,58 @@ under the V4 product line. **"V4" is the product/release milestone — NOT a new
 The Windows fix changes no interface signature, so the external interface stays **V2**; Windows
 simply becomes a first-class V2 platform.
 
-> Status: planned (2026-07-03). No Windows code written yet. Pick up from Phase 0.
+> Status: Phase 0 done (2026-07-05, branch `feature/windows-phase0`). Built and verified end-to-end
+> on a real MSVC target (Visual Studio Community 2026 / MSVC 19.51, Windows 11) — the hardware
+> blocker noted below is resolved. Pick up from Phase 1.
 > Related: `todo/SESSION-HANDOFF.md`, `README.md` (Building / Windows §158-166),
 > `todo/deprecated/signal_handling.md`.
 
 ### Work items  ( `-` open / `+` in progress / `!` done )
 
-Phase 0 — CMake unblock (build)
-- Fix wrong win32 source dir in `src/app/trun/CMakeLists.txt:82-83` (`src/testrunner/win32/` → `src/shared/win32/`)
-- Guard `unixsrcfiles` behind `if(UNIX)`; add parallel `win32srcfiles` list in `cmake/CMakeShared.cmake`
-- Per-compiler flags: `-O0 -g` / `-fno-exceptions -fno-rtti` → MSVC `/Od /Zi` / `/EHs-c- /GR-`
-- Fix stale include `src/shared/win32/dynlib_win32.h:4`
-- Add `WINDOWS` project macro in `cmake/TrunCommonOptions.cmake`; normalize `#elif __linux` → `LINUX` in `trun.cpp`
-- Force `BUILD_TCOV OFF` on WIN32
-- Restructure `responseproxy.cpp` `TerminateThreadIfNeeded` guard (exceptions-first)
-- Check whether cpptrace builds under MSVC; gate it out if it resists (nice-to-have crash-location diagnostics only, not a blocker). libdwarf is not a Windows concern (cpptrace's ELF/DWARF backend; Windows uses DbgHelp/PDB)
+Phase 0 — CMake unblock (build)  [! DONE 2026-07-05]
+- ! Fix wrong win32 source dir in `src/app/trun/CMakeLists.txt:82-83` (`src/testrunner/win32/` → `src/shared/win32/`)
+- ! Guard `unixsrcfiles` behind `if(UNIX)`; add parallel `win32srcfiles` list in `cmake/CMakeShared.cmake`
+- ! Per-compiler flags: `-O0 -g` / `-fno-exceptions -fno-rtti` → MSVC `/Od /Zi` / `/EHs-c- /GR-`
+- ! Fix stale include `src/shared/win32/dynlib_win32.h:4`
+- ! Add `WINDOWS` project macro in `cmake/TrunCommonOptions.cmake`; normalize `#elif __linux` → `LINUX` in `trun.cpp`
+- ! Force `BUILD_TCOV OFF` on WIN32
+- ! Restructure `responseproxy.cpp` `TerminateThreadIfNeeded` guard (exceptions-first)
+- ! cpptrace builds clean under MSVC — auto-selected the `dbghelp` backend for unwind/symbols/demangle, no gating needed.
+
+**Additional bugs found only by actually compiling under MSVC (not visible from static analysis):**
+- ! `subprocess.cpp`/`subprocess.h` unconditionally `#include`s the UNIX-only `src/shared/unix/process.h`
+  (needs `spawn.h`). It only backs `TestModuleExecutorFork` (already `#ifdef TRUN_HAVE_FORK`-guarded
+  in `moduleexecutors.cpp`, not yet defined on Windows), so excluded `subprocess.cpp` from the
+  Windows source list (`src/app/trun/CMakeLists.txt`) rather than stub a `Process` type early —
+  Phase 3 still owns the real `process_win32.{h,cpp}` + `TRUN_HAVE_FORK` wiring.
+- ! fmt 12.x requires `/utf-8` under MSVC — added globally (`add_compile_options(/utf-8)` in root
+  `CMakeLists.txt`, before `FetchContent`) so it also reaches fmt/gnklog as fetched subprojects.
+- ! `<Windows.h>`'s `min`/`max` macros clashed with `std::min`/`std::max` call sites (e.g.
+  `test_ipc_framing.cpp`). Added `NOMINMAX`/`WIN32_LEAN_AND_MEAN` as project-wide compile
+  definitions on `trun_common_options` (WIN32 branch) — include-order-proof, since `src/shared/dynlib.h`
+  and others also pull in `Windows.h`. Also added the same guarded `NOMINMAX` define next to the
+  existing `WIN32_LEAN_AND_MEAN` one in `ext_testinterface/testinterface.h`'s own `<Windows.h>`
+  block (additive, `_MSC_VER`-agnostic, no signature change — consistent with the frozen-header rule).
+- ! `trun_utests` target was missing the `ext_testinterface` include dir that `trun`/`trunlib` already
+  had (`src/app/trun/CMakeLists.txt`) — a pre-existing, platform-independent gap that just hadn't
+  been hit; fixed alongside.
+- ! `std_backport.h`'s `std::erase_if` shim guarded on raw `__cplusplus`, which MSVC pins to `199711L`
+  unless `/Zc:__cplusplus` is passed (it isn't, for `trunlib`) — collided with the real
+  `std::erase_if` MSVC's `<vector>` already provides in C++20 mode. Fixed the guard to check
+  `_MSVC_LANG` first (the MSVC macro that's always accurate), independent of any CMake wiring.
+- ! `trun.cpp` used POSIX-only `SIGUSR1`/`raise` (tcov-coverage IPC signal — dead code path on
+  Windows since `isCoverageRunning` can never be true without `tcov`; guarded `#ifndef WIN32`) and
+  `PATH_MAX`/`getcwd` (added `#include <direct.h>` + `PATH_MAX`→`MAX_PATH` fallback + `getcwd`→`_getcwd`
+  shim, next to the existing `STDOUT_FILENO` shim).
+
+**Verified (2026-07-05, MSVC 19.51.36248.0 / VS 2026, clean `cmake-build-win` from scratch):**
+all 162 ninja targets build with zero errors — `trun.exe`, `trun_utests.dll`, `trunlib.lib`,
+`trunmcu`/`trunmcu_demo`/`trunmcu_demo_v1`, `trunembedded.exe`, `otherexe.exe` (`tcov` correctly
+excluded). `trun.exe -h` reports "Windows x64 (64 bit)" and `trun.exe -lx trun_utests.dll` correctly
+enumerates all test modules via PE export parsing. As expected (Phase 1 not started), the DLL still
+reports version **1.0.0** (V1 fallback — no `TRUN_MAGICAL_IF_VERSION` symbol yet), and a sequential
+self-test run (`--sequential -m "!abortall,!exception,-"`) crashes (access violation) once real test
+execution starts — expected, this is Phase 1/2 territory, not a Phase 0 regression.
 
 Phase 1 — V2 detection on Windows
 - Add MSVC `__declspec(selectany)` version symbol branch in `testinterface.h` (additive, guarded)
