@@ -27,6 +27,7 @@
 #include <vector>
 #include <algorithm>
 #include <chrono>
+#include <set>
 #include "std_backport.h"
 
 #ifdef TRUN_HAVE_FORK
@@ -196,10 +197,17 @@ bool TestModuleExecutorFork::Execute(const IDynLibrary::Ref &library, const std:
         return false;
     }
 
+    // Set when a drained child result asks to stop the whole run (Abort / kTR_FailAll),
+    // mirroring the sequential module executor which breaks its loop on kAbortAll. The
+    // module(s) that produced the abort are remembered so the reporting child - which has
+    // already finished and is on its way out - is not treated as one we killed.
+    bool abortAll = false;
+    std::set<std::string> abortingModules;
+
     // Drain whatever results the children have written so far. Called repeatedly
     // during the run (not only at the end): with a bounded window the run is
     // long-lived, and unread results could back up the FIFO and stall a writer.
-    auto drainResults = [&ipcServer]() {
+    auto drainResults = [&ipcServer, &abortAll, &abortingModules]() {
         while (ipcServer->Available()) {
             IPCResultSummary summary;
             gnilk::IPCBinaryDecoder decoder(*ipcServer, summary);
@@ -211,6 +219,13 @@ bool TestModuleExecutorFork::Execute(const IDynLibrary::Ref &library, const std:
                 auto tfuncWrapper = TestRunner::CreateTestFunc(ipcTestResult->symbolName);
                 tfuncWrapper->SetResultFromSubProcess(ipcTestResult->testResult);
                 ResultSummary::Instance().AddResult(tfuncWrapper);
+                // A child signalling "stop the whole run" (Abort / kTR_FailAll) aborts
+                // the run - honour it the same way the sequential executor does. Record
+                // the reporting module so its own child is spared the kill below.
+                if (ipcTestResult->testResult->CheckIfContinue() == TestResult::kRunResultAction::kAbortAll) {
+                    abortAll = true;
+                    abortingModules.insert(tfuncWrapper->ModuleName());
+                }
             }
         }
     };
@@ -238,11 +253,12 @@ bool TestModuleExecutorFork::Execute(const IDynLibrary::Ref &library, const std:
     }
     const long timeoutSec = Config::Instance().moduleExecTimeoutSec;
 
-    // Only live processes; reaped ones are erased. 'timedOut' makes the timeout
-    // log/kill/record happen exactly once per process.
+    // Only live processes; reaped ones are erased. 'timedOut'/'aborted' make the
+    // kill/log/record happen exactly once per process and mark its output as dropped.
     struct Running {
         std::unique_ptr<SubProcess> proc;
         bool timedOut = false;
+        bool aborted = false;
     };
     std::vector<Running> inflight;
     size_t nextIdx = 0;
@@ -250,9 +266,11 @@ bool TestModuleExecutorFork::Execute(const IDynLibrary::Ref &library, const std:
 
     pLogger->Debug("Running %zu modules, max %u concurrent", pending.size(), maxConcurrency);
 
-    while ((nextIdx < pending.size()) || !inflight.empty()) {
-        // Top up the window with the next pending modules.
-        while ((inflight.size() < maxConcurrency) && (nextIdx < pending.size())) {
+    while ((!abortAll && (nextIdx < pending.size())) || !inflight.empty()) {
+        // Top up the window with the next pending modules. Once a child has asked to
+        // stop the whole run, launch nothing further - the remaining pending modules
+        // simply do not run, exactly as sequential stops iterating on kAbortAll.
+        while (!abortAll && (inflight.size() < maxConcurrency) && (nextIdx < pending.size())) {
             auto &module = pending[nextIdx++];
             auto process = std::make_unique<SubProcess>();
             started++;
@@ -268,11 +286,24 @@ bool TestModuleExecutorFork::Execute(const IDynLibrary::Ref &library, const std:
             // Stop a runaway module once it exceeds the timeout (0 == infinity).
             // Log/kill/record exactly once; the killed process reaches kFinished
             // on a later spin when its worker observes the SIGKILL.
-            if (!it->timedOut && (timeoutSec > 0) && (p->Duration() > timeoutSec)) {
+            if (!it->timedOut && !it->aborted && (timeoutSec > 0) && (p->Duration() > timeoutSec)) {
                 pLogger->Error("Process for '%s' timed out after %lds, killing", p->Name().c_str(), timeoutSec);
                 p->Kill();
                 it->timedOut = true;
                 ResultSummary::Instance().AddIncompleteModule(p->Name(), "timed out");
+            }
+
+            // A sibling asked to stop the whole run: kill any still-running module once
+            // (same kill/record path as the timeout). The child that produced the abort
+            // is excluded - it has already finished and is reaped normally with its
+            // output so its own result is not mislabelled as an aborted-away module.
+            if (abortAll && !it->timedOut && !it->aborted &&
+                (p->State() != SubProcessState::kFinished) &&
+                (abortingModules.find(p->Name()) == abortingModules.end())) {
+                pLogger->Warning("Run aborted, killing in-flight module '%s'", p->Name().c_str());
+                p->Kill();
+                it->aborted = true;
+                ResultSummary::Instance().AddIncompleteModule(p->Name(), "run aborted");
             }
 
             if (p->State() != SubProcessState::kFinished) {
@@ -282,7 +313,7 @@ bool TestModuleExecutorFork::Execute(const IDynLibrary::Ref &library, const std:
 
             // Finished: join the worker (publishes its writes) then handle once.
             p->Wait();
-            if (it->timedOut) {
+            if (it->timedOut || it->aborted) {
                 // Already logged + recorded; drop the partial output.
             } else if (p->GetExitStatus() == ProcessExitStatus::kNormal) {
                 for (auto &s : p->Strings()) {

@@ -91,14 +91,18 @@ real: #1, #2, #3.
   for large forked suites. Compounding, same area: `IPCDecoder.cpp:128-142` drops the header +
   partial body on a short read (poll-gated non-blocking `Read` returns 0 mid-frame) → desync;
   `IPCBufferedWriter.cpp:24-28` clears the buffer even on a short `write()`.
-- **[by design — recorded, not a bug] `Abort`/`AllFail` scope differs between `--sequential`
-  and fork.** In sequential mode the module loop honours `kAbortAll` and stops launching
-  further modules (`moduleexecutors.cpp:151`); in fork mode each module is its own process, so
-  an `AllFail` in one child does **not** stop sibling module processes. This is deliberate
-  (fork isolates modules for CI throughput) — noted because it's a real semantic difference,
-  and a possible future enhancement (have the fork executor stop dispatching the pending queue
-  on a child `AllFail`) worth a separate discussion. `Fatal`/`ModuleFail` "stop this module's
-  remaining cases" holds in both modes.
+- ✅ RESOLVED (`fix/fatal-abort-result-decision`) — **`Abort`/`AllFail` now stops the fork run
+  too.** Previously an `AllFail` in one child did **not** stop sibling module processes (fork just
+  drained the result and kept dispatching the queue). `TestModuleExecutorFork::Execute` now flags
+  `abortAll` when a drained child result yields `CheckIfContinue()==kAbortAll`: it stops launching
+  pending modules and kills any in-flight sibling once (`Kill`/`AddIncompleteModule("run aborted")`,
+  reusing the timeout path), sparing the reporting child (recorded in `abortingModules`, reaped
+  normally). Verified fork `--max-concurrency 1 -m -` matches sequential exactly; auto-concurrency
+  kills the running siblings and exits non-zero without hanging. See `todo/result_model.md`.
+  - **Follow-up (smaller, separate):** sequential's own `kAbortAll` `break` (`moduleexecutors.cpp:151`)
+    only escapes the inner `matches` loop, so it truly stops only when one `-m` arg matches many modules
+    (`-m -`/glob); an explicit `-m a,b,c` list keeps running `b,c`. Break the outer arg loop too.
+  - `Fatal`/`ModuleFail` "stop this module's remaining cases" holds in both modes (unchanged).
 - **[IPC hardening] Decoders ignore all read-error returns** — `IPCMessages.cpp:36-54, 74-105`
   discard every `Read*` return and `return true`, so a corrupt/short frame (`Read` returns `-1`)
   is recorded as a real result with zero-filled fields (`moduleexecutors.cpp:209-214`).

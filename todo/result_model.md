@@ -95,22 +95,33 @@ means *modules run in one process*, not *cases run inline*. So Channels A/B → 
 |---|---|---|
 | within-module (`DoExecute` case loop) | stop remaining cases, run module exit | **same** — child runs its one module via the same `DoExecute` |
 | `kAbortModule` (`Fatal`) | move to next module | child ends; parent starts next — **same effect** |
-| `kAbortAll` (`Abort`) | module executor **breaks** the loop → no further modules | **ignored** — parent's fork loop records the drained `AllFail` but never acts on it |
+| `kAbortAll` (`Abort`) | module executor **breaks** the loop → no further modules (but only for a single arg matching many modules — an explicit `-m a,b` list keeps going, see open items) | **honoured** — parent's `drainResults` flags `abortAll`, stops launching, and kills in-flight siblings (`run aborted`) |
 
 The child is launched `trun --sequential --subprocess -m <module> <lib>` and forwards `-c`/`-C`, so
-its own `CheckIfContinue` matches the parent — but a child owns one module, so `kAbortAll` there just
-ends the child; propagating "stop everything" to the parent was never wired. The child also flushes
-its `IPCResultSummary` only **once, at end of module**, so any future propagation is end-of-module
-granular (a killed-mid-run sibling can't be un-run). See open item below.
+its own `CheckIfContinue` matches the parent — a child owns one module, so `kAbortAll` there just ends
+the child, and the parent now acts on the drained `AllFail` (stop launching + kill in-flight; see the
+done open item below). The child flushes its `IPCResultSummary` only **once, at end of module**, so the
+propagation is end-of-module granular: a sibling already flushing its (completed) results is spared the
+kill by name, and one still mid-run is killed cleanly (it had written nothing yet).
 
 ## Open items
 
-- `-` **fork `AllFail` propagation** — align fork with sequential: when a drained child result yields
-  `CheckIfContinue()==kAbortAll`, stop launching further modules and `Kill()` the in-flight ones
-  (reuse the timeout path's `Kill`/`AddIncompleteModule`/drop-output). Transport already carries the
-  result code to the parent (`IPCResultSummary`→`drainResults`→`IPCTestResults::Result()`); the gap
-  is only that the parent doesn't act on it. Granularity is end-of-module (see above); a tighter
-  "immediate `Abort` → parent kill" would need an early streaming IPC signal (bigger change).
+- `!` **fork `AllFail` propagation** — DONE (`moduleexecutors.cpp`, `TestModuleExecutorFork::Execute`).
+  `drainResults` now flags `abortAll` when a drained child result yields `CheckIfContinue()==kAbortAll`
+  and records the reporting module in `abortingModules`. On the next spin the fork loop launches nothing
+  further (top-up gated on `!abortAll`; outer loop keeps spinning only to reap) and kills any still-running
+  sibling once via the timeout path's `Kill`/`AddIncompleteModule("run aborted")`/drop-output. The child
+  that produced the abort is excluded from the kill (it has already finished and is reaped normally, so its
+  own result is not mislabelled). Verified: fork `--max-concurrency 1 -m -` now matches sequential exactly
+  (only `abortall` runs, then stop); auto-concurrency kills the in-flight siblings (`[run aborted]`) and the
+  run exits non-zero without hanging.
+  - **Nuance found:** sequential's own `kAbortAll` handling only truly stops the run when a single `-m`
+    arg matches many modules (`-m -`, a glob). Its `break` escapes only the inner `matches` loop, so an
+    explicit `-m a,b,c` list keeps iterating the outer arg loop and runs `b,c` anyway. The fork path now
+    stops *completely* (better than sequential's explicit-list case). Aligning sequential's explicit-list
+    break is a separate, smaller follow-up (`moduleexecutors.cpp:151`, break the outer loop too).
+  - Granularity is still end-of-module (a child reports once, at end of its module); a tighter
+    "immediate `Abort` → parent kill" would need an early streaming IPC signal (bigger change).
 - `-` **`Error` adds no `assertError` detail** — it's the only failing callback that records no
   message into the assert list (Fatal/Abort/AssertError all do), so an `Error`-only failure has no
   detail for reporters keyed off `assertError`. Decide whether to align it.
