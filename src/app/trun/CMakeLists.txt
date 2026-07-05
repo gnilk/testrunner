@@ -16,7 +16,13 @@ list(APPEND srcfiles ${CMAKE_SOURCE_DIR}/src/testrunner/moduleexecutors.cpp ${CM
 list(APPEND srcfiles ${CMAKE_SOURCE_DIR}/src/testrunner/responseproxy.cpp)
 list(APPEND srcfiles ${CMAKE_SOURCE_DIR}/src/testrunner/resultsummary.cpp)
 #list(APPEND srcfiles ${CMAKE_SOURCE_DIR}/src/testrunner/strutil.cpp)
-list(APPEND srcfiles ${CMAKE_SOURCE_DIR}/src/testrunner/subprocess.cpp)
+# subprocess.cpp only backs TestModuleExecutorFork (guarded by TRUN_HAVE_FORK, see
+# moduleexecutors.cpp) and unconditionally includes the UNIX-only Process type
+# (src/shared/unix/process.h). Not yet defined for WIN32 (Phase 3: process_win32.{h,cpp} +
+# TRUN_HAVE_FORK), so exclude it there rather than fail on spawn.h.
+if(UNIX)
+    list(APPEND srcfiles ${CMAKE_SOURCE_DIR}/src/testrunner/subprocess.cpp)
+endif()
 #list(APPEND srcfiles ${CMAKE_SOURCE_DIR}/src/testrunner/timer.cpp)
 #list(APPEND srcfiles ${CMAKE_SOURCE_DIR}/src/testrunner/testlibversion.cpp ${CMAKE_SOURCE_DIR}/src/testrunner/testlibversion.h)
 list(APPEND srcfiles ${CMAKE_SOURCE_DIR}/src/testrunner/testfunc.cpp ${CMAKE_SOURCE_DIR}/src/testrunner/testfunc.h)
@@ -74,14 +80,11 @@ list(APPEND testsrc ${CMAKE_SOURCE_DIR}/src/testv1/test_v1module.cpp)
 
 # Platform specific sources
 if (UNIX)
-
     list(APPEND testsrc ${CMAKE_SOURCE_DIR}/src/testrunner/tests/test_module_nix.cpp)
     list(APPEND testsrc ${CMAKE_SOURCE_DIR}/src/testrunner/tests/test_dirscanner_nix.cpp)
     list(APPEND testsrc ${CMAKE_SOURCE_DIR}/src/shared/ipc/tests/test_ipcfifo_nix.cpp)
-elseif(WIN32)
-    list(APPEND execsrcfiles ${CMAKE_SOURCE_DIR}/src/testrunner/win32/dynlib_win32.cpp)
-    list(APPEND execsrcfiles ${CMAKE_SOURCE_DIR}/src/testrunner/win32/dirscanner_win32.cpp)
 endif()
+# win32srcfiles (dynlib_win32.cpp/dirscanner_win32.cpp) is populated in cmake/CMakeShared.cmake
 
 #
 # Targets
@@ -92,6 +95,7 @@ add_executable(trun
         ${CMAKE_SOURCE_DIR}/src/app/trun/trun.cpp
         ${srcfiles}
         ${unixsrcfiles}
+        ${win32srcfiles}
         ${execsrcfiles}
         ${rprtsrcfiles}
         ${ipcsrcfiles}
@@ -104,7 +108,11 @@ target_compile_definitions(trun PUBLIC TRUN_VERSION="${TRUN_VERSION_STR}")
 target_compile_definitions(trun PUBLIC TRUN_HAVE_EXCEPTIONS)
 
 # Keep existing "temporary" debug flags behavior
-target_compile_options(trun PUBLIC -O0 -g)
+if(MSVC)
+    target_compile_options(trun PUBLIC /Od /Zi)
+else()
+    target_compile_options(trun PUBLIC -O0 -g)
+endif()
 
 target_include_directories(trun PUBLIC ${FMT_HOME}/include)
 target_include_directories(trun PUBLIC ${CMAKE_SOURCE_DIR}/src/testrunner)
@@ -128,6 +136,7 @@ add_library(trun_utests SHARED
         ${execsrcfiles}
         ${ipcsrcfiles}
         ${unixsrcfiles}
+        ${win32srcfiles}
         ${sharedsrcfiles}
 )
 target_link_libraries(trun_utests PUBLIC trun_common_options)
@@ -138,6 +147,7 @@ target_compile_definitions(trun_utests PUBLIC TRUN_HAVE_EXCEPTIONS)
 target_include_directories(trun_utests PUBLIC ${FMT_HOME}/include)
 target_include_directories(trun_utests PUBLIC ${CMAKE_SOURCE_DIR}/src/shared)
 target_include_directories(trun_utests PUBLIC ${CMAKE_SOURCE_DIR}/src/testrunner)
+target_include_directories(trun_utests PUBLIC ${CMAKE_SOURCE_DIR}/src/testrunner/ext_testinterface)
 target_include_directories(trun_utests PUBLIC ${CMAKE_SOURCE_DIR}/ext/gnklog/src)
 target_include_directories(trun_utests PUBLIC ${CPPTRACE_INCLUDE_DIR})
 

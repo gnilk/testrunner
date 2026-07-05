@@ -14,6 +14,13 @@ endif()
 
 project(testrunner)
 
+# fmt (12.x) requires /utf-8 on MSVC for its narrow string-literal handling. Applied globally
+# (not via trun_common_options) so it also reaches FetchContent deps (fmt/gnklog/cpptrace)
+# that don't link against that interface target.
+if(MSVC)
+    add_compile_options(/utf-8)
+endif()
+
 # Put all build outputs in the build root (not per-subdirectory)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
@@ -45,7 +52,13 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 # FIXME: This should be 'off' by default
-option(BUILD_TCOV "Build tcov coverage tool" ON)
+# tcov needs a debug-engine backend (LLDB on macOS/Linux); no Windows backend exists yet
+# (would need SEH/AddVectoredExceptionHandler/DbgHelp), so it's forced off on WIN32.
+if(WIN32)
+    option(BUILD_TCOV "Build tcov coverage tool" OFF)
+else()
+    option(BUILD_TCOV "Build tcov coverage tool" ON)
+endif()
 option(BUILD_TRUNEMBEDDED "Build embedded library" ON)
 option(BUILD_TRUNMCU "Build the zero-alloc MCU engine + demos (engine #3)" ON)
 option(BUILD_OTHER "Build other exec" ON)

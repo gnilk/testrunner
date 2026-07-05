@@ -30,11 +30,16 @@
 #pragma warning(disable : 4996)
 #include <Windows.h>
 #include <io.h>
+#include <direct.h>
 // ok, the windows console handling is quite horrible if compared to macOS/Linux...
 // this ought to solve it for my purposes
 #ifndef STDOUT_FILENO
     #define STDOUT_FILENO 1
 #endif
+#ifndef PATH_MAX
+    #define PATH_MAX MAX_PATH
+#endif
+#define getcwd _getcwd
 #else
 #include <unistd.h>
 #endif
@@ -47,7 +52,7 @@
 
 #ifdef WIN32
 #include "win32/dynlib_win32.h"
-#elif __linux
+#elif LINUX
 #include "unix/dynlib_unix.h"
 #else
 #include "unix/dynlib_unix.h"
@@ -88,7 +93,7 @@ static void Help() {
     std::string strPlatform = "Windows x64 (64 bit)";
 #elif WIN32
     std::string strPlatform = "Windows x86 (32 bit)";
-#elif __linux
+#elif LINUX
     std::string strPlatform = "Linux";
 #else
     std::string strPlatform = "macOS";
@@ -187,7 +192,7 @@ static IDynLibrary::Ref GetLibraryLoader() {
     IDynLibrary::Ref lib;
 #ifdef WIN32
     return DynLibWin::Create();
-#elif __linux
+#elif LINUX
     return DynLibLinux::Create(Config::Instance().linuxUseDeepBinding);
 #else
     return DynLibLinux::Create(Config::Instance().linuxUseDeepBinding);
@@ -234,10 +239,12 @@ static void ScanLibraries(std::vector<std::string> &inputs) {
 
 // We should remove this and wait for a signal (or something) to be raised!
 static void RunTestsForAllLibraries() {
+#ifndef WIN32
     if (Config::Instance().isCoverageRunning) {
         pLogger->Debug("RunTestsForAllLibraries, sending signal to parent, about to run tests!");
         raise(SIGUSR1);
     }
+#endif
 
     pLogger->Info("Running tests for all modules");
     for(auto lib : librariesToTest) {

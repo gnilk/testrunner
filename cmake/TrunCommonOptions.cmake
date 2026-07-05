@@ -15,7 +15,12 @@ target_compile_features(trun_common_options INTERFACE cxx_std_20)
 
 if (WIN32)
     target_compile_options(trun_common_options INTERFACE /std:c++20 /Zc:__cplusplus /volatile:iso /EHsc)
-    target_compile_definitions(trun_common_options INTERFACE _CRT_SECURE_NO_WARNINGS _SBCS)
+    # Project-controlled platform macro (deliberately not the compiler builtin _WIN32/WIN32),
+    # mirroring the APPLE/LINUX macros below so shared/unix code branches consistently.
+    # NOMINMAX/WIN32_LEAN_AND_MEAN here (not just in the headers that already guard their own
+    # <Windows.h>) because several shared headers (e.g. src/shared/dynlib.h) include it too -
+    # defining these project-wide means include order no longer matters for the min/max macro clash.
+    target_compile_definitions(trun_common_options INTERFACE _CRT_SECURE_NO_WARNINGS _SBCS WINDOWS NOMINMAX WIN32_LEAN_AND_MEAN)
 elseif(APPLE)
     target_compile_options(trun_common_options INTERFACE -Wall -Wpedantic -Wextra -Wno-multichar -Wno-unused-parameter)
     # Project-controlled platform macro (deliberately not the compiler builtin __APPLE__).

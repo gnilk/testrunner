@@ -243,11 +243,11 @@ void TestResponseProxy::TerminateThreadIfNeeded(bool alwaysTerminate) {
     if (!alwaysTerminate && !forcedMode) {
         return;
     }
-    #ifdef WIN32
-        TerminateThread(GetCurrentThread(), 0);
+    #ifdef TRUN_HAVE_EXCEPTIONS
+        throw TestAbortException{"aborted - better reason required"};
     #else
-        #ifdef TRUN_HAVE_EXCEPTIONS
-            throw TestAbortException{"aborted - better reason required"};
+        #ifdef WIN32
+            TerminateThread(GetCurrentThread(), 0);
         #else
             pthread_exit(NULL);
         #endif

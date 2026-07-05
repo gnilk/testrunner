@@ -6,6 +6,7 @@ ext/
 .idea/
 cmake-build-debug/
 cmake-build-debug-visual-studio/
+cmake-build-win/
 out/
 trunwindows/Debug/
 trunwindows/x64/

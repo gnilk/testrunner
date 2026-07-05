@@ -95,7 +95,11 @@ if(NOT TRUN_MCU_BUILD_VALIDATION)
     return()
 endif()
 
-set(mcu_flags -fno-exceptions -fno-rtti)
+if(MSVC)
+    set(mcu_flags /EHs-c- /GR-)
+else()
+    set(mcu_flags -fno-exceptions -fno-rtti)
+endif()
 
 add_library(trunmcu STATIC ${mcu_engine_src})
 target_compile_features(trunmcu PUBLIC cxx_std_20)
