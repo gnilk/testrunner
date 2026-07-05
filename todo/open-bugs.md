@@ -79,13 +79,14 @@ real: #1, #2, #3.
     the exclusions-first idiom, plain lists). Filtered-out modules still run as dependencies
     (`ExecuteDependencies` bypasses the filter - verified `-m mdepmodA` pulls B,C,D). Full suite
     fork == seq == 107/13.
-- **[filter, separate from #2] Fork does not forward `-t` (case filter) to child processes.**
-  `SubProcess::Start` (`subprocess.cpp`) builds the child args (`-m <module>`, plus `-G/-D/-c/-C`,
-  `--sequential/--subprocess/--ipc-name`) but never forwards `Config::testcases`, so a forked child
-  runs **all** cases of its module regardless of `-t`. Sequential honours `-t` (`DoExecute` →
-  `caseMatch`), so `-t split` diverges: correct in `--sequential`, ignored under the default fork.
-  Discovered while unifying #2 (the matcher itself is now shared; this is a config-forwarding gap).
-  Fix: reconstruct and pass `-t <cases>` (rejoined from `Config::testcases`) when spawning the child.
+- ✅ RESOLVED (`fix/fatal-abort-result-decision`) — **Fork now forwards `-t` (case filter) to child
+  processes.** `SubProcess::Start` (`subprocess.cpp`) built the child args (`-m <module>`, `-G/-D/-c/-C`,
+  `--sequential/--subprocess/--ipc-name`) but never forwarded `Config::testcases`, so a forked child ran
+  **all** cases of its module regardless of `-t` (`-t split` was honoured in `--sequential` but ignored
+  under the default fork). Now rejoins `Config::testcases` into the comma-separated form and passes
+  `-t <cases>` when spawning the child (the trivial default `{"-"}` is skipped to keep the child cmdline
+  clean). Verified `-t split` / `-t '!spl*,-'` / `-t 'trim,split'` now give identical results in fork and
+  `--sequential`; full suite fork == seq == 107/13.
 - **[#3] `close(fifofd)` closes the parent's stdin (fd 0).** `IPCFifoUnix.cpp:36-42, 49-56,
   70-77`: `fifofd = mkfifo(...)`, but `mkfifo` returns **0 on success**, not a descriptor (the
   real fd is `rwfd`, closed separately). Every `close(fifofd)` in `Close()` / the `ConnectTo`
