@@ -164,14 +164,21 @@ struct ITestingCoverage {
 
 //
 // This symbol is used to determine the version of the header file - DO NOT redefine this!
-// No clue how to achieve this with MSVC
 //
-#ifndef _MSC_VER
-#ifdef __cplusplus
+// MSVC has no equivalent to GCC/Clang's __attribute__((weak)) on data, so header-emitted
+// duplicate definitions across compile units would normally LNK2005. __declspec(selectany)
+// is MSVC's weak-data equivalent - the linker collapses duplicates to one, same effect as
+// __attribute__((weak)) here. MSVC rejects combining __declspec(selectany) with
+// __declspec(dllexport) directly (C2496), so the export is done via a linker pragma instead -
+// still puts it in the PE export table so DynLibWin::Open() can read it via GetProcAddress,
+// mirroring the ELF/Mach-O symbol lookup on other platforms.
+#if defined(_MSC_VER)
+extern "C" __declspec(selectany) const uint64_t TRUN_MAGICAL_IF_VERSION = STR_TO_VER("GNK_0200");
+#pragma comment(linker, "/export:TRUN_MAGICAL_IF_VERSION,DATA")
+#elif defined(__cplusplus)
 extern "C" const uint64_t TRUN_MAGICAL_IF_VERSION  __attribute__ ((weak))  = STR_TO_VER("GNK_0200");
 #else
 const uint64_t TRUN_MAGICAL_IF_VERSION  __attribute__ ((weak))  = STR_TO_VER("GNK_0200");
-#endif
 #endif
 
 
