@@ -48,6 +48,11 @@ void TestResult::SetTestResultFromReturnCode(int testReturnCode) {
                            Errors(), (int)Asserts(), Config::Instance().discardTestReturnCode));
 }
 
+// Reconciles the return code (Channel A) and the ITesting-callback severity (Channel B,
+// carried in proxyResult) into one result. The intended rule is a monotonic max on the
+// severity ladder (Pass<TestFail<ModuleFail<AllFail), where 'termination' decides which
+// channels get a vote; --discard silences A; an unrecognised return code is a diagnostic
+// (InvalidReturnCode), not a pass. Full contract: todo/result_model.md "Authority contract".
 kTestResult TestResult::DeriveResult(CaseTermination termination, kTestResult proxyResult,
                                      int returnCode, int errors, int asserts,
                                      bool discardReturnCode) {

@@ -84,6 +84,41 @@ directly when the body was force-terminated, or blended with the return code whe
 `CheckIfContinue` then maps the final `kTestResult` to a runner action: `ModuleFail`→`kAbortModule`
 (if `skipOnModuleFail`), `AllFail`→`kAbortAll` (if `stopOnAllFail`), else `kContinue`.
 
+## Authority contract — who wins when A and B disagree
+
+The intended rule (previously emergent from `DeriveResult`; codified here so it can be relied on):
+
+1. **The more severe signal wins — a monotonic max on the severity ladder.**
+   `Pass 0 < TestFail 1 < ModuleFail 2 < AllFail 3`. A case's result is the maximum severity asserted
+   by *either* channel. So neither channel can silently *downgrade* the other: a `kTR_Pass` return with an
+   `Error()`/failed assert still fails (`TestFail`); an `Error()` (`TestFail`) with a `return kTR_FailModule`
+   is `ModuleFail`. This is why the return code is the "primary" channel yet the callbacks are never
+   ignored — using both is safe, the worse outcome stands.
+
+2. **Channel B is monotonic within a case.** Every callback only ever raises severity
+   (`if (testResult < X) testResult = X`), so the order of `Error`/`Fatal`/`Abort`/`AssertError` calls
+   does not matter, and B alone can never lower a severity another B call set.
+
+3. **How the body ended decides which channels get a vote** (the `termination` argument):
+   - **Returned** — both vote; result = max(return-code severity, `proxyResult`).
+   - **ForciblyTerminated** (`Fatal`/`Abort`/V1-assert) — there is no return value, so **B is sole
+     authority**: `proxyResult` stands (defensive floor: a flagged case with `Pass` severity → `TestFail`).
+   - **UserException** — neither channel produced a clean signal → failure floor `TestFail`, unless B had
+     already recorded a stronger `ModuleFail`/`AllFail` before the throw (that stands).
+
+4. **`--discard-return-code` removes Channel A from the vote entirely** — B alone decides
+   (`discard → proxyResult`). This is the one case A is *silenced* rather than blended.
+
+5. **An unrecognised return code is a diagnostic, not a pass.** If A is not one of `kTR_*` and B is
+   silent, the result is `InvalidReturnCode` (out-of-band from the 0–3 ladder, surfaced distinctly by the
+   reporter) — it never degrades to `Pass`. If A is unrecognised but B flagged something, B stands (this
+   is also the no-exceptions force-terminate path: the thread `pthread_exit`s, the body "returns" `-1`,
+   and B's `ModuleFail`/`AllFail` is what survives).
+
+Corollary for the two write channels' *intent* (`Error≈kTR_Fail`, `Fatal≈kTR_FailModule`,
+`Abort≈kTR_FailAll`): they are interchangeable ways to assert a severity, and mixing them with a return
+code can only ever move the result *up* the ladder, never down.
+
 ## Run modes: mapping is mode-independent; only control flow differs
 
 `--sequential` does **not** change how a case runs — it sets `moduleExecuteType = kSequential` only;
@@ -141,9 +176,10 @@ kill by name, and one still mid-run is killed cleanly (it had written nothing ye
   calls inside its worker thread. `--sequential` remains module-scope (`moduleExecuteType`), documented
   at the enum. Verified: config dump still prints "Testcase execution policy: Threaded", full suite
   fork == seq == 107/13, V1 `kThreadedWithExit` promotion path intact.
-- `-` **Codify A-vs-B authority** — when the return code and the callbacks disagree, the current rule
-  is an implicit monotonic-max blend (a flagged `Error` overrides `kTR_Pass`; `discard` silences the
-  return code entirely). Worth writing down as an intended contract rather than emergent behavior.
+- `!` **Codify A-vs-B authority** — DONE. Written up as the "Authority contract" section above
+  (monotonic-max on the severity ladder; termination decides which channels vote; `--discard` silences A;
+  unrecognised return code is a diagnostic, not a pass). `TestResult::DeriveResult` now carries a short
+  header comment pointing at that section so the code and the contract stay tied.
 - `-` **V2 assert depth limit** (documented limitation) — V2's cooperative `return kTR_Fail` only
   escapes the direct test body; an assert in a helper returns to that helper, not out of the test.
   `Fatal`/`Abort` (terminate) stop at any depth. Frozen-header behavior; recorded so it's not
