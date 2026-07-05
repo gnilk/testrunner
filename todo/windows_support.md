@@ -5,9 +5,12 @@ under the V4 product line. **"V4" is the product/release milestone — NOT a new
 The Windows fix changes no interface signature, so the external interface stays **V2**; Windows
 simply becomes a first-class V2 platform.
 
-> Status: Phase 0 + Phase 1 done (2026-07-05, branch `feature/windows-phase0`). Built and verified
-> end-to-end on a real MSVC target (Visual Studio Community 2026 / MSVC 19.51, Windows 11) — the
-> hardware blocker noted below is resolved. Pick up from Phase 2.
+> Status: Core milestone (Phase 0 + 1 + 2) DONE (2026-07-05, branch `feature/windows-phase0`, not yet
+> merged to `dev`). Built and verified end-to-end on a real MSVC target (Visual Studio Community
+> 2026 / MSVC 19.51, Windows 11) — the hardware blocker noted below is resolved. `trun.exe` builds,
+> correctly detects V2, and its own sequential self-test suite runs clean (15/15 documented
+> self-fails, no crash, no hang). Phase 3 (fork/IPC parity) and Phase 4 (packaging) remain later/
+> not greenlit, per the plan below.
 > Related: `todo/SESSION-HANDOFF.md`, `README.md` (Building / Windows §158-166),
 > `todo/deprecated/signal_handling.md`.
 
@@ -81,11 +84,41 @@ modules including `rust`, exits 0 — though it stops without printing a final p
 which is Phase 2's job to run down. Full rebuild (`trun`, `trun_utests`, `trunlib`, `trunmcu`,
 `trunembedded`) still clean after this change.
 
-Phase 2 — self-test green (sequential)
-- Build `trun_utests.dll`; run `trun.exe trun_utests.dll` sequentially; reproduce known baseline
-- Open: sequential run currently stops after the `rust` module without printing the final summary
-  (exit 0, no crash) — not yet root-caused whether this is a missing module in the run, a silent
-  early return, or an expected-but-undocumented stopping point.
+Phase 2 — self-test green (sequential)  [! DONE 2026-07-05]
+- ! Build `trun_utests.dll`; run `trun.exe trun_utests.dll` sequentially; reproduce known baseline
+
+**Root cause of the missing summary / garbled trailing output (from Phase 1's note):** the root
+`CMakeLists.txt` already set `CMAKE_MSVC_RUNTIME_LIBRARY` to the **static** CRT (`/MTd`) for WIN32,
+pre-dating this work. `trun.exe` dynamically `LoadLibrary`s test-case DLLs at runtime, so with a
+statically-linked CRT, **each binary gets its own independent CRT instance and its own independent
+stdout `FILE*` buffer**, both writing to the same underlying OS pipe. Two independently-buffered
+streams flush on their own schedule, so combined output interleaves out of chronological order -
+in the captured log this showed up as test-body-internal `printf` output (module-main debug prints,
+`rust` case output) appearing bunched up *after* the run summary, once the DLL's own CRT buffer
+finally flushed. Fixed by switching to the **DLL (shared) CRT**
+(`MultiThreaded$<$<CONFIG:Debug>:Debug>DLL`) so every loaded module shares one CRT instance and one
+stdout buffer. Verified: the same sequential run's output now ends cleanly right after the failed-
+tests list, no trailing content, in one from-scratch full rebuild (all targets clean).
+
+**Tests-Executed count (94 ran / 90 counted) - by design, not a bug:** `TestFunc::ExecuteDependencies`
+(`testfunc.cpp`) calls a case-dependency's `Execute()` directly, which prints `=== RUN`/`=== PASS`
+(that happens unconditionally inside `Execute()`) but does **not** route through
+`ResultSummary::Instance().AddResult()` - that call only happens in `TestModule::DoExecute`/
+`ExecuteMain`/`ExecuteExit` for a case's own top-level invocation. So a test that only runs to
+satisfy another test's `CaseDepends` (4 of the 94 here) executes and prints normally but isn't
+counted a second time in the tally - existing, platform-independent behavior, not something this
+work introduced or needs to change.
+
+**Verified (2026-07-05):** sequential run (`--sequential -m "!abortall,!exception,-"`) against
+`trun_utests.dll` completes cleanly, exit code 0, correctly-ordered output, ending in a clean
+summary: `Tests Executed: 90`, `Tests Failed: 15` - **the failed count matches the documented
+baseline (15 intentional self-fails) exactly**. The executed count doesn't literally read "102"
+because the Windows build's `trun_utests.dll` has fewer total tests than macOS/Linux (3 UNIX-only
+test files - `test_module_nix.cpp`, `test_dirscanner_nix.cpp`, `test_ipcfifo_nix.cpp` - are
+correctly excluded by the existing `if(UNIX)` guard, not compiled in on Windows at all) plus the
+dependency-execution counting behavior above; every one of the 94 tests that *should* run under
+this platform's build did run (diffed the full `-lx` symbol list against every `=== RUN` line -
+zero missing). Full rebuild clean across all targets after the CRT change.
 
 Phase 3 — subprocess parity (later)
 - Decompose `TestModuleExecutorFork::Execute` into helpers + `CreateModuleIPCServer` seam + `IPCBase::EndpointName()`
