@@ -406,29 +406,30 @@ ITestingV2 *TestResponseProxy::GetTRTestInterfaceV2() {
 // wrappers for pure C call's (no this) - only one call per thread allowed.
 //
 
+// Compose the varargs into `newstr`, a stack buffer (alloca, so it must live in the
+// caller's frame - hence a macro). vsnprintf reports the length it WOULD need with a
+// large positive return on truncation, never a negative one; the old grow-loop keyed on
+// `res < 0`, so it never grew and silently truncated any message past the fixed 1024
+// bytes. Measure the exact size once, cap it at the configured limit, then compose.
 #define CREATE_REPORT_STRING() \
 	va_list	values;													\
-	char * newstr = NULL;											\
-    uint32_t szbuf = 1024;                                          \
-    int res;                                                        \
-    do																\
-    {																\
-        newstr = (char *)alloca(szbuf);                             \
-        va_start( values, format );   								\
-        res = vsnprintf(newstr, szbuf, format, values);	            \
-        va_end(	values);											\
-        if (res < 0) {												\
-            szbuf += 1024;											\
-        }															\
-        if (!IsMsgSizeOk(szbuf)) {                                  \
-            break;                                                  \
-        }                                                           \
-    } while(res < 0);												\
+    va_start( values, format );   								\
+    int needed = vsnprintf(NULL, 0, format, values);            \
+    va_end(	values);											\
+    uint32_t szbuf = (needed < 0) ? 1024u : ((uint32_t)needed + 1u); \
+    if (!IsMsgSizeOk(szbuf)) {                                  \
+        szbuf = Config::Instance().responseMsgByteLimit;       \
+    }                                                           \
+    char * newstr = (char *)alloca(szbuf);                      \
+    va_start( values, format );   								\
+    vsnprintf(newstr, szbuf, format, values);	                \
+    va_end(	values);											\
 
 static bool IsMsgSizeOk(uint32_t szbuf) {
     if (szbuf > Config::Instance().responseMsgByteLimit) {
         auto pLogger = gnilk::Logger::GetLogger("TestResponseProxy");
-        pLogger->Error("Message buffer exceeds limit (%d bytes), truncating..");
+        pLogger->Error("Message buffer (%u bytes) exceeds limit (%u bytes), truncating..",
+                       szbuf, Config::Instance().responseMsgByteLimit);
         return false;
     }
     return true;
