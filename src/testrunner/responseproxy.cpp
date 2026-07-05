@@ -190,6 +190,12 @@ void TestResponseProxy::Error(int line, const char *file, std::string message) {
     if (testResult < kTestResult_TestFail) {
         testResult = kTestResult_TestFail;
     }
+    // Record the detail into the assert list like Fatal/Abort/AssertError do, so an
+    // Error-only failure carries a file/line/message for the reporters (and across the
+    // fork boundary - IPCTestResults marshals the list when it is non-empty, gated on
+    // TestResult::Asserts() == AssertError::NumErrors()). kAssert_Error is the same class
+    // AssertError uses; both mean "test failed, proceed to next".
+    assertError.Add(AssertError::kAssert_Error, line, file, message);
     // Error is the soft one: under V2 it flags and continues; it only force-terminates
     // in forced mode (V1 / --allow-thread-exit).
     TerminateThreadIfNeeded(false);

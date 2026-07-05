@@ -11,6 +11,8 @@
 #include "testinterface.h"
 #include "../testresult.h"
 #include "../config.h"
+#include "../responseproxy.h"
+#include <string>
 
 using namespace trun;
 
@@ -21,6 +23,7 @@ extern "C" {
     DLL_EXPORT int test_resultdecision_returncode(ITesting *t);
     DLL_EXPORT int test_resultdecision_discard(ITesting *t);
     DLL_EXPORT int test_resultdecision_checkifcontinue(ITesting *t);
+    DLL_EXPORT int test_resultdecision_errordetail(ITesting *t);
 }
 
 // module main - nothing to set up
@@ -118,5 +121,37 @@ DLL_EXPORT int test_resultdecision_checkifcontinue(ITesting *t) {
 
     Config::Instance().skipOnModuleFail = origSkipOnModuleFail;
     Config::Instance().stopOnAllFail = origStopOnAllFail;
+    return kTR_Pass;
+}
+
+//
+// Error() must record a file/line/message into the assert list (like Fatal/Abort/AssertError
+// already do), so an Error-only failure carries detail for the reporters and across the fork
+// boundary (IPCTestResults marshals the list when TestResult::Asserts() == NumErrors() > 0).
+// Regression for the "Error adds no assertError detail" gap.
+//
+// Note: under the normal V2 config Error() flags-and-continues (it only force-terminates in
+// forced mode - V1 / --allow-thread-exit), so driving a local proxy here is safe.
+//
+DLL_EXPORT int test_resultdecision_errordetail(ITesting *t) {
+    TestResponseProxy proxy;
+    proxy.Begin("test_dummy_case", "dummy");
+    TR_ASSERT(t, proxy.GetAssertError().NumErrors() == 0);
+
+    proxy.Error(4711, "dummyfile.cpp", "boom");
+    proxy.End();
+
+    // The soft-fail severity and error count are as before...
+    TR_ASSERT(t, proxy.Result() == kTestResult_TestFail);
+    TR_ASSERT(t, proxy.Errors() == 1);
+    // ...but now the detail is recorded exactly once, classed as a general error.
+    TR_ASSERT(t, proxy.GetAssertError().NumErrors() == 1);
+
+    const auto &item = proxy.GetAssertError().Errors().front();
+    TR_ASSERT(t, item.assertClass == AssertError::kAssert_Error);
+    TR_ASSERT(t, item.line == 4711);
+    TR_ASSERT(t, item.file == std::string("dummyfile.cpp"));
+    TR_ASSERT(t, item.message == std::string("boom"));
+
     return kTR_Pass;
 }

@@ -60,7 +60,7 @@ Each callback (a) raises the proxy's recorded severity monotonically, (b) maybe 
 
 | Callback | raises `proxy.testResult` to | adds to `assertError` | force-terminates? |
 |---|---|---|---|
-| `Error` | `TestFail` | — (**no detail added**) | **only in forced mode** (V1 / `--allow-thread-exit`) |
+| `Error` | `TestFail` | `kAssert_Error` (now aligned with the others) | **only in forced mode** (V1 / `--allow-thread-exit`) |
 | `AssertError` | `TestFail` | `kAssert_Error` | `continueOnAssert`→no. Else **V2: cooperative** (returns `kTRLeave`; macro `return kTR_Fail`); **V1: forced** (macro has no return) |
 | `Fatal` | `ModuleFail` | `kAssert_Fatal` | **always** |
 | `Abort` | `AllFail` | `kAssert_Abort` | **always** |
@@ -123,9 +123,14 @@ kill by name, and one still mid-run is killed cleanly (it had written nothing ye
     (matches fork), while a non-abort list (`-m strutil,timer`) still runs both.
   - Granularity is still end-of-module (a child reports once, at end of its module); a tighter
     "immediate `Abort` → parent kill" would need an early streaming IPC signal (bigger change).
-- `-` **`Error` adds no `assertError` detail** — it's the only failing callback that records no
-  message into the assert list (Fatal/Abort/AssertError all do), so an `Error`-only failure has no
-  detail for reporters keyed off `assertError`. Decide whether to align it.
+- `!` **`Error` adds no `assertError` detail** — DONE (`responseproxy.cpp`, `TestResponseProxy::Error`).
+  `Error` now `assertError.Add(kAssert_Error, line, file, message)` like Fatal/Abort/AssertError, so an
+  `Error`-only failure carries a file/line/message for the reporters. It also survives the fork boundary
+  for free: `TestResult::Asserts()` returns `AssertError::NumErrors()` (the list size, not the assert
+  counter), and `IPCTestResults::Marshal` serialises the list when `Asserts() > 0` — a now-non-empty list
+  rides that existing gate (same path Fatal/Abort already used). Regression test
+  `test_resultdecision_errordetail`; end-to-end verified an `Error`-only failure shows identical detail in
+  sequential and fork.
 - `-` **Dead sequential case-executor + naming** — `TestFuncExecutorSequential` is unreachable
   (no flag sets `testExecutionType = kSequential`; the factory always returns the threaded one).
   Either remove it or clarify that `--sequential` is module-scope, not case-scope.
