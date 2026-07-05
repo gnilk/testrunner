@@ -87,6 +87,7 @@ void TestResponseProxy::Begin(const std::string &use_symbolName, const std::stri
     assertCount = 0;
     testResult = kTestResult_Pass;
     exceptionThrown = false;
+    forciblyTerminated = false;
     exceptionString = {};
 
     pLogger = gnilk::Logger::GetLogger("TestResponseProxy");
@@ -157,6 +158,15 @@ void TestResponseProxy::SetExceptionError(const std::string &exception) {
     exceptionString = exception;
 }
 
+void TestResponseProxy::SetForciblyTerminated(const char *reason) {
+    // NOTE: deliberately does NOT set exceptionThrown - a forced abort-unwind is our own
+    // control flow, not an escaped user exception. The severity is already in 'testResult'.
+    forciblyTerminated = true;
+    if (reason != nullptr) {
+        exceptionString = reason;
+    }
+}
+
 // ITesting mirror
 void TestResponseProxy::Debug(int line, const char *file, std::string message) {
     pLogger->Debug("%s:%d:%s", file, line, message.c_str());
@@ -180,6 +190,12 @@ void TestResponseProxy::Error(int line, const char *file, std::string message) {
     if (testResult < kTestResult_TestFail) {
         testResult = kTestResult_TestFail;
     }
+    // Record the detail into the assert list like Fatal/Abort/AssertError do, so an
+    // Error-only failure carries a file/line/message for the reporters (and across the
+    // fork boundary - IPCTestResults marshals the list when it is non-empty, gated on
+    // TestResult::Asserts() == AssertError::NumErrors()). kAssert_Error is the same class
+    // AssertError uses; both mean "test failed, proceed to next".
+    assertError.Add(AssertError::kAssert_Error, line, file, message);
     // Error is the soft one: under V2 it flags and continues; it only force-terminates
     // in forced mode (V1 / --allow-thread-exit).
     TerminateThreadIfNeeded(false);

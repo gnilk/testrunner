@@ -53,6 +53,25 @@ void SubProcess::Start(const IDynLibrary::Ref &library, TestModule::Ref useModul
     proc->AddArgument(ipcName);
     proc->AddArgument("-m");            // Append the module
     proc->AddArgument(module->name);
+
+    // Forward the case filter (-t). The parent only tells the child which *module* to run (-m
+    // above); without also forwarding -t the child runs ALL of that module's cases regardless of
+    // the filter. Rejoin the parsed list into the comma-separated form the child's arg parser
+    // expects. The default filter is just {"-"} (all cases) - skip forwarding that to keep the
+    // child command line clean.
+    const auto &testcases = Config::Instance().testcases;
+    if (!testcases.empty() && !((testcases.size() == 1) && (testcases[0] == "-"))) {
+        std::string caseFilter;
+        for (size_t i = 0; i < testcases.size(); i++) {
+            if (i > 0) {
+                caseFilter += ",";
+            }
+            caseFilter += testcases[i];
+        }
+        proc->AddArgument("-t");
+        proc->AddArgument(caseFilter);
+    }
+
     proc->AddArgument(library->Name());
 
     module->ChangeState(TestModule::kState::Executing);

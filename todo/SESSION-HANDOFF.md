@@ -2,6 +2,108 @@
 
 Pick-up notes for continuing on a clean slate.
 
+---
+
+## ⭐ CURRENT WORK — testrunner-core bug-fix branch (RESUME HERE, next: **reporting**)
+
+> This is the active thread as of the latest 2026-07-05 session. The "Repo state" and everything
+> below it describe the **`dev`** line (CI/Windows/engine work) and is still valid background — but
+> the current work lives on a **feature branch off `dev`**, not yet merged.
+
+### Resume from any machine
+```bash
+git fetch origin
+git checkout fix/fatal-abort-result-decision        # pushed, tracks origin
+cd cmake-build-debug && ninja                        # or configure fresh: mkdir build && cd build && cmake .. && ninja
+```
+- **Branch:** `fix/fatal-abort-result-decision` — **13 commits ahead of `dev`, all pushed to
+  `origin`, NOT merged, NOT reviewed** (maintainer will review later; never promote unprompted).
+  Nothing is on `dev`/`master`, so the whole branch is cheaply revert-able.
+- Scope was a **testrunner-core audit** (coverage/`tcov` explicitly out of scope). Findings +
+  status live in **`todo/open-bugs.md`** (section "testrunner core — audit 2026-07-05"; **10 items
+  now `✅ RESOLVED`**). The result-model design doc **`todo/result_model.md`** is the reference for
+  the failure-signalling model and **all its open items are now done** (incl. the codified
+  "Authority contract").
+
+### What's DONE on this branch (13 commits, newest first)
+- `ee8cb73` docs — flip the stale "IN PROGRESS" marker (was #1) to RESOLVED.
+- `0563df1` **IPC hardening** (#5 + #6): decoder `Unmarshal`s now check every `Read*` return
+  (corrupt frame → reject, not fabricate); `WriteStr`/`ReadStr` length 16→**32-bit** (+ pre-`resize`
+  bounds guard vs OOM); `IPCFifoUnix::Write` loops on partial writes/`EINTR`. New tests
+  `test_ipcframe_largestring` / `_truncated` (proven to fail on old code).
+- `46eedd0` **#3** — `IPCFifoUnix` no longer `close(0)`s the owner's stdin (`mkfifo` returns 0, not
+  an fd). New `test_ipcfifo_keepstdin`.
+- `9188a57` fork now **forwards `-t`** (case filter) to child processes (was ignored under fork).
+- `147202b` **#2** — the three divergent filter matchers unified to one `caseMatch` (fixes module-glob
+  first-match-only + case-glob debug `assert`-abort); listing == run. Test `test_execorder_match`.
+- `1b445b8` removed the dead case-sequential execution mode (`TestExecutiontype::kSequential`).
+- `8c009bf` **`Error()`** now records assert-list detail (parity w/ Fatal/Abort), survives fork.
+- `deae9b5` sequential `kAbortAll` breaks the **outer** `-m` arg loop too.
+- `eea5041` **fork `AllFail` propagation** — a child `Abort`/`kTR_FailAll` stops launching + kills
+  in-flight siblings (mirrors sequential).
+- `8904a60` docs — `result_model.md` design doc.
+- `9a3179a` **#1** — Fatal/Abort kept their `ModuleFail`/`AllFail` via a pure `TestResult::DeriveResult`
+  (was clobbered to `TestFail` by the exception path). Tests in module `resultdecision`.
+- `c0955c3` docs — the audit record itself.
+
+### Current baseline on this branch (NOT the 102/15 quoted in older sections below)
+```bash
+cd cmake-build-debug && ninja
+LIB=lib/libtrun_utests.dylib
+./trun            -m '!abortall,!exception,-' $LIB   # fork (default)
+./trun --sequential -m '!abortall,!exception,-' $LIB
+# Expected: fork == sequential == 110 executed / 13 failed (13 = intentional self-fails).
+```
+The count grew from 102 because this branch **added** regression tests (`resultdecision`,
+`ipcfifo_keepstdin`, `ipcframe_largestring/_truncated`, `execorder_match`); the fail count moved
+102/15 → 110/13 (the Fatal/Abort fix legitimately un-fails a couple of cases). `run_test_suite.sh`
+wraps the canonical exclude-list invocation. Always exclude `abortall`/`exception` (they abort/crash
+the process by design — CLAUDE.md).
+
+### NEXT UP — **reporting / robustness batch** (tomorrow's start)
+Still-open items from `todo/open-bugs.md` (independent of each other; mostly small; touch reporting +
+a few robustness spots — NOT IPC, NOT the matcher). Suggested order, most user-visible first:
+1. **JSON escaping** (`reportjson.cpp:114-115, 166`) — only `Message` goes through `EscapeString`;
+   `Symbol`/`File` are raw, so a Windows path `C:\src\foo.cpp` or any `"`/`\` breaks the JSON. Also
+   `EscapeString` (`:172-186`) drops non-ASCII (signed `char < 31`) + control chars. **Highest value**
+   (fork mode usually emits `-r json` for a web-app).
+2. **256-byte compose buffer** (`reportingbase.cpp:51-75`) — long `Message`/`File` lines are
+   `vsnprintf`-truncated mid-string → can cut the closing `"`/`,` → malformed JSON; also non-reentrant.
+3. **`CREATE_REPORT_STRING` truncates > 1024 bytes** (`responseproxy.cpp:393-410`) — grow-loop keys on
+   `res < 0` but `vsnprintf` signals truncation with a large **positive** return, so it never grows.
+   Plus `IsMsgSizeOk` (`:415`) has a `%d` with **no argument** (vararg UB).
+4. **`split()` drops empty fields** (`strutil.cpp:59-83`) — `-t ",,,"` / `-t "  "` overwrites default
+   `{"-"}` with `{}` → nothing runs, no diagnostic. And `PopIndent` (`reportingbase.cpp:38-48`) pops 8×
+   even after the underflow guard empties the string (missing `return`).
+5. **`ConsumePipes` OOB write** (`process_unix.cpp:157-178`) — `buffer[bytes_read]='\0'` with
+   `bytes_read` possibly `-1` (EINTR after poll) writes one byte before the heap buffer.
+6. **Global main/exit null-deref** (`testrunner.cpp:163, 200`) — `result->Result()` without the
+   `!= nullptr` guard every other call site uses.
+7. **[dead/cosmetic]** batch (`testfunc.cpp:70-73` IsModuleMain; `testrunner.cpp:266` redundant
+   GetOrAddModule; `IPCFifoUnix.cpp` `fsync` on a FIFO no-op; `testfunc.cpp:204-211` dep results never
+   AddResult'd) — do last / opportunistically.
+
+**Working style on this branch (confirmed with maintainer):** one focused commit per item, each with a
+regression test where unit-testable and **proven to fail on the pre-fix code** (stash-the-fix, rebuild,
+watch it fail, restore) — see `test_ipcfifo_keepstdin` / `_truncated` for the pattern. Commit + push
+each item; mark it `✅ RESOLVED` in `open-bugs.md`. Frozen external headers stay untouched.
+
+**At merge time (`fix/fatal-abort-result-decision` → `dev`):** bump CLAUDE.md's "Running unit-tests"
+note (currently `102 executed / 15 fail`) to the branch baseline **`110 executed / 13 fail`** (grows
+further as reporting tests are added). That number is intentionally left un-edited on the branch so it
+stays accurate for `dev` until the merge actually happens.
+
+### Gotchas for the reporting work
+- Behaviour-changing changes already on the branch that a reviewer should know: filter-matcher
+  semantics unified (first-match-wins kept), `-t` now honoured under fork, **IPC wire format changed**
+  (32-bit string length) — all safe because every IPC endpoint is the **same binary**, but it means an
+  old `trun` can't talk to a new forked child (not a concern within one build).
+- `EscapeString` fix must stay reversible/consistent with any consumer; check `reportjsonext.cpp` too
+  (it may share helpers). JSON tests live in module `jsonreport` (`test_jsonreport`, `_escape`).
+- Leave untracked `.DS_Store` / `src/testrunner/.DS_Store` alone.
+
+---
+
 ## Repo state
 - **Latest (this session) — CI: Windows release publishing.** `.github/workflows/cmake.yml` now
   builds and publishes **both** platforms. New `build-windows` job (windows-latest): installs NSIS

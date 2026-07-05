@@ -34,10 +34,19 @@ IPCDeserializer *IPCResultSummary::GetDeserializerForObject(uint8_t idObject) {
     return nullptr;
 }
 bool IPCResultSummary::Unmarshal(IPCDecoderBase &decoder) {
-    decoder.ReadI32(testsExecuted);
-    decoder.ReadI32(testsFailed);
-    decoder.ReadDouble(durationSec);
-    decoder.ReadArray([this](IPCObject *ptrObject) {
+    // Check every read: on a corrupt/truncated frame the decoder returns < 0 (a field would
+    // read past the framed message). Failing the frame here means the drain loop skips it
+    // rather than recording a fabricated result with zero/garbage fields.
+    if (decoder.ReadI32(testsExecuted) < 0) {
+        return false;
+    }
+    if (decoder.ReadI32(testsFailed) < 0) {
+        return false;
+    }
+    if (decoder.ReadDouble(durationSec) < 0) {
+        return false;
+    }
+    int32_t nRead = decoder.ReadArray([this](IPCObject *ptrObject) {
        // ReadArray hands us ownership of the heap object it built. Take it into
        // a unique_ptr immediately so it is freed even on a type mismatch.
        std::unique_ptr<IPCObject> owned(ptrObject);
@@ -49,6 +58,9 @@ bool IPCResultSummary::Unmarshal(IPCDecoderBase &decoder) {
        owned.release();
        testResults.emplace_back(tr);
     });
+    if (nRead < 0) {
+        return false;   // an array item failed to decode
+    }
 
     return true;
 }
@@ -72,28 +84,40 @@ bool IPCTestResults::Marshal(IPCEncoderBase &encoder) const {
 }
 
 bool IPCTestResults::Unmarshal(IPCDecoderBase &decoder) {
-    decoder.ReadStr(symbolName);
+    if (decoder.ReadStr(symbolName) < 0) {
+        return false;
+    }
     testResult = trun::TestResult::Create(symbolName);
 
     // Result code
     uint8_t resultCode;
-    decoder.ReadU8(resultCode);
+    if (decoder.ReadU8(resultCode) < 0) {
+        return false;
+    }
     testResult->SetResult(static_cast<trun::kTestResult>(resultCode));
 
     // FailState
     uint8_t failState;
-    decoder.ReadU8(failState);
+    if (decoder.ReadU8(failState) < 0) {
+        return false;
+    }
     testResult->SetFailState(static_cast<trun::TestResult::kFailState>(failState));
 
     // Asserts
     int32_t nAsserts;
-    decoder.ReadI32(nAsserts);
+    if (decoder.ReadI32(nAsserts) < 0) {
+        return false;
+    }
     testResult->SetNumberOfAsserts(nAsserts);
 
 
-    // Now, deserialize the actual assert error
+    // Now, deserialize the actual assert error. nAsserts > 0 means the marshal side wrote an
+    // assert object, so a null here is a corrupt/failed frame - fail it.
     if (nAsserts > 0) {
         auto obj = decoder.ReadObject(kMsgType_AssertError);
+        if (obj == nullptr) {
+            return false;
+        }
         auto ptrIPCAssertError = dynamic_cast<IPCAssertError *>(obj);
         if (ptrIPCAssertError != nullptr) {
             testResult->SetAssertError(ptrIPCAssertError->assertError);
@@ -131,17 +155,27 @@ bool IPCAssertError::Marshal(IPCEncoderBase &encoder) const {
 }
 bool IPCAssertError::Unmarshal(IPCDecoderBase &decoder) {
     uint16_t count = 0;
-    decoder.ReadU16(count);
+    if (decoder.ReadU16(count) < 0) {
+        return false;
+    }
 
     for (uint16_t i = 0; i < count; i++) {
         trun::AssertError::AssertErrorItem item;
         uint8_t assertClass = 0;
-        decoder.ReadU8(assertClass);
+        if (decoder.ReadU8(assertClass) < 0) {
+            return false;
+        }
         item.assertClass = static_cast<trun::AssertError::kAssertClass>(assertClass);
 
-        decoder.ReadStr(item.file);
-        decoder.ReadI32(item.line);
-        decoder.ReadStr(item.message);
+        if (decoder.ReadStr(item.file) < 0) {
+            return false;
+        }
+        if (decoder.ReadI32(item.line) < 0) {
+            return false;
+        }
+        if (decoder.ReadStr(item.message) < 0) {
+            return false;
+        }
 
         assertError.Add(item);
     }

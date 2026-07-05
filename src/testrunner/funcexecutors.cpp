@@ -37,32 +37,18 @@ using namespace trun;
 // Class only for encapsulation...
 //
 TestFuncExecutorBase &TestFuncExecutorFactory::Create(IDynLibrary::Ref library) {
-    static TestFuncExecutorSequential sequentialExecutor;
+    // Test cases always run in their own thread. kThreaded (V2 default) and kThreadedWithExit
+    // (V1 / --allow-thread-exit) share this one executor; that distinction is read only by
+    // TerminateThreadIfNeeded, to decide whether Error/Assert force-terminate (Abort/Fatal
+    // always do) - not here. There is no case-sequential mode: --sequential is module-scope
+    // (one process, no fork), the case body still runs threaded.
+    //
+    // NOTE: TestFuncExecutorSequential is NOT dead - it is the shared case-running body
+    // (pre-hook, invoke, exception handling, post-hook) that TestFuncExecutorThreaded calls
+    // from inside its worker thread.
     static TestFuncExecutorThreaded threadedExecutor;
-
-    switch(Config::Instance().testExecutionType) {
-        case TestExecutiontype::kSequential :
-            // In case we are a sub-process, we run in threads anyway  <- should we?
-            if (Config::Instance().isSubProcess) {
-                threadedExecutor.SetLibrary(library);
-                return threadedExecutor;
-            }
-            sequentialExecutor.SetLibrary(library);
-            return sequentialExecutor;
-        // kThreaded (V2 default) and kThreadedWithExit (V1 / --allow-thread-exit) share one
-        // executor; the distinction is read only by TerminateThreadIfNeeded to decide whether
-        // Error/Assert force-terminate (Abort/Fatal always do).
-        case TestExecutiontype::kThreaded :
-        case TestExecutiontype::kThreadedWithExit :
-            threadedExecutor.SetLibrary(library);
-            return threadedExecutor;
-        default:
-            printf("Unknown or unsupported test execution model, using default\n");
-            break;
-    }
-    // Always available
-    sequentialExecutor.SetLibrary(library);
-    return sequentialExecutor;
+    threadedExecutor.SetLibrary(library);
+    return threadedExecutor;
 }
 
 //
@@ -184,8 +170,11 @@ int TestFuncExecutorSequential::Execute(TestFunc *testFunc, const CBPrePostHook 
             throw;
         }
     } catch (const TestAbortException &abort_exception) {
-        testReturnCode = kTR_Fail;
-        proxy.SetExceptionError(abort_exception.reason);
+        // Internal forced-termination unwind used to implement Fatal/Abort and V1 asserts.
+        // The proxy already holds the intended severity (ModuleFail/AllFail/TestFail); flag
+        // it as a forced termination so the result is NOT downgraded to a plain TestFail the
+        // way an escaped user exception is.
+        proxy.SetForciblyTerminated(abort_exception.reason);
     } catch (const std::exception &e) {
         auto exception_stacktrace = cpptrace::from_current_exception();
         auto exceptionString = UnwindException(e.what(), exception_stacktrace);

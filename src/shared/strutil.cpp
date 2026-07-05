@@ -93,30 +93,33 @@ namespace trun {
         return (Glob::Match(pattern, string) == Glob::kMatch::Match);
     }
 
+    //
+    // The single filter matcher: does 'name' pass the filter 'list' (an -m / -t argument list)?
+    //
+    // First-match-wins on the list: the first entry that matches 'name' decides. A bare "-" is a
+    // baseline "include everything" that a *later* "!pattern" can still override, which is why the
+    // idiom is exclusions-first-then-"-" (e.g. "!abortall,!exception,-" = all but those two). A
+    // plain positive list ("a,b*") includes only what matches. Shared by listing and by both
+    // execution paths (module + case, sequential + fork) so -l and the real run never disagree.
+    //
     bool caseMatch(const std::string &caseName, const std::vector<std::string> &caseList) {
-        int executeFlag = 0;
-        for (auto tc: caseList) {
+        bool execute = false;
+        for (const auto &tc : caseList) {
             if (tc == "-") {
-                executeFlag = 1;
+                execute = true;     // baseline include-all; a later "!" can still exclude
                 continue;
             }
-            if (tc[0]=='!') {
-                auto negTC = tc.substr(1);
-                auto isMatch = trun::match(caseName, negTC);
-                if (isMatch) {
-                    executeFlag = 0;
-                    goto leave;
+            if (tc[0] == '!') {
+                if (trun::match(caseName, tc.substr(1))) {
+                    return false;   // first matching exclusion wins
                 }
             } else {
-                auto isMatch = trun::match(caseName, tc);
-                if (isMatch) {
-                    executeFlag = 1;
-                    goto leave;
+                if (trun::match(caseName, tc)) {
+                    return true;    // first matching inclusion wins
                 }
             }
         }
-        leave:
-            return executeFlag?true:false;
+        return execute;
     }
 
 //

@@ -23,10 +23,10 @@
 #include "moduleexecutors.h"
 #include "resultsummary.h"
 #include "testfunc.h"
-#include <assert.h>
 #include <vector>
 #include <algorithm>
 #include <chrono>
+#include <set>
 #include "std_backport.h"
 
 #ifdef TRUN_HAVE_FORK
@@ -68,48 +68,12 @@ TestModuleExecutorBase &TestModuleExecutorFactory::Create() {
 }
 
 
-enum class kMatchResult {
-    List,
-    Single,
-    NegativeSingle,
-};
-static kMatchResult ModuleMatch(std::vector<TestModule::Ref> &outMatches, const std::string &tcPattern, const std::vector<TestModule::Ref> &caseList) {
-    kMatchResult result = kMatchResult::List;
-    for (auto &module: caseList) {
-        if (tcPattern == "-") {
-            outMatches.push_back(module);
-            continue;
-        }
-        if (tcPattern[0]=='!') {
-            auto negTC = tcPattern.substr(1);
-            auto isMatch = trun::match(module->name, negTC);
-            if (isMatch) {
-                // not sure...
-                //executeFlag = 0;
-                outMatches.push_back(module);
-                result = kMatchResult::NegativeSingle;
-                goto leave;
-            }
-        } else {
-            auto isMatch = trun::match(module->name, tcPattern);
-            if (isMatch) {
-                outMatches.push_back(module);
-                result = kMatchResult::Single;
-                goto leave;
-            }
-        }
-    }
-    leave:
-    return result;
-}
-
-
-
 bool TestModuleExecutorSequential::Execute(const IDynLibrary::Ref &library, const std::map<std::string, TestModule::Ref> &testModules) {
     bool bRes = true;
     pLogger = gnilk::Logger::GetLogger("TestModExeSeq");
 
-    // Convert to vector and sort..
+    // Deterministic, name-sorted order - matches the fork executor and the listing. std::map is
+    // already name-sorted; keep an explicit vector so the intent is clear.
     std::vector<TestModule::Ref> testModulesList;
     for(auto &[k,v] : testModules) {
         testModulesList.push_back(v);
@@ -118,42 +82,29 @@ bool TestModuleExecutorSequential::Execute(const IDynLibrary::Ref &library, cons
         return (a->name < b->name);
     });
 
-
-    // For every argument on the command line
-    for(auto argModuleName : Config::Instance().modules) {
-        // Match cases
-        std::vector<TestModule::Ref> matches;
-        auto matchResult = ModuleMatch(matches, argModuleName, testModulesList);
-        // In case this is negative (i.e. don't execute) we remove it from the sorted LOCAL list
-        // NOTE: DO NOT change the state - if can be that another module depends on this one - in that case we need to execute...
-        if (matchResult == kMatchResult::NegativeSingle) {
-            assert(matches.size() == 1);
-            auto tmToRemove = matches[0];
-            // Remove this from the execution list...
-            std::erase_if(testModulesList,[tmToRemove](const TestModule::Ref &m)->bool{
-               return (tmToRemove->name == m->name);
-            });
+    for (auto &testModule : testModulesList) {
+        // Shared filter matcher (ShouldExecute -> caseMatch): the same decision the listing and the
+        // fork executor use, so -l and the run agree and a glob like -m 'ipc*' runs EVERY match
+        // (the old per-arg ModuleMatch stopped at the first). A module filtered out here can still
+        // run if pulled in as a dependency - ExecuteDependencies does not consult the filter.
+        if (!testModule->ShouldExecute()) {
+            continue;
+        }
+        // Already executed (e.g. as a dependency of an earlier module).
+        if (!testModule->IsIdle()) {
             continue;
         }
 
-        // If here, we should execute anything in the matches list...
-        for(auto &testModule : matches) {
-            // Already executed?
-            if (!testModule->IsIdle()) {
-                //pLogger->Debug("Tests for '%s' already executed, skipping",testModule->name.c_str());
-                continue;
-            }
+        pLogger->Info("Executing tests for library: %s", testModule->name.c_str());
+        TestRunner::SetCurrentTestModule(testModule);
+        auto result = testModule->Execute(library);
+        TestRunner::SetCurrentTestModule(nullptr);
 
-            pLogger->Info("Executing tests for library: %s", testModule->name.c_str());
-
-            TestRunner::SetCurrentTestModule(testModule);
-            auto result = testModule->Execute(library);
-            if ((result != nullptr) && (result->CheckIfContinue() == TestResult::kRunResultAction::kAbortAll)) {
-                break;
-            }
-            TestRunner::SetCurrentTestModule(nullptr);
-        } // for modules
-
+        // A module signalling "stop the whole run" (Abort / kTR_FailAll) stops launching any
+        // further module - same as the fork executor now does.
+        if ((result != nullptr) && (result->CheckIfContinue() == TestResult::kRunResultAction::kAbortAll)) {
+            break;
+        }
     }
 
     return bRes;
@@ -196,10 +147,17 @@ bool TestModuleExecutorFork::Execute(const IDynLibrary::Ref &library, const std:
         return false;
     }
 
+    // Set when a drained child result asks to stop the whole run (Abort / kTR_FailAll),
+    // mirroring the sequential module executor which breaks its loop on kAbortAll. The
+    // module(s) that produced the abort are remembered so the reporting child - which has
+    // already finished and is on its way out - is not treated as one we killed.
+    bool abortAll = false;
+    std::set<std::string> abortingModules;
+
     // Drain whatever results the children have written so far. Called repeatedly
     // during the run (not only at the end): with a bounded window the run is
     // long-lived, and unread results could back up the FIFO and stall a writer.
-    auto drainResults = [&ipcServer]() {
+    auto drainResults = [&ipcServer, &abortAll, &abortingModules]() {
         while (ipcServer->Available()) {
             IPCResultSummary summary;
             gnilk::IPCBinaryDecoder decoder(*ipcServer, summary);
@@ -211,6 +169,13 @@ bool TestModuleExecutorFork::Execute(const IDynLibrary::Ref &library, const std:
                 auto tfuncWrapper = TestRunner::CreateTestFunc(ipcTestResult->symbolName);
                 tfuncWrapper->SetResultFromSubProcess(ipcTestResult->testResult);
                 ResultSummary::Instance().AddResult(tfuncWrapper);
+                // A child signalling "stop the whole run" (Abort / kTR_FailAll) aborts
+                // the run - honour it the same way the sequential executor does. Record
+                // the reporting module so its own child is spared the kill below.
+                if (ipcTestResult->testResult->CheckIfContinue() == TestResult::kRunResultAction::kAbortAll) {
+                    abortAll = true;
+                    abortingModules.insert(tfuncWrapper->ModuleName());
+                }
             }
         }
     };
@@ -238,11 +203,12 @@ bool TestModuleExecutorFork::Execute(const IDynLibrary::Ref &library, const std:
     }
     const long timeoutSec = Config::Instance().moduleExecTimeoutSec;
 
-    // Only live processes; reaped ones are erased. 'timedOut' makes the timeout
-    // log/kill/record happen exactly once per process.
+    // Only live processes; reaped ones are erased. 'timedOut'/'aborted' make the
+    // kill/log/record happen exactly once per process and mark its output as dropped.
     struct Running {
         std::unique_ptr<SubProcess> proc;
         bool timedOut = false;
+        bool aborted = false;
     };
     std::vector<Running> inflight;
     size_t nextIdx = 0;
@@ -250,9 +216,11 @@ bool TestModuleExecutorFork::Execute(const IDynLibrary::Ref &library, const std:
 
     pLogger->Debug("Running %zu modules, max %u concurrent", pending.size(), maxConcurrency);
 
-    while ((nextIdx < pending.size()) || !inflight.empty()) {
-        // Top up the window with the next pending modules.
-        while ((inflight.size() < maxConcurrency) && (nextIdx < pending.size())) {
+    while ((!abortAll && (nextIdx < pending.size())) || !inflight.empty()) {
+        // Top up the window with the next pending modules. Once a child has asked to
+        // stop the whole run, launch nothing further - the remaining pending modules
+        // simply do not run, exactly as sequential stops iterating on kAbortAll.
+        while (!abortAll && (inflight.size() < maxConcurrency) && (nextIdx < pending.size())) {
             auto &module = pending[nextIdx++];
             auto process = std::make_unique<SubProcess>();
             started++;
@@ -268,11 +236,24 @@ bool TestModuleExecutorFork::Execute(const IDynLibrary::Ref &library, const std:
             // Stop a runaway module once it exceeds the timeout (0 == infinity).
             // Log/kill/record exactly once; the killed process reaches kFinished
             // on a later spin when its worker observes the SIGKILL.
-            if (!it->timedOut && (timeoutSec > 0) && (p->Duration() > timeoutSec)) {
+            if (!it->timedOut && !it->aborted && (timeoutSec > 0) && (p->Duration() > timeoutSec)) {
                 pLogger->Error("Process for '%s' timed out after %lds, killing", p->Name().c_str(), timeoutSec);
                 p->Kill();
                 it->timedOut = true;
                 ResultSummary::Instance().AddIncompleteModule(p->Name(), "timed out");
+            }
+
+            // A sibling asked to stop the whole run: kill any still-running module once
+            // (same kill/record path as the timeout). The child that produced the abort
+            // is excluded - it has already finished and is reaped normally with its
+            // output so its own result is not mislabelled as an aborted-away module.
+            if (abortAll && !it->timedOut && !it->aborted &&
+                (p->State() != SubProcessState::kFinished) &&
+                (abortingModules.find(p->Name()) == abortingModules.end())) {
+                pLogger->Warning("Run aborted, killing in-flight module '%s'", p->Name().c_str());
+                p->Kill();
+                it->aborted = true;
+                ResultSummary::Instance().AddIncompleteModule(p->Name(), "run aborted");
             }
 
             if (p->State() != SubProcessState::kFinished) {
@@ -282,7 +263,7 @@ bool TestModuleExecutorFork::Execute(const IDynLibrary::Ref &library, const std:
 
             // Finished: join the worker (publishes its writes) then handle once.
             p->Wait();
-            if (it->timedOut) {
+            if (it->timedOut || it->aborted) {
                 // Already logged + recorded; drop the partial output.
             } else if (p->GetExitStatus() == ProcessExitStatus::kNormal) {
                 for (auto &s : p->Strings()) {
