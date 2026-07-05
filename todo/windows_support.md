@@ -5,9 +5,9 @@ under the V4 product line. **"V4" is the product/release milestone — NOT a new
 The Windows fix changes no interface signature, so the external interface stays **V2**; Windows
 simply becomes a first-class V2 platform.
 
-> Status: Phase 0 done (2026-07-05, branch `feature/windows-phase0`). Built and verified end-to-end
-> on a real MSVC target (Visual Studio Community 2026 / MSVC 19.51, Windows 11) — the hardware
-> blocker noted below is resolved. Pick up from Phase 1.
+> Status: Phase 0 + Phase 1 done (2026-07-05, branch `feature/windows-phase0`). Built and verified
+> end-to-end on a real MSVC target (Visual Studio Community 2026 / MSVC 19.51, Windows 11) — the
+> hardware blocker noted below is resolved. Pick up from Phase 2.
 > Related: `todo/SESSION-HANDOFF.md`, `README.md` (Building / Windows §158-166),
 > `todo/deprecated/signal_handling.md`.
 
@@ -58,12 +58,34 @@ reports version **1.0.0** (V1 fallback — no `TRUN_MAGICAL_IF_VERSION` symbol y
 self-test run (`--sequential -m "!abortall,!exception,-"`) crashes (access violation) once real test
 execution starts — expected, this is Phase 1/2 territory, not a Phase 0 regression.
 
-Phase 1 — V2 detection on Windows
-- Add MSVC `__declspec(selectany)` version symbol branch in `testinterface.h` (additive, guarded)
-- `DynLibWin::Open()` reads `TRUN_MAGICAL_IF_VERSION` via `GetProcAddress`
+Phase 1 — V2 detection on Windows  [! DONE 2026-07-05]
+- ! Add MSVC `__declspec(selectany)` version symbol branch in `testinterface.h` (additive, guarded)
+- ! `DynLibWin::Open()` reads `TRUN_MAGICAL_IF_VERSION` via `GetProcAddress`
+
+**One deviation from the plan's exact §2 snippet:** MSVC rejects `__declspec(selectany)` combined
+directly with `__declspec(dllexport)` on the same declaration (`error C2496: '__declspec(selectany)'
+can only be applied to data items with external linkage`). Fixed by dropping `DLL_EXPORT` from the
+declaration and instead forcing the export via a linker pragma:
+`#pragma comment(linker, "/export:TRUN_MAGICAL_IF_VERSION,DATA")`, right after the `selectany`
+definition. Same effect (symbol lands in the PE export table, readable via `GetProcAddress`), still
+header-only/no `TR_IMPL`, still `_MSC_VER`-only so no effect on gcc/clang. The `GetProcAddress`
+read in `DynLibWin::Open()` happens on the *final* `LoadLibrary` handle (`hLibrary`), not the earlier
+`DONT_RESOLVE_DLL_REFERENCES` enumeration pass — confirms the plan's §2 caveat was correct to flag.
+
+**Verified (2026-07-05):** `trv2_utest.dll` (plain `testinterface.h`) reports **2.0.0**;
+`trv1_utest.dll` (`TRUN_USE_V1`, no version symbol) correctly still reports **1.0.0**; the main
+`trun_utests.dll` now also reports **2.0.0** (previously fell back to 1.0.0 under Phase 0 alone).
+Bonus: the sequential self-test run that crashed (access violation) at the end of Phase 0 now runs
+substantially further under V2/cooperative asserts — no longer crashes immediately, executes many
+modules including `rust`, exits 0 — though it stops without printing a final pass/fail summary line,
+which is Phase 2's job to run down. Full rebuild (`trun`, `trun_utests`, `trunlib`, `trunmcu`,
+`trunembedded`) still clean after this change.
 
 Phase 2 — self-test green (sequential)
 - Build `trun_utests.dll`; run `trun.exe trun_utests.dll` sequentially; reproduce known baseline
+- Open: sequential run currently stops after the `rust` module without printing the final summary
+  (exit 0, no crash) — not yet root-caused whether this is a missing module in the run, a silent
+  early return, or an expected-but-undocumented stopping point.
 
 Phase 3 — subprocess parity (later)
 - Decompose `TestModuleExecutorFork::Execute` into helpers + `CreateModuleIPCServer` seam + `IPCBase::EndpointName()`
