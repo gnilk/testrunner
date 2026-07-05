@@ -96,14 +96,14 @@ real: #1, #2, #3.
   `test_ipcfifo_keepstdin` points fd 0 at `/dev/null`, runs an owner `Open()/Close()`, and asserts fd 0
   is still open (then restores real stdin) - verified it fails on the old code and passes on the fix.
   Full suite fork == seq == 108/13.
-- **[latent, low priority] Large IPC frames > PIPE_BUF can interleave/tear on the shared FIFO.**
-  `IPCFifoUnix.cpp:97-109`, `resultsummary.cpp:156-189`, `moduleexecutors.cpp:235-260`: a child
-  flushes its whole `IPCResultSummary` as one `write()`, only atomic up to `PIPE_BUF` (4096
-  Linux / 512 macOS); all children share one FIFO and run `maxConcurrency` at once → torn frames
-  with no resync. **Probably not an issue in practice — result messages are small** — but recorded
-  for large forked suites. Compounding, same area: `IPCDecoder.cpp:128-142` drops the header +
-  partial body on a short read (poll-gated non-blocking `Read` returns 0 mid-frame) → desync;
-  `IPCBufferedWriter.cpp:24-28` clears the buffer even on a short `write()`.
+- **[latent, low priority] Concurrent large IPC frames > PIPE_BUF can interleave on the shared FIFO.**
+  All children share one FIFO and run `maxConcurrency` at once; a child flushes its whole
+  `IPCResultSummary` as one `write()`, only atomic up to `PIPE_BUF` (4096 Linux / 512 macOS), so two
+  large concurrent frames can interleave into a spliced stream. **Probably not an issue in practice —
+  result messages are small** — recorded for very large forked suites. The single-writer robustness that
+  used to compound this is now fixed: the decoder reads the whole frame before parsing (short/partial
+  reads can't desync - `test_ipcframe_chunked_read`), and `IPCFifoUnix::Write` loops on partial writes.
+  A true fix for the *concurrent* case would need per-child FIFOs or a length-delimited multiplex.
 - ✅ RESOLVED (`fix/fatal-abort-result-decision`) — **`Abort`/`AllFail` now stops the fork run
   too.** Previously an `AllFail` in one child did **not** stop sibling module processes (fork just
   drained the result and kept dispatching the queue). `TestModuleExecutorFork::Execute` now flags
@@ -118,13 +118,27 @@ real: #1, #2, #3.
     `abortAll` flag and breaks the outer `-m` arg loop too (verified `-m abortall,strutil` stops after
     `abortall`; a non-abort `-m strutil,timer` still runs both).
   - `Fatal`/`ModuleFail` "stop this module's remaining cases" holds in both modes (unchanged).
-- **[IPC hardening] Decoders ignore all read-error returns** — `IPCMessages.cpp:36-54, 74-105`
-  discard every `Read*` return and `return true`, so a corrupt/short frame (`Read` returns `-1`)
-  is recorded as a real result with zero-filled fields (`moduleexecutors.cpp:209-214`).
-- **[IPC hardening] `WriteStr` truncates the length to 16 bits but writes the full string** —
-  `IPCEncoder.h:50-59` + `IPCDecoder.cpp:52-64`: a string > 65535 bytes wraps the length while
-  the payload is full → intra-frame desync. Same 16-bit assumption for the assert count
-  (`IPCMessages.cpp:122`).
+- ✅ RESOLVED (`fix/fatal-abort-result-decision`) — **[IPC hardening] Decoders now check every
+  read-error return.** The three `Unmarshal`s in `IPCMessages.cpp` (`IPCResultSummary`,
+  `IPCTestResults`, `IPCAssertError`) discarded every `Read*` return and `return true`d, so a
+  corrupt/short frame (`Read` returns `-1` on frame overrun) was recorded as a real result with
+  zero/garbage fields. They now `return false` on any read failure, so `Process()` fails and the drain
+  loop skips the frame (the whole body is consumed first, so the stream stays frame-aligned).
+  Regression test `test_ipcframe_truncated` shrinks a frame's declared body so a field overruns and
+  asserts `Process()==false` (verified it fails on the old code).
+- ✅ RESOLVED (`fix/fatal-abort-result-decision`) — **[IPC hardening] `WriteStr` length is now 32-bit.**
+  A 16-bit length prefix wrapped for strings > 65535 bytes while still writing the full payload →
+  intra-frame desync. `WriteStr`/`ReadStr` now use a 32-bit length (safe: all IPC endpoints are the same
+  binary). `ReadStr` also bound-checks the length against the remaining frame **before** `resize`, so a
+  corrupt/oversized length fails the frame instead of forcing a huge (OOM) allocation. Regression test
+  `test_ipcframe_largestring` round-trips a 70000-byte string (verified it fails on the old 16-bit code).
+  The assert-count field (`IPCMessages.cpp` `WriteU16`) is left 16-bit - it is an item count, not a
+  payload length, and each item is independently bounds-checked, so it cannot desync.
+- ✅ RESOLVED (`fix/fatal-abort-result-decision`) — **[IPC hardening] `IPCFifoUnix::Write` loops on
+  partial writes.** `write()` to a FIFO is only atomic up to `PIPE_BUF` and can short-count a large
+  frame or be interrupted (`EINTR`); since the buffered writer clears its buffer after one `Write`, a
+  short write silently truncated the frame. `Write` now loops until all bytes are sent (retrying
+  `EINTR`), or returns `-1` on a hard error.
 - **[reporting] JSON `Symbol`/`File` emitted unescaped** (`reportjson.cpp:114-115, 166`) — only
   `Message` goes through `EscapeString`; a Windows path `C:\src\foo.cpp` or any `"`/`\` breaks the
   JSON. Related: 256-byte static compose buffer truncates long lines mid-string

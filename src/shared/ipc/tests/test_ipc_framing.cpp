@@ -29,6 +29,8 @@ DLL_EXPORT int test_ipcframe_msgsize(ITesting *t);
 DLL_EXPORT int test_ipcframe_single_write(ITesting *t);
 DLL_EXPORT int test_ipcframe_chunked_read(ITesting *t);
 DLL_EXPORT int test_ipcframe_skip_unknown(ITesting *t);
+DLL_EXPORT int test_ipcframe_largestring(ITesting *t);
+DLL_EXPORT int test_ipcframe_truncated(ITesting *t);
 }
 
 // Counts Write() calls against the sink - used to prove the whole message goes
@@ -206,5 +208,63 @@ DLL_EXPORT int test_ipcframe_skip_unknown(ITesting *t) {
     TR_ASSERT(t, d2.Process());
     TR_ASSERT(t, in2.testsExecuted == 7);
     TR_ASSERT(t, in2.testsFailed == 3);
+    return kTR_Pass;
+}
+
+// 5. (#6) A string longer than 65535 bytes must round-trip. The old 16-bit length prefix
+//    wrapped the length while still writing the full payload, desyncing the whole frame; the
+//    prefix is now 32-bit.
+DLL_EXPORT int test_ipcframe_largestring(ITesting *t) {
+    // 70000 > 65535 -> would truncate to (70000 & 0xFFFF) under a 16-bit length. Distinct ends
+    // so any wrap/truncation is visible.
+    std::string big(70000, 'x');
+    big.front() = 'A';
+    big.back() = 'Z';
+
+    trun::AssertError assertError;
+    assertError.Add(trun::AssertError::kAssert_Error, 1, "f.cpp", big);
+    auto tr = trun::TestResult::Create("big_case");
+    tr->SetResult(trun::kTestResult::kTestResult_TestFail);
+    tr->SetAssertError(assertError);
+    tr->SetNumberOfAsserts(1);
+
+    auto ipcResult = new trun::IPCTestResults(tr);
+    ipcResult->symbolName = "big_case";
+    trun::IPCResultSummary summary;
+    summary.testResults.push_back(std::unique_ptr<trun::IPCTestResults>(ipcResult));
+
+    UTest_IPC_VectorWriter writer;
+    gnilk::IPCBinaryEncoder encoder(writer);
+    TR_ASSERT(t, summary.Marshal(encoder));
+
+    UTest_IPC_VectorReader reader(writer.Data());
+    trun::IPCResultSummary in;
+    gnilk::IPCBinaryDecoder decoder(reader, in);
+    TR_ASSERT(t, decoder.Process());
+    TR_ASSERT(t, in.testResults.size() == 1);
+
+    const auto &err = in.testResults[0]->testResult->AssertError().Errors().front();
+    TR_ASSERT(t, err.message.size() == big.size());
+    TR_ASSERT(t, err.message == big);
+    return kTR_Pass;
+}
+
+// 6. (#5) A corrupt/truncated frame must be rejected, not decoded into a fabricated result.
+//    Shrink the header's declared body size so a field read overruns the frame - Process()
+//    (which now checks every Read* return) must fail rather than record a zero/garbage result.
+DLL_EXPORT int test_ipcframe_truncated(ITesting *t) {
+    auto data = MarshalSummaryWithResult();
+    TR_ASSERT(t, data.size() > sizeof(gnilk::IPCMsgHeader) + 8);
+
+    gnilk::IPCMsgHeader header;
+    memcpy(&header, data.data(), sizeof(header));
+    TR_ASSERT(t, header.msgSize > 8);
+    header.msgSize -= 8;                          // declare a body shorter than the fields need
+    memcpy(data.data(), &header, sizeof(header));
+
+    UTest_IPC_VectorReader reader(data);
+    trun::IPCResultSummary in;
+    gnilk::IPCBinaryDecoder decoder(reader, in);
+    TR_ASSERT(t, decoder.Process() == false);     // overrun -> frame rejected
     return kTR_Pass;
 }

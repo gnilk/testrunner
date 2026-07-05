@@ -47,13 +47,16 @@ namespace gnilk {
 
 
         // Other
+        // 32-bit length prefix: a 16-bit one wrapped the length (while still writing the full
+        // payload) for strings > 65535 bytes, desyncing the whole frame. Long messages / stack
+        // traces / paths can exceed that. ReadStr mirrors this width.
         __inline int32_t WriteStr(const std::string &value) override {
-            auto ret = WriteU16(value.size());
+            auto ret = WriteU32((uint32_t)value.size());
             ret += Write(value.data(), value.size());
             return ret;
         }
         __inline int32_t WriteStr(const std::string &&value) override {
-            auto ret = WriteU16(value.size());
+            auto ret = WriteU32((uint32_t)value.size());
             ret += Write(value.data(), value.size());
             return ret;
         }

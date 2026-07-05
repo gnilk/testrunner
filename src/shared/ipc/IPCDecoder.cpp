@@ -50,8 +50,14 @@ bool IPCBinaryDecoder::Process() {
 }
 
 int32_t IPCBinaryDecoder::ReadStr(std::string &outValue) {
-    uint16_t len = 0;
+    uint32_t len = 0;       // 32-bit length prefix (mirrors WriteStr)
     if (Read(&len, sizeof(len)) < 0) {
+        return -1;
+    }
+    // Guard against a corrupt/oversized length BEFORE resizing: a string can never be larger
+    // than the bytes left in the framed message, so a bogus length can't force a huge (OOM)
+    // allocation - it fails the frame instead.
+    if (frameActive && (len > (frameBuf.size() - frameOffset))) {
         return -1;
     }
     outValue.resize(len);
@@ -60,7 +66,7 @@ int32_t IPCBinaryDecoder::ReadStr(std::string &outValue) {
             return -1;
         }
     }
-    return 2 + len;
+    return (int32_t)(sizeof(len) + len);
 }
 
 int32_t IPCBinaryDecoder::ReadArray(CBOnArrayItemRead onArrayItemRead) {

@@ -12,6 +12,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <poll.h>
+#include <errno.h>
 #include "IPCFifoUnix.h"
 
 using namespace gnilk;
@@ -102,12 +103,25 @@ int32_t IPCFifoUnix::Write(const void *data, size_t szBytes) {
         return -1;
     }
 
-    auto res =  (int32_t)write(rwfd, data, szBytes);
-    if (res < 0) {
-        perror("IPCFifoUnix::Write");
+    // Loop until everything is written. A write() to a FIFO is only guaranteed atomic up to
+    // PIPE_BUF and can return a short count for a larger frame or be interrupted (EINTR);
+    // the buffered writer clears its buffer after one Write, so a short write would silently
+    // truncate the frame on the wire.
+    auto ptr = static_cast<const uint8_t *>(data);
+    size_t total = 0;
+    while (total < szBytes) {
+        auto res = write(rwfd, ptr + total, szBytes - total);
+        if (res < 0) {
+            if (errno == EINTR) {
+                continue;   // interrupted before writing anything - retry
+            }
+            perror("IPCFifoUnix::Write");
+            return -1;
+        }
+        total += (size_t)res;
     }
     fsync(rwfd);
-    return res;
+    return (int32_t)total;
 }
 
 int32_t IPCFifoUnix::Read(void *dstBuffer, size_t maxBytes) {
