@@ -27,6 +27,8 @@ projects and one for statical linkage use on regular machines.
 The MCU execution engine was completely rewritten (by Claude). It is now a zero-allocation,
 minimal C/C++ library overhead (vsnprintf still used). 
 
+Lots of validation was done to ensure a reliable delivery of the same results regardless of version and invocation.
+Also a lot of effort was made into packaging and proper installation.
 
 # Important changes between V2.x and V3.0
 
