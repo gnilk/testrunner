@@ -1,22 +1,25 @@
-# Session handoff — 2026-07-05
+# Session handoff — 2026-07-06
 
 Pick-up notes for continuing on a clean slate.
 
 ---
 
-## ⭐ CURRENT WORK — testrunner-core bug-fixes (MERGED to `dev`; next: **reporting** on a fresh branch)
+## ⭐ CURRENT WORK — reporting/robustness batch (DONE on `fix/reporting-hardening`; next: **merge to `dev`**)
 
-> The testrunner-core audit bug-fix series is **MERGED to `dev`** (`--no-ff` merge **`0a7989d`**,
-> 2026-07-05); the `fix/fatal-abort-result-decision` branch is **deleted** (local + `origin`) per the
-> merged-branch convention. The "Repo state" and everything below describe the rest of the `dev` line
-> (CI/Windows/engine work) and remain valid background.
+> The **reporting/robustness batch is complete** on branch **`fix/reporting-hardening`** (off `dev` @
+> `708a444`; 8 commits `fdde5e1`..`142c916`, **pushed** to `origin`, **not yet merged**). All 7
+> planned items resolved — see the "✅ DONE" section below and `todo/open-bugs.md` for per-item detail.
+> The prior testrunner-core audit series is already **MERGED to `dev`** (`--no-ff` merge **`0a7989d`**).
+> The "Repo state" and everything below describe the rest of the `dev` line (CI/Windows/engine work)
+> and remain valid background.
 
-### Resume from any machine (start reporting on a FRESH branch off `dev`)
+### Resume from any machine (review + merge the reporting branch, or start something new)
 ```bash
 git fetch origin
-git checkout dev && git pull --ff-only               # dev now includes merge 0a7989d
-git checkout -b fix/reporting-hardening              # fresh branch for the reporting batch
-cd cmake-build-debug && ninja                         # or configure fresh: mkdir build && cd build && cmake .. && ninja
+git checkout fix/reporting-hardening && git pull --ff-only   # the finished reporting batch
+cd cmake-build-debug && ninja trun trun_utests
+./trun -m '!abortall,!exception,-' lib/libtrun_utests.dylib   # expect fork == seq == 116/13
+# then, when reviewed:  git checkout dev && git merge --no-ff fix/reporting-hardening
 ```
 - **Merged:** 14 commits (13 fixes/docs + the merge commit) landed on `dev` via `0a7989d`. Reviewed
   informally as it went; a `dev → master` release promotion is still separate (unchanged — needs the
@@ -62,36 +65,32 @@ The count grew from 102 because this branch **added** regression tests (`resultd
 wraps the canonical exclude-list invocation. Always exclude `abortall`/`exception` (they abort/crash
 the process by design — CLAUDE.md).
 
-### NEXT UP — **reporting / robustness batch** (tomorrow's start)
-Still-open items from `todo/open-bugs.md` (independent of each other; mostly small; touch reporting +
-a few robustness spots — NOT IPC, NOT the matcher). Suggested order, most user-visible first:
-1. **JSON escaping** (`reportjson.cpp:114-115, 166`) — only `Message` goes through `EscapeString`;
-   `Symbol`/`File` are raw, so a Windows path `C:\src\foo.cpp` or any `"`/`\` breaks the JSON. Also
-   `EscapeString` (`:172-186`) drops non-ASCII (signed `char < 31`) + control chars. **Highest value**
-   (fork mode usually emits `-r json` for a web-app).
-2. **256-byte compose buffer** (`reportingbase.cpp:51-75`) — long `Message`/`File` lines are
-   `vsnprintf`-truncated mid-string → can cut the closing `"`/`,` → malformed JSON; also non-reentrant.
-3. **`CREATE_REPORT_STRING` truncates > 1024 bytes** (`responseproxy.cpp:393-410`) — grow-loop keys on
-   `res < 0` but `vsnprintf` signals truncation with a large **positive** return, so it never grows.
-   Plus `IsMsgSizeOk` (`:415`) has a `%d` with **no argument** (vararg UB).
-4. **`split()` drops empty fields** (`strutil.cpp:59-83`) — `-t ",,,"` / `-t "  "` overwrites default
-   `{"-"}` with `{}` → nothing runs, no diagnostic. And `PopIndent` (`reportingbase.cpp:38-48`) pops 8×
-   even after the underflow guard empties the string (missing `return`).
-5. **`ConsumePipes` OOB write** (`process_unix.cpp:157-178`) — `buffer[bytes_read]='\0'` with
-   `bytes_read` possibly `-1` (EINTR after poll) writes one byte before the heap buffer.
-6. **Global main/exit null-deref** (`testrunner.cpp:163, 200`) — `result->Result()` without the
-   `!= nullptr` guard every other call site uses.
-7. **[dead/cosmetic]** batch (`testfunc.cpp:70-73` IsModuleMain; `testrunner.cpp:266` redundant
-   GetOrAddModule; `IPCFifoUnix.cpp` `fsync` on a FIFO no-op; `testfunc.cpp:204-211` dep results never
-   AddResult'd) — do last / opportunistically.
+### ✅ DONE — **reporting / robustness batch** (branch `fix/reporting-hardening`, off `dev` @ `708a444`)
+All 7 items below are resolved on the branch (8 commits `fdde5e1`..`142c916`, pushed to `origin`;
+**not yet merged** to `dev`). Each fix is one focused commit with a regression test **proven to fail on
+the pre-fix code** (stash-fix / rebuild / watch-fail / restore) where unit-testable. `open-bugs.md` has
+the per-item `✅ RESOLVED` detail; suite is **fork == seq == 116 executed / 13 fail** (+6 regression
+tests vs the 110 baseline; the 13 intentional self-fails are unchanged).
+1. ✅ **JSON escaping** (`fdde5e1`) — Symbol/File/Library/Module/Case now escaped; `EscapeString`
+   rewritten (UTF-8 survives, control chars → `\uXXXX`). Test `jsonreport_escapestring`.
+2. ✅ **256-byte compose buffer** (`f7b3509`) — `ComposeString()` sizes exactly, reentrant. Test
+   `report_longline`.
+3. ✅ **`CREATE_REPORT_STRING` truncation + `IsMsgSizeOk` vararg UB** (`ac7c7de`) — measure-once
+   sizing; verified e2e (3000-byte message survives), no inline test (static trampoline).
+4. ✅ **empty `-m`/`-t` filter + `PopIndent` underflow** (`76b780d` + `aca1ddb`) — parse layer keeps
+   the `-` default + warns; `PopIndent` got its missing `return`. Tests `config_emptyfilter`,
+   `report_popindent`.
+5. ✅ **`ConsumePipes` OOB write** (`7b2052d`) — `ssize_t`, guarded `>0`, forwards only bytes read.
+   Test `module_procoutput`.
+6. ✅ **Global main/exit null-deref** (`4212a4e`) — `!= nullptr` guard added (defensive, no test).
+7. ✅ **[dead/cosmetic]** (`142c916`) — removed dead `IsModuleMain`, redundant `GetOrAddModule`,
+   `fsync`-on-FIFO. **Left open** (in `open-bugs.md`): `ExecuteDependencies` discards its result (a
+   dep-accounting *semantics* call, not mechanical) + the Windows `TerminateThread` unwinding gap.
 
-**Working style on this branch (confirmed with maintainer):** one focused commit per item, each with a
-regression test where unit-testable and **proven to fail on the pre-fix code** (stash-the-fix, rebuild,
-watch it fail, restore) — see `test_ipcfifo_keepstdin` / `_truncated` for the pattern. Commit + push
-each item; mark it `✅ RESOLVED` in `open-bugs.md`. Frozen external headers stay untouched.
+**NEXT:** merge `fix/reporting-hardening` → `dev` (`--no-ff`, delete the branch per convention) once
+reviewed; then bump the CLAUDE.md count on `dev`. Nothing else in this batch is blocking.
 
-**CLAUDE.md test count:** bumped to **`110 executed / 13 fail`** as part of the merge (was `102/15`).
-It grows further as reporting tests are added — update it again when the reporting branch merges.
+**CLAUDE.md test count:** updated on this branch to **`116 executed / 13 fail`** (was `110/13`).
 
 ### Gotchas for the reporting work
 - Behaviour-changing changes already on the branch that a reviewer should know: filter-matcher

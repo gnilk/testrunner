@@ -142,28 +142,44 @@ real: #1, #2, #3.
   frame or be interrupted (`EINTR`); since the buffered writer clears its buffer after one `Write`, a
   short write silently truncated the frame. `Write` now loops until all bytes are sent (retrying
   `EINTR`), or returns `-1` on a hard error.
-- **[reporting] JSON `Symbol`/`File` emitted unescaped** (`reportjson.cpp:114-115, 166`) — only
-  `Message` goes through `EscapeString`; a Windows path `C:\src\foo.cpp` or any `"`/`\` breaks the
-  JSON. Related: 256-byte static compose buffer truncates long lines mid-string
-  (`reportingbase.cpp:51-75`); `EscapeString` drops non-ASCII (signed `char < 31`) and control
-  chars (`reportjson.cpp:172-186`).
-- **[robustness] `CREATE_REPORT_STRING` silently truncates messages > 1024 bytes** —
-  `responseproxy.cpp:393-410`: grow-loop keys on `res < 0`, but `vsnprintf` signals truncation
-  with a large positive return, so it never grows. Plus `IsMsgSizeOk` (`:415`) has a `%d` with no
-  argument.
-- **[robustness] `ConsumePipes` OOB write** — `process_unix.cpp:157-178`: `buffer[bytes_read]='\0'`
-  with `bytes_read` possibly `-1` (e.g. `EINTR` after `poll`) writes one byte before the heap
-  buffer; also forwards trailing pad/NUL as captured output.
-- **[robustness] Global main/exit null-deref** — `testrunner.cpp:163, 200`: `result->Result()`
-  without the `!= nullptr` guard every other call site uses (`TestFunc::Execute` can return
-  `nullptr`).
-- **[robustness] `split()` drops empty fields** — `strutil.cpp:59-83`: `-t ",,,"` / `-t "  "`
-  overwrites the default `{"-"}` with `{}` → nothing runs, no diagnostic. Also `PopIndent`
-  (`reportingbase.cpp:38-48`) pops 8× even after the underflow guard empties the string (missing
-  `return`).
-- **[dead/cosmetic]** `TestFunc::IsModuleMain` (`testfunc.cpp:70-73`, `// FIXME: This is wrong.`,
-  duplicates `IsGlobalMain`, never called); redundant `GetOrAddModule` re-call
-  (`testrunner.cpp:266`); `fsync()` on a FIFO is a no-op / `EINVAL` (`IPCFifoUnix.cpp:107`);
-  test-case dependency results are computed but never `AddResult`'d (`testfunc.cpp:204-211`);
-  Windows no-exceptions `TerminateThread(GetCurrentThread(),0)` does no unwinding
-  (`responseproxy.cpp:249-253`, non-default build).
+- ✅ RESOLVED (`fix/reporting-hardening`, commits `fdde5e1` + `f7b3509`) — **[reporting] JSON
+  `Symbol`/`File` emitted unescaped + lossy `EscapeString` + 256-byte compose buffer.** `Symbol`,
+  `File`, `Library`, `Module`, `Case` now all route through `EscapeString` (only `Message` did), so
+  a Windows path `C:\src\foo.cpp` no longer breaks the JSON. `EscapeString` rewritten as a proper
+  JSON escaper: `"`/`\` escaped, control chars via `\n`/`\t`/`\u00XX`, and bytes >= 0x80 passed
+  through (the old signed-`char < 31` test dropped all UTF-8). The three reporting `Write*` methods
+  no longer share a `static char[256]` - a `ComposeString()` helper sizes the buffer exactly
+  (no mid-string truncation of long lines, reentrant). Tests: `test_jsonreport_escapestring`,
+  `test_report_longline` (both proven to fail pre-fix).
+- ✅ RESOLVED (`fix/reporting-hardening`, commit `ac7c7de`) — **[robustness] `CREATE_REPORT_STRING`
+  truncation + `IsMsgSizeOk` vararg UB.** The grow-loop keyed on `res < 0`, but `vsnprintf` signals
+  truncation with a large positive return, so a message > 1024 bytes was silently clamped to 1023.
+  Replaced with a measure-once approach (`vsnprintf(NULL,0,...)` → size, cap at
+  `responseMsgByteLimit`, single `alloca` + compose). `IsMsgSizeOk`'s `%d`-with-no-arg is fixed
+  (passes size + limit, `%u`). Verified end-to-end (3000-byte `t->Error` reaches the reporter whole
+  vs 1023 pre-fix); the static trampoline + live-runner requirement means no clean inline unit test.
+- ✅ RESOLVED (`fix/reporting-hardening`, commit `7b2052d`) — **[robustness] `ConsumePipes` OOB
+  write.** `read()` return is now `ssize_t`, guarded `> 0`; only the actual bytes are forwarded
+  (`substr(0, bytes_read)`), so a `-1` no longer writes one byte before the buffer and child output
+  is no longer padded to 1024 with an embedded NUL. Test `test_module_procoutput` (`echo hello` →
+  exactly `"hello\n"`; proven to fail pre-fix).
+- ✅ RESOLVED (`fix/reporting-hardening`, commit `4212a4e`) — **[robustness] Global main/exit
+  null-deref.** `ExecuteMain`/`ExecuteMainExit` now `!= nullptr`-guard the `result->Result()` deref
+  (mirroring every other `Execute()` call site); a global `test_main`/`test_exit` that can't run no
+  longer crashes the runner. Defensive guard, no happy-path change (trigger not reproducible in the
+  self-suite, so no dedicated test).
+- ✅ RESOLVED (`fix/reporting-hardening`, commits `76b780d` + `aca1ddb`) — **[robustness] empty
+  `-m`/`-t` filter + `PopIndent` underflow.** An all-separator/whitespace filter (`-t ,,,`) splits
+  to `{}`; the parse layer no longer overwrites the `-` match-all default with it (keeps the filter,
+  warns on stderr) - so the run isn't silently emptied. `split()` itself is unchanged (symbol/dep
+  parsing rely on its empty-field dropping). `PopIndent`'s underflow branch got its missing
+  `return` (it used to `pop_back()` an emptied string - UB / ASan SEGV). Tests
+  `test_config_emptyfilter`, `test_report_popindent` (both proven to fail pre-fix).
+- ✅ RESOLVED (`fix/reporting-hardening`, commit `142c916`) — **[dead/cosmetic]** removed
+  `TestFunc::IsModuleMain` (FIXME'd, dup of `IsGlobalMain`, never called), the redundant
+  `GetOrAddModule` re-call (`testrunner.cpp`), and the `fsync()`-on-a-FIFO no-op
+  (`IPCFifoUnix::Write`). **Still open:** test-case dependency results computed but never
+  `AddResult`'d (`ExecuteDependencies`) - left alone as a dependency-accounting *semantics* decision
+  entangled with the `depends` tests, not a mechanical cleanup. Windows no-exceptions
+  `TerminateThread(GetCurrentThread(),0)` unwinding gap (`responseproxy.cpp`, non-default build) also
+  still open.
