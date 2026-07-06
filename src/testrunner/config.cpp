@@ -80,15 +80,24 @@ static void ParseModuleFilters(const char *filterstring) {
     std::vector<std::string> modules;
     trun::split(modules, filterstring, ',');
 
-    // for(auto m:modules) {
-    //     pLogger->Debug("  %s\n", m.c_str());
-    // }
+    // split() drops empty fields, so an all-separator/whitespace filter ('-m ,,,' or
+    // '-m "  "') yields an empty list. Overwriting the '-' match-all default with that
+    // filtered out every module and ran nothing, silently. Keep the current filter and
+    // tell the user instead.
+    if (modules.empty()) {
+        fprintf(stderr, "Warning: module filter '%s' has no usable entries - ignored (keeping current filter)\n", filterstring);
+        return;
+    }
 
     Config::Instance().modules = modules;
 }
 static void ParseTestCaseFilters(const char *filterstring) {
     std::vector<std::string> testcases;
     trun::split(testcases, filterstring, ',');
+    if (testcases.empty()) {
+        fprintf(stderr, "Warning: test-case filter '%s' has no usable entries - ignored (keeping current filter)\n", filterstring);
+        return;
+    }
     Config::Instance().testcases = testcases;
 }
 
