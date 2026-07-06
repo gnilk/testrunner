@@ -118,7 +118,8 @@ The **MCU** engine (`trunmcu`) is self-contained: it does **not** use fmt/cpptra
 `cmake --install build` (add `--prefix <dir>` to override `CMAKE_INSTALL_PREFIX`) installs two
 logical component sets:
 - **runtime** — the `trun` and `tcov` CLI tools + the man page.
-- **dev** — `libtrunlib.a`, the public headers (`trunembedded.h`, `testinterface.h`,
+- **dev** — `libtrunlib.a`, the public headers (`trunlib.h` — plus the deprecated
+  `trunembedded.h` shim, removed in v5.0.0 — `testinterface.h`,
   `testinterface_v1.h`), and a CMake package config so downstream projects can
   `find_package(testrunner)` (see [Consuming the libraries](#consuming-the-libraries)).
 
@@ -126,7 +127,7 @@ A default install (`TRUN_BUNDLE_DEPS=OFF`) lays down **only** testrunner's own f
 `/usr/local`:
 ```text
 bin/trun  bin/tcov
-include/trunembedded.h  include/testinterface.h  include/testinterface_v1.h
+include/trunlib.h  include/trunembedded.h  include/testinterface.h  include/testinterface_v1.h
 lib/libtrunlib.a
 lib/cmake/testrunner/testrunnerConfig.cmake   (+ ConfigVersion / Targets)
 share/man/man1/trun.1.gz
@@ -181,8 +182,9 @@ without the external runner. Install testrunner (above), then in your project:
 find_package(testrunner 3.0 REQUIRED)
 target_link_libraries(my_tests PRIVATE trun::lib)
 ```
-Include `<trunembedded.h>` and use the API (`trun::Initialize`, `trun::AddTestCase`,
-`trun::RunTests`). fmt + cpptrace must be resolvable — from the system, or install testrunner
+Include `<trunlib.h>` and use the API (`trun::Initialize`, `trun::AddTestCase`,
+`trun::RunTests`). (`<trunembedded.h>` still works as a deprecated shim — it forwards to
+`<trunlib.h>` and is removed in v5.0.0.) fmt + cpptrace must be resolvable — from the system, or install testrunner
 with `-DTRUN_BUNDLE_DEPS=ON` for a self-contained prefix.
 
 ### Embedded / MCU — `trun::mcu` via FetchContent

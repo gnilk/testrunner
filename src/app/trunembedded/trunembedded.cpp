@@ -7,7 +7,7 @@
 // Note: The testrunner was never intended to run this way and might therefore be a bit thick - that's work in progress
 //
 
-#include "testrunner/trunembedded.h"
+#include "testrunner/trunlib.h"
 // FIXME: Do I need this???
 #include "testrunner/config.h"
 
