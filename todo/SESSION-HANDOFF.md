@@ -32,7 +32,9 @@ real `.so`/`.dll`) run every `dev` push/PR; the `.deb`/NSIS **package + upload**
 `master`-push and `v*` tags only, so **`dev`/PR builds publish nothing** (no artifacts, no release —
 the release job stays tag-only). Side effect: `master` PRs also stop packaging (build+smoke only) —
 those artifacts were never consumed. Proven on run `28784026516` (merged `dev`): Linux ✅, Windows ✅,
-release skipped, 0 artifacts.
+release skipped, 0 artifacts. **Docs-only pushes/PRs are skipped** (`paths-ignore` for `**.md`,
+`todo/**`, `LICENSE`, `notes.txt`; `eacb4fb`) — a mixed docs+code push still builds, and tag pushes
+are never skipped (a new tag has no diff base). This very commit is the skip test.
 
 ### What LANDED in the reporting/robustness merge `b2d5ad9` (9 commits)
 All 7 planned items from `todo/open-bugs.md` resolved — each a focused commit with a regression test
