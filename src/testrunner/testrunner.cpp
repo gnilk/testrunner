@@ -268,7 +268,7 @@ void TestRunner::PrepareTests() {
                 func->SetTestScope(TestFunc::kTestScope::kModuleExit);
                 tModule->exitFunc = func;
             } else {
-                tModule = GetOrAddModule(moduleName);
+                // tModule already holds this module (GetOrAddModule above is idempotent).
                 func->SetTestScope(TestFunc::kTestScope::kModuleCase);
                 tModule->AddTestFunc(func);
             }

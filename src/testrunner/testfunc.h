@@ -51,7 +51,6 @@ namespace trun {
         TestFunc(const std::string &use_symbolName, const std::string &use_moduleName, const std::string &use_caseName);
         bool IsGlobal();
         bool IsModuleExit();
-        bool IsModuleMain();
         bool IsGlobalMain();
         bool IsGlobalExit();
         TestResult::Ref Execute(IDynLibrary::Ref module, const CBPrePostHook &cbPreHook, const CBPrePostHook &cbPostHook);

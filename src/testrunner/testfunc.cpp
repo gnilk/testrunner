@@ -67,10 +67,6 @@ bool TestFunc::IsGlobalMain() {
 bool TestFunc::IsGlobalExit() {
     return (IsGlobal() && (caseName == Config::Instance().exitFuncName));
 }
-bool TestFunc::IsModuleMain() { {
-    // FIXME: This is wrong.
-    return (IsGlobal() && (caseName == Config::Instance().mainFuncName));
-}}
 
 bool TestFunc::IsModuleExit() {
     return (!IsGlobal() && (caseName == Config::Instance().exitFuncName));
