@@ -4,101 +4,74 @@ Pick-up notes for continuing on a clean slate.
 
 ---
 
-## ⭐ CURRENT WORK — reporting/robustness batch (DONE on `fix/reporting-hardening`; next: **merge to `dev`**)
+## ⭐ CURRENT WORK — none active (reporting/robustness batch just LANDED on `dev`)
 
-> The **reporting/robustness batch is complete** on branch **`fix/reporting-hardening`** (off `dev` @
-> `708a444`; 8 commits `fdde5e1`..`142c916`, **pushed** to `origin`, **not yet merged**). All 7
-> planned items resolved — see the "✅ DONE" section below and `todo/open-bugs.md` for per-item detail.
-> The prior testrunner-core audit series is already **MERGED to `dev`** (`--no-ff` merge **`0a7989d`**).
-> The "Repo state" and everything below describe the rest of the `dev` line (CI/Windows/engine work)
-> and remain valid background.
+> The **reporting/robustness batch is MERGED to `dev`** — `--no-ff` merge **`b2d5ad9`** (2026-07-06);
+> branch `fix/reporting-hardening` **deleted** (local + `origin`) per the merged-branch convention.
+> Suite on `dev` is now **fork == seq == 116 executed / 13 fail**. **No work is in progress** — pick
+> from "Open work — suggested order" further below. The earlier testrunner-core audit series landed
+> before it (`--no-ff` merge `0a7989d`); both are background now.
 
-### Resume from any machine (review + merge the reporting branch, or start something new)
+### Resume from any machine (clean slate on `dev`)
 ```bash
 git fetch origin
-git checkout fix/reporting-hardening && git pull --ff-only   # the finished reporting batch
+git checkout dev && git pull --ff-only                                    # dev @ b2d5ad9
 cd cmake-build-debug && ninja trun trun_utests
-./trun -m '!abortall,!exception,-' lib/libtrun_utests.dylib   # expect fork == seq == 116/13
-# then, when reviewed:  git checkout dev && git merge --no-ff fix/reporting-hardening
+./trun            -m '!abortall,!exception,-' lib/libtrun_utests.dylib     # fork (default)
+./trun --sequential -m '!abortall,!exception,-' lib/libtrun_utests.dylib   # seq == fork
+# Expected: fork == sequential == 116 executed / 13 failed (13 = intentional self-fails).
 ```
-- **Merged:** 14 commits (13 fixes/docs + the merge commit) landed on `dev` via `0a7989d`. Reviewed
-  informally as it went; a `dev → master` release promotion is still separate (unchanged — needs the
-  version story + cross-project validation, never unprompted).
-- Scope was a **testrunner-core audit** (coverage/`tcov` explicitly out of scope). Findings + status
-  live in **`todo/open-bugs.md`** (section "testrunner core — audit 2026-07-05"; **10 items now
-  `✅ RESOLVED`**, reporting items still open). The result-model design doc **`todo/result_model.md`**
-  is the reference for the failure-signalling model and **all its open items are done** (incl. the
-  codified "Authority contract").
+A `dev → master` release promotion is still separate and outstanding (needs the version story +
+cross-project validation — never unprompted). `run_test_suite.sh` wraps the canonical exclude-list
+invocation; always exclude `abortall`/`exception` (they abort/crash the process by design — CLAUDE.md).
 
-### What LANDED in the merge (13 commits, newest first)
-- `ee8cb73` docs — flip the stale "IN PROGRESS" marker (was #1) to RESOLVED.
-- `0563df1` **IPC hardening** (#5 + #6): decoder `Unmarshal`s now check every `Read*` return
-  (corrupt frame → reject, not fabricate); `WriteStr`/`ReadStr` length 16→**32-bit** (+ pre-`resize`
-  bounds guard vs OOM); `IPCFifoUnix::Write` loops on partial writes/`EINTR`. New tests
-  `test_ipcframe_largestring` / `_truncated` (proven to fail on old code).
-- `46eedd0` **#3** — `IPCFifoUnix` no longer `close(0)`s the owner's stdin (`mkfifo` returns 0, not
-  an fd). New `test_ipcfifo_keepstdin`.
-- `9188a57` fork now **forwards `-t`** (case filter) to child processes (was ignored under fork).
-- `147202b` **#2** — the three divergent filter matchers unified to one `caseMatch` (fixes module-glob
-  first-match-only + case-glob debug `assert`-abort); listing == run. Test `test_execorder_match`.
-- `1b445b8` removed the dead case-sequential execution mode (`TestExecutiontype::kSequential`).
-- `8c009bf` **`Error()`** now records assert-list detail (parity w/ Fatal/Abort), survives fork.
-- `deae9b5` sequential `kAbortAll` breaks the **outer** `-m` arg loop too.
-- `eea5041` **fork `AllFail` propagation** — a child `Abort`/`kTR_FailAll` stops launching + kills
-  in-flight siblings (mirrors sequential).
-- `8904a60` docs — `result_model.md` design doc.
-- `9a3179a` **#1** — Fatal/Abort kept their `ModuleFail`/`AllFail` via a pure `TestResult::DeriveResult`
-  (was clobbered to `TestFail` by the exception path). Tests in module `resultdecision`.
-- `c0955c3` docs — the audit record itself.
+### NEW — CI now builds `dev` on Linux + Windows (commit `0e46dee`, verified live)
+`.github/workflows/cmake.yml` now triggers on `dev` pushes and PRs into `master`/`dev` (was `master` +
+`v*` tags only). Both platform jobs (Linux + Windows: configure → build → smoke-test the loader on a
+real `.so`/`.dll`) run every `dev` push/PR; the `.deb`/NSIS **package + upload** steps are gated to
+`master`-push and `v*` tags only, so **`dev`/PR builds publish nothing** (no artifacts, no release —
+the release job stays tag-only). Side effect: `master` PRs also stop packaging (build+smoke only) —
+those artifacts were never consumed. Proven on run `28784026516` (merged `dev`): Linux ✅, Windows ✅,
+release skipped, 0 artifacts.
 
-### Current baseline on `dev` after the merge (supersedes the 102/15 in older sections below)
-```bash
-cd cmake-build-debug && ninja
-LIB=lib/libtrun_utests.dylib
-./trun            -m '!abortall,!exception,-' $LIB   # fork (default)
-./trun --sequential -m '!abortall,!exception,-' $LIB
-# Expected: fork == sequential == 110 executed / 13 failed (13 = intentional self-fails).
-```
-The count grew from 102 because this branch **added** regression tests (`resultdecision`,
-`ipcfifo_keepstdin`, `ipcframe_largestring/_truncated`, `execorder_match`); the fail count moved
-102/15 → 110/13 (the Fatal/Abort fix legitimately un-fails a couple of cases). `run_test_suite.sh`
-wraps the canonical exclude-list invocation. Always exclude `abortall`/`exception` (they abort/crash
-the process by design — CLAUDE.md).
-
-### ✅ DONE — **reporting / robustness batch** (branch `fix/reporting-hardening`, off `dev` @ `708a444`)
-All 7 items below are resolved on the branch (8 commits `fdde5e1`..`142c916`, pushed to `origin`;
-**not yet merged** to `dev`). Each fix is one focused commit with a regression test **proven to fail on
-the pre-fix code** (stash-fix / rebuild / watch-fail / restore) where unit-testable. `open-bugs.md` has
-the per-item `✅ RESOLVED` detail; suite is **fork == seq == 116 executed / 13 fail** (+6 regression
-tests vs the 110 baseline; the 13 intentional self-fails are unchanged).
-1. ✅ **JSON escaping** (`fdde5e1`) — Symbol/File/Library/Module/Case now escaped; `EscapeString`
+### What LANDED in the reporting/robustness merge `b2d5ad9` (9 commits)
+All 7 planned items from `todo/open-bugs.md` resolved — each a focused commit with a regression test
+**proven to fail on the pre-fix code** where unit-testable. Per-item `✅ RESOLVED` detail is in
+`open-bugs.md`.
+1. **JSON escaping** (`fdde5e1`) — Symbol/File/Library/Module/Case now escaped; `EscapeString`
    rewritten (UTF-8 survives, control chars → `\uXXXX`). Test `jsonreport_escapestring`.
-2. ✅ **256-byte compose buffer** (`f7b3509`) — `ComposeString()` sizes exactly, reentrant. Test
-   `report_longline`.
-3. ✅ **`CREATE_REPORT_STRING` truncation + `IsMsgSizeOk` vararg UB** (`ac7c7de`) — measure-once
-   sizing; verified e2e (3000-byte message survives), no inline test (static trampoline).
-4. ✅ **empty `-m`/`-t` filter + `PopIndent` underflow** (`76b780d` + `aca1ddb`) — parse layer keeps
-   the `-` default + warns; `PopIndent` got its missing `return`. Tests `config_emptyfilter`,
-   `report_popindent`.
-5. ✅ **`ConsumePipes` OOB write** (`7b2052d`) — `ssize_t`, guarded `>0`, forwards only bytes read.
-   Test `module_procoutput`.
-6. ✅ **Global main/exit null-deref** (`4212a4e`) — `!= nullptr` guard added (defensive, no test).
-7. ✅ **[dead/cosmetic]** (`142c916`) — removed dead `IsModuleMain`, redundant `GetOrAddModule`,
-   `fsync`-on-FIFO. **Left open** (in `open-bugs.md`): `ExecuteDependencies` discards its result (a
-   dep-accounting *semantics* call, not mechanical) + the Windows `TerminateThread` unwinding gap.
+2. **compose buffer** (`f7b3509`) — reporting `Write*` size exactly via `ComposeString()` (was a shared
+   `static char[256]` truncating long lines mid-JSON, non-reentrant). Test `report_longline`.
+3. **`CREATE_REPORT_STRING`** (`ac7c7de`) — measure-once sizing (no >1024-byte truncation) +
+   `IsMsgSizeOk` `%d`-no-arg vararg UB fixed. Verified e2e (static trampoline, no inline test).
+4. **empty `-m`/`-t` filter + `PopIndent`** (`76b780d` + `aca1ddb`) — parse layer keeps the `-`
+   match-all default + warns (was: silently ran nothing); `PopIndent` got its missing `return` (was
+   `pop_back` on an emptied string → ASan SEGV). Tests `config_emptyfilter`, `report_popindent`.
+5. **`ConsumePipes`** (`7b2052d`) — `ssize_t`, guarded `>0`, forwards only bytes read (no OOB on
+   `read()==-1`, no 1024-byte padding). Test `module_procoutput`.
+6. **global main/exit null-deref** (`4212a4e`) — `!= nullptr` guard (defensive, no test).
+7. **[dead/cosmetic]** (`142c916`) — dropped dead `IsModuleMain`, redundant `GetOrAddModule`,
+   `fsync`-on-a-FIFO no-op.
 
-**NEXT:** merge `fix/reporting-hardening` → `dev` (`--no-ff`, delete the branch per convention) once
-reviewed; then bump the CLAUDE.md count on `dev`. Nothing else in this batch is blocking.
+**Still open** (tracked in `open-bugs.md`): `ExecuteDependencies` discards its `Execute()` result (a
+dependency-accounting *semantics* decision, not mechanical); the Windows `TerminateThread` unwinding
+gap (non-default build). **CLAUDE.md self-suite count** is now **`116 executed / 13 fail`** on `dev`
+(was 110/13, was 102/15).
 
-**CLAUDE.md test count:** updated on this branch to **`116 executed / 13 fail`** (was `110/13`).
+### Earlier — testrunner-core audit (merge `0a7989d`, background)
+Resolved 10 core items before the reporting batch: the Fatal/Abort result decision
+(`TestResult::DeriveResult` + `SetForciblyTerminated`), the unified filter matcher (`caseMatch`,
+first-match-wins), IPC hardening (32-bit string length, decoder read-checks, partial-write loop, the
+`close(0)`-stdin bug), fork `AllFail` propagation, and `-t`-under-fork. Tests in modules
+`resultdecision` / `execorder` / the IPC suite; the design doc `todo/result_model.md` is closed. Full
+detail in `todo/open-bugs.md` (section "testrunner core — audit 2026-07-05") and git.
 
-### Gotchas for the reporting work
-- Behaviour-changing changes already on the branch that a reviewer should know: filter-matcher
-  semantics unified (first-match-wins kept), `-t` now honoured under fork, **IPC wire format changed**
-  (32-bit string length) — all safe because every IPC endpoint is the **same binary**, but it means an
-  old `trun` can't talk to a new forked child (not a concern within one build).
-- `EscapeString` fix must stay reversible/consistent with any consumer; check `reportjsonext.cpp` too
-  (it may share helpers). JSON tests live in module `jsonreport` (`test_jsonreport`, `_escape`).
+### Evergreen gotchas / cross-cutting notes
+- **IPC wire format changed** (32-bit string length, in `0a7989d`) — safe because every IPC endpoint
+  is the **same binary**, but an old `trun` can't talk to a new forked child (not a concern within one
+  build; matters only if you ever mix binaries).
+- JSON reporting tests live in module `jsonreport`; reporting-base tests in module `report`; the
+  `nm`/pipe path is covered by `module_procoutput` (Unix-only).
 - Leave untracked `.DS_Store` / `src/testrunner/.DS_Store` alone.
 
 ---
@@ -120,8 +93,10 @@ reviewed; then bump the CLAUDE.md count on `dev`. Nothing else in this batch is 
   deleted. **Gotcha found:** package version is CMake-driven (`TRUN_VERSION` hardcoded 4.0.0), **not**
   the tag string — a `v4.1.0` tag without bumping `CMakeLists.txt` would still emit `4.0.0` packages.
   Commits `14dcefa` (win job + checkout/ctest), `55feb62` (checkout→v5), `2e44f0f` (single release
-  job); the temporary `dev` CI trigger added (`3daae5d`) then reverted (`4a9ab58`) — workflow fires
-  on `master` pushes + `v*` tags only. **`dev` HEAD = `2e44f0f`, in sync with `origin/dev`.**
+  job). **SUPERSEDED (2026-07-06, `0e46dee`):** the workflow now *also* builds `dev` pushes + PRs, and
+  the package/upload steps are gated to `master`-push + `v*` tags (so the "on every build" artifact
+  note above now means master/tags only; `dev`/PR builds publish nothing) — see the "CI now builds
+  `dev`" section at the top. `dev` HEAD is now **`b2d5ad9`** (in sync with `origin/dev`).
 - **Windows V4 merge + unix build fix (2026-07-05):** Windows V4 support is **fully merged to `dev`**
   — merge `012994c` brought branch `feature/windows-phase0` (**all four phases**) into `dev`; the
   branch is deleted. A follow-up fix `bb43867` repaired the **unix build** after Phase 3's
