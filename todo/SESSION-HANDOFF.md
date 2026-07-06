@@ -34,7 +34,9 @@ the release job stays tag-only). Side effect: `master` PRs also stop packaging (
 those artifacts were never consumed. Proven on run `28784026516` (merged `dev`): Linux ✅, Windows ✅,
 release skipped, 0 artifacts. **Docs-only pushes/PRs are skipped** (`paths-ignore` for `**.md`,
 `todo/**`, `LICENSE`, `notes.txt`; `eacb4fb`) — a mixed docs+code push still builds, and tag pushes
-are never skipped (a new tag has no diff base). This very commit is the skip test.
+are never skipped (a new tag has no diff base). **Verified:** the docs-only push `f870487` created
+**0** CI runs (absent from `gh run list`, `runs?head_sha=…` → `total_count 0`), while the earlier
+docs-only push `7fdc7aa` (before the filter) and the non-docs `eacb4fb` each created a run.
 
 ### What LANDED in the reporting/robustness merge `b2d5ad9` (9 commits)
 All 7 planned items from `todo/open-bugs.md` resolved — each a focused commit with a regression test
