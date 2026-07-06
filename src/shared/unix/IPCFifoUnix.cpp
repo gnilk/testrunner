@@ -120,7 +120,7 @@ int32_t IPCFifoUnix::Write(const void *data, size_t szBytes) {
         }
         total += (size_t)res;
     }
-    fsync(rwfd);
+    // No fsync: rwfd is a FIFO, so fsync() is a no-op that just fails with EINVAL.
     return (int32_t)total;
 }
 

@@ -19,6 +19,7 @@ extern "C" {
     DLL_EXPORT int test_config_twithoutm(ITesting *t);
     DLL_EXPORT int test_config_dumponly(ITesting *t);
     DLL_EXPORT int test_config_deepbind(ITesting *t);
+    DLL_EXPORT int test_config_emptyfilter(ITesting *t);
 }
 
 DLL_EXPORT int test_config(ITesting *t) {
@@ -47,6 +48,29 @@ DLL_EXPORT int test_config_twithoutm(ITesting *t) {
     // test-case filter must hold the requested case
     TR_ASSERT(t, testcases.size() == 1);
     TR_ASSERT(t, testcases[0] == "split");
+    return kTR_Pass;
+}
+
+// An all-separator/whitespace filter ('-t ,,,') splits to zero usable entries.
+// It must NOT overwrite the match-all default and silently run nothing - the
+// filter is ignored (with a stderr warning) and '-' is left in place.
+DLL_EXPORT int test_config_emptyfilter(ITesting *t) {
+    Config saved = Config::Instance();
+
+    const char *argv[] = {"trun", "-t", ",,,", "-m", "  ", "lib.so"};
+    auto res = Config::FromArguments(6, argv);
+
+    auto modules = Config::Instance().modules;
+    auto testcases = Config::Instance().testcases;
+
+    Config::Instance() = saved;
+
+    TR_ASSERT(t, res == Config::FromArgRes::kSuccess);
+    // both filters must stay at the match-all default rather than becoming empty
+    TR_ASSERT(t, testcases.size() == 1);
+    TR_ASSERT(t, testcases[0] == "-");
+    TR_ASSERT(t, modules.size() == 1);
+    TR_ASSERT(t, modules[0] == "-");
     return kTR_Pass;
 }
 

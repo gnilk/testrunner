@@ -160,18 +160,20 @@ int ProcessImpl::ConsumePipes(ProcessCallbackBase *callback) {
 	std::vector<pollfd> plist = { {pipe_stdout[0],POLLIN, 0}, {pipe_stderr[0],POLLIN, 0} };
 	int rval=poll(&plist[0],plist.size(),/*timeout*/0);
     if ( plist[0].revents&POLLIN) {
-      int bytes_read = read(pipe_stdout[0], &buffer[0], buffer.length());
-      // cout << "read " << bytes_read << " bytes from stdout.\n";
-      // cout << buffer.substr(0, static_cast<size_t>(bytes_read)) << "\n";
-	  buffer[bytes_read] = '\0';
-      callback->OnStdOutData(buffer);
+      // read() returns ssize_t: -1 on error (e.g. EINTR after poll signalled readable) or
+      // 0 at EOF. The old code did buffer[bytes_read]='\0' unconditionally, so a -1 wrote
+      // one byte BEFORE the string, and it forwarded the whole 1024-byte padded buffer
+      // (embedded NUL + trailing spaces) as captured output. Only forward the bytes read.
+      ssize_t bytes_read = read(pipe_stdout[0], &buffer[0], buffer.length());
+      if (bytes_read > 0) {
+        callback->OnStdOutData(buffer.substr(0, static_cast<size_t>(bytes_read)));
+      }
     }
     else if ( plist[1].revents&POLLIN ) {
-      int bytes_read = read(pipe_stderr[0], &buffer[0], buffer.length());
-      // cout << "read " << bytes_read << " bytes from stderr.\n";
-      // cout << buffer.substr(0, static_cast<size_t>(bytes_read)) << "\n";
-	  buffer[bytes_read] = '\0';
-      callback->OnStdErrData(buffer);
+      ssize_t bytes_read = read(pipe_stderr[0], &buffer[0], buffer.length());
+      if (bytes_read > 0) {
+        callback->OnStdErrData(buffer.substr(0, static_cast<size_t>(bytes_read)));
+      }
     }
 	return rval;
 

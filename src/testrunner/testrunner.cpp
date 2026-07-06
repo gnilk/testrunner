@@ -160,7 +160,10 @@ bool TestRunner::ExecuteMain() {
     if (!Config::Instance().isSubProcess) {
         ResultSummary::Instance().AddResult(globalMain);
     }
-    if ((result->Result() == kTestResult_AllFail) || (result->Result() == kTestResult_TestFail)) {
+    // Execute() returns nullptr when it couldn't run (non-idle state, unresolved symbol,
+    // no current module) - guard like every other Execute() call site does.
+    if ((result != nullptr) &&
+        ((result->Result() == kTestResult_AllFail) || (result->Result() == kTestResult_TestFail))) {
         if (Config::Instance().stopOnAllFail) {
             pLogger->Info("Total test failure, aborting");
             bRes = false;
@@ -197,7 +200,9 @@ bool TestRunner::ExecuteMainExit() {
         ResultSummary::Instance().AddResult(globalExit);
     }
 
-    if ((result->Result() == kTestResult_AllFail) || (result->Result() == kTestResult_TestFail)) {
+    // Execute() may return nullptr (see ExecuteMain) - guard the deref.
+    if ((result != nullptr) &&
+        ((result->Result() == kTestResult_AllFail) || (result->Result() == kTestResult_TestFail))) {
         if (Config::Instance().stopOnAllFail) {
             pLogger->Info("Total test failure, aborting");
             bRes = false;
@@ -263,7 +268,7 @@ void TestRunner::PrepareTests() {
                 func->SetTestScope(TestFunc::kTestScope::kModuleExit);
                 tModule->exitFunc = func;
             } else {
-                tModule = GetOrAddModule(moduleName);
+                // tModule already holds this module (GetOrAddModule above is idempotent).
                 func->SetTestScope(TestFunc::kTestScope::kModuleCase);
                 tModule->AddTestFunc(func);
             }
