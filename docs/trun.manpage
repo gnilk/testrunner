@@ -1,10 +1,12 @@
 .\" Manpage for trun.
-.\" Contact trun@gnilk.com.in to correct errors or typos.
-.TH man 8 "26 March 2026" "3.0.0" "trun man page"
+.\" Contact trun@gnilk.com to correct errors or typos.
+.TH TRUN 1 "06 July 2026" "4.0.0" "trun man page"
 .SH NAME
 trun \- C/C++ Unit Test Runner
 .SH SYNOPSIS
-trun [-vldSgGsrcCx] [-R <report>] [-O <report out>] [-m <module list>] [-t <case list>] [list of shared libraries]
+trun [-vldSDgGsrcCx] [-R <report>] [-O <file>] [-m <modules>] [-t <cases>]
+[--sequential] [--continue-on-assert] [--allow-thread-exit] [--module-timeout <sec>]
+[--max-concurrency <n>] [list of shared libraries]
 .SH DESCRIPTION
 trun is a C/C++ unit test runner. It will process a number of shared libraries and execute any test found. You can
 specify which tests to run and which shared library to focus on. By default trun will search recursively for any shared
@@ -14,29 +16,32 @@ the testable function pattern.
 A testable function must follow this pattern: 'test_<module>_<case>'.
 Thus is it possible to group test cases into modules.
 
+By default modules are executed in parallel (one thread per module, or a forked sub-process per module on platforms
+that support it). Pass \f[B]--sequential\f[R] to run everything single-threaded \- see \f[B]DEBUGGING\f[R] below.
+
 .SH OPTIONS
 .PP
 \f[B]-v\f[R] Increase verbose level (specify multiple times to further increase)
 .PP
-\f[B]-l\f[R] List all available test
+\f[B]-l\f[R] List all available tests
 .PP
 \f[B]-d\f[R] Dump current configuration before starting
 .PP
-\f[B]-S\f[R] Include success pass in summary (default: off)
+\f[B]-S\f[R] Include success pass in summary when done (default: off)
 .PP
-\f[B]-D\f[R] (Linux only) - disable RTLD_DEEPBIND when loading libraries
+\f[B]-D\f[R] (Linux only) \- disable RTLD_DEEPBIND when loading libraries
 .PP
 \f[B]-g\f[R] Skip module globals (default: off)
 .PP
 \f[B]-G\f[R] Skip global main (default: off)
 .PP
-\f[B]-s\f[R] Silent, surpress messages from test cases (default: off)
+\f[B]-s\f[R] Silent, suppress messages from test cases (default: off)
 .PP
 \f[B]-r\f[R] Discard return from test case (default: off)
 .PP
-\f[B]-c\f[R] Continue on library failure (default: off)
+\f[B]-c\f[R] Continue on module failure \- kTR_FailModule (default: off)
 .PP
-\f[B]-C\f[R] Continue on total failure (default: off)
+\f[B]-C\f[R] Continue on total failure \- kTR_FailAll (default: off)
 .PP
 \f[B]-x\f[R] Don't execute tests, like a dry-run (default: off)
 .PP
@@ -47,9 +52,35 @@ Thus is it possible to group test cases into modules.
 \f[B]-m <name\&...>\f[R] List of modules to test (default: '-' (all))
 .PP
 \f[B]-t <name\&...>\f[R] List of test cases to test (default: '-' (all))
+.PP
+\f[B]--sequential\f[R] Disable parallel execution and run modules single-threaded. Required when attaching a
+debugger to step through a test (default: off). See \f[B]DEBUGGING\f[R].
+.PP
+\f[B]--continue-on-assert\f[R] Continue test execution on assert errors instead of stopping the current case
+(default: off)
+.PP
+\f[B]--allow-thread-exit\f[R] The test case execution thread self-terminates on assert/error/fatal (default: off)
+.PP
+\f[B]--module-timeout <sec>\f[R] Timeout, in seconds, for forked module execution; 0 for infinity (default: 30).
+Only available on builds with forked execution.
+.PP
+\f[B]--max-concurrency <n>\f[R] Maximum number of module sub-processes running at once; 0 = auto (~CPU cores).
+Only available on builds with forked execution.
+.PP
+\f[B]--version\f[R] Print version information and exit
+.PP
+\f[B]-h\f[R], \f[B]--help\f[R] Print usage information and exit
 
 List of shared libraries can be a directory, a list of shared libraries to be tested. Default is current directory (.).
 Module and Case lists can use wild-cards, like: trun -m encode -t json*
+
+.SH DEBUGGING
+By default trun runs modules in parallel (across threads, or forked sub-processes where supported), which makes it
+hard for a debugger to follow a single test. To attach a debugger and step through a test, run trun with the
+\f[B]--sequential\f[R] option so execution happens on a single, predictable thread of control, for example:
+.PP
+.IP
+\f[B]trun --sequential -m strutil -t split lib/libtrun_utests.so\f[R]
 
 .SH TESTABLE FUNCTIONS
 Each testable function must follow the exact pattern and be public exported as a C function.
