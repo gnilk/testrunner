@@ -8,8 +8,18 @@ on:
     # Linux/Windows breakage gets caught.
     branches: [ master, dev ]
     tags: [ "v*" ]
+    # Skip the build when a push touches ONLY docs (paths-ignore skips only if EVERY
+    # changed file matches, so a mixed docs+code push still builds). None of these affect
+    # the CMake build. Tag pushes are unaffected: a newly-created tag has no diff base, so
+    # GitHub runs the workflow regardless of paths-ignore - releases never get skipped.
+    paths-ignore: &docs-only
+      - '**.md'
+      - 'todo/**'
+      - 'LICENSE'
+      - 'notes.txt'
   pull_request:
     branches: [ master, dev ]
+    paths-ignore: *docs-only
 
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
