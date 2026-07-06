@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <cstdarg>
 #include <cstdio>
+#include <string>
 
 #include "logger.h"
 

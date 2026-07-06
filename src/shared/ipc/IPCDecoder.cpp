@@ -2,6 +2,7 @@
 // Created by gnilk on 21.05.24.
 //
 #include <cstring>
+#include <string>
 
 #include "IPCDecoder.h"
 #include "IPCMessage.h"

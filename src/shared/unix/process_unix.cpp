@@ -20,6 +20,9 @@
 
 #include <stdio.h>
 #include <iostream>
+#include <string>
+#include <vector>
+#include <list>
 #include <string.h>
 
 #include <spawn.h>
