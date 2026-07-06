@@ -2,10 +2,14 @@ name: Build
 
 on:
   push:
-    branches: [ master ]
+    # master + tags publish (see the package/upload steps and the release job).
+    # dev is CI-only: it builds Linux + Windows and smoke-tests, but produces no
+    # packages/artifacts/release - the maintainer works on macOS, so this is where
+    # Linux/Windows breakage gets caught.
+    branches: [ master, dev ]
     tags: [ "v*" ]
   pull_request:
-    branches: [ master ]
+    branches: [ master, dev ]
 
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
@@ -40,10 +44,15 @@ jobs:
       # A full self-run is not used as a gate: the suite intentionally fails 15 self-tests (non-zero).
       run: ./trun -lx lib/libtrun_utests.so
 
+    # Packaging + artifact upload only where a package is actually consumed: master
+    # pushes (grabbable by beta testers) and tag pushes (fed to the release job). On
+    # dev pushes and on any PR the job stops after the smoke test - build validation only.
     - name: Package (.deb)
+      if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/')
       run: cmake --build ${{github.workspace}}/build --target package
 
     - name: Upload .deb artifact
+      if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/')
       uses: actions/upload-artifact@v4
       with:
         name: deb-package
@@ -78,11 +87,14 @@ jobs:
       # is not used as a gate: the suite intentionally fails 15 self-tests and so returns non-zero.
       run: ./trun.exe -lx trun_utests.dll
 
+    # Packaging + upload gated as in the Linux job: master/tags only, dev + PRs build-only.
     - name: Package (NSIS installer)
+      if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/')
       working-directory: ${{github.workspace}}/build
       run: cpack -G NSIS -C ${{env.BUILD_TYPE}}
 
     - name: Upload installer artifact
+      if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/')
       uses: actions/upload-artifact@v4
       with:
         name: windows-installer
