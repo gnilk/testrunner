@@ -29,38 +29,34 @@
 #include <set>
 #include "std_backport.h"
 
-#ifdef TRUN_HAVE_FORK
-    #include "subprocess.h"
-    #include "IPCMessages.h"
-    #include "ipc/IPCDecoder.h"
-    #ifdef WIN32
-        #include "win32/IPCPipeWin.h"
-    #else
-        #include "unix/IPCFifoUnix.h"
-    #endif
+#include "subprocess.h"
+#include "IPCMessages.h"
+#include "ipc/IPCDecoder.h"
+#ifdef WIN32
+    #include "win32/IPCPipeWin.h"
+#else
+    #include "unix/IPCFifoUnix.h"
 #endif
 
-// std::this_thread::sleep_for() + hardware_concurrency() in the fork wait-loop
-// need <thread>; the fork path is the only user.
-#ifdef TRUN_HAVE_FORK
+// std::this_thread::sleep_for() + hardware_concurrency() in the fork wait-loop need <thread>.
 #include <thread>
-#endif
 
 using namespace trun;
 
 TestModuleExecutorBase &TestModuleExecutorFactory::Create() {
+    // Lazily constructed on first use, per policy: a sequential-only run (the embedded engine,
+    // or --sequential) never constructs the fork executor and so never touches its subprocess/IPC
+    // machinery. The fork executor is inert but linked on trunlib; keeping its construction
+    // behind the kParallel case makes that inertness real, not just unreachable.
     static TestModuleExecutorSequential sequentialExecutor;
-#ifdef TRUN_HAVE_FORK
-    static TestModuleExecutorFork forkExecutor;
-#endif
 
     switch(Config::Instance().moduleExecuteType) {
         case ModuleExecutionType::kSequential :
             return sequentialExecutor;
-#ifdef TRUN_HAVE_FORK
-        case ModuleExecutionType::kParallel :
+        case ModuleExecutionType::kParallel : {
+            static TestModuleExecutorFork forkExecutor;
             return forkExecutor;
-#endif
+        }
         default:
             printf("Unknown or unsupported execution protocol, using default\n");
     }
@@ -109,9 +105,6 @@ bool TestModuleExecutorSequential::Execute(const IDynLibrary::Ref &library, cons
 
     return bRes;
 }
-
-#ifdef TRUN_HAVE_FORK
-
 
 
 // FIXME: Probably implement as a proper class - we need more features on this object than just holding some data
@@ -286,4 +279,3 @@ bool TestModuleExecutorFork::Execute(const IDynLibrary::Ref &library, const std:
 
     return true;
 }
-#endif

@@ -7,8 +7,6 @@
 ## all files but the main application file
 list(APPEND srcfiles ${CMAKE_SOURCE_DIR}/src/testrunner/asserterror.cpp)
 list(APPEND srcfiles ${CMAKE_SOURCE_DIR}/src/testrunner/config.cpp)
-#list(APPEND srcfiles ${CMAKE_SOURCE_DIR}/src/testrunner/coveragerpcbrige.cpp ${CMAKE_SOURCE_DIR}/src/testrunner/coveragerpcbrige.h)
-#list(APPEND srcfiles ${CMAKE_SOURCE_DIR}/src/testrunner/CoverageIPCMessages.cpp ${CMAKE_SOURCE_DIR}/src/testrunner/CoverageIPCMessages.h)
 list(APPEND srcfiles ${CMAKE_SOURCE_DIR}/src/testrunner/funcexecutors.cpp ${CMAKE_SOURCE_DIR}/src/testrunner/funcexecutors.h)
 #list(APPEND srcfiles ${CMAKE_SOURCE_DIR}/src/testrunner/glob.cpp ${CMAKE_SOURCE_DIR}/src/testrunner/glob.h)
 list(APPEND srcfiles ${CMAKE_SOURCE_DIR}/src/testrunner/IPCMessages.cpp ${CMAKE_SOURCE_DIR}/src/testrunner/IPCMessages.h)
@@ -16,10 +14,8 @@ list(APPEND srcfiles ${CMAKE_SOURCE_DIR}/src/testrunner/moduleexecutors.cpp ${CM
 list(APPEND srcfiles ${CMAKE_SOURCE_DIR}/src/testrunner/responseproxy.cpp)
 list(APPEND srcfiles ${CMAKE_SOURCE_DIR}/src/testrunner/resultsummary.cpp)
 #list(APPEND srcfiles ${CMAKE_SOURCE_DIR}/src/testrunner/strutil.cpp)
-# subprocess.cpp only backs TestModuleExecutorFork (guarded by TRUN_HAVE_FORK, see
-# moduleexecutors.cpp), but Process itself (src/shared/procspawn.h) is portable as of
-# Phase 3b, so subprocess.cpp compiles standalone on every platform now (it just isn't
-# reachable yet on Windows until TRUN_HAVE_FORK is defined there too - Phase 3d).
+# subprocess.cpp backs TestModuleExecutorFork (fork/re-exec, one subprocess per module).
+# It compiles standalone on every platform (Process, src/shared/procspawn.h, is portable).
 list(APPEND srcfiles ${CMAKE_SOURCE_DIR}/src/testrunner/subprocess.cpp)
 #list(APPEND srcfiles ${CMAKE_SOURCE_DIR}/src/testrunner/timer.cpp)
 #list(APPEND srcfiles ${CMAKE_SOURCE_DIR}/src/testrunner/testlibversion.cpp ${CMAKE_SOURCE_DIR}/src/testrunner/testlibversion.h)
@@ -166,7 +162,25 @@ target_link_libraries(trv1_utest PUBLIC trun_common_options ${platformlibs})
 add_library(trv2_utest SHARED ${CMAKE_SOURCE_DIR}/src/testv2/test_v2module.cpp)
 target_link_libraries(trv2_utest PUBLIC trun_common_options ${platformlibs})
 
-add_library(trunlib STATIC ${srcfiles} ${embedsrc} ${sharedsrcfiles})
+# trunlib is the desktop-embedded engine. trun::Initialize pins kSequential, so the fork
+# executor + ResultSummary::SendResultToParentProc are never *selected* here - but they are
+# still *referenced* from always-reachable functions (TestModuleExecutorFactory::Create /
+# ResultSummary::PrintSummary) behind a runtime policy check, so the linker cannot drop them.
+# Link the fork/IPC/procspawn transport so trunlib's consumers resolve those symbols; the code
+# is inert on this target (the shared core, srcfiles, already carries subprocess.cpp +
+# IPCMessages.cpp + moduleexecutors.cpp + resultsummary.cpp).
+set(trunlib_forksrc ${ipcsrcfiles} ${processsrcfiles})
+if(UNIX)
+    list(APPEND trunlib_forksrc
+            ${CMAKE_SOURCE_DIR}/src/shared/unix/IPCFifoUnix.cpp
+            ${CMAKE_SOURCE_DIR}/src/shared/unix/process_unix.cpp)
+elseif(WIN32)
+    list(APPEND trunlib_forksrc
+            ${CMAKE_SOURCE_DIR}/src/shared/win32/IPCPipeWin.cpp
+            ${CMAKE_SOURCE_DIR}/src/shared/win32/process_win32.cpp)
+endif()
+
+add_library(trunlib STATIC ${srcfiles} ${embedsrc} ${sharedsrcfiles} ${trunlib_forksrc})
 # Namespaced alias so an in-tree consumer links the same name a find_package() consumer does.
 add_library(trun::lib ALIAS trunlib)
 # The install(EXPORT) namespace is trun::; export the target as "lib" (not "trunlib") so

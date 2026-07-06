@@ -30,11 +30,12 @@ namespace trun {
     };
 
     // NOTE: a thread-per-module executor used to live here (TestModuleExecutorParallel).
-    // It was unreachable in every build: on desktop TRUN_HAVE_FORK is always set, so the
-    // factory maps kParallel -> fork; without fork the module loop runs sequentially.
-    // The fork executor superseded it. Removed deliberately.
+    // It was unreachable in every build: the factory maps kParallel -> fork. The fork
+    // executor superseded it. Removed deliberately.
 
-#ifdef TRUN_HAVE_FORK
+    // Fork-based module parallelism: one re-exec'd subprocess per module. The factory maps
+    // kParallel here. The embedded engine (trunlib) never selects it - trun::Initialize pins
+    // kSequential - so on that target the class is linked but inert.
     class TestModuleExecutorFork : public TestModuleExecutorBase {
     public:
         TestModuleExecutorFork() = default;
@@ -42,7 +43,6 @@ namespace trun {
 
         bool Execute(const IDynLibrary::Ref &library, const std::map<std::string, TestModule::Ref> &testModules) override;
     };
-#endif
 
     // A bit of enterprise perhaps?  - in this case it sort of makes sense...
     class TestModuleExecutorFactory {

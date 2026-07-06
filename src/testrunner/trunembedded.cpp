@@ -43,6 +43,11 @@ namespace trun {
     void Initialize() {
         // Trigger the lazy initialization CTOR..
         Config::Instance();
+        // LOAD-BEARING: pin sequential module execution. The CLI default is kParallel, which
+        // maps to the fork executor - and the fork model is re-exec (SubProcess re-runs the trun
+        // CLI on a .so), which has no meaning for the embedded engine where tests are registered
+        // in-process via AddTestCase. Without this the embedded module loop would try to fork.
+        Config::Instance().moduleExecuteType = ModuleExecutionType::kSequential;
         ConfigureLogger();
         dynlib = DynLibEmbedded::Create();
         isInitialized = true;

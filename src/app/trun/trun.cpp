@@ -127,12 +127,10 @@ static void Help() {
     printf("      Disable parallel execution (use this if you debug through trun, default: off)\n");
     printf("  --continue-on-assert\n");
     printf("      Continue test execution on assert errors (default: off)\n");
-#ifdef TRUN_HAVE_FORK    
     printf("  --module-timeout <sec>\n");
     printf("      Set timeout (in seconds) for forked execution, 0 - infinity (default: 30)\n");
     printf("  --max-concurrency <n>\n");
     printf("      Max module subprocesses running at once (0 = auto, ~CPU cores)\n");
-#endif
     printf("  --allow-thread-exit\n");
     printf("      Test cases execution thread will self-terminate on assert/error/fatal\n");
 

@@ -77,19 +77,17 @@ namespace trun {
         // Test cases always run in their own thread (isolation + mid-body termination).
         TestExecutiontype testExecutionType = TestExecutiontype::kThreaded;
 
-#ifdef TRUN_HAVE_FORK
+        // CLI default is kParallel (one subprocess per module). The desktop-embedded engine
+        // (trunlib) pins this to kSequential in trun::Initialize - it must never select the
+        // fork/re-exec path, which has no meaning for in-process registered tests.
         ModuleExecutionType moduleExecuteType = ModuleExecutionType::kParallel;
         std::string ipcName = {};
         uint16_t moduleExecTimeoutSec = 30;
         // Max module subprocesses in flight at once (0 = auto, ~CPU cores).
         // Bounds oversubscription so the per-module timeout works as intended.
         uint16_t moduleExecConcurrency = 0;
-#else
-        ModuleExecutionType moduleExecuteType = ModuleExecutionType::kSequential;
-#endif
         bool isSubProcess = false;
         bool isCoverageRunning = false;
-        std::string coverageIPCName = "ipc_tcov";
         int useITestingVersion = 1;
         gnilk::ILogger *pLogger = nullptr;
     private:

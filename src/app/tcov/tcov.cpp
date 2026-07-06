@@ -59,9 +59,6 @@
 #include <sys/stat.h>
 
 #include "logger.h"
-#include "CoverageIPCMessages.h"
-#include "ipc/IPCDecoder.h"
-#include "unix/IPCFifoUnix.h"
 #include "Coverage.h"
 #include "ArgParser.h"
 #include "strutil.h"

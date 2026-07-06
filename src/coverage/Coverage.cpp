@@ -13,9 +13,7 @@
 #include <lldb/API/SBCommandReturnObject.h>
 
 #include "Coverage.h"
-#include "CoverageIPCMessages.h"
 #include "strutil.h"
-#include "ipc/IPCDecoder.h"
 #include "SymbolResolver.h"
 #include "timer.h"
 #include "reporting/ReportConsole.h"
@@ -71,21 +69,14 @@ bool CoverageRunner::Begin() {
     return true;
 }
 bool CoverageRunner::PrepareTrunExecution() {
-    // Let's bring up the IPC - which handles communication between TRUN and TCOV
-    if (!CreateIPCServer()) {
-        logger->Error("Unable to create IPC Server");
-        return false;
-    }
-
-    // Add the following so TRUN knows we are running in coverage mode and how to communicate back...
+    // Add the following so TRUN knows we are running in coverage mode. '--coverage' makes trun
+    // raise SIGUSR1 once all dylibs are loaded (our dylib-load sync point, see RunInitialLLDBPhase).
     std::vector <std::string> trunArgsVectorInternal;
     if (std::find_if(Config::Instance().target_args.begin(), Config::Instance().target_args.end(), [](auto &v) -> bool { return (v == "--sequential"); }) == Config::Instance().target_args.end()) {
         logger->Info("Adding '--sequential' to target arguments");
         trunArgsVectorInternal.push_back("--sequential");
     }
     trunArgsVectorInternal.push_back("--coverage");
-    trunArgsVectorInternal.push_back("--tcov-ipc-name");
-    trunArgsVectorInternal.push_back(ipcServer.EndpointName());
     Config::Instance().target_args.insert(Config::Instance().target_args.begin(), trunArgsVectorInternal.begin(), trunArgsVectorInternal.end());
 
 
@@ -260,18 +251,6 @@ void CoverageRunner::ResolveCWD() {
     workingDirectory = cwd;
 }
 
-// Opens the IPC server
-// the server address is defined by the IPC class
-// as '/tmp/testrunner_pid
-bool CoverageRunner::CreateIPCServer() {
-    // might want to do other things here...
-    if (!ipcServer.Open()) {
-        return false;
-    }
-    logger->Info("IPC Server at: %s", ipcServer.EndpointName().c_str());
-    return true;
-}
-
 // Configure signals handling within lldb
 void CoverageRunner::SuppressSignals() {
     // Try send 'SIGUSR1' when we have done 'dlopen' (no debug info needed)
@@ -396,9 +375,7 @@ void CoverageRunner::Process() {
         } else if (state == lldb::eStateStopped) {
             auto thread = process.GetSelectedThread();
             auto stopReason = thread.GetStopReason();
-            if ((stopReason == lldb::eStopReasonSignal) && WasSignalRaised(sig_IPC_INTERRUPT)) {
-                HandleIPCInterrupt();
-            } else if (stopReason == lldb::eStopReasonBreakpoint) {
+            if (stopReason == lldb::eStopReasonBreakpoint) {
                 CheckBreakPointHit(thread);
                 //nHits++;
             } else {
@@ -436,45 +413,8 @@ void CoverageRunner::CheckBreakPointHit(lldb::SBThread &thread) {
     loc.SetEnabled(false);
 }
 
-// Might extend this in the future - but currently we just process IPC
-void CoverageRunner::HandleIPCInterrupt() {
-    ConsumeIPC();
-}
-
-// Consume the IPC data - this will empty the pipe
-void CoverageRunner::ConsumeIPC() {
-    if (!ipcServer.Available()) {
-        //printf("ConsumeFIFO: tcovIPCServer not available\n");
-        logger->Debug("ConsumeIPC, No IPC data available");
-        return;
-    }
-    logger->Debug("ConsumeIPC, data available..");
-    while (ipcServer.Available()) {
-        auto ipcMsg = ReadIPCMessage();
-        if (!ipcMsg.IsValid()) {
-            continue;
-        }
-        // Do I really need to do this???
-        logger->Debug("BeginCoverage for '%s'",ipcMsg.symbolName.c_str());
-        breakpointManager.CreateCoverageForSymbol(target, ipcMsg.symbolName);
-    }
-}
-
-// Read a single IPC message
-trun::CovIPCCmdMsg CoverageRunner::ReadIPCMessage() {
-    trun::CovIPCCmdMsg ipcMsg;
-    gnilk::IPCBinaryDecoder decoder(ipcServer, ipcMsg);
-    if (!decoder.Process()) {
-        return {};
-    }
-    return ipcMsg;
-}
-
-// End the processing, note: we need to kill the IPC before terminating the lldb
-// otherwise the IPC connection will stay open
+// End the processing
 void CoverageRunner::End() {
-    // Close IPC connection
-    ipcServer.Close();
     // terminate everything..
     lldb::SBDebugger::Terminate();
 }

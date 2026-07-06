@@ -20,16 +20,11 @@
  \History
  - 2018.10.18, FKling, Implementation
  ---------------------------------------------------------------------------*/
-#include "ipc/IPCBufferedWriter.h"
-#include "ipc/IPCEncoder.h"
 #ifdef WIN32
 #include <Windows.h>
 #else
-#include <thread>
 #include <pthread.h>
 #include <stdarg.h>
-#include <signal.h>
-#include "unix/IPCFifoUnix.h"
 #endif
 
 #include <string.h>
@@ -38,7 +33,6 @@
 #include "logger.h"
 #include "config.h"
 #include "testrunner.h"
-#include "CoverageIPCMessages.h"
 
 
 #include <stdlib.h> // malloc
@@ -603,40 +597,10 @@ static void int_tcfg_get(const char *key, TRUN_ConfigItem *outValue) {
 }
 
 // CITestingCoverage_IFace_ID
+// BeginCoverage is retained as a no-op. The coverage interface (ITestingCoverage, reached
+// via QueryInterface) stays part of the V2 contract, but the code-driven "instrument this
+// symbol mid-run" RPC to tcov was an abandoned experiment and has been removed - it drove
+// the last IPC dependency out of responseproxy. The supported coverage workflow is tcov's
+// static --symbols breakpoints, which never used this path.
 static void int_tcov_begincov([[maybe_unused]] const char *symbol) {
-    // FIXME: Not sure this actually needed
-    // tcov/coverage has no Windows backend (see "Out of scope" in windows_support.md) - isCoverageRunning
-    // can never be true there, so this body (IPCFifoUnix, raise(SIGUSR1), <thread>) stays Unix-only
-    // rather than growing an IPCPipeWin round-trip for functionality that can never run on Windows.
-#if defined(TRUN_HAVE_FORK) && !defined(WIN32)
-    printf("BeginCoverage called for '%s'\n", symbol);
-    if (!Config::Instance().isCoverageRunning) {
-        printf("TCOV is not running!");
-        return;
-    }
-    printf("Connecting to TCOV via '%s'\n", Config::Instance().coverageIPCName.c_str());
-    gnilk::IPCFifoUnix ipc;
-    if (!ipc.ConnectTo(Config::Instance().coverageIPCName)) {
-        printf("Failed to connect to IPC using '%s'\n", Config::Instance().coverageIPCName.c_str());
-        return;
-    }
-
-    CovIPCCmdMsg cmdMsg;
-    cmdMsg.symbolName = symbol;
-
-    gnilk::IPCBufferedWriter bufferedWriter(ipc);
-    gnilk::IPCBinaryEncoder encoder(bufferedWriter);
-
-    cmdMsg.Marshal(encoder);
-    auto nFlush = bufferedWriter.Flush();
-    printf("flushed fifo, res=%d\n", nFlush);
-    printf("Sending signal to parent!\n");
-    raise(SIGUSR1);
-    // Sleep a little - allow tcov to catch up - should be plenty enough
-    // The IPC should hold the data even if we are closed...
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    // this should only close my end!
-    ipc.Close();
-    printf("Finished 'int_tcov_begincov'\n");
-#endif
 }
