@@ -1,49 +1,39 @@
 {
   "name": "Testrunner",
-  "version": "2.0.0",
-  "repository":
-  {
+  "version": "4.0.0",
+  "description": "Go-inspired C/C++ unit test framework - the zero-alloc MCU engine (engine #3): no heap, threads, exceptions or RTTI. Register test_* cases with trun::AddTestCase / TRUN_ADD_TEST and run them on-device via trun::RunTests. Define TRUN_USE_V1 for the V1 test interface; override TRUN_MCU_MAX_TESTFUNCS / TRUN_MCU_MAX_MODULES / TRUN_MCU_MSG_BUF_LEN / TRUN_MCU_SINK_MAX_RETRY to size the fixed-capacity registries.",
+  "keywords": "unit-testing, test, tdd, embedded, mcu",
+  "repository": {
     "type": "git",
     "url": "https://github.com/gnilk/testrunner.git"
   },
-  "platforms" : "*",
-  "frameworks" : "*",
-  "export" : {
-    "include" : [
-      "CMakeLists.txt",
+  "platforms": "*",
+  "frameworks": "*",
+  "headers": [
+    "trunmcu.h",
+    "testinterface.h"
+  ],
+  "export": {
+    "include": [
       "library.json",
-      "src/*"
+      "src/testrunner/mcu",
+      "src/testrunner/ext_testinterface"
     ]
   },
-  "header" : [
-    "testinterface.h",
-    "trunlib.h",
-    "trunembedded.h"
-  ],
-  "build" : {
+  "build": {
+    "srcDir": "src/testrunner/mcu",
+    "srcFilter": [
+      "+<*.cpp>"
+    ],
+    "includeDir": "src/testrunner/mcu",
     "flags": [
-      "-std=c++17",
-      "-DTRUN_EMBEDDED_MCU",
-      "-DTRUN_SINGLE_THREAD",
-      "-Isrc/testrunner/embedded"
+      "-std=c++20",
+      "-I src/testrunner/mcu",
+      "-I src/testrunner/ext_testinterface"
     ],
-    "unflags" : "-std=gnu++11",
-    "libArchive": true,
-    "srcDir" : "src/testrunner",
-    "srcFilter" : [
-      "+<*>",
-      "-<tests/>",
-      "-<reporting/>",
-      "-<ipc/>",
-      "-<ext_testinterface/>",
-      "-<unix/>",
-      "-<win32/>",
-      "-<main.cpp>",
-      "+<reporting/reportconsole.cpp>",
-      "+<reporting/reportingbase.cpp>"
+    "unflags": [
+      "-std=gnu++11"
     ],
-    "includeDir" : "src/"
-  },
-  "dependencies": [
-  ]
+    "libArchive": true
+  }
 }
