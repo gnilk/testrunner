@@ -77,10 +77,9 @@ cd cmake-build-debug
 1. `src/app/trun/trun.cpp` — entry point; parses args via `Config::FromArguments`, scans input path for `.so`/`.dylib` files using `DirScanner`
 2. For each library: `IDynLibrary` (abstract interface in `src/shared/dynlib.h`) loads it via `dlopen`, then `nm` lists exported symbols matching `test_*`
 3. `TestRunner` (`src/testrunner/testrunner.h`) groups symbols into `TestModule` objects (one per `test_<module>` prefix)
-4. Execution delegates to `TestModuleExecutorFactory::Create()` which returns one of:
-   - `TestModuleExecutorSequential` — single-threaded in-process
-   - `TestModuleExecutorParallel` — one thread per module (default when `TRUN_HAVE_THREADS`)
-   - `TestModuleExecutorFork` — fork a sub-process per module (default on Linux when `TRUN_HAVE_FORK`)
+4. Execution delegates to `TestModuleExecutorFactory::Create()` which selects by `Config::moduleExecuteType`:
+   - `TestModuleExecutorSequential` — single-threaded in-process (`--sequential`; also what the embedded `trunlib` engine pins itself to)
+   - `TestModuleExecutorFork` — fork/re-exec a sub-process per module (the CLI default, `kParallel`). A thread-per-module executor (`TestModuleExecutorParallel`) used to exist but was removed — it was unreachable once fork became the parallel strategy.
 5. Each module executes: `test_main` (global) → module main → test cases → module exit → `test_exit` (global)
 6. Results collected into `TestResult`s and printed via the active reporting module
 
@@ -102,7 +101,7 @@ cd cmake-build-debug
 
 | Define | Effect |
 |---|---|
-| `TRUN_HAVE_FORK` | Enables `TestModuleExecutorFork` (per-module subprocess via `fork`); desktop-only. Without it the module loop runs sequentially. |
+| ~~`TRUN_HAVE_FORK`~~ | **Removed** (branch `refactor/remove-have-fork`). The fork/IPC/procspawn code now compiles unconditionally on every desktop target; the fork vs sequential split is runtime (`Config::moduleExecuteType`), not compile-time. `trunlib` links the fork code (inert) and pins `kSequential` in `trun::Initialize`. See `todo/remove_trun_have_fork.md`. |
 | `TRUN_HAVE_EXCEPTIONS` | Catches C++ exceptions inside test cases (cpptrace unwind); required for the threaded executor's forced-termination throw. |
 | `TRUN_HAVE_EXT_REPORTING` | Enables JSON reporting modules |
 | `TRUN_USE_V1` | Forces V1 test interface (needed on Windows; also selects V1 for the MCU engine, e.g. `trunmcu_demo_v1`) |
@@ -124,7 +123,7 @@ user-side knob for the V1 assert macro — we no longer define it in any target.
 
 ### IPC between processes
 
-When `TRUN_HAVE_FORK` is active (Linux default), the main `trun` process forks one child per module. Children communicate results back via FIFO-based IPC (`src/shared/unix/IPCFifoUnix.cpp`) using a binary protocol defined in `src/shared/ipc/`. The coverage tool (`tcov`) uses a separate IPC channel (`ipc_tcov`) to receive breakpoint hit data from the `trun` process it runs inside LLDB.
+When module execution is parallel (`kParallel`, the CLI default), the main `trun` process forks/re-execs one child per module. Children communicate results back via FIFO-based IPC (`src/shared/unix/IPCFifoUnix.cpp`) using a binary protocol defined in `src/shared/ipc/`. The embedded `trunlib` engine pins `kSequential`, so it never forks. The coverage tool (`tcov`) runs `trun` with `--sequential`; it no longer uses a `trun`→`tcov` IPC channel (the old code-driven `ipc_tcov` coverage RPC was removed — tcov now sets breakpoints only from its `--symbols` list).
 
 ### ResponseProxy and ITesting
 

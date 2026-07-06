@@ -37,8 +37,9 @@
 #endif
 
 
-// IPC is only used by SendResultToParentProc on the fork path (one subprocess per module).
-#ifdef TRUN_HAVE_FORK
+// IPC is only used by SendResultToParentProc, which a subprocess (isSubProcess) invokes to
+// ship its results to the forking parent. The embedded engine never runs as a subprocess, so
+// this stays linked-but-inert there.
 #ifdef WIN32
     #include "win32/IPCPipeWin.h"
 #else
@@ -49,7 +50,6 @@
 #include "ipc/IPCCore.h"
 #include "ipc/IPCBufferedWriter.h"
 #include "ipc/IPCEncoder.h"
-#endif
 
 using namespace trun;
 
@@ -154,7 +154,6 @@ TTo *PtrAdvanceFromTo(void *base) {
 }
 
 void ResultSummary::SendResultToParentProc() {
-#ifdef TRUN_HAVE_FORK
 #ifdef WIN32
     gnilk::IPCPipeWin ipc;
 #else
@@ -186,7 +185,6 @@ void ResultSummary::SendResultToParentProc() {
         // Flush and send...
         bufferedWriter.Flush();
         ipc.Close();
-#endif
 }
 
 

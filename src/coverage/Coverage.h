@@ -16,9 +16,7 @@
 #include <lldb/API/SBProcess.h>
 
 #include "logger.h"
-#include "unix/IPCFifoUnix.h"
 #include "Breakpoint.h"
-#include "CoverageIPCMessages.h"
 
 namespace tcov {
     // Coverage runner - responsible for executing trun within lldb
@@ -36,17 +34,13 @@ namespace tcov {
         bool PrepareTrunExecution();
         static void ConvertArgs(std::vector<char *> &out, std::vector<std::string> &args);
         bool EnableSelfDebugging();
-        bool CreateIPCServer();
         void ResolveCWD();
         void SuppressSignals();
         void ConsumeProcessOutput();
         void SanitizeAndPrint(FILE *out, const char *buffer, size_t nBytes);
         bool WaitState(lldb::StateType targetState, uint32_t timeoutMSec);
         bool WasSignalRaised(int expectedSignal);   // note: on macos the signal type for raise is 'int'
-        void HandleIPCInterrupt();
         void CheckBreakPointHit(lldb::SBThread &thread);
-        void ConsumeIPC();
-        trun::CovIPCCmdMsg ReadIPCMessage();
 
 
         bool StartLLDBDebugger();
@@ -55,8 +49,6 @@ namespace tcov {
         // More functions
     private:
         static const int sig_DYNLIB_LOADED = SIGUSR1;
-        static const int sig_IPC_INTERRUPT = SIGUSR1;
-        gnilk::IPCFifoUnix ipcServer;
         gnilk::ILogger *logger = {};
         std::string workingDirectory = {};
 

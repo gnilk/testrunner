@@ -38,11 +38,11 @@ endif()
 # Named "procspawn", not "process": a shared/process.h shadows the CRT's own <process.h>
 # (declares _beginthreadex) for any Windows TU compiled with shared/ on its include path.
 # trun/trun_utests link this to back subprocess.cpp / TestModuleExecutorFork, and tcov links
-# it because dynlib_unix.cpp spawns 'nm' via Process to scan exports. Deliberately NOT added to
-# sharedsrcfiles - trunlib is the no-fork embedded engine and must stay free of process-spawn code.
+# it because dynlib_unix.cpp spawns 'nm' via Process to scan exports. Kept as its own group
+# (not folded into sharedsrcfiles) so each target opts in explicitly; trunlib links it too
+# (see src/app/trun/CMakeLists.txt) to resolve the inert fork path's Process references.
 list(APPEND processsrcfiles ${CMAKE_SOURCE_DIR}/src/shared/procspawn.h ${CMAKE_SOURCE_DIR}/src/shared/procspawn.cpp)
 
-list(APPEND sharedsrcfiles ${CMAKE_SOURCE_DIR}/src/shared/CoverageIPCMessages.cpp ${CMAKE_SOURCE_DIR}/src/shared/CoverageIPCMessages.h)
 list(APPEND sharedsrcfiles ${CMAKE_SOURCE_DIR}/src/shared/dirscanner.h)
 list(APPEND sharedsrcfiles ${CMAKE_SOURCE_DIR}/src/shared/dynlib.h)
 list(APPEND sharedsrcfiles ${CMAKE_SOURCE_DIR}/src/shared/glob.cpp ${CMAKE_SOURCE_DIR}/src/shared/glob.h)

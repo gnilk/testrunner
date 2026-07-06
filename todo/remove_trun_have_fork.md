@@ -73,53 +73,70 @@ Originally three, all `#ifdef TRUN_HAVE_FORK`:
 - ! Man-page rewrite landed on `dev` (`158a1c3`), independent of this work.
 - ! Fresh branch created; verification branch + fork-seam WIP stash discarded (captured here).
 
-### - Step 1 — remove the dead coverage RPC (verified safe; do first)
-- - `responseproxy.cpp`: delete `int_tcov_begincov`'s IPC body. Decide: drop the coverage
-      interface's `BeginCoverage` hook, or keep it as a no-op. Keep `QueryInterface` +
-      `ITestingCoverage` themselves.
-- - `Coverage.cpp` (tcov): remove `CreateIPCServer`/`ipcServer`, `HandleIPCInterrupt`,
-      `ConsumeIPC`, `ReadIPCMessage`, and the `sig_IPC_INTERRUPT` dispatch in `Process()`.
-      Keep `SIGUSR1`/`sig_DYNLIB_LOADED` handling (dylib-load detection shares that signal).
-- - Delete `coveragerpcbrige.{h,cpp}` (already out of the build).
-- - `CovIPCCmdMsg` / `CoverageIPCMessages.{h,cpp}`: remove if nothing references them after
-      the above (check both trun and tcov).
-- - Rebuild `tcov`; re-run the Pucko `DateTime` coverage command; confirm unchanged.
+### ! Step 1 — remove the dead coverage RPC (done 2026-07-06)
+- ! `responseproxy.cpp`: gutted `int_tcov_begincov` to a no-op (kept as the
+      `ITestingCoverage.BeginCoverage` hook target — interface + `QueryInterface` retained).
+      Dropped all IPC includes (`ipc/*`, `unix/IPCFifoUnix.h`, `CoverageIPCMessages.h`) and the
+      now-unused `<thread>`/`<signal.h>` → responseproxy no longer drags IPC into any target.
+- ! `Coverage.cpp`/`.h` (tcov): removed `CreateIPCServer`/`ipcServer`, `HandleIPCInterrupt`,
+      `ConsumeIPC`, `ReadIPCMessage`, `sig_IPC_INTERRUPT`, and the signal dispatch in `Process()`
+      (now only breakpoint hits). `PrepareTrunExecution` no longer passes `--tcov-ipc-name`; still
+      passes `--sequential`/`--coverage`. `sig_DYNLIB_LOADED` (SIGUSR1) dylib-load sync kept.
+- ! Deleted `coveragerpcbrige.{h,cpp}` and `CoverageIPCMessages.{h,cpp}` (git rm); removed the
+      latter from `sharedsrcfiles` (CMakeShared.cmake) and the stale commented refs in
+      `src/app/trun/CMakeLists.txt`. Removed `tcov.cpp`'s 3 unused IPC includes.
+- ! Removed the dead `coverageIPCName` Config field + `--tcov-ipc-name` parsing (config.{h,cpp}).
+- ! Verified: `trun`, `trun_utests`, `trunlib`, `tcov` all build clean; internal suite
+      `-m '!abortall,!exception,-'` = 116 executed / 13 intentional fails (unchanged baseline).
+      Pucko `DateTime` tcov end-to-end smoke test PASSED (see Step 3).
 
-### - Step 2 — remove `TRUN_HAVE_FORK`
-Two IPC-drag sites remain (fork executor, `SendResultToParentProc`). **Open decision:**
+### ! Step 2 — remove `TRUN_HAVE_FORK`  → **DONE, Option B** (2026-07-06)
+Two IPC-drag sites remain (fork executor, `SendResultToParentProc`).
 
-- **Option A — impl-swap seam (lean `trunlib`).** A `fork_ipc.h` seam with a real impl
-  (`fork_ipc.cpp`, compiled by fork targets: `trun`, `trun_utests`, `tcov`) and a stub
-  (`fork_ipc_stub.cpp`, compiled by `trunlib`). The fork executor + `SendResultToParentProc`
-  live in the real impl; the module-executor factory reaches the fork executor only via
-  `CreateForkModuleExecutor()` (returns `nullptr` in the stub → falls back to sequential).
-  `trunlib` links zero fork/IPC/procspawn — byte-for-byte as lean as today. Cost: a couple of
-  per-target TUs + CMake wiring. (This was the WIP that was sketched then discarded; recreate
-  if chosen.)
-- **Option B — simple removal (accept inert linkage).** Delete the macro, always-compile the
-  fork/IPC paths, add the IPC/procspawn/subprocess sources to `trunlib` so it links, enforce
-  `kSequential` in `Initialize`. Smallest diff, but `trunlib` (and its consumers) carry the
-  never-executed fork/IPC code. The dead code is harmless functionally (guarded by
-  `isSubProcess`/never-selected `kParallel`), just present.
+**Decision (gnilk): Option B — simple removal, accept inert linkage.** The "keep `trunlib`
+lean" premise behind Option A was a pre-MCU artifact: `trunlib` and the MCU world used to share
+an implementation, so fork/IPC had to be trimmable. The MCU engine (`trunmcu`) now has its own
+implementation, so the desktop-embedded `trunlib` no longer needs to be byte-for-byte lean — we
+lean on the linker + inertness instead. And `SendResultToParentProc` is only ever called when
+`isSubProcess` is true, which can only be set by a forked child — impossible for `trunlib` once
+`Initialize` pins `kSequential`. So the code is present but unreachable.
 
-Regardless of A/B:
-- - Make the `TRUN_HAVE_FORK`-only `Config` fields unconditional (`ipcName`,
-      `moduleExecTimeoutSec`, `moduleExecConcurrency`) and the `--module-timeout` /
-      `--max-concurrency` parsing + help text.
-- - Unify the default `moduleExecuteType` to `kParallel` (CLI default) and have
-      `trun::Initialize` (in `trunembedded.cpp`) enforce `kSequential`. This becomes
-      **load-bearing** once the macro is gone — it is the guard against an embedded process
-      selecting the fork (re-exec) path.
-- - `Create()` fork-executor handle: drop the function-local `static TestModuleExecutorFork`
-      (cosmetic; it forces construction even when only sequential is used).
+Note (linker reality): `--gc-sections`/dead-strip will NOT drop the fork/IPC code, because it is
+referenced from always-reachable functions (`PrintSummary`, `TestModuleExecutorFactory::Create`)
+behind runtime `if`s. So `trunlib`'s CMake must add the fork/IPC/procspawn sources or its
+consumers get undefined-symbol errors. The code links, stays inert, and never executes.
 
-### - Step 3 — verify
-- - Build `trun` and `trunlib` (and demos) clean, no `TRUN_HAVE_FORK` anywhere.
-- - Internal suite: `./trun -m '!abortall,!exception,-' lib/libtrun_utests.dylib` (expect the
-      known intentional-fail count, unchanged).
-- - Confirm `trunlib`'s consumer links (Option A: no IPC symbols pulled; Option B: links with
-      the added sources).
-- - Optional: re-run the Pucko `DateTime` tcov coverage as an end-to-end smoke test.
+(Rejected — Option A, the `fork_ipc.h` impl-swap seam keeping `trunlib` at zero fork/IPC: extra
+per-target TUs + CMake wiring, no longer justified now that lean-`trunlib` isn't a goal.)
+
+Done (Option B, all sites):
+- ! Removed `TRUN_HAVE_FORK` from `cmake/TrunCommonOptions.cmake` (all 3 platform branches).
+- ! Made the fork-only `Config` fields unconditional (`ipcName`, `moduleExecTimeoutSec`,
+      `moduleExecConcurrency`) in `config.h`; unconditional `--module-timeout` / `--max-concurrency`
+      / `--ipc-name` parsing (`config.cpp`), help text (`trun.cpp`), and `Config::Dump`.
+- ! Default `moduleExecuteType` = `kParallel` (unconditional, CLI default); `trun::Initialize`
+      (`trunembedded.cpp`) now pins `kSequential` — **load-bearing** guard against the embedded
+      engine selecting the fork/re-exec path.
+- ! `moduleexecutors.{h,cpp}`: unguarded `TestModuleExecutorFork`; `Create()` now constructs the
+      fork executor lazily inside the `kParallel` case (a sequential-only run never constructs it).
+- ! `resultsummary.cpp`: unguarded the IPC includes + `SendResultToParentProc` body.
+- ! `src/app/trun/CMakeLists.txt`: `trunlib` now links `ipcsrcfiles` + `processsrcfiles` +
+      `unix/IPCFifoUnix.cpp` + `unix/process_unix.cpp` (platform-guarded) so the inert fork path
+      resolves; updated the stale `subprocess.cpp` + `CMakeShared.cmake` process-spawn comments.
+
+### ! Step 3 — verify (done 2026-07-06)
+- ! `trun`, `trun_utests`, `trunlib`, `tcov`, `trunembedded`, and the `trunmcu` demos all build
+      clean; `grep -rn TRUN_HAVE_FORK src cmake` == 0 hits.
+- ! Internal suite unchanged at the baseline: **116 executed / 13 intentional fails** — verified on
+      the fork (default), `--sequential`, and `--max-concurrency 2 --module-timeout 60` paths.
+- ! `trunlib` consumer links (Option B): `trunembedded` links against the added fork/IPC/procspawn
+      sources and **runs in-process** (5 tests, 1 intentional fail, no fork) — the `kSequential`
+      pin verified at runtime.
+- ! Pucko `DateTime` tcov end-to-end smoke test PASSED (2026-07-06):
+      `tcov -v -R base --target ./trun --symbols 'pucko::DateTime::*' -- --sequential -v -m datetime`
+      `.../PuckoNew/cmake-build-debug/lib/libpucko_utests.dylib` → full per-function `DateTime`
+      coverage report (exercised fns 80-100%, unexercised 0%), unchanged from before the RPC
+      removal. Confirms the `--symbols` static-breakpoint path is intact.
 
 ## Related / deferred (not in this work package)
 - `trunembedded.cpp` → `trunlib.cpp` rename + `trunembedded` retirement.

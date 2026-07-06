@@ -50,14 +50,11 @@ Config::Config() {
     version = "<unknown>";
 #endif
     description = "C/C++ Unit Test Runner";
-    // Test cases always run in their own thread. Module-level parallelism is fork-only
-    // (one subprocess per module) and desktop-only; without fork the module loop is sequential.
+    // Test cases always run in their own thread. Module-level parallelism is fork-based
+    // (one subprocess per module); the CLI default is parallel. The embedded engine
+    // (trunlib) overrides this to kSequential in trun::Initialize.
     testExecutionType = TestExecutiontype::kThreaded;
-#ifdef TRUN_HAVE_FORK
     moduleExecuteType = ModuleExecutionType::kParallel;
-#else
-    moduleExecuteType = ModuleExecutionType::kSequential;
-#endif
 
     dumpConfig = false;
 
@@ -177,11 +174,9 @@ Config::FromArgRes Config::FromArguments(int argc, const char **argv) {
     if (argParser.IsPresent("", "--allow-thread-exit")) {
         Config::Instance().testExecutionType = trun::TestExecutiontype::kThreadedWithExit;
     }
-#ifdef TRUN_HAVE_FORK
     Config::Instance().moduleExecTimeoutSec = *argParser.TryParse(Config::Instance().moduleExecTimeoutSec, "", "--module-timeout");
     Config::Instance().moduleExecConcurrency = *argParser.TryParse(Config::Instance().moduleExecConcurrency, "", "--max-concurrency");
     Config::Instance().ipcName = *argParser.TryParse(Config::Instance().ipcName, "", "--ipc-name");
-#endif
 
     // Hidden
     if (argParser.IsPresent("", "--subprocess")) {
@@ -189,7 +184,6 @@ Config::FromArgRes Config::FromArguments(int argc, const char **argv) {
         Config::Instance().isSubProcess = true;
     }
     Config::Instance().isCoverageRunning = argParser.IsPresent("", "--coverage");
-    Config::Instance().coverageIPCName = *argParser.TryParse(Config::Instance().coverageIPCName, "", "--tcov-ipc-name");
 
 
     if (argParser.CopyEndArgs(Config::Instance().inputs, false) < 0) {
@@ -220,10 +214,8 @@ void Config::Dump() {
     printf("  Reporting module: %s\n", reportingModule.c_str());
     printf("  Reporting indent size: %d\n", reportIndent);
     printf("  Module execution policy: %s\n", ModuleExecutionTypeToStr(moduleExecuteType).c_str());
-#ifdef TRUN_HAVE_FORK
     printf("  Module exec timeout (sec): %d\n", moduleExecTimeoutSec);
     printf("  Module exec concurrency: %d (0 = auto)\n", moduleExecConcurrency);
-#endif
     printf("  Testcase execution policy: %s\n", TestExecutionTypeToStr(testExecutionType).c_str());
     printf("  Continue on assert: %s\n", continueOnAssert?"yes":"no");
     printf("  Modules:\n");
