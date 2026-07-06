@@ -50,7 +50,7 @@ list(APPEND testsrc ${CMAKE_SOURCE_DIR}/src/shared/ipc/tests/test_ipc_framing.cp
 # embedded
 list(APPEND embedsrc ${CMAKE_SOURCE_DIR}/src/testrunner/embedded/dynlib_embedded.cpp ${CMAKE_SOURCE_DIR}/src/testrunner/embedded/dynlib_embedded.h)
 list(APPEND embedsrc ${CMAKE_SOURCE_DIR}/src/testrunner/embedded/logger.cpp)
-list(APPEND embedsrc ${CMAKE_SOURCE_DIR}/src/testrunner/trunembedded.cpp ${CMAKE_SOURCE_DIR}/src/testrunner/trunembedded.h)
+list(APPEND embedsrc ${CMAKE_SOURCE_DIR}/src/testrunner/trunlib.cpp ${CMAKE_SOURCE_DIR}/src/testrunner/trunlib.h ${CMAKE_SOURCE_DIR}/src/testrunner/trunembedded.h)
 #list(APPEND embedsrc ${CMAKE_SOURCE_DIR}/src/shared/strutil.cpp)
 
 # add unit tests
@@ -195,7 +195,7 @@ target_include_directories(trunlib PRIVATE ${CMAKE_SOURCE_DIR}/src/testrunner)
 target_include_directories(trunlib PRIVATE ${CMAKE_SOURCE_DIR}/src/testrunner/ext_testinterface)
 target_include_directories(trunlib PRIVATE ${CMAKE_SOURCE_DIR}/src/testrunner/embedded)
 # Consumer-facing (find_package) usage requirement: the installed flat include dir carries the
-# public headers (trunembedded.h + the frozen testinterface.h / testinterface_v1.h).
+# public headers (trunlib.h + its deprecated trunembedded.h shim + frozen testinterface.h / testinterface_v1.h).
 target_include_directories(trunlib INTERFACE $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 # trunlib is the desktop-embedded engine: threaded (isolation + mid-body termination),
 # no fork. Forced termination throws/catches TestAbortException, so it needs exceptions;

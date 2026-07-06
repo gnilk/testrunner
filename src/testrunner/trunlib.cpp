@@ -1,9 +1,9 @@
 /*-------------------------------------------------------------------------
- File    : timer.cpp
+ File    : trunlib.cpp
  Author  : FKling
  Version : -
  Orginal : 2022-11-21
- Descr   : Embedded front end for testrunner..
+ Descr   : Desktop in-process (embedded) front end for testrunner - the trunlib facade.
 
  Part of testrunner
  BSD3 License!
@@ -17,7 +17,7 @@
  \History
  - 2022.11.21, FKling, Implementation
  ---------------------------------------------------------------------------*/
-#include "trunembedded.h"
+#include "trunlib.h"
 #include "testrunner.h"
 #include "embedded/dynlib_embedded.h"
 #include "resultsummary.h"

@@ -152,8 +152,10 @@ install(TARGETS trunlib
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT dev
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT dev)
 
-# Public headers: the desktop-embed facade + the frozen V1/V2 test interface (flat include dir).
+# Public headers: the desktop-embed facade (trunlib.h) + its deprecated trunembedded.h shim
+# (removed in v5.0.0) + the frozen V1/V2 test interface. Installed flat into the include dir.
 install(FILES
+        "${CMAKE_SOURCE_DIR}/src/testrunner/trunlib.h"
         "${CMAKE_SOURCE_DIR}/src/testrunner/trunembedded.h"
         "${CMAKE_SOURCE_DIR}/src/testrunner/ext_testinterface/testinterface.h"
         "${CMAKE_SOURCE_DIR}/src/testrunner/ext_testinterface/testinterface_v1.h"

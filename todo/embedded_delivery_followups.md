@@ -6,10 +6,15 @@ What remains here is the **deferred, not-greenlit** tail of that delivery work. 
 
 ## TODO  [ -:open  +:in progress  !:done ]
 ```
-- trunembedded retirement + trunlib rename (COUPLED - do together, one atomic push)
++ trunembedded retirement + trunlib rename (COUPLED - do together, one atomic push)
     -> retire the old two-in-one `trunembedded` name/facade now that trunlib covers the
        desktop-embed role; rename `trunlib` to something that reads as "embed the runner in a
        desktop app". Maintainer chose to KEEP `trunlib` for now (2026-07-02) -> deferred.
+    ! PARTIAL (2026-07-06): public header `trunembedded.h` -> `trunlib.h` and engine source
+       `trunembedded.cpp` -> `trunlib.cpp` done, with a deprecated `trunembedded.h` shim
+       (`#pragma message`, forwards to `trunlib.h`, removed in v5.0.0). Both headers installed.
+       STILL DEFERRED: renaming the `trunlib` *target* itself, and retiring the `trunembedded`
+       *demo app* (src/app/trunembedded dir + target). See section 1.
 - include/testrunner/ header layout (couple with the rename)
     -> public headers currently install FLAT into include/ (<trunembedded.h> etc.). Installing
        under include/testrunner/ removes the flat-namespace collision risk. Changes the include
@@ -35,6 +40,13 @@ by the same engine."* The engines are already split and merged; what's left is n
 
 Why deferred: the maintainer chose to keep `trunlib` for now — a rename touches the installed
 package/target names and every consumer snippet, so it's a deliberate, standalone change.
+
+**Done 2026-07-06 (header + engine-source rename, `refactor/rename-trunembedded-header`):** the
+consumer-facing header is now `trunlib.h` (matches `trun::lib`), engine source is `trunlib.cpp`.
+`trunembedded.h` remains as a thin deprecated shim (`#pragma message` → forwards to `trunlib.h`;
+verified it compiles clean even under `-Werror`, so strict consumers aren't broken) slated for
+removal in **v5.0.0**. Both headers ship in the install package. Still open here: the `trunlib`
+target rename (kept by choice) and retiring the separate `trunembedded` demo app.
 
 ## 2. include/testrunner/ header layout  (couple with the rename)
 

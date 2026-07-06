@@ -17,6 +17,7 @@
   },
   "header" : [
     "testinterface.h",
+    "trunlib.h",
     "trunembedded.h"
   ],
   "build" : {
