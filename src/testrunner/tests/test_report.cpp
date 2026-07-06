@@ -9,12 +9,14 @@
 extern "C" {
 DLL_EXPORT int test_report(ITesting *t);
 DLL_EXPORT int test_report_longline(ITesting *t);
+DLL_EXPORT int test_report_popindent(ITesting *t);
 }
 
-// Exposes the protected fout so the composed output can be captured to a temp FILE*.
+// Exposes the protected fout/indent so the reporter internals can be exercised.
 namespace {
     struct CaptureReporter : public trun::ResultsReportPinterBase {
         void SetOut(FILE *f) { fout = f; }
+        size_t IndentSize() const { return indent.size(); }
     };
 
     static std::string ReadAll(FILE *fp) {
@@ -52,6 +54,29 @@ DLL_EXPORT int test_report_longline(ITesting *t) {
 
     TR_ASSERT(t, captured.size() == longMsg.size());
     TR_ASSERT(t, captured == longMsg);
+
+    return kTR_Pass;
+}
+
+// PopIndent must be a safe no-op when there is nothing (or less than one level) to pop.
+// Pre-fix, the underflow branch cleared the string and then pop_back()'d 8 times on the
+// now-empty string - undefined behaviour.
+DLL_EXPORT int test_report_popindent(ITesting *t) {
+    CaptureReporter reporter;
+
+    // Pop with nothing pushed - must stay empty, must not pop_back an empty string.
+    reporter.PopIndent();
+    TR_ASSERT(t, reporter.IndentSize() == 0);
+
+    // One push == one level (8 spaces); popping it returns to empty.
+    reporter.PushIndent();
+    TR_ASSERT(t, reporter.IndentSize() == 8);
+    reporter.PopIndent();
+    TR_ASSERT(t, reporter.IndentSize() == 0);
+
+    // A further (underflowing) pop is still a safe no-op.
+    reporter.PopIndent();
+    TR_ASSERT(t, reporter.IndentSize() == 0);
 
     return kTR_Pass;
 }

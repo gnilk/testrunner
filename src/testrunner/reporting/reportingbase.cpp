@@ -41,8 +41,11 @@ void ResultsReportPinterBase::PushIndent() {
 void ResultsReportPinterBase::PopIndent() {
     size_t nSpaces = 8;
 
+    // Underflow guard: without the return, an already-short indent was cleared and then
+    // pop_back()'d 8 more times on the now-empty string - undefined behaviour.
     if (indent.size() < nSpaces) {
         indent = "";
+        return;
     }
 
     for(size_t i=0;i<nSpaces;i++) {
