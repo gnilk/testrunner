@@ -197,16 +197,25 @@ target_include_directories(trunlib PRIVATE ${CMAKE_SOURCE_DIR}/src/testrunner/em
 # Consumer-facing (find_package) usage requirement: the installed flat include dir carries the
 # public headers (trunlib.h + its deprecated trunembedded.h shim + frozen testinterface.h / testinterface_v1.h).
 target_include_directories(trunlib INTERFACE $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
-# trunlib is the desktop-embedded engine: threaded (isolation + mid-body termination),
-# no fork. Forced termination throws/catches TestAbortException, so it needs exceptions;
-# fmt + cpptrace come along via the shared core (config arg-parsing / exception unwinding).
+# trunlib is the desktop-embedded engine: threaded (isolation + mid-body termination); it links
+# the fork/IPC transport but never selects it (trun::Initialize pins kSequential). Forced
+# termination throws/catches TestAbortException, so it needs exceptions; fmt + cpptrace come
+# along via the shared core (config arg-parsing / exception unwinding).
 target_compile_definitions(trunlib PUBLIC TRUN_HAVE_EXCEPTIONS)
 # fmt + cpptrace are FetchContent deps that do NOT export themselves as subprojects (cpptrace
 # only installs when PROJECT_IS_TOP_LEVEL), so they cannot appear in trunlib's *installed* export
 # interface. Guard them behind BUILD_INTERFACE: in-tree consumers (the trunembedded demo) link
 # them normally, while the installed testrunnerTargets omits them. testrunnerConfig then
 # find_dependency()'s fmt/cpptrace and re-attaches them to trun::lib for downstream consumers.
+#
+# trun_common_options carries the project platform defines (NOMINMAX / WIN32_LEAN_AND_MEAN on
+# Windows, APPLE / LINUX on unix) + the warning set. trunlib used to withhold it purely to avoid
+# TRUN_HAVE_FORK; that macro is gone, so linking it now makes trunlib compile the shared/fork code
+# the same way trun/tcov do - in particular NOMINMAX, without which <Windows.h> (pulled in by the
+# win32 fork transport) breaks std::max in moduleexecutors.cpp. Same BUILD_INTERFACE guard so the
+# INTERFACE-only options target never lands in the installed export set.
 target_link_libraries(trunlib PUBLIC
+        "$<BUILD_INTERFACE:trun_common_options>"
         "$<BUILD_INTERFACE:fmt::fmt>"
         "$<BUILD_INTERFACE:cpptrace::cpptrace>")
 
