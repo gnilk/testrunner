@@ -11,6 +11,6 @@ target_include_directories(trunembedded PUBLIC ${CMAKE_SOURCE_DIR}/src)
 target_include_directories(trunembedded PUBLIC ${CMAKE_SOURCE_DIR}/src/shared)
 target_include_directories(trunembedded PUBLIC ${CMAKE_SOURCE_DIR}/src/testrunner)
 target_include_directories(trunembedded PUBLIC ${CMAKE_SOURCE_DIR}/src/testrunner/ext_testinterface)
-target_include_directories(trunembedded PUBLIC ${CMAKE_SOURCE_DIR}/src/testrunner/embedded)
+target_include_directories(trunembedded PUBLIC ${CMAKE_SOURCE_DIR}/src/testrunner/lib)
 
 target_link_libraries(trunembedded PUBLIC trunlib ${platformlibs})

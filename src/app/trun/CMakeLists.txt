@@ -47,9 +47,10 @@ list(APPEND testsrc ${CMAKE_SOURCE_DIR}/src/shared/ipc/tests/test_ipc_messages.c
 list(APPEND testsrc ${CMAKE_SOURCE_DIR}/src/shared/ipc/tests/test_ipc_bufferedwriter.cpp)
 list(APPEND testsrc ${CMAKE_SOURCE_DIR}/src/shared/ipc/tests/test_ipc_framing.cpp)
 
-# embedded
-list(APPEND embedsrc ${CMAKE_SOURCE_DIR}/src/testrunner/embedded/dynlib_embedded.cpp ${CMAKE_SOURCE_DIR}/src/testrunner/embedded/dynlib_embedded.h)
-list(APPEND embedsrc ${CMAKE_SOURCE_DIR}/src/testrunner/embedded/logger.cpp)
+# trunlib-only sources (src/testrunner/lib): the in-process dynlib. The standalone stripped logger
+# that used to live here is gone - trunlib links gnklog like trun/tcov (the MCU-era no-dep reason
+# is moot now the MCU engine is separate).
+list(APPEND embedsrc ${CMAKE_SOURCE_DIR}/src/testrunner/lib/dynlib_embedded.cpp ${CMAKE_SOURCE_DIR}/src/testrunner/lib/dynlib_embedded.h)
 list(APPEND embedsrc ${CMAKE_SOURCE_DIR}/src/testrunner/trunlib.cpp ${CMAKE_SOURCE_DIR}/src/testrunner/trunlib.h ${CMAKE_SOURCE_DIR}/src/testrunner/trunembedded.h)
 #list(APPEND embedsrc ${CMAKE_SOURCE_DIR}/src/shared/strutil.cpp)
 
@@ -193,7 +194,7 @@ target_include_directories(trunlib PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_include_directories(trunlib PRIVATE ${CMAKE_SOURCE_DIR}/src/shared)
 target_include_directories(trunlib PRIVATE ${CMAKE_SOURCE_DIR}/src/testrunner)
 target_include_directories(trunlib PRIVATE ${CMAKE_SOURCE_DIR}/src/testrunner/ext_testinterface)
-target_include_directories(trunlib PRIVATE ${CMAKE_SOURCE_DIR}/src/testrunner/embedded)
+target_include_directories(trunlib PRIVATE ${CMAKE_SOURCE_DIR}/src/testrunner/lib)
 # Consumer-facing (find_package) usage requirement: the installed flat include dir carries the
 # public headers (trunlib.h + its deprecated trunembedded.h shim + frozen testinterface.h / testinterface_v1.h).
 target_include_directories(trunlib INTERFACE $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
@@ -214,8 +215,13 @@ target_compile_definitions(trunlib PUBLIC TRUN_HAVE_EXCEPTIONS)
 # the same way trun/tcov do - in particular NOMINMAX, without which <Windows.h> (pulled in by the
 # win32 fork transport) breaks std::max in moduleexecutors.cpp. Same BUILD_INTERFACE guard so the
 # INTERFACE-only options target never lands in the installed export set.
+# gnklog: trunlib now links the real logger (was a stripped, API-compatible reimplementation under
+# src/testrunner/lib/logger.* - dropped, since the "no external dep" reason died with the MCU split).
+# It provides <logger.h> + its objects as a link usage requirement. Same BUILD_INTERFACE guard +
+# find_dependency(gnklog) in testrunnerConfig as fmt/cpptrace, so the installed export stays clean.
 target_link_libraries(trunlib PUBLIC
         "$<BUILD_INTERFACE:trun_common_options>"
+        "$<BUILD_INTERFACE:gnklog>"
         "$<BUILD_INTERFACE:fmt::fmt>"
         "$<BUILD_INTERFACE:cpptrace::cpptrace>")
 
