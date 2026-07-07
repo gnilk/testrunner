@@ -16,14 +16,22 @@ endif()
 if(NOT TARGET cpptrace::cpptrace)
     find_dependency(cpptrace)
 endif()
+# gnklog: trunlib now links the real logger (it dropped its own stripped copy). gnklog is a
+# FetchContent source dep with no installed config package today, so find_dependency(gnklog) only
+# resolves if the consumer supplies gnklog (their own FetchContent, or a gnklog install on
+# CMAKE_PREFIX_PATH). Packaging gnklog for the installed dev-package path is the open follow-up
+# tracked in todo/embedded_delivery_followups.md (section 4b).
+if(NOT TARGET gnklog)
+    find_dependency(gnklog)
+endif()
 
 include("${CMAKE_CURRENT_LIST_DIR}/testrunnerTargets.cmake")
 
-# fmt/cpptrace are guarded out of trunlib's installed export interface (they are FetchContent
-# deps that don't self-export). Re-attach them now that the imported targets exist, so linking
+# fmt/cpptrace/gnklog are guarded out of trunlib's installed export interface (FetchContent deps
+# that don't self-export). Re-attach them now that the imported targets exist, so linking
 # trun::lib transitively pulls them in.
 if(TARGET trun::lib)
-    set_property(TARGET trun::lib APPEND PROPERTY INTERFACE_LINK_LIBRARIES fmt::fmt cpptrace::cpptrace)
+    set_property(TARGET trun::lib APPEND PROPERTY INTERFACE_LINK_LIBRARIES fmt::fmt cpptrace::cpptrace gnklog)
 endif()
 
 check_required_components(testrunner)
