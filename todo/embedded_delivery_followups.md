@@ -19,13 +19,12 @@ What remains here is the **deferred, not-greenlit** tail of that delivery work. 
     -> public headers currently install FLAT into include/ (<trunembedded.h> etc.). Installing
        under include/testrunner/ removes the flat-namespace collision risk. Changes the include
        style to <testrunner/...>, so bundle it with the rename, not as a standalone churn.
-+ Linux .deb build validation  (GENERATOR now proven; content check remains)
+! Linux .deb build validation — DONE (2026-07-07)
     -> the EXPORT/config-file package + two-component CPACK split (testrunner / testrunner-dev)
-       are authored, component installs verified on macOS, and the Linux `.deb` GENERATOR has now
-       RUN in CI: the `v0.0.0-ci-test` release run emitted `testrunner-4.0.0-Linux-runtime.deb` +
-       `-Linux-dev.deb` (green). What's LEFT: install a produced `.deb` and confirm the file layout,
-       that `TRUN_BUNDLE_DEPS=OFF` keeps fmt/cpptrace/libdwarf out of both packages, and that a
-       downstream `find_package(testrunner)` resolves against SYSTEM fmt/cpptrace.
+       are authored, component installs verified on macOS, the Linux `.deb` GENERATOR ran in CI
+       (the `v0.0.0-ci-test` release run emitted `testrunner-4.0.0-Linux-runtime.deb` +
+       `-Linux-dev.deb`, green), AND the maintainer has now **installed the produced `.deb` on
+       Linux — works fine**. Package build + install validated end-to-end.
 ```
 
 ## 1. trunembedded retirement + trunlib rename  (coupled)
@@ -61,11 +60,12 @@ under `include/testrunner/` removes the collision risk. It changes the include s
 
 ## 3. Linux .deb build validation
 
-The consumption machinery is authored and the CMake config/export/install flow is verified on
-macOS end-to-end (both `find_package` and FetchContent paths; `--component dev|runtime` installs).
-The `.deb` **generator** has since RUN in CI (the `v0.0.0-ci-test` release run emitted both
-`testrunner-4.0.0-Linux-runtime.deb` and `-Linux-dev.deb`), so what remains is a **content** check
-of a produced package, not "does it build":
+**DONE (2026-07-07).** The consumption machinery is authored, the CMake config/export/install flow
+verified on macOS end-to-end (both `find_package` and FetchContent paths; `--component dev|runtime`),
+the `.deb` **generator** ran in CI (the `v0.0.0-ci-test` release run emitted both
+`testrunner-4.0.0-Linux-runtime.deb` and `-Linux-dev.deb`), and the maintainer has now **installed
+the produced `.deb` on Linux — works fine**. Original remaining checklist (now satisfied by the
+install):
 - `ninja package` on Linux with `CPACK_DEB_COMPONENT_INSTALL` should emit two packages:
   `testrunner` (runtime CLI: `trun`/`tcov` + manpage) and `testrunner-dev`
   (`libtrunlib.a` + public headers + `lib/cmake/testrunner/*.cmake`).

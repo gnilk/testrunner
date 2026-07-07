@@ -198,11 +198,12 @@ detail in `todo/open-bugs.md` (section "testrunner core — audit 2026-07-05") a
   first `v4.0.0` tag will auto-publish a Release with the two `.deb`s + the `win64.exe` (CI proven,
   see the CI bullet) — tag it **`v4.0.0`** to match the CMake-driven package version.
 - Remaining open work — the **deferred delivery tail** (trunlib *target* rename + `trunembedded`
-  *demo app* retirement, `include/testrunner/` header layout, Linux `.deb` **build** validation) —
-  is its own active doc: `todo/embedded_delivery_followups.md`. NOT greenlit — capture only.
-  **Note:** the header/engine-source half of the rename is now **DONE** this session
-  (`trunembedded.{h,cpp}` → `trunlib.{h,cpp}` + deprecated `trunembedded.h` shim); only the target
-  rename + demo-app retirement remain.
+  *demo app* retirement, `include/testrunner/` header layout) — is its own active doc:
+  `todo/embedded_delivery_followups.md`. NOT greenlit — capture only.
+  **Note:** the header/engine-source half of the rename is now **DONE** (`trunembedded.{h,cpp}` →
+  `trunlib.{h,cpp}` + deprecated `trunembedded.h` shim); only the target rename + demo-app
+  retirement remain. The **Linux `.deb` build validation is DONE** — the generator ran in CI and the
+  maintainer installed the produced `.deb` on Linux (works fine); it's dropped from the list above.
 - Working tree clean except untracked `.DS_Store`, `src/testrunner/.DS_Store` (leave alone).
   The old uncommitted `trun.cpp` CLion debug comment is gone (the CWD debug print was removed in
   `606522e`).
@@ -289,9 +290,9 @@ gh release delete v0.0.0-ci-test --cleanup-tag --yes  # tears down release + rem
    `trunembedded` *demo app* — the **header/engine-source rename is DONE** this session
    (`trunembedded.{h,cpp}` → `trunlib.{h,cpp}` + deprecated shim); the target/demo-app rename is
    what's left (maintainer chose to keep the `trunlib` target name for now); (b) `include/testrunner/`
-   header layout (couple with the rename); (c) run the Linux `.deb` **build** (`ninja package`) — the
-   config/export/CPACK split is authored + verified on macOS, but the `.deb` generator itself is
-   Linux-only and unrun.
+   header layout (couple with the rename). ~~(c) Linux `.deb` build validation~~ — **DONE**
+   (2026-07-07): the generator ran in CI and the maintainer installed the produced `.deb` on Linux
+   (works fine).
 2. **Post-merge verification (step-3)** — the merge is done (`197f090`); the desktop 102/15 suite
    was re-run green during the consumption work, so this is effectively covered. Small follow-ups
    still noted in `todo/done/embedded_mcu_step3.md`: glob/negation (`!mod`) in the filter matcher;
