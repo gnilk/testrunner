@@ -197,12 +197,14 @@ detail in `todo/open-bugs.md` (section "testrunner core — audit 2026-07-05") a
   required and the maintainer never promotes unprompted (release-flow rule). Once promoted, the
   first `v4.0.0` tag will auto-publish a Release with the two `.deb`s + the `win64.exe` (CI proven,
   see the CI bullet) — tag it **`v4.0.0`** to match the CMake-driven package version.
-- Remaining open work — the **deferred delivery tail** (trunlib *target* rename + `trunembedded`
-  *demo app* retirement, `include/testrunner/` header layout) — is its own active doc:
+- Remaining open work — the **deferred delivery tail** (rewrite the `trunembedded` demo app as
+  `trunlib_example`; `include/testrunner/` header layout) — is its own active doc:
   `todo/embedded_delivery_followups.md`. NOT greenlit — capture only.
-  **Note:** the header/engine-source half of the rename is now **DONE** (`trunembedded.{h,cpp}` →
-  `trunlib.{h,cpp}` + deprecated `trunembedded.h` shim); only the target rename + demo-app
-  retirement remain. The **Linux `.deb` build validation is DONE** — the generator ran in CI and the
+  **Note:** the **trunlib rename is now DONE** — header/engine-source `trunembedded.{h,cpp}` →
+  `trunlib.{h,cpp}` (+ deprecated shim) AND the *target* rename is satisfied by the `trun::lib`
+  alias + `EXPORT_NAME lib` (internal `trunlib` name kept by choice). Only the demo-app →
+  `trunlib_example` rewrite + the header layout remain. The **Linux `.deb` build validation is
+  DONE** — the generator ran in CI and the
   maintainer installed the produced `.deb` on Linux (works fine); it's dropped from the list above.
 - Working tree clean except untracked `.DS_Store`, `src/testrunner/.DS_Store` (leave alone).
   The old uncommitted `trun.cpp` CLion debug comment is gone (the CWD debug print was removed in
@@ -286,11 +288,11 @@ gh release delete v0.0.0-ci-test --cleanup-tag --yes  # tears down release + rem
    `tcov` on Windows (needs an SEH / `AddVectoredExceptionHandler` / DbgHelp debug backend) and
    retiring the legacy `trunwindows/` VS solution.
 1. **Deferred delivery tail** — `todo/embedded_delivery_followups.md` (extracted when
-   `library_consumption.md` was archived). (a) rename the `trunlib` *target* + retire the
-   `trunembedded` *demo app* — the **header/engine-source rename is DONE** this session
-   (`trunembedded.{h,cpp}` → `trunlib.{h,cpp}` + deprecated shim); the target/demo-app rename is
-   what's left (maintainer chose to keep the `trunlib` target name for now); (b) `include/testrunner/`
-   header layout (couple with the rename). ~~(c) Linux `.deb` build validation~~ — **DONE**
+   `library_consumption.md` was archived). ~~(a) trunlib rename~~ — **DONE**: header/engine-source
+   `trunembedded.{h,cpp}` → `trunlib.{h,cpp}` (+ deprecated shim) AND the *target* rename via the
+   `trun::lib` alias + `EXPORT_NAME lib` (internal `trunlib` name kept by choice). **Remaining:**
+   rewrite the `trunembedded` *demo app* as `trunlib_example` (deferred, not scheduled — doc input);
+   (b) `include/testrunner/` header layout. ~~(c) Linux `.deb` build validation~~ — **DONE**
    (2026-07-07): the generator ran in CI and the maintainer installed the produced `.deb` on Linux
    (works fine).
 2. **Post-merge verification (step-3)** — the merge is done (`197f090`); the desktop 102/15 suite

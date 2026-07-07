@@ -1,4 +1,5 @@
-# Embedded-delivery follow-ons — trunlib rename / trunembedded retirement / header layout
+# Embedded-delivery follow-ons — trunlib_example rewrite / include/testrunner/ header layout
+# (trunlib rename + Linux .deb validation now DONE — see below)
 
 Extracted 2026-07-02 from `todo/done/library_consumption.md` (archived — the two headline
 deliverables, trunmcu FetchContent + trunlib find_package, shipped and merged in `9f494fe`).
@@ -6,15 +7,18 @@ What remains here is the **deferred, not-greenlit** tail of that delivery work. 
 
 ## TODO  [ -:open  +:in progress  !:done ]
 ```
-+ trunembedded retirement + trunlib rename (COUPLED - do together, one atomic push)
-    -> retire the old two-in-one `trunembedded` name/facade now that trunlib covers the
-       desktop-embed role; rename `trunlib` to something that reads as "embed the runner in a
-       desktop app". Maintainer chose to KEEP `trunlib` for now (2026-07-02) -> deferred.
-    ! PARTIAL (2026-07-06): public header `trunembedded.h` -> `trunlib.h` and engine source
-       `trunembedded.cpp` -> `trunlib.cpp` done, with a deprecated `trunembedded.h` shim
-       (`#pragma message`, forwards to `trunlib.h`, removed in v5.0.0). Both headers installed.
-       STILL DEFERRED: renaming the `trunlib` *target* itself, and retiring the `trunembedded`
-       *demo app* (src/app/trunembedded dir + target). See section 1.
+! trunlib rename (header + engine source + target) — DONE (2026-07-06/07)
+    -> public header `trunembedded.h` -> `trunlib.h` and engine source `trunembedded.cpp` ->
+       `trunlib.cpp`, with a deprecated `trunembedded.h` shim (`#pragma message`, forwards to
+       `trunlib.h`, removed in v5.0.0; both headers installed). The `trunlib` *target* rename is
+       satisfied by the **consumer-facing name `trun::lib`** — `add_library(trun::lib ALIAS trunlib)`
+       + `EXPORT_NAME lib` (app/trun/CMakeLists.txt:183-188) — so `find_package(testrunner)` links
+       `trun::lib` regardless of the internal target still being literally `trunlib` (kept
+       deliberately; an impl detail consumers never see). See section 1.
+- trunembedded demo app -> rewrite as `trunlib_example`  (deferred, NOT now — doc input)
+    -> src/app/trunembedded is the old two-in-one demo. Recast it as a clean "how to embed trunlib
+       in a desktop app" example, target `trunlib_example`, so it reads as example code rather than a
+       legacy facade. Captured now as input for the docs; not scheduled.
 - include/testrunner/ header layout (couple with the rename)
     -> public headers currently install FLAT into include/ (<trunembedded.h> etc.). Installing
        under include/testrunner/ removes the flat-namespace collision risk. Changes the include
@@ -27,27 +31,27 @@ What remains here is the **deferred, not-greenlit** tail of that delivery work. 
        Linux — works fine**. Package build + install validated end-to-end.
 ```
 
-## 1. trunembedded retirement + trunlib rename  (coupled)
+## 1. trunlib rename — DONE; trunembedded demo app -> trunlib_example (deferred)
 
 Completes the objective in the opening of the archived `todo/done/embedded_impl.md`: *"There are
 actually two types of embedded engines … Both use cases should be supported — but not necessarily
-by the same engine."* The engines are already split and merged; what's left is naming/facade:
-- **Retire** the old two-in-one `trunembedded` once `trunlib` fully covers the desktop-embed role
-  — one atomic push (per the archived roadmap's sequencing), keeping the current engine as the
-  baseline until then.
-- **Rename** `trunlib` to something that reads as "embed the runner in your desktop app"
-  (bikeshed at retirement time). The public alias `trun::lib` and `EXPORT_NAME lib` were chosen
-  so the *consumer-facing* name is already `trun::lib` regardless of the internal target rename.
+by the same engine."* The engines are already split and merged; the naming/facade is now resolved:
 
-Why deferred: the maintainer chose to keep `trunlib` for now — a rename touches the installed
-package/target names and every consumer snippet, so it's a deliberate, standalone change.
+**Rename — DONE (`refactor/rename-trunembedded-header`, 2026-07-06/07):**
+- The consumer-facing header is now `trunlib.h` (matches `trun::lib`), engine source is
+  `trunlib.cpp`. `trunembedded.h` remains as a thin deprecated shim (`#pragma message` → forwards
+  to `trunlib.h`; verified clean even under `-Werror`) slated for removal in **v5.0.0**. Both
+  headers ship in the install package.
+- The **`trunlib` target rename is satisfied without renaming the internal target**: the
+  consumer-facing name is `trun::lib` via `add_library(trun::lib ALIAS trunlib)` +
+  `EXPORT_NAME lib` (app/trun/CMakeLists.txt:183-188). `find_package(testrunner)` links `trun::lib`;
+  the literal `trunlib` target name is an implementation detail consumers never see, so it's kept as
+  is. (This was always the plan — the alias/EXPORT_NAME were chosen up front for exactly this.)
 
-**Done 2026-07-06 (header + engine-source rename, `refactor/rename-trunembedded-header`):** the
-consumer-facing header is now `trunlib.h` (matches `trun::lib`), engine source is `trunlib.cpp`.
-`trunembedded.h` remains as a thin deprecated shim (`#pragma message` → forwards to `trunlib.h`;
-verified it compiles clean even under `-Werror`, so strict consumers aren't broken) slated for
-removal in **v5.0.0**. Both headers ship in the install package. Still open here: the `trunlib`
-target rename (kept by choice) and retiring the separate `trunembedded` demo app.
+**Remaining (deferred, NOT now — doc input):** rewrite the `src/app/trunembedded` demo app as
+`trunlib_example`. It's the old two-in-one demo; recast it as clean "how to embed trunlib in a
+desktop app" example code (target `trunlib_example`) rather than a legacy-named facade. Not
+scheduled — captured here as input for the docs.
 
 ## 2. include/testrunner/ header layout  (couple with the rename)
 
