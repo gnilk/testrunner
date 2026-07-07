@@ -4,18 +4,42 @@ Pick-up notes for continuing on a clean slate.
 
 ---
 
-## ⭐ CURRENT WORK — none active (reporting/robustness batch just LANDED on `dev`)
+## ⭐ CURRENT WORK — none active (TRUN_HAVE_FORK removal + trunlib rename batch just LANDED on `dev`)
 
-> The **reporting/robustness batch is MERGED to `dev`** — `--no-ff` merge **`b2d5ad9`** (2026-07-06);
-> branch `fix/reporting-hardening` **deleted** (local + `origin`) per the merged-branch convention.
-> Suite on `dev` is now **fork == seq == 116 executed / 13 fail**. **No work is in progress** — pick
-> from "Open work — suggested order" further below. The earlier testrunner-core audit series landed
-> before it (`--no-ff` merge `0a7989d`); both are background now.
+> This session landed a **refactor batch on `dev`** — all merged, branches deleted, **CI green on
+> Linux + Windows** (run `28822807846`). **No work is in progress** — pick from "Open work" below.
+> `dev` HEAD is **`892203c`**, in sync with `origin/dev`; suite **fork == seq == 116 / 13** (unchanged).
+> The reporting/robustness batch (`b2d5ad9`) + testrunner-core audit (`0a7989d`) are background now.
+>
+> Landed this session, in order:
+> 1. **Removed `TRUN_HAVE_FORK`** (merge `0f4499c`, Option B). The fork/sequential split is now
+>    **runtime** (`Config::moduleExecuteType`), not compile-time. `trunlib` links the fork/IPC/
+>    procspawn transport **inert** and `trun::Initialize` **pins `kSequential`** so the embedded
+>    engine never forks. Also deleted the dead code-driven coverage RPC (`int_tcov_begincov` body,
+>    tcov IPC server, `coveragerpcbrige.*`, `CoverageIPCMessages.*`, `--tcov-ipc-name`);
+>    `ITestingCoverage`/`QueryInterface` kept, `BeginCoverage` now a **no-op** (see open-bugs).
+>    Doc archived to `todo/done/remove_trun_have_fork.md`.
+> 2. **Renamed `trunembedded.{h,cpp}` → `trunlib.{h,cpp}`** (merge `6ae2232`) — matches `trun::lib`.
+>    `trunembedded.h` stays a deprecated `#pragma message` shim → `trunlib.h`, removed in **v5.0.0**;
+>    both installed. Partial progress on the deferred rename tail — the `trunlib` *target* rename +
+>    the `trunembedded` *demo app* are still deferred (`embedded_delivery_followups.md`).
+> 3. **Rewrote PlatformIO `library.json` for V4** (merge `1aa0c88`) — now points at the MCU engine
+>    (`src/testrunner/mcu`); dropped the removed `TRUN_EMBEDDED_MCU`/`TRUN_SINGLE_THREAD` macros +
+>    `c++17`. **NOT `pio`-verified** (no toolchain here) — smoke-test on the embedded box before
+>    release; the one risk is consumer exposure of the `ext_testinterface` `-I` (see commit `b0b3ba1`).
+> 4. **Linux + Windows CI build fixes** (`b00902c`, `892203c`). Adding the shared fork/IPC code to
+>    `trunlib`'s compile exposed two latent gaps: (a) `trunlib` resolves `logger.h` to the *stripped*
+>    embedded logger, which doesn't pull transitive `<string>/<vector>/<list>` the way gnklog's does →
+>    libstdc++ failed; fixed with explicit IWYU includes. (b) `trunlib` didn't link
+>    `trun_common_options`, so no `NOMINMAX` → MSVC `std::max` broke on the win32 fork transport's
+>    `<Windows.h>`; fixed by linking it (`BUILD_INTERFACE`-guarded, export stays clean).
+>    **Lesson: macOS/libc++ hides missing includes + platform-define gaps; only the Linux/Windows CI
+>    catches them — always watch CI (`gh run watch`) after changing which files a target compiles.**
 
 ### Resume from any machine (clean slate on `dev`)
 ```bash
 git fetch origin
-git checkout dev && git pull --ff-only                                    # dev @ b2d5ad9
+git checkout dev && git pull --ff-only                                    # dev @ 892203c
 cd cmake-build-debug && ninja trun trun_utests
 ./trun            -m '!abortall,!exception,-' lib/libtrun_utests.dylib     # fork (default)
 ./trun --sequential -m '!abortall,!exception,-' lib/libtrun_utests.dylib   # seq == fork
@@ -173,9 +197,12 @@ detail in `todo/open-bugs.md` (section "testrunner core — audit 2026-07-05") a
   required and the maintainer never promotes unprompted (release-flow rule). Once promoted, the
   first `v4.0.0` tag will auto-publish a Release with the two `.deb`s + the `win64.exe` (CI proven,
   see the CI bullet) — tag it **`v4.0.0`** to match the CMake-driven package version.
-- Remaining open work — the **deferred delivery tail** (trunlib rename + trunembedded facade
-  retirement, `include/testrunner/` header layout, Linux `.deb` **build** validation) — is its
-  own active doc: `todo/embedded_delivery_followups.md`. NOT greenlit — capture only.
+- Remaining open work — the **deferred delivery tail** (trunlib *target* rename + `trunembedded`
+  *demo app* retirement, `include/testrunner/` header layout, Linux `.deb` **build** validation) —
+  is its own active doc: `todo/embedded_delivery_followups.md`. NOT greenlit — capture only.
+  **Note:** the header/engine-source half of the rename is now **DONE** this session
+  (`trunembedded.{h,cpp}` → `trunlib.{h,cpp}` + deprecated `trunembedded.h` shim); only the target
+  rename + demo-app retirement remain.
 - Working tree clean except untracked `.DS_Store`, `src/testrunner/.DS_Store` (leave alone).
   The old uncommitted `trun.cpp` CLion debug comment is gone (the CWD debug print was removed in
   `606522e`).
@@ -258,11 +285,13 @@ gh release delete v0.0.0-ci-test --cleanup-tag --yes  # tears down release + rem
    `tcov` on Windows (needs an SEH / `AddVectoredExceptionHandler` / DbgHelp debug backend) and
    retiring the legacy `trunwindows/` VS solution.
 1. **Deferred delivery tail** — `todo/embedded_delivery_followups.md` (extracted when
-   `library_consumption.md` was archived). Three items, none greenlit: (a) rename `trunlib` +
-   retire the old two-in-one `trunembedded` facade (coupled — one atomic push; maintainer chose
-   to keep `trunlib` for now); (b) `include/testrunner/` header layout (couple with the rename);
-   (c) run the Linux `.deb` **build** (`ninja package`) — the config/export/CPACK split is
-   authored + verified on macOS, but the `.deb` generator itself is Linux-only and unrun.
+   `library_consumption.md` was archived). (a) rename the `trunlib` *target* + retire the
+   `trunembedded` *demo app* — the **header/engine-source rename is DONE** this session
+   (`trunembedded.{h,cpp}` → `trunlib.{h,cpp}` + deprecated shim); the target/demo-app rename is
+   what's left (maintainer chose to keep the `trunlib` target name for now); (b) `include/testrunner/`
+   header layout (couple with the rename); (c) run the Linux `.deb` **build** (`ninja package`) — the
+   config/export/CPACK split is authored + verified on macOS, but the `.deb` generator itself is
+   Linux-only and unrun.
 2. **Post-merge verification (step-3)** — the merge is done (`197f090`); the desktop 102/15 suite
    was re-run green during the consumption work, so this is effectively covered. Small follow-ups
    still noted in `todo/done/embedded_mcu_step3.md`: glob/negation (`!mod`) in the filter matcher;

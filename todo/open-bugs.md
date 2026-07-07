@@ -18,6 +18,14 @@ a dedicated doc if a cluster grows around any of them.
 
 ### Coverage
 
+- **[new, 2026-07-06] `int_tcov_begincov` / `ITestingCoverage::BeginCoverage` is now a no-op.**
+  The `TRUN_HAVE_FORK` removal (`todo/done/remove_trun_have_fork.md`) deleted the code-driven
+  coverage RPC but kept the `ITestingCoverage` interface + `QueryInterface` per that work package's
+  scope. So `t->QueryInterface(ITestingCoverage_IFace_ID, ...)->BeginCoverage(sym)` now does nothing
+  (`responseproxy.cpp`). The whole `QueryInterface`/`ITestingConfig`/`ITestingCoverage` extension
+  mechanism is experimental + unused outside its own tests — candidate for removal from `ITesting`
+  (out of scope there; noted here for discoverability). tcov's `--symbols` static-breakpoint path is
+  the supported coverage workflow and is unaffected.
 - `SymbolResolver::IsInProject` (`src/coverage/SymbolResolver.cpp:41-50`) is a
   no-op: it `return true;` on the first line, leaving the real path-filtering
   logic dead below it — including a hardcoded `/your/project/root/` placeholder

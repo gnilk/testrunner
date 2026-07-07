@@ -1,8 +1,14 @@
 # Remove `TRUN_HAVE_FORK`
 
+> ✅ **RESOLVED** (`refactor/remove-have-fork`, merged to `dev` `0f4499c`, 2026-07-06). All three
+> steps done + verified; **Option B** chosen (the "keep trunlib lean" premise dissolved with the MCU
+> split — see the Step 2 decision below). Follow-on Linux/Windows CI build fixes (`b00902c` STL
+> includes, `892203c` trunlib→trun_common_options for NOMINMAX) landed straight on `dev`; CI green on
+> both platforms (run `28822807846`). Archived to `todo/done/`.
+
 Work package: retire the `TRUN_HAVE_FORK` compile-time flag so all desktop targets
-compile from one uniform source, while keeping `trunlib` (the in-process embedded
-engine) free of fork / subprocess / IPC / procspawn code.
+compile from one uniform source. (Original goal said "keep `trunlib` free of fork/IPC" —
+superseded: Option B links the inert fork code into `trunlib` instead, per the Step 2 decision.)
 
 Notation (per CLAUDE.md): `-` open, `+` in progress, `!` done.
 
