@@ -1,5 +1,11 @@
 # Result model — return codes vs `ITesting` callbacks, and the mapping to `kTestResult`
 
+> ✅ **CLOSED / reference** (archived 2026-07-06). Every actionable item is `!` done (the
+> `DeriveResult` split, `Error` detail, dead case-executor cleanup, A-vs-B authority contract,
+> fork `AllFail` alignment). The two remaining `-` items are **permanent documented frozen-header
+> behavior**, not open work — captured in memory `v2-assert-return-depth-limit` +
+> `external-interface-frozen`. Kept as the design/reference map for the result model.
+
 Reference/design map for how a test signals success/failure, how those signals reconcile into
 a single `kTestResult`, and how that differs between `--sequential` and forked execution.
 

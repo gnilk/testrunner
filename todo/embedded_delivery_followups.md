@@ -19,11 +19,13 @@ What remains here is the **deferred, not-greenlit** tail of that delivery work. 
     -> public headers currently install FLAT into include/ (<trunembedded.h> etc.). Installing
        under include/testrunner/ removes the flat-namespace collision risk. Changes the include
        style to <testrunner/...>, so bundle it with the rename, not as a standalone churn.
-- Linux .deb build validation
++ Linux .deb build validation  (GENERATOR now proven; content check remains)
     -> the EXPORT/config-file package + two-component CPACK split (testrunner / testrunner-dev)
-       are authored and the component installs verified on macOS; the actual `.deb` GENERATOR is
-       Linux-only and has NOT been run. Build `ninja package` on Linux and confirm the two
-       packages lay down the right files.
+       are authored, component installs verified on macOS, and the Linux `.deb` GENERATOR has now
+       RUN in CI: the `v0.0.0-ci-test` release run emitted `testrunner-4.0.0-Linux-runtime.deb` +
+       `-Linux-dev.deb` (green). What's LEFT: install a produced `.deb` and confirm the file layout,
+       that `TRUN_BUNDLE_DEPS=OFF` keeps fmt/cpptrace/libdwarf out of both packages, and that a
+       downstream `find_package(testrunner)` resolves against SYSTEM fmt/cpptrace.
 ```
 
 ## 1. trunembedded retirement + trunlib rename  (coupled)
@@ -61,7 +63,9 @@ under `include/testrunner/` removes the collision risk. It changes the include s
 
 The consumption machinery is authored and the CMake config/export/install flow is verified on
 macOS end-to-end (both `find_package` and FetchContent paths; `--component dev|runtime` installs).
-The one thing NOT exercised is the **`.deb` generator itself**, which is Linux-only:
+The `.deb` **generator** has since RUN in CI (the `v0.0.0-ci-test` release run emitted both
+`testrunner-4.0.0-Linux-runtime.deb` and `-Linux-dev.deb`), so what remains is a **content** check
+of a produced package, not "does it build":
 - `ninja package` on Linux with `CPACK_DEB_COMPONENT_INSTALL` should emit two packages:
   `testrunner` (runtime CLI: `trun`/`tcov` + manpage) and `testrunner-dev`
   (`libtrunlib.a` + public headers + `lib/cmake/testrunner/*.cmake`).
