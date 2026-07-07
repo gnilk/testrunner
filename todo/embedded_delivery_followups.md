@@ -24,12 +24,14 @@ What remains here is the **deferred, not-greenlit** tail of that delivery work. 
     -> public headers currently install FLAT into include/ (<trunembedded.h> etc.). Installing
        under include/testrunner/ removes the flat-namespace collision risk. Changes the include
        style to <testrunner/...>, so bundle it with the rename, not as a standalone churn.
-- package gnklog for the installed dev-package  (fallout from 4b)
++ gnklog find_package support  (fallout from 4b — being handled in the gnklog repo)
     -> since 4b, trunlib links gnklog, so the installed testrunner-dev package's
-       `find_dependency(gnklog)` only resolves if the consumer already supplies gnklog. gnklog is a
-       FetchContent source dep with no installed config package. Options: give gnklog an installable
-       config/export, bundle its objects into libtrunlib.a, or fold it under TRUN_BUNDLE_DEPS. Same
-       class of problem as fmt/cpptrace. See section 4b.
+       `find_dependency(gnklog)` only resolves if the consumer supplies gnklog. **Maintainer decision
+       (2026-07-07): fix on the gnklog side** — add proper `find_package` support to the gnklog repo
+       (it has other cleanup pending too; separate repo, separate timeline). Once gnklog ships an
+       installable config, testrunner's `find_dependency(gnklog)` resolves with NO further change
+       here. (Fallback if ever needed: bundle gnklog objects into libtrunlib.a, or fold under
+       TRUN_BUNDLE_DEPS.) See section 4b.
 ! trunlib: rename src dir `src/testrunner/embedded/` -> `src/testrunner/lib/` — DONE (2026-07-07)
     -> holdover name from when `trunlib` was the two-in-one "trunembedded" engine. Renamed to `lib`
        (matches trunlib / trun::lib); embedsrc + the trunlib & trunembedded include dirs + trunlib.cpp's
