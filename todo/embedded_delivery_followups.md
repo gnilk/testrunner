@@ -1,4 +1,5 @@
-# Embedded-delivery follow-ons — trunlib_example rewrite / include/testrunner/ header layout
+# Embedded-delivery follow-ons — trunlib internals (embedded/ -> lib, drop standalone logger),
+#   trunlib_example rewrite, include/testrunner/ header layout
 # (trunlib rename + Linux .deb validation now DONE — see below)
 
 Extracted 2026-07-02 from `todo/done/library_consumption.md` (archived — the two headline
@@ -23,6 +24,15 @@ What remains here is the **deferred, not-greenlit** tail of that delivery work. 
     -> public headers currently install FLAT into include/ (<trunembedded.h> etc.). Installing
        under include/testrunner/ removes the flat-namespace collision risk. Changes the include
        style to <testrunner/...>, so bundle it with the rename, not as a standalone churn.
+- trunlib: rename src dir `src/testrunner/embedded/` -> `src/testrunner/lib/`  (old MCU-era name)
+    -> holdover name from when `trunlib` was the two-in-one "trunembedded" engine. Rename to `lib`
+       (matches trunlib / trun::lib). Touches embedsrc + the trunlib & trunembedded include dirs +
+       trunlib.cpp's `#include "embedded/dynlib_embedded.h"`. See section 4a.
+- trunlib: drop the standalone logger, link gnklog instead  (MCU split removed the reason)
+    -> trunlib compiles its own stripped logger (`.../embedded/logger.{cpp,h}`, API-compatible with
+       gnklog) rather than linking gnklog. That was only to keep the old trunlib-is-also-MCU engine
+       dependency-free; MCU now has its own engine and trunlib already links fmt+cpptrace, so it
+       should use gnklog like trun/tcov. See section 4b.
 ! Linux .deb build validation — DONE (2026-07-07)
     -> the EXPORT/config-file package + two-component CPACK split (testrunner / testrunner-dev)
        are authored, component installs verified on macOS, the Linux `.deb` GENERATOR ran in CI
@@ -76,3 +86,51 @@ install):
 - Confirm `TRUN_BUNDLE_DEPS` OFF keeps third-party (fmt/cpptrace/libdwarf) out of both packages,
   and that a downstream `find_package(testrunner)` resolves against **system** fmt/cpptrace.
 - `TRUN_BUNDLE_DEPS` ON is the self-contained-prefix case; not necessarily a `.deb` concern.
+
+## 4. trunlib internals — retire the `embedded/` dir name + standalone logger
+
+Two coupled cleanups on the trunlib target, both rooted in the same history: `src/testrunner/embedded/`
+and the stripped logger inside it date from when a single `trunlib` served BOTH the desktop-embed role
+AND the no-heap/no-dep MCU role. The MCU engine (`trunmcu`, `src/testrunner/mcu/`) is now a **separate
+implementation**, so trunlib is purely the desktop-embed engine (threaded; already links fmt + cpptrace)
+— the "self-contained, no external logger" constraint no longer applies. Do 4a + 4b together (4b removes
+one of the files 4a would move).
+
+### 4a. Rename `src/testrunner/embedded/` -> `src/testrunner/lib/`
+The dir holds `dynlib_embedded.{cpp,h}` (the in-process `AddTestCase` dynlib) and `logger.{cpp,h}` (4b).
+"embedded" is the old two-in-one name; `lib` matches `trunlib` / `trun::lib`. Touch points:
+- `src/app/trun/CMakeLists.txt` — `embedsrc` (dynlib_embedded.{cpp,h}, and logger.cpp until 4b drops it)
+  and the trunlib PRIVATE include dir (`target_include_directories(trunlib PRIVATE .../embedded)`).
+- `src/app/trunembedded/CMakeLists.txt` — its `.../embedded` include dir.
+- `src/testrunner/trunlib.cpp` — `#include "embedded/dynlib_embedded.h"` -> `lib/...`.
+- (optional bikeshed) also rename `dynlib_embedded` -> `dynlib_lib`? Separate; not required by the dir move.
+
+### 4b. Drop the standalone logger; link gnklog
+`src/testrunner/embedded/logger.{cpp,h}` is a stripped but **API-compatible** reimplementation of gnklog
+(`gnilk::Logger` — `Initialize` / `GetLogger` / `SetAllSinkDebugLevel` / `Consume`; `ILogger::Debug/
+Info/Warning/Error`; a `LogLevel` enum). trunlib compiles it and puts `src/testrunner/embedded` on its
+include path, so trunlib's `#include "logger.h"` resolves HERE; trun/trun_utests/tcov instead link
+`gnklog` (extlibs, `cmake/CMakeDeps.cmake`) + include `ext/gnklog/src`.
+
+Migration is mostly CMake: drop `logger.cpp` from `embedsrc`, take the embedded logger off trunlib's
+include path, add `gnklog` to trunlib's link + `ext/gnklog/src` to its includes. The **function** surface
+matches (only the functions are called — the level enums are an implementation detail), so call sites are
+unchanged in substance. gnklog needs `Logger::Initialize()` — **already called** in the shared `Config`
+ctor (`config.cpp:65`, which trunlib reaches via `Config::Instance()`), and it auto-adds a console sink
+("Console already added"), so no extra sink wiring. The one code touch: trunlib.cpp's `ConfigureLogger`
+still uses the old leaky `Logger::kMCError/kMCInfo/kMCDebug` names (the embedded header exposed its
+internals); gnklog is more conservative, so match trun.cpp's own `ConfigureLogger` (or just unify the two
+near-duplicates).
+
+Wrinkles / considerations:
+- **Installed-export dependency.** trunlib is an installed lib (`find_package(testrunner)` -> `trun::lib`).
+  Linking gnklog means installed consumers must resolve gnklog — the same situation fmt/cpptrace already
+  have, handled by the `$<BUILD_INTERFACE:>` guard + `find_dependency` in `testrunnerConfig.cmake.in`.
+  gnklog is a FetchContent source dep (no clean config package today), so it needs the same treatment (or
+  a bundle decision). The embedded logger was partly how trunlib kept its installed dep surface minimal;
+  dropping it trades that for consistency with trun.
+- **This is the root cause of the 2026-07-06 Linux build break.** trunlib resolving `logger.h` to the
+  *stripped* logger (fewer transitive STL includes than gnklog's) is why the fork/IPC sources dragged into
+  trunlib failed on libstdc++ (`process_unix.cpp` missing `<vector>` etc.; fixed with explicit includes in
+  `b00902c`). Switching to gnklog makes trunlib compile the shared code identically to trun and removes
+  that whole divergence class (keep the explicit includes regardless — IWYU-correct either way).

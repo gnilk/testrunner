@@ -197,9 +197,10 @@ detail in `todo/open-bugs.md` (section "testrunner core — audit 2026-07-05") a
   required and the maintainer never promotes unprompted (release-flow rule). Once promoted, the
   first `v4.0.0` tag will auto-publish a Release with the two `.deb`s + the `win64.exe` (CI proven,
   see the CI bullet) — tag it **`v4.0.0`** to match the CMake-driven package version.
-- Remaining open work — the **deferred delivery tail** (rewrite the `trunembedded` demo app as
-  `trunlib_example`; `include/testrunner/` header layout) — is its own active doc:
-  `todo/embedded_delivery_followups.md`. NOT greenlit — capture only.
+- Remaining open work — the **deferred delivery tail** (trunlib internals cleanup: rename
+  `src/testrunner/embedded/` → `.../lib/` + drop the standalone logger for gnklog; rewrite the
+  `trunembedded` demo app as `trunlib_example`; `include/testrunner/` header layout) — is its own
+  active doc: `todo/embedded_delivery_followups.md` (see section 4). NOT greenlit — capture only.
   **Note:** the **trunlib rename is now DONE** — header/engine-source `trunembedded.{h,cpp}` →
   `trunlib.{h,cpp}` (+ deprecated shim) AND the *target* rename is satisfied by the `trun::lib`
   alias + `EXPORT_NAME lib` (internal `trunlib` name kept by choice). Only the demo-app →
