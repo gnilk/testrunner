@@ -1,6 +1,6 @@
-# Embedded-delivery follow-ons — trunlib internals (embedded/ -> lib, drop standalone logger),
-#   trunlib_example rewrite, include/testrunner/ header layout
-# (trunlib rename + Linux .deb validation now DONE — see below)
+# Embedded-delivery follow-ons — trunlib_example rewrite, include/testrunner/ header layout,
+#   package gnklog for the installed dev-package
+# (trunlib rename, Linux .deb validation, embedded/ -> lib + gnklog swap now DONE — see below)
 
 Extracted 2026-07-02 from `todo/done/library_consumption.md` (archived — the two headline
 deliverables, trunmcu FetchContent + trunlib find_package, shipped and merged in `9f494fe`).
@@ -24,14 +24,24 @@ What remains here is the **deferred, not-greenlit** tail of that delivery work. 
     -> public headers currently install FLAT into include/ (<trunembedded.h> etc.). Installing
        under include/testrunner/ removes the flat-namespace collision risk. Changes the include
        style to <testrunner/...>, so bundle it with the rename, not as a standalone churn.
-- trunlib: rename src dir `src/testrunner/embedded/` -> `src/testrunner/lib/`  (old MCU-era name)
-    -> holdover name from when `trunlib` was the two-in-one "trunembedded" engine. Rename to `lib`
-       (matches trunlib / trun::lib). Touches embedsrc + the trunlib & trunembedded include dirs +
-       trunlib.cpp's `#include "embedded/dynlib_embedded.h"`. See section 4a.
-- trunlib: drop the standalone logger, link gnklog instead  (MCU split removed the reason)
-    -> trunlib compiles its own stripped logger (`.../embedded/logger.{cpp,h}`, API-compatible with
-       gnklog) rather than linking gnklog. That was only to keep the old trunlib-is-also-MCU engine
-       dependency-free; MCU now has its own engine and trunlib already links fmt+cpptrace, so it
+- package gnklog for the installed dev-package  (fallout from 4b)
+    -> since 4b, trunlib links gnklog, so the installed testrunner-dev package's
+       `find_dependency(gnklog)` only resolves if the consumer already supplies gnklog. gnklog is a
+       FetchContent source dep with no installed config package. Options: give gnklog an installable
+       config/export, bundle its objects into libtrunlib.a, or fold it under TRUN_BUNDLE_DEPS. Same
+       class of problem as fmt/cpptrace. See section 4b.
+! trunlib: rename src dir `src/testrunner/embedded/` -> `src/testrunner/lib/` — DONE (2026-07-07)
+    -> holdover name from when `trunlib` was the two-in-one "trunembedded" engine. Renamed to `lib`
+       (matches trunlib / trun::lib); embedsrc + the trunlib & trunembedded include dirs + trunlib.cpp's
+       include updated. Merged to dev (`refactor/trunlib-lib-dir-and-gnklog`). See section 4a.
+! trunlib: drop the standalone logger, link gnklog instead — DONE (2026-07-07)
+    -> deleted the stripped logger (was `.../lib/logger.{cpp,h}`); trunlib links `$<BUILD_INTERFACE:gnklog>`
+       (guarded out of the export + find_dependency in testrunnerConfig), ConfigureLogger uses gnklog's
+       LogLevel::, RunTests Consume()s. **Open follow-up:** installed dev-package needs gnklog resolvable
+       (FetchContent dep, no config package yet — same class as fmt/cpptrace). See section 4b.
+       (historical rationale below:) trunlib compiled its own stripped logger, API-compatible with
+       gnklog, only to keep the old trunlib-is-also-MCU engine dependency-free; MCU now has its own
+       engine and trunlib already links fmt+cpptrace, so it
        should use gnklog like trun/tcov. See section 4b.
 ! Linux .deb build validation — DONE (2026-07-07)
     -> the EXPORT/config-file package + two-component CPACK split (testrunner / testrunner-dev)
@@ -88,6 +98,11 @@ install):
 - `TRUN_BUNDLE_DEPS` ON is the self-contained-prefix case; not necessarily a `.deb` concern.
 
 ## 4. trunlib internals — retire the `embedded/` dir name + standalone logger
+
+> ✅ **DONE (2026-07-07, merged to dev `refactor/trunlib-lib-dir-and-gnklog`).** Both 4a + 4b landed.
+> macOS-verified (build + demo 5/1 + suite 116/13 + clean `--component dev` install with gnklog kept
+> out of the export); Linux/Windows via CI. One open follow-up remains: packaging gnklog so the
+> installed dev-package's `find_dependency(gnklog)` resolves (see 4b considerations).
 
 Two coupled cleanups on the trunlib target, both rooted in the same history: `src/testrunner/embedded/`
 and the stripped logger inside it date from when a single `trunlib` served BOTH the desktop-embed role
