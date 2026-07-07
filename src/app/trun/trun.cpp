@@ -132,7 +132,7 @@ static void Help() {
     printf("  --max-concurrency <n>\n");
     printf("      Max module subprocesses running at once (0 = auto, ~CPU cores)\n");
     printf("  --allow-thread-exit\n");
-    printf("      Test cases execution thread will self-terminate on assert/error/fatal\n");
+    printf("      Test cases execution thread will self-terminate on assert/error\n");
 
     printf("\n");
     printf("Input should be a directory or list of dylib's to be tested, default is current directory ('.')\n");
