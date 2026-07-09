@@ -154,7 +154,6 @@ static kParseArgRes ParseArguments(int argc, const char *argv[]) {
     //argparser.TryParse("-h","--help")
     if (argparser.IsPresent("-hH?","--help")) {
         PrintUsage(argv[0]);
-//        printf("  -i, --tcov-ipc-name <ipc>  Name of the IPC FIFO to use for communication\n");
         return kExit;
     }
     if (argparser.IsPresent("", "--version")) {
@@ -163,13 +162,6 @@ static kParseArgRes ParseArguments(int argc, const char *argv[]) {
     }
 
 
-    // Check if cache directory is specified on the cmd-line, if it is we use it, otherwise we resolve it...
-    std::string cache_dir;
-    cache_dir = *argparser.TryParse(cache_dir, "", "--cache-dir");
-    if (cache_dir.empty()) {
-        cache_dir = Config::Instance().ResolveCacheDir();
-    }
-    Config::Instance().cache_dir = cache_dir;
     Config::Instance().verbose = argparser.CountPresence("-v", "--verbose");
     Config::Instance().target = *argparser.TryParse(Config::Instance().target, "-t","--target");
     Config::Instance().symbolString = *argparser.TryParse(Config::Instance().symbolString, "-s","--symbols");
@@ -198,7 +190,6 @@ static kParseArgRes ParseArguments(int argc, const char *argv[]) {
     auto logger = gnilk::Logger::GetLogger("CoverageRunner");
     logger->Info("Coverage tool version: v%s", Config::Instance().version.c_str());
     logger->Info("Running with verbose level: %d", Config::Instance().verbose);
-    logger->Info("Cache directory set to: %s", Config::Instance().cache_dir.c_str());
 
     PrepareCoverageSymbols();
 
@@ -282,17 +273,6 @@ int main(int argc, const char *argv[]) {
 #ifdef LINUX
 static bool IsLLDBServerPresent() {
     auto logger = gnilk::Logger::GetLogger("CoverageRunner");
-
-    // If someone is using this variable - they know what they are doing, but we verify anyway..
-    const char *currentLLDB = getenv("LLDB_DEBUGSERVER_PATH");
-    if (currentLLDB != nullptr) {
-        auto currentLLDBPath = std::string();
-        if (!currentLLDBPath.empty() && IsValidLLDBServer(currentLLDBPath)) {
-            logger->Info("'LLDB_DEBUGSERVER_PATH' env found and verified - using");
-            Config::Instance().lldb_server_path = currentLLDBPath;
-            return true;
-        }
-    }
 
     // Verify currently configured pathname
     if (IsValidLLDBServer(Config::Instance().lldb_server_path)) {
