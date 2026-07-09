@@ -33,7 +33,6 @@ namespace tcov {
     protected:
         bool PrepareTrunExecution();
         static void ConvertArgs(std::vector<char *> &out, std::vector<std::string> &args);
-        bool EnableSelfDebugging();
         void ResolveCWD();
         void SuppressSignals();
         void ConsumeProcessOutput();

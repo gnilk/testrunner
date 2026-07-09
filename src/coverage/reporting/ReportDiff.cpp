@@ -291,9 +291,6 @@ void ReportDiff::GenerateReport(const BreakpointManager &breakpoints) {
     logger->Debug("Generating diff report");
 
     auto diffFilename = Config::Instance().diffReportFilename;
-    if (Config::Instance().diffClean) {
-        std::remove(diffFilename.c_str());
-    }
 
     logger->Debug("Reading previous snapshot from '%s'", diffFilename.c_str());
     // FIXME: Need a unique filename - which is still applicable over projects..

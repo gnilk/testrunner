@@ -1,17 +1,15 @@
 # src/app/tcov/CMakeLists.txt
 #
-# The tcov CLI is now a thin front-end: tcov.cpp + the shared transport objects,
-# linked against the tcovcore static library (src/coverage/CMakeLists.txt) which
-# carries the coverage engine + all the LLDB wiring as PUBLIC usage requirements.
+# The tcov CLI is a thin front-end: just tcov.cpp, linked against the tcovcore
+# static library (src/coverage/CMakeLists.txt) which carries the coverage engine
+# + all the LLDB wiring as PUBLIC usage requirements.
 #
-# The ${ipcsrcfiles}/${processsrcfiles}/${unixsrcfiles} objects are still linked
-# here (as before) - they are inert for tcov and get removed in Phase 1 (§3).
+# The inert IPC / process / unix transport objects that used to be linked here
+# were removed in Phase 1 (§3): neither tcov.cpp nor the coverage engine reference
+# any of them (no Process / dynlib / dirscanner / IPC).
 
 add_executable(tcov
         ${CMAKE_SOURCE_DIR}/src/app/tcov/tcov.cpp
-        ${ipcsrcfiles}
-        ${unixsrcfiles}
-        ${processsrcfiles}
 )
 
 # tcovcore is PUBLIC: it propagates the coverage engine, LLDB include dirs + libs,

@@ -8,9 +8,6 @@
 #include <lldb/API/SBUnixSignals.h>
 #include <lldb/API/SBThread.h>
 #include <lldb/API/SBBreakpointLocation.h>
-#include <lldb/API/SBStringList.h>
-#include <lldb/API/SBCommandInterpreter.h>
-#include <lldb/API/SBCommandReturnObject.h>
 
 #include "Coverage.h"
 #include "strutil.h"
@@ -79,15 +76,6 @@ bool CoverageRunner::PrepareTrunExecution() {
     trunArgsVectorInternal.push_back("--coverage");
     Config::Instance().target_args.insert(Config::Instance().target_args.begin(), trunArgsVectorInternal.begin(), trunArgsVectorInternal.end());
 
-
-    // Create our target
-    if (Config::Instance().target.empty()) {
-        // FIXME: Only in debug builds...
-#ifdef DEBUG
-        logger->Info("Debug build - setting to internal dev-path");
-        Config::Instance().target = "/Users/gnilk/src/github.com/testrunner/cmake-build-debug/trun";
-#endif
-    }
     return true;
 }
 
@@ -128,7 +116,6 @@ bool CoverageRunner::StartLLDBDebugger() {
     std::vector<char *> trunArgs;
     ConvertArgs(trunArgs, Config::Instance().target_args);
 
-    //const char *target_argv[]={"--sequential", "--coverage","--tcov-ipc-name",tcovIPCServer.EndpointName().c_str(),"-vvv", "-m", "coverage", nullptr};
     lldb::SBLaunchInfo launch_info(const_cast<const char **>(trunArgs.data()));
     launch_info.SetWorkingDirectory(workingDirectory.c_str());   // se should be here and not where the target is located
 
@@ -195,42 +182,6 @@ bool CoverageRunner::RunInitialLLDBPhase() {
     return true;
 }
 
-// Internal - when debugging this is a helper that allows us to debug into LLDB - not needed
-// for debugging the CoverageRunner
-bool CoverageRunner::EnableSelfDebugging() {
-    // this little scripts enables internal logging for lldb - good when debugging API usage
-
-    lldb::SBCommandInterpreter interp = lldbDebugger.GetCommandInterpreter();
-    lldb::SBCommandReturnObject result;
-
-    logger->Info("Trying to enable self-debugging");
-
-    interp.HandleCommand(
-        //"settings set plugin.process.gdb-remote.server-path /usr/lib/llvm-18/bin/lldb-server",
-        //"log enable lldb gdb-remote process platform host",
-        "log enable gdb-remote all",
-        result
-    );
-
-    if (!result.Succeeded()) {
-        logger->Error("Failed 'enable gdb-remote all', result=%s", result.GetError());
-        return false;
-    }
-    interp.HandleCommand(
-        //"settings set plugin.process.gdb-remote.server-path /usr/lib/llvm-18/bin/lldb-server",
-        //"log enable lldb gdb-remote process platform host",
-        "log enable lldb process platform host api",
-        result
-    );
-
-    if (!result.Succeeded()) {
-        logger->Error("Failed 'enable lldb process platform host api', result=%s", result.GetError());
-        return false;
-    }
-    return true;
-
-}
-
 //
 // Convert a vector of std::string to vector of char *
 // as this is continous memory the 'data' member of vector is a char **
@@ -258,10 +209,6 @@ void CoverageRunner::SuppressSignals() {
     unixSignals.SetShouldStop(SIGUSR1, true);
     unixSignals.SetShouldNotify(SIGUSR1, true);
     unixSignals.SetShouldSuppress(SIGUSR1, true);
-
-    unixSignals.SetShouldStop(SIGUSR2, true);
-    unixSignals.SetShouldNotify(SIGUSR2, true);
-    unixSignals.SetShouldSuppress(SIGUSR2, true);
 }
 
 // On Linux this consumes the process output and sends it to print/sanitization
@@ -355,10 +302,9 @@ bool CoverageRunner::WasSignalRaised(int expectedSignal) {
     return false;
 }
 
-// Process - this assumes we are all setup and ready to run
-// In case the debuggee tries to talk to us they have to raise the IPC_INTERRUPT signal
-// if that happens we reach out and try to read the IPC and act
-// during this time the lldb processing is halted (as async is false)
+// Process - this assumes we are all setup and ready to run.
+// Continues the debuggee until it exits/crashes, disabling each coverage breakpoint
+// on first hit. The lldb processing is synchronous (async is false).
 void CoverageRunner::Process() {
     logger->Debug("--> Entering Process Loop");
     // continue until we have exited

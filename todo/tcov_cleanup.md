@@ -201,40 +201,42 @@ After §2 — one authoritative resolver, dynamic-only manager
 
 ## 3. Dead IPC remnants  (decision: remove)
 
+> **Phase 1 DONE (2026-07-09, branch `tcov_beta-phase1`).** §3 + §4 cleanup, zero behavior change:
+> tcov_utests still 10/10 green, and a real coverage run (`trun::split 22/22`) is byte-identical to
+> Phase 0. All targets build; `tcov` is now just `tcov.cpp` + `tcovcore`.
+
 The code-driven `trun`→`tcov` coverage RPC was removed from trun
 (`todo/done/remove_trun_have_fork.md`); its tcov-side leftovers are inert and should go.
 
-- `-` `Config::ipc_name` (`Config.h:41`) — never read anywhere.
-- `-` Commented `--tcov-ipc-name` target arg (`Coverage.cpp:131`) and help line (`tcov.cpp:157`).
-- `-` Stale `Process()` header comment describing an `IPC_INTERRUPT` path that no longer exists
-  (`Coverage.cpp:358-361`).
-- `-` `${ipcsrcfiles}` / `${processsrcfiles}` linked into tcov (`app/tcov/CMakeLists.txt:17,19`)
-  but never referenced by the coverage engine — remove from the target (or, if kept for a
-  concrete reason, document why). Re-confirm the shared-source list builds cleanly after (§7).
+- `!` `Config::ipc_name` — removed from `Config.h`.
+- `!` Commented `--tcov-ipc-name` target arg (`Coverage.cpp`) and help line (`tcov.cpp`) — removed.
+- `!` Stale `Process()` header comment describing an `IPC_INTERRUPT` path — rewritten (no IPC ref).
+- `!` `${ipcsrcfiles}` / `${processsrcfiles}` **and `${unixsrcfiles}`** dropped from the tcov target
+  (`app/tcov/CMakeLists.txt`): grep confirmed neither `tcov.cpp` nor the coverage engine references
+  Process / dynlib / dirscanner / IPC, and the three groups are coupled (`dynlib_unix`→`Process`,
+  `IPCFifoUnix`→ipc), so all three came out together. tcov is now `tcov.cpp` + `tcovcore`; builds
+  clean (§7 re-confirmed).
 
 ---
 
 ## 4. Other dead / inert code (cleanup checklist)
 
-- `-` `CoverageRunner::EnableSelfDebugging` (`Coverage.h:36`, `Coverage.cpp:200-232`) — no
-  callers. An LLDB-internal-logging debug aid; delete or move behind an explicit debug hook.
-- `-` `ReportBase::GetShortDisplayName` (`ReportBase.h:20-23`) — no callers.
-- `-` Vestigial `SIGUSR2` handling in `SuppressSignals` (`Coverage.cpp:262-264`) — only `SIGUSR1`
-  is ever awaited (`sig_DYNLIB_LOADED`, `Coverage.h:51`). Remove the `SIGUSR2` block (and see §5:
-  the whole `SuppressSignals` call should become trun-only).
-- `-` Dead `LLDB_DEBUGSERVER_PATH` env branch (`tcov.cpp:288-295`, latent bug): it reads the env
-  var into `currentLLDB`, then tests a freshly-constructed **empty** `currentLLDBPath`
-  (`tcov.cpp:289-290`), so `!currentLLDBPath.empty()` is always false and the branch can never
-  fire. Either wire `currentLLDBPath = currentLLDB;` or delete the block.
-- `-` `Config::cache_dir` + `--cache-dir` flag + `ResolveCacheDir()` — the flag is parsed
-  (`tcov.cpp:168`), resolved (`Config.cpp:27`), stored (`tcov.cpp:172`), and logged
-  (`tcov.cpp:201`), but the value is **never used to locate any file** (report names are plain
-  relative — `Config::lcovReportFilename`, `diffReportFilename`). Either wire it into the report
-  paths (`ReportDiff`/`ReportLCOV`) or remove **flag + resolver + field + logging together**.
-- `-` `Config::diffClean` (`Config.h:38`, read at `ReportDiff.cpp:294`) — never set to `true`,
-  so the snapshot-reset branch is dead. Either bind a CLI flag to it or remove field + branch.
-- `-` Hardcoded dev path in DEBUG builds (`Coverage.cpp:86-89`,
-  `/Users/gnilk/.../trun`) — remove, or gate behind an env var.
+- `!` `CoverageRunner::EnableSelfDebugging` — removed (`Coverage.{h,cpp}`), along with its
+  now-orphaned `SBCommandInterpreter` / `SBCommandReturnObject` / `SBStringList` includes.
+- `!` `ReportBase::GetShortDisplayName` — removed (`ReportBase.h`, no callers).
+- `!` Vestigial `SIGUSR2` handling in `SuppressSignals` — removed (only `SIGUSR1` is awaited). The
+  broader "make `SuppressSignals` trun-only" stays in §5/Phase 3.
+- `!` Dead `LLDB_DEBUGSERVER_PATH` env branch — **deleted** (not wired). Wiring it to honor a
+  user-set env would change Linux behavior — out of scope for a zero-behavior-change phase;
+  reintroduce it correctly in §5/Phase 3 if the feature is wanted. (tcov still `setenv`s the
+  *detected* lldb-server path for the child — that stays.)
+- `!` `Config::cache_dir` + `--cache-dir` flag + `ResolveCacheDir()` — **removed together** (field,
+  flag parse, resolver impl + its `<filesystem>`/`TOOL_NAME`, logging). It located no file; wiring
+  it into report paths would be a feature, deferred.
+- `!` `Config::diffClean` + its dead snapshot-reset branch (`ReportDiff.cpp`) — **removed** (field +
+  branch). Binding a CLI flag would be a feature, deferred.
+- `!` Hardcoded dev path in DEBUG builds (`Coverage.cpp` `PrepareTrunExecution`) — removed. `target`
+  defaults to `"trun"`, so the `target.empty()` block was already unreachable → zero behavior change.
 
 ---
 
@@ -296,8 +298,8 @@ per item whether to enable by default or expose as an option when Phase 4 is app
     "headers" wording.
   - `CLAUDE.md:48` — "`liblldb-dev` and `binutils-dev`" → drop `binutils-dev`.
   - CI (`.github/workflows/cmake.yml`) already installs neither, confirming `-dev` is unused.
-- `-` Re-confirm the tcov target's shared-source list after the §3 IPC slim-down (it should still
-  compile without `${ipcsrcfiles}`/`${processsrcfiles}`).
+- `!` Re-confirmed (Phase 1): the tcov target compiles + links with `${ipcsrcfiles}` /
+  `${processsrcfiles}` / `${unixsrcfiles}` all removed — `tcov` is now `tcov.cpp` + `tcovcore`.
 
 ---
 
@@ -308,7 +310,7 @@ tcov leaves *experimental* when:
 1. `-` A **single, finished symbol-resolution path** (§2) — `SymbolResolver` authoritative for all
    *static* data (incl. `endLoadAddress`), `BreakpointManager` dynamic-only, `SymbolTypeChecker` + Path B
    class code deleted.
-2. `-` **Dead code removed** (§3 IPC remnants, §4 inert code).
+2. `!` **Dead code removed** (§3 IPC remnants, §4 inert code) — done in Phase 1.
 3. `-` **Robust trun auto-detection + signal-trap gating** (§5) — no hang on a false positive, no
    mistrapped signals on a generic target.
 4. `-` **Accuracy TODOs (§6) either fixed or explicitly deferred** with the known limitations
