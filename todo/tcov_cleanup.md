@@ -28,25 +28,42 @@ filter) and leftovers from a removed `trun`→`tcov` IPC experiment.
 
 ---
 
-## 0. Test scaffolding — TDD prerequisite (`tcovutest`)
+## 0. Test scaffolding — TDD prerequisite (`tcov_utests`)
 
 tcov has **zero** unit tests today (built exploratively). Before touching the symbol/breakpoint
 layer we stand up a `trun`-style unit-test target and add tests **TDD-first** — red before a
 refactor, green after — so "behavior-preserving" becomes executable and intent is documented.
 
-- `!` **Decided:** extract the coverage engine (`tcovsrcfiles`) into a **`tcovcore` static
-  library**; `tcov` and a new `tcovutest` shared lib both link it (LLDB as a PUBLIC usage
-  requirement). No duplicated LLDB wiring — mirrors the `trunlib` static-lib pattern.
-- `-` New `src/coverage/tests/` with `trun`-convention tests, built as `libtcovutest.{so,dylib}`
-  (gated behind `BUILD_TCOV`, linking `tcovcore` + `trun_common_options`): global
-  `test_main`/`test_exit` skeleton, then one `test_<module>.cpp` per unit (each with its
-  `test_<module>` / `test_<module>_exit` main/exit, even if empty) — `symbolresolver`, `breakpoint`.
-  Run via `./trun lib/libtcovutest.dylib`.
-- `-` The first real tests encode §2's decisions and are written **before** the Phase 2 refactor:
-  `SymbolInfo.endAddr` default (D1); `Function` composes `SymbolInfo` with `GetDisplayName()==info.name`
-  (D3/D4); overloads stay distinct via the `info.full` map key (D5). These need only the tcov *types*.
+> **Phase 0 DONE (2026-07-09, branch `tcov_beta-phase0`).** `tcovcore` extracted, `tcov_utests`
+> stood up (8 cases, all green via `./trun lib/libtcov_utests.dylib`), `tcov` verified behavior-
+> preserving (builds + real coverage run `trun::split 22/22` unchanged). D1 + D5 tests landed;
+> **D3/D4 deferred to Phase 2** (see the last bullet). Note: git can't create a branch
+> `tcov_beta/phase0` while `tcov_beta` exists as a ref, so the phase branch is `tcov_beta-phase0`
+> (hyphen); apply the same hyphen convention to later phases.
+
+- `!` **Decided + DONE:** extract the coverage engine (`tcovsrcfiles`) into a **`tcovcore` static
+  library** (`src/coverage/CMakeLists.txt`); `tcov` and the new `tcov_utests` shared lib both link it
+  (LLDB + fmt/gnklog + `trun_common_options` are PUBLIC usage requirements of `tcovcore`). No
+  duplicated LLDB wiring — mirrors the `trunlib` static-lib pattern. `tcovcore` is `POSITION_INDEPENDENT_CODE`
+  (static archive linked into the `tcov_utests` shared lib). The shared utilities (`strutil`/`glob`/
+  `timer`/…) compile into `tcovcore` once; `tcov` is now a thin front-end (`tcov.cpp` + the still-inert
+  IPC/process objects removed in Phase 1).
+- `!` **DONE:** New `src/coverage/tests/` with `trun`-convention tests, built as `libtcov_utests.{so,dylib}`
+  (gated behind `BUILD_TCOV`, linking `tcovcore`): global `test_main`/`test_exit` skeleton, then one
+  `test_<module>.cpp` per unit (each with its `test_<module>` / `test_<module>_exit` main/exit) —
+  `symbolresolver`, `breakpoint`. Run via `./trun lib/libtcov_utests.dylib`.
+- `+` The first real tests encode §2's decisions, written **before** the Phase 2 refactor. **Done:**
+  `SymbolInfo.endLoadAddress` default (D1, `test_symbolresolver`); overloads stay distinct via the
+  full-name map key (D5, `test_breakpoint`). **Deferred to Phase 2:** `Function` composes `SymbolInfo`
+  with `GetDisplayName()==info.name` (D3/D4) — these are inseparable from the Phase 2 recomposition
+  (today `Function` has no `info` member and `GetDisplayName()` reads a default `SBSymbol` whose
+  display name is null → a *crash*, not a clean red), so they land with the change they guard.
+  Documented in `src/coverage/tests/test_breakpoint.cpp`. The two new address fields
+  `SymbolInfo::startLoadAddress`/`endLoadAddress` (renamed from `addr`/`endAddr` in Phase 0 to match
+  `Function`, once they proved self-contained — only `ResolveForTarget` writes them) are
+  behavior-neutral (`endLoadAddress` is read by nothing until Phase 2). These need only the tcov *types*.
 - Boundary: `ResolveForTarget` + breakpoint install need a live `SBTarget`, so they stay covered by
-  the integration before/after coverage diff, not `tcovutest`.
+  the integration before/after coverage diff, not `tcov_utests`.
 
 ---
 
@@ -91,8 +108,8 @@ There are two mechanisms today, currently **chained**, not parallel:
 - **Path A — `SymbolResolver::ResolveForTarget`** (`SymbolResolver.cpp:68`): walks every
   module's symbol table, keeps `eSymbolTypeCode` symbols (`:87`) with valid line info that match
   the `--symbols` globs (`IsCoverageSymbol`, `:52`), and returns
-  `SymbolInfo{name, full, file, line, addr}` (`:141-148`), where **`addr` is already a
-  post-relocation LOAD address** (`:94,146`). The newer path (dated 25.03.26) — **but unfinished**.
+  `SymbolInfo{name, full, file, line, startLoadAddress}` (`:141-148`), where **`startLoadAddress` is
+  already a post-relocation LOAD address** (`:94,146`). The newer path (dated 25.03.26) — **but unfinished**.
 - **Path B — `BreakpointManager` + `SymbolTypeChecker`** (`Breakpoint.cpp:36`
   `CreateCoverageForSymbol`, `SymbolTypeChecker.cpp:16` `ClassifySymbol`): takes a *name*,
   classifies it function-vs-class via `FindFunctions`/`FindTypes`, and for functions walks the
@@ -103,7 +120,7 @@ There are two mechanisms today, currently **chained**, not parallel:
 into Path B (`Coverage.cpp:67`), which **re-resolves address/line from scratch** via a second
 `FindFunctions` (`Breakpoint.cpp:69`). So:
 
-- Path A's `file`/`line`/`addr` (computed at `SymbolResolver.cpp:144-146`) are **discarded** —
+- Path A's `file`/`line`/`startLoadAddress` (computed at `SymbolResolver.cpp:144-146`) are **discarded** —
   the resolver is effectively just a name filter today.
 - The **class half of Path B is unreachable.** Path A only ever emits `eSymbolTypeCode` symbols
   normalized to concrete function names (`SymbolResolver.cpp:87,125,142`), so `ClassifySymbol`
@@ -125,12 +142,12 @@ Begin() today — two chained paths
 
 After §2 — one authoritative resolver, dynamic-only manager
 
-  SymbolResolver::ResolveForTarget --> SymbolInfo{name, full, file, line, addr, endAddr}
+  SymbolResolver::ResolveForTarget --> SymbolInfo{name, full, file, line, startLoadAddress, endLoadAddress}
   (STATIC: resolves SBFunction start/end + all filtering)
           |
           v
   BreakpointManager (DYNAMIC only): fill Function from SymbolInfo, resolve CU by address,
-  install breakpoints across [addr,endAddr) — no FindFunctions, no classify
+  install breakpoints across [startLoadAddress,endLoadAddress) — no FindFunctions, no classify
 ```
 
 **Completion invariant (the test that the refactor is done):**
@@ -144,12 +161,16 @@ After §2 — one authoritative resolver, dynamic-only manager
 
 **Decisions (made — full rationale in the plan file):**
 
-- `-` **D1 — resolve start+end in the resolver.** Add `endAddr` to `SymbolInfo`; in
-  `ResolveForTarget` resolve the owning `SBFunction` from the symbol's own `SBAddress` (the
-  commented hint at `SymbolResolver.cpp:137-139`) and set `addr`/`endAddr` from its start/end load
+- `-` **D1 — resolve start+end in the resolver.** `SymbolInfo` already carries
+  `startLoadAddress`/`endLoadAddress` (added + named to match `Function` in Phase 0; renamed there
+  from `addr`/`endAddr` once they proved self-contained — only `ResolveForTarget` writes them, nothing
+  in `Breakpoint.cpp` touches `SymbolInfo`). **Remaining for this phase:** in `ResolveForTarget`
+  resolve the owning `SBFunction` from the symbol's own `SBAddress` (the commented hint at
+  `SymbolResolver.cpp:137-139`) and set `startLoadAddress`/`endLoadAddress` from its start/end load
   addresses — reproducing today's range exactly, and more robustly (no by-name ambiguity).
+  (`endLoadAddress` still defaults 0 until this lands.)
 - `-` **D2 — compile unit by address at install time.** The range-walk still needs an
-  `SBCompileUnit`; `CreateCoverageForFunction` derives it from `info.addr` (`ResolveLoadAddress`
+  `SBCompileUnit`; `CreateCoverageForFunction` derives it from `info.startLoadAddress` (`ResolveLoadAddress`
   → `ResolveSymbolContextForAddress(…, eSymbolContextCompUnit)`) — address plumbing, not a name
   lookup. `SymbolInfo` stays a pure data struct (no LLDB handles).
 - `-` **D3/D4 — `Function` composes `SymbolInfo`.** Add `SymbolInfo info;`; `GetDisplayName()`
@@ -173,7 +194,7 @@ After §2 — one authoritative resolver, dynamic-only manager
   `return true;` + dead `/your/project/root/` body) — implement the project-root filter or delete
   it. (Also tracked in `todo/open-bugs.md`.)
 
-> **TDD-guarded:** the D1/D3/D4/D5 behaviours above are pinned by `tcovutest` tests written *before*
+> **TDD-guarded:** the D1/D3/D4/D5 behaviours above are pinned by `tcov_utests` tests written *before*
 > this refactor (§0) — red pre-refactor, green after.
 
 ---
@@ -285,14 +306,14 @@ per item whether to enable by default or expose as an option when Phase 4 is app
 tcov leaves *experimental* when:
 
 1. `-` A **single, finished symbol-resolution path** (§2) — `SymbolResolver` authoritative for all
-   *static* data (incl. `endAddr`), `BreakpointManager` dynamic-only, `SymbolTypeChecker` + Path B
+   *static* data (incl. `endLoadAddress`), `BreakpointManager` dynamic-only, `SymbolTypeChecker` + Path B
    class code deleted.
 2. `-` **Dead code removed** (§3 IPC remnants, §4 inert code).
 3. `-` **Robust trun auto-detection + signal-trap gating** (§5) — no hang on a false positive, no
    mistrapped signals on a generic target.
 4. `-` **Accuracy TODOs (§6) either fixed or explicitly deferred** with the known limitations
    documented for users.
-5. `-` **tcov has unit tests** — a `tcovutest` target (§0) with regression coverage of the
+5. `-` **tcov has unit tests** — a `tcov_utests` target (§0) with regression coverage of the
    symbol/breakpoint layer; the behavior-preserving refactor (§2) is guarded by it.
 
 ---
@@ -304,9 +325,9 @@ Phases 1 and 5 are safe to do first and independently.
 
 | Phase | Scope | Risk |
 |---|---|---|
-| 0 | §0 test scaffolding: extract `tcovcore`, `tcovutest` target + TDD tests for §2 | build refactor + new tests |
+| 0 | §0 test scaffolding: extract `tcovcore`, `tcov_utests` target + TDD tests for §2 | build refactor + new tests |
 | 1 | §3 IPC remnants + §4 dead / inert code | zero behavior change |
-| 2 | §2 static/dynamic split (SymbolInfo single source incl. `endAddr`; delete SymbolTypeChecker + Path B class code) | behavior-preserving refactor |
+| 2 | §2 static/dynamic split (SymbolInfo single source incl. `endLoadAddress`; delete SymbolTypeChecker + Path B class code) | behavior-preserving refactor |
 | 3 | §5 trun detection + signal-trap gating | behavior change |
 | 4 | §6 accuracy (prologue / inline / multi-statement) | behavior change |
 | 5 | §7 build / docs hygiene | docs / build only |
@@ -335,7 +356,7 @@ dev
 
 - `src/coverage/Coverage.{h,cpp}` — resolver call site now passes whole `SymbolInfo` (§2), signal
   trapping / trun gating (§5), dead helpers (§4), DEBUG dev path (§4), IPC comment (§3)
-- `src/coverage/SymbolResolver.{h,cpp}` — authoritative static resolver: add `endAddr`, resolve
+- `src/coverage/SymbolResolver.{h,cpp}` — authoritative static resolver: populate `startLoadAddress`/`endLoadAddress`, resolve
   `SBFunction` start/end, move the inline guard, logger rename (§2)
 - `src/coverage/SymbolTypeChecker.{h,cpp}` — **delete** (§2)
 - `src/coverage/Breakpoint.{h,cpp}` — `SymbolInfo`-based signatures, `Function` composes
@@ -346,8 +367,8 @@ dev
 - `src/app/tcov/tcov.cpp` — help text (§3), `LLDB_DEBUGSERVER_PATH` branch (§4), `--cache-dir` (§4), signal-gating TODO (§5)
 - `src/app/tcov/CMakeLists.txt` — IPC/process shared-source slim-down (§3); drop `SymbolTypeChecker` sources (§2); engine sources move to `tcovcore` (§0)
 - `src/coverage/CMakeLists.txt` — **new**: `tcovcore` static lib + LLDB wiring (§0)
-- `src/coverage/tests/` — **new**: `test_main.cpp`, `test_symbolresolver.cpp`, `test_breakpoint.cpp`, `CMakeLists.txt` → `tcovutest` (§0)
-- `CMakeLists.txt` — add the `tcovutest` subdir under the `BUILD_TCOV` block (§0)
+- `src/coverage/tests/` — **new**: `test_main.cpp`, `test_symbolresolver.cpp`, `test_breakpoint.cpp`, `CMakeLists.txt` → `tcov_utests` (§0)
+- `CMakeLists.txt` — add the `tcov_utests` subdir under the `BUILD_TCOV` block (§0)
 - `README.md`, `CLAUDE.md` — `binutils-dev` dependency (§7)
 
 ## Validation recipe (for each future phase)

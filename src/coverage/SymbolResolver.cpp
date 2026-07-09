@@ -143,7 +143,7 @@ std::vector<SymbolResolver::SymbolInfo> SymbolResolver::ResolveForTarget(lldb::S
             info.full = std::move(fullName);
             info.file = fileSpec.GetFilename();
             info.line = lineEntry.GetLine();
-            info.addr = loadAddr;
+            info.startLoadAddress = loadAddr;
 
             result.push_back(std::move(info));
         }
