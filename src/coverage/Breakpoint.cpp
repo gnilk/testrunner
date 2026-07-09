@@ -7,49 +7,18 @@
 
 #include "logger.h"
 #include "Breakpoint.h"
-#include "SymbolTypeChecker.h"
 #include <unordered_set>
 
 using namespace tcov;
 
-// Ok, we need to classify this harder...
-// Either we diffrentiate BeginCoverage, like:
-// - BeginCoverage(kTypeClass, "CTestCoverage");
-// or with different functions:
-// - BeginCoverageForClass("CTestCoverage") / BeginCoverageForFunc("some_func");
-//
-SymbolTypeChecker::SymbolType BreakpointManager::CheckSymbolType(lldb::SBTarget &target, const std::string &symbol) {
-    auto logger = gnilk::Logger::GetLogger("BreakpointManager");
-    auto symbolType = SymbolTypeChecker::ClassifySymbol(target, symbol);
-
-    if (symbolType == SymbolTypeChecker::SymbolType::kSymClass) {
-        logger->Debug("%s - is class", symbol.c_str());
-    } else if (symbolType == SymbolTypeChecker::SymbolType::kSymFunc) {
-        logger->Debug("%s - is function", symbol.c_str());
-    } else {
-        logger->Error("%s - can't classify, not found", symbol.c_str());
-    }
-    return symbolType;
-}
-
-// Create coverage break points for any symbol (this can be class - in a namespace or outside, or a function, or whatever)
-int BreakpointManager::CreateCoverageForSymbol(lldb::SBTarget &target, const std::string &symbol) {
+// Create coverage breakpoints for a fully-resolved symbol. Static discovery is done -
+// SymbolResolver::ResolveForTarget is the single source of truth (name, file, line and
+// load-address range). The manager only owns DYNAMIC state: it installs breakpoints and,
+// later, reads their hit counts. No symbol lookup or classification happens here.
+int BreakpointManager::CreateCoverageForSymbol(lldb::SBTarget &target, const SymbolResolver::SymbolInfo &info) {
 
     auto logger = gnilk::Logger::GetLogger("BreakpointManager");
-    int numCreated = 0;
-
-    auto symbolType = CheckSymbolType(target, symbol);
-    switch (symbolType) {
-        case SymbolTypeChecker::SymbolType::kSymClass:
-            numCreated = CreateCoverageForClass(target, symbol);
-            break;
-        case SymbolTypeChecker::SymbolType::kSymFunc:
-            numCreated = CreateCoverageForFunction(target, symbol);
-            break;
-        default:
-            logger->Error("CreateCoverageBreakpoints, Unsupported for '%s'", symbol.c_str());
-            return -1;
-    }
+    int numCreated = CreateCoverageForFunction(target, info);
 
     // Dump
     logger->Debug("Dumping details");
@@ -63,80 +32,48 @@ int BreakpointManager::CreateCoverageForSymbol(lldb::SBTarget &target, const std
 }
 
 
-// Create coverage breakpoint for function
-int BreakpointManager::CreateCoverageForFunction(lldb::SBTarget &target, const std::string &symbol) {
+// Create coverage breakpoints for a single resolved function. No FindFunctions / no
+// classification - the function is built entirely from the resolved SymbolInfo. The
+// SBTarget is used only to derive the compile unit by address (instrumentation plumbing)
+// and to install breakpoints across the symbol's [start,end) load-address range.
+int BreakpointManager::CreateCoverageForFunction(lldb::SBTarget &target, const SymbolResolver::SymbolInfo &info) {
     auto logger = gnilk::Logger::GetLogger("BreakpointManager");
-    auto symbollist = target.FindFunctions(symbol.c_str());
 
-    // This is not needed - we have checked this a number of times already before getting here
-    if (!symbollist.IsValid()) {
-        logger->Debug("Unable to resolve symbol list for '%s'", symbol.c_str());
+    // D2: resolve the owning compile unit from the symbol's start load address.
+    lldb::SBAddress startAddr = target.ResolveLoadAddress(info.startLoadAddress);
+    if (!startAddr.IsValid()) {
+        logger->Error("Unable to resolve load address %llX for '%s'", info.startLoadAddress, info.full.c_str());
+        return 0;
+    }
+    auto sc = target.ResolveSymbolContextForAddress(startAddr, lldb::eSymbolContextCompUnit);
+    auto compileUnit = sc.GetCompileUnit();
+    auto fileSpec = compileUnit.GetFileSpec();
+    if (!fileSpec.IsValid()) {
+        logger->Error("Invalid Filespec for compile unit - skipping '%s'", info.full.c_str());
         return 0;
     }
 
-    int numCreated = 0;
+    std::filesystem::path filename = std::filesystem::path(fileSpec.GetFilename());
+    std::filesystem::path path = std::filesystem::path(fileSpec.GetDirectory());
+    std::filesystem::path fullPathName = path / filename;
+    logger->Debug("Resolving function '%s' in %s", info.full.c_str(), fullPathName.c_str());
 
-    // Not sure when there is one more in the list
-    logger->Debug("Resolving function '%s', num symbols=%u", symbol.c_str(), symbollist.GetSize());
-    for (uint32_t i=0;i<symbollist.GetSize();i++) {
-        auto ctx = symbollist.GetContextAtIndex(i);
-        auto compileUnit = ctx.GetCompileUnit();
-        auto func = ctx.GetFunction();
-        auto displayName =  ctx.GetSymbol().GetDisplayName();
-        if (displayName == nullptr) {
-            logger->Debug("  Display name for symbol '%s' is null", func.GetName());
-            continue;
-        }
+    // Fetch, or create, the compile unit to which this function belongs
+    CompileUnit::Ref ptrCompileUnit = GetOrAddCompileUnit(fullPathName);
+    // Fetch, or create, the function within the compile unit - keyed by the with-args
+    // display name (D5) so overloads stay distinct and report output is unchanged.
+    auto ptrFunction = ptrCompileUnit->GetOrAddFunction(std::string(info.full));
 
-        // Try to filter inlined functions...
-        auto leFileSpec = func.GetStartAddress().GetLineEntry().GetFileSpec();
-        auto cuFileSpec = compileUnit.GetFileSpec();
-        if (leFileSpec != cuFileSpec) {
-            logger->Debug("  Line entry file spec (%s) does not match compile unit file spec (%s)",
-                leFileSpec.GetFilename(),
-                cuFileSpec.GetFilename());
-            continue;
-        }
+    // D3/D4: Function composes the resolved SymbolInfo; the scalar mirrors below keep the
+    // debug dump and reports working exactly as before.
+    ptrFunction->info = info;
+    ptrFunction->startLine = info.line;
+    ptrFunction->startLoadAddress = info.startLoadAddress;
+    ptrFunction->endLoadAddress = info.endLoadAddress;
 
-
-        auto fileSpec = compileUnit.GetFileSpec();
-        if (!fileSpec.IsValid()) {
-            logger->Error("Invalid Filespec for compile unit - skipping");
-            continue;
-        }
-        std::filesystem::path filename = {};
-        std::filesystem::path path = {};
-        std::filesystem::path fullPathName = {};
-        filename = std::filesystem::path(compileUnit.GetFileSpec().GetFilename());
-        path = std::filesystem::path(compileUnit.GetFileSpec().GetDirectory());
-        fullPathName = path / filename;
-        logger->Debug("  %s, %s, %s", filename.c_str(), path.c_str(), fullPathName.c_str());
-
-        // FIXME: There is a problem with inlined functions showing up in 'all' compile unit
-        //        Question is where we should filter - either here, just remove line-break which does not belong
-        //        Or in the reporting
-
-
-        // Fetch, or create, the compile unit to which this function belongs
-        CompileUnit::Ref ptrCompileUnit = GetOrAddCompileUnit(fullPathName);
-        // Fetch, or create, the function within the compile unit
-        auto ptrFunction = ptrCompileUnit->GetOrAddFunction(displayName);
-
-        // Resolve the address range
-        auto startAddr = ctx.GetFunction().GetStartAddress();
-        auto endAddr = ctx.GetFunction().GetEndAddress();
-
-
-        // Convert and assign
-        ptrFunction->startLine = startAddr.GetLineEntry().GetLine();
-        ptrFunction->startLoadAddress = startAddr.GetLoadAddress(target);
-        ptrFunction->endLoadAddress = endAddr.GetLoadAddress(target);
-        ptrFunction->symbol = ctx.GetSymbol();
-
-        // Now create the actual breakpoints - using start/end addr
-        numCreated += CreateBreakpointsFunctionRange(target, compileUnit, ptrFunction);
-        logger->Debug("  Num Breakpoints = %zu", ptrFunction->breakpoints.size());
-    }
+    // Now create the actual breakpoints - across the resolved [start,end) load range
+    int numCreated = CreateBreakpointsFunctionRange(target, compileUnit, ptrFunction);
+    logger->Debug("  Num Breakpoints = %zu", ptrFunction->breakpoints.size());
 
     return numCreated;
 }
@@ -225,54 +162,6 @@ int BreakpointManager::CreateBreakpointsFunctionRange(lldb::SBTarget &target, ll
 }
 
 
-// Create coverage breakpoints for classes
-int BreakpointManager::CreateCoverageForClass(lldb::SBTarget &target, const std::string &symbol) {
-    auto members = EnumerateMembers(target,symbol);
-    auto logger = gnilk::Logger::GetLogger("BreakpointManager");
-    logger->Debug("Creating coverage for class");
-
-    // Loop over all members and create coverage for each of them..
-    // This will create for everything, CTOR/DTOR/Public/Protected/Private members
-    // optional we should perhaps allow filtering for public/private/protected...
-    // See comment in enumerate...
-    int numCreated = 0;
-    for (auto &member : members) {
-        numCreated += CreateCoverageForFunction(target, member);
-    }
-    return numCreated;
-}
-
-std::vector<std::string> BreakpointManager::EnumerateMembers(lldb::SBTarget &target, const std::string &className) {
-    auto logger = gnilk::Logger::GetLogger("BreakpointManager");
-    std::vector<std::string> classMembers;
-
-    auto classtype = target.FindTypes(className.c_str());
-
-    if (classtype.IsValid()) {
-        logger->Debug("class type ok - size=%u", classtype.GetSize());
-        for (size_t i=0;i<classtype.GetSize();i++) {
-            auto ct = classtype.GetTypeAtIndex(i);
-
-            //printf("%zu:%s\n",i,ct.GetDisplayTypeName());
-
-            if (!ct.IsValid()) {
-                logger->Error("Invalid - skipping\n");
-                continue;
-            }
-
-            // This is wrong
-            // printf("Class found - good!\n");
-            for (size_t j=0; j<ct.GetNumberOfMemberFunctions();j++) {
-                auto member = ct.GetMemberFunctionAtIndex(j);
-                // FIXME: we can use 'getkind' to figure out if this is a CTOR/DTOR/etc..
-                // member.GetKind();
-                // printf("  %zu:%s (%s, %s)\n",j, member.GetName(), member.GetMangledName(), member.GetDemangledName());
-                classMembers.push_back(member.GetDemangledName());
-            }
-        }
-    }
-    return classMembers;
-}
 std::vector<FunctionCoverage> BreakpointManager::ComputeCoverage() const {
     auto logger = gnilk::Logger::GetLogger("BreakpointManager");
     logger->Debug("Computing coverage");

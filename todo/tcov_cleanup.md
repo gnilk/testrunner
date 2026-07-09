@@ -52,13 +52,13 @@ refactor, green after — so "behavior-preserving" becomes executable and intent
   (gated behind `BUILD_TCOV`, linking `tcovcore`): global `test_main`/`test_exit` skeleton, then one
   `test_<module>.cpp` per unit (each with its `test_<module>` / `test_<module>_exit` main/exit) —
   `symbolresolver`, `breakpoint`. Run via `./trun lib/libtcov_utests.dylib`.
-- `+` The first real tests encode §2's decisions, written **before** the Phase 2 refactor. **Done:**
-  `SymbolInfo.endLoadAddress` default (D1, `test_symbolresolver`); overloads stay distinct via the
-  full-name map key (D5, `test_breakpoint`). **Deferred to Phase 2:** `Function` composes `SymbolInfo`
-  with `GetDisplayName()==info.name` (D3/D4) — these are inseparable from the Phase 2 recomposition
-  (today `Function` has no `info` member and `GetDisplayName()` reads a default `SBSymbol` whose
-  display name is null → a *crash*, not a clean red), so they land with the change they guard.
-  Documented in `src/coverage/tests/test_breakpoint.cpp`. The two new address fields
+- `!` The first real tests encode §2's decisions. **Phase 0:** `SymbolInfo.endLoadAddress` default (D1,
+  `test_symbolresolver`); overloads stay distinct via the full-name map key (D5, `test_breakpoint`).
+  **Phase 2 (landed with the recomposition they guard):** `Function` composes `SymbolInfo` with
+  `GetDisplayName()==info.name` (D3/D4, `test_breakpoint_func_composesinfo`) and a default-constructed
+  `Function` no longer crashes (`test_breakpoint_func_displaynamedefault`) — these could not be a clean
+  red-before because the old `GetDisplayName()` dereferenced a default `SBSymbol` (a crash, not an
+  assert). The two new address fields
   `SymbolInfo::startLoadAddress`/`endLoadAddress` (renamed from `addr`/`endAddr` in Phase 0 to match
   `Function`, once they proved self-contained — only `ResolveForTarget` writes them) are
   behavior-neutral (`endLoadAddress` is read by nothing until Phase 2). These need only the tcov *types*.
@@ -95,6 +95,28 @@ remnants (§3); assorted dead / inert code (§4); a stale build/doc dependency (
 ---
 
 ## 2. Symbol resolution — separate STATIC data from DYNAMIC state  (decision: made)
+
+> **Phase 2 DONE (2026-07-09, branch `tcov_beta-phase2`).** Single authoritative resolver +
+> dynamic-only manager landed; `SymbolTypeChecker.{h,cpp}` and the Path B class code
+> (`CheckSymbolType`/`CreateCoverageForClass`/`EnumerateMembers`, the classify dispatch, and the
+> `FindFunctions` re-resolution) are gone. `Function` now composes `SymbolInfo`; `CreateCoverageForSymbol`/
+> `CreateCoverageForFunction` take `const SymbolInfo&`; `Begin()` passes the whole struct. D3/D4
+> tests landed (`test_breakpoint_func_composesinfo`, `_displaynamedefault`) → **tcov_utests 12/12**.
+> **Validated behavior-preserving** against two integration targets:
+> - **single-module** symbol (`test_strutil_split`) → LCOV **byte-identical** before/after (proves the
+>   resolver+breakpoint rewrite is faithful);
+> - **multi-module** symbol (`trun::split`, compiled into *both* `trun` and the test dylib) → **line-level
+>   coverage is identical** (diff report = "No changes", `LF/LH 22/22` unchanged, covered/instrumented
+>   line sets identical, base % still 75%). The only delta is the **raw breakpoint/hit counts** (`bp 264→132`,
+>   `hits 198→99`, LCOV `DA` per-line execution counts ~halved): the old code tallied the same function
+>   once per Path-A info × per Path-B `FindFunctions` context (a cross product), so a function present in N
+>   loaded modules was over-counted. The new path instruments each module image once. This is an accuracy
+>   **fix** (no line changes covered↔uncovered), not a regression — but it is why "byte-identical" holds
+>   only for single-module symbols. Real user targets (symbol lives only in the lib under test, not in
+>   `trun`) are single-module, so unaffected.
+>
+> **Not done here (adjacent, left open):** the `IsInProject` stub (last bullet) — a separate filter, also
+> tracked in `todo/open-bugs.md`, not part of the static/dynamic split.
 
 **End-state (not a task list):** cleanly split *static* symbol data from *dynamic* coverage
 state. `SymbolResolver::ResolveForTarget` becomes the **single source of truth** for everything
@@ -161,35 +183,35 @@ After §2 — one authoritative resolver, dynamic-only manager
 
 **Decisions (made — full rationale in the plan file):**
 
-- `-` **D1 — resolve start+end in the resolver.** `SymbolInfo` already carries
+- `!` **D1 — resolve start+end in the resolver.** `SymbolInfo` already carries
   `startLoadAddress`/`endLoadAddress` (added + named to match `Function` in Phase 0; renamed there
   from `addr`/`endAddr` once they proved self-contained — only `ResolveForTarget` writes them, nothing
-  in `Breakpoint.cpp` touches `SymbolInfo`). **Remaining for this phase:** in `ResolveForTarget`
-  resolve the owning `SBFunction` from the symbol's own `SBAddress` (the commented hint at
-  `SymbolResolver.cpp:137-139`) and set `startLoadAddress`/`endLoadAddress` from its start/end load
-  addresses — reproducing today's range exactly, and more robustly (no by-name ambiguity).
-  (`endLoadAddress` still defaults 0 until this lands.)
-- `-` **D2 — compile unit by address at install time.** The range-walk still needs an
-  `SBCompileUnit`; `CreateCoverageForFunction` derives it from `info.startLoadAddress` (`ResolveLoadAddress`
-  → `ResolveSymbolContextForAddress(…, eSymbolContextCompUnit)`) — address plumbing, not a name
-  lookup. `SymbolInfo` stays a pure data struct (no LLDB handles).
-- `-` **D3/D4 — `Function` composes `SymbolInfo`.** Add `SymbolInfo info;`; `GetDisplayName()`
-  returns `info.name` (drops the now-dead `SBSymbol` member). Keep the scalar mirrors
+  in `Breakpoint.cpp` touches `SymbolInfo`). **DONE:** `ResolveForTarget` now resolves the owning
+  `SBFunction` from the symbol's own `SBAddress` (`addr.GetSymbolContext(eSymbolContextFunction|eSymbolContextCompUnit)`)
+  and sets `startLoadAddress`/`endLoadAddress` from its start/end load addresses — reproducing today's
+  range, more robustly (no by-name ambiguity).
+- `!` **D2 — compile unit by address at install time.** **DONE:** `CreateCoverageForFunction` derives
+  the `SBCompileUnit` from `info.startLoadAddress` (`ResolveLoadAddress` →
+  `ResolveSymbolContextForAddress(…, eSymbolContextCompUnit)`) — address plumbing, not a name lookup.
+  `SymbolInfo` stays a pure data struct (no LLDB handles).
+- `!` **D3/D4 — `Function` composes `SymbolInfo`.** **DONE:** added `SymbolInfo info;`; `GetDisplayName()`
+  returns `info.name` (dropped the now-dead `SBSymbol` member). Scalar mirrors
   (`startLine`/`startLoadAddress`/`endLoadAddress`/`name`) filled once from `info`, so the
-  debug-dump loop (`Breakpoint.cpp:54-61`) and the reports stay unchanged.
-- `-` **D5 — preserve report identity.** Key the `CompileUnit::functions` map and `Function::name`
-  from `info.full` (with-args); ensure `info.full` is the demangled display name so
-  `ReportDiff.cpp:271` / `ReportLCOV.cpp:71` output stays byte-identical.
-- `-` **D6 — move the inlined-function guard into the resolver** (the filespec-mismatch check at
-  `Breakpoint.cpp:92-99`) — static filtering belongs in the resolver.
-- `-` **Delete** `SymbolTypeChecker.{h,cpp}`, and from `BreakpointManager`: `CheckSymbolType`
-  (`Breakpoint.cpp:21`), `CreateCoverageForClass` (`:229`), `EnumerateMembers` (`:245`), the
-  `kSymClass`/`kSymFunc` dispatch in `CreateCoverageForSymbol` (`:41-52`), the `SymbolTypeChecker`
-  include, and the `FindFunctions` re-resolution loop in `CreateCoverageForFunction`. Both
-  `CreateCoverageForSymbol` and `CreateCoverageForFunction` change to take `const SymbolInfo&`;
-  `Begin()` (`Coverage.cpp:66-68`) passes the whole `SymbolInfo`.
-- `-` Fix the mislabeled logger — `ResolveForTarget` logs as `"SymbolTypeChecker"`
-  (`SymbolResolver.cpp:70`); rename to `"SymbolResolver"`.
+  debug-dump loop and the reports stay unchanged.
+- `!` **D5 — preserve report identity.** **DONE:** the `CompileUnit::functions` map and `Function::name`
+  are keyed from `info.full` (with-args); `info.full` is sourced from `sym.GetDisplayName()` (the demangled
+  display name), and `info.name` from `NormalizeName(display)`, so `ReportDiff` (uses `name`) and
+  `ReportLCOV`/`ReportConsole` (use `GetDisplayName()`) output stays byte-identical.
+- `!` **D6 — move the inlined-function guard into the resolver.** **DONE:** the filespec-mismatch check
+  moved from `Breakpoint.cpp` into `ResolveForTarget` (compares the resolved function's start line-entry
+  filespec against its compile-unit filespec) — static filtering now belongs to the resolver.
+- `!` **Delete** `SymbolTypeChecker.{h,cpp}`, and from `BreakpointManager`: `CheckSymbolType`,
+  `CreateCoverageForClass`, `EnumerateMembers`, the `kSymClass`/`kSymFunc` dispatch, the
+  `SymbolTypeChecker` include, and the `FindFunctions` re-resolution loop. **DONE:** all removed; both
+  `CreateCoverageForSymbol` and `CreateCoverageForFunction` now take `const SymbolInfo&`; `Begin()` passes
+  the whole `SymbolInfo`.
+- `!` Fix the mislabeled logger — `ResolveForTarget` logged as `"SymbolTypeChecker"`; **DONE:** renamed to
+  `"SymbolResolver"`.
 - `-` *Adjacent (not core to this split):* the `IsInProject` stub (`SymbolResolver.cpp:41-50`,
   `return true;` + dead `/your/project/root/` body) — implement the project-root filter or delete
   it. (Also tracked in `todo/open-bugs.md`.)
@@ -307,16 +329,17 @@ per item whether to enable by default or expose as an option when Phase 4 is app
 
 tcov leaves *experimental* when:
 
-1. `-` A **single, finished symbol-resolution path** (§2) — `SymbolResolver` authoritative for all
-   *static* data (incl. `endLoadAddress`), `BreakpointManager` dynamic-only, `SymbolTypeChecker` + Path B
-   class code deleted.
+1. `!` A **single, finished symbol-resolution path** (§2, Phase 2) — `SymbolResolver` authoritative for
+   all *static* data (incl. `endLoadAddress`), `BreakpointManager` dynamic-only, `SymbolTypeChecker` +
+   Path B class code deleted.
 2. `!` **Dead code removed** (§3 IPC remnants, §4 inert code) — done in Phase 1.
 3. `-` **Robust trun auto-detection + signal-trap gating** (§5) — no hang on a false positive, no
    mistrapped signals on a generic target.
 4. `-` **Accuracy TODOs (§6) either fixed or explicitly deferred** with the known limitations
    documented for users.
-5. `-` **tcov has unit tests** — a `tcov_utests` target (§0) with regression coverage of the
-   symbol/breakpoint layer; the behavior-preserving refactor (§2) is guarded by it.
+5. `!` **tcov has unit tests** — a `tcov_utests` target (§0, 12 cases) with regression coverage of the
+   symbol/breakpoint types; the behavior-preserving refactor (§2) was guarded by it plus the
+   single-/multi-module integration coverage diffs.
 
 ---
 

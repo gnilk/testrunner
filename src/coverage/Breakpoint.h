@@ -12,13 +12,12 @@
 #include <lldb/API/SBBreakpoint.h>
 #include <lldb/API/SBTarget.h>
 #include <lldb/API/SBCompileUnit.h>
-#include <lldb/API/SBSymbol.h>
 
 #include <vector>
 #include <string>
 #include <unordered_map>
 #include <stdint.h>
-#include "SymbolTypeChecker.h"
+#include "SymbolResolver.h"
 
 namespace tcov {
     struct Breakpoint {
@@ -29,21 +28,22 @@ namespace tcov {
     };
     struct Function {
         using Ref = std::shared_ptr<Function>;
+        // Static data - the single source of truth is SymbolResolver::ResolveForTarget.
+        // Function composes the resolved SymbolInfo (D3/D4); the scalars below mirror it
+        // (filled once in CreateCoverageForFunction) so the debug dump and reports stay
+        // unchanged. startLine may be lowered while placing breakpoints.
+        SymbolResolver::SymbolInfo info = {};
         lldb::addr_t startLoadAddress = {};
         lldb::addr_t endLoadAddress = {};
-        lldb::SBSymbol symbol = {};
         uint32_t startLine = 0;
-        std::string name = {};       // will I have this?
+        std::string name = {};       // == info.full (with-args) - map key / report identity
         size_t nHits = 0;
         std::vector<Breakpoint::Ref> breakpoints = {};
 
+        // Normalized (no-args) display name - reports (LCOV/console) use this.
         std::string GetDisplayName() const {
-            auto sbname = std::string(symbol.GetDisplayName());
-            auto shortName = sbname.substr(0, sbname.find('('));
-            return shortName;
+            return info.name;
         }
-
-
     };
     struct CompileUnit {
         using Ref = std::shared_ptr<CompileUnit>;
@@ -81,14 +81,11 @@ namespace tcov {
         BreakpointManager() = default;
         virtual ~BreakpointManager() = default;
 
-        int CreateCoverageForSymbol(lldb::SBTarget &target, const std::string &symbol);
+        int CreateCoverageForSymbol(lldb::SBTarget &target, const SymbolResolver::SymbolInfo &info);
         std::vector<FunctionCoverage> ComputeCoverage() const;
     protected:
-        SymbolTypeChecker::SymbolType CheckSymbolType(lldb::SBTarget &target, const std::string &symbol);
-        int CreateCoverageForFunction(lldb::SBTarget &target, const std::string &symbol);
-        int CreateCoverageForClass(lldb::SBTarget &target, const std::string &symbol);
+        int CreateCoverageForFunction(lldb::SBTarget &target, const SymbolResolver::SymbolInfo &info);
         int CreateBreakpointsFunctionRange(lldb::SBTarget &target, lldb::SBCompileUnit &compileUnit, Function::Ref ptrFunction);
-        std::vector<std::string> EnumerateMembers(lldb::SBTarget &target, const std::string &className);
         CompileUnit::Ref GetOrAddCompileUnit(const std::string &&pathName);
 
 
