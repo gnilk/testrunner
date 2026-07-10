@@ -325,15 +325,19 @@ per item whether to enable by default or expose as an option when Phase 4 is app
 
 ## 7. Build / docs hygiene
 
-- `-` **Drop `binutils-dev` (headers/libbfd) from the docs — keep `binutils`.** tcov reads DWARF
-  internally via LLDB and never links libbfd. `binutils` itself is still required, but by
-  **trun**, which spawns the `nm` binary to scan libraries (`src/shared/unix/dynlib_unix.cpp:9`).
-  So the `binutils-dev` line is dead:
-  - `README.md:102-106` — the block says "also install the binutils headers" then
-    `sudo apt install binutils binutils-dev`; keep `binutils`, drop `binutils-dev` and the
-    "headers" wording.
-  - `CLAUDE.md:48` — "`liblldb-dev` and `binutils-dev`" → drop `binutils-dev`.
-  - CI (`.github/workflows/cmake.yml`) already installs neither, confirming `-dev` is unused.
+> **Phase 5 DONE (2026-07-10, branch `tcov_beta-phase5`).** Docs-only. Verified before editing:
+> no `bfd`/`libbfd`/`demangle.h`/binutils headers anywhere in the source or CMake (only a comment
+> in `dynlib_unix.cpp` noting `nm` is spawned); `trun` genuinely spawns `nm` (`Process proc("nm")`,
+> `dynlib_unix.cpp:161`) so the `binutils` *package* stays a real need; CI installs only
+> `liblldb-dev` (not binutils-dev), confirming the build never uses the `-dev` headers.
+
+- `!` **Drop `binutils-dev` (headers/libbfd) from the docs — keep `binutils`.** **DONE.** tcov reads
+  DWARF internally via LLDB and never links libbfd; `binutils` is still required, but by **trun**,
+  which spawns the `nm` binary to scan libraries (`src/shared/unix/dynlib_unix.cpp:161`).
+  - `README.md` — dropped `binutils-dev` and the "binutils headers" wording; now `sudo apt install binutils`.
+  - `CLAUDE.md` — "`liblldb-dev` and `binutils-dev`" → `liblldb-dev` (with a note that `binutils`/`nm`
+    is still needed by the runner, `-dev` headers are not).
+  - CI (`.github/workflows/cmake.yml`) installs only `liblldb-dev`, confirming `-dev` is unused.
 - `!` Re-confirmed (Phase 1): the tcov target compiles + links with `${ipcsrcfiles}` /
   `${processsrcfiles}` / `${unixsrcfiles}` all removed — `tcov` is now `tcov.cpp` + `tcovcore`.
 

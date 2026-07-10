@@ -100,9 +100,9 @@ MSVC detects it via a version symbol, so V1 is no longer forced there.)
 
 ## Dependencies
 On Linux and macOS the runner uses `nm` (from **binutils**) to scan a library for `test_*`
-symbols. On Linux also install the binutils headers:
+symbols. On Linux:
 ```shell
-sudo apt install binutils binutils-dev
+sudo apt install binutils
 ```
 
 The following are fetched automatically by CMake (FetchContent) — no manual install:
