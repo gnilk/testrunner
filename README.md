@@ -156,11 +156,16 @@ brew update
 brew install lldb
 ```
 Then `cmake -B build && cmake --build build -j && sudo cmake --install build` (default prefix
-`/usr/local`). macOS depends on `nm` (binutils) when scanning a library for test functions.
+`/usr/local`). macOS depends on `nm` (binutils) when scanning a library for test functions. `tcov`'s
+LLDB debug server (`debugserver`) comes with Xcode and is used automatically — no `lldb-server` setup
+as on Linux.
 
 ### Linux
-`cmake -B build && cmake --build build -j && sudo cmake --install build`. Install `liblldb-dev`
-for the coverage tool. The `.deb` packages install under `/usr`. Linux also depends on `nm`.
+`cmake -B build && cmake --build build -j && sudo cmake --install build`. Install `liblldb-dev` to
+**build** the coverage tool; to **run** it you also need `lldb-server` on the `PATH` at runtime (usually
+the distro `lldb` package) — `tcov` auto-detects it or takes `--lldb-server <path>` (see
+[Linux runtime: lldb-server](#linux-runtime-lldb-server)). The `.deb` packages install under `/usr`.
+Linux also depends on `nm`.
 
 ### Windows
 Windows is a **first-class V2 platform** (Visual Studio 2019/2022, MSVC, C++20). Build it with the **same
@@ -759,7 +764,10 @@ Example output:
 # Test Coverage
 The test coverage tool (`tcov`) is a tool to generate test coverage reports. 
 Coverage is calculated by running `trun` through LLDB and trap breakpoints for specific symbols under test.
-Thus `tcov` requires you to have LLDB installed. Both the binaries and the dev-packages (in order to build it).
+Thus `tcov` requires LLDB on your system — the dev package (`liblldb-dev`) to **build** it, and at
+**runtime** an LLDB debug server. On macOS that server (`debugserver`) ships with Xcode and is used
+automatically. On Linux `tcov` needs `lldb-server` on the `PATH` — see
+[Linux runtime: lldb-server](#linux-runtime-lldb-server) below.
 
 Assume you are building a DateTime handling library and you run `trun` as the unit-test framework. You can
 now generate coverage by means of running `trun` through `tcov`.
@@ -781,6 +789,9 @@ Options:
   -t, --target            Target executable to run (default: trun)
   -R, --Report            Comma separated list of report engines (base, lcov, diff)
   -s, --symbols           Comma separated list of symbols to track for coverage
+  --trun                  Force treating the target as 'trun' (dylib-load sync)
+  --no-trun               Force treating the target as a generic (non-trun) executable
+  --version               Print version information, then exit
 Linux
   --lldb-server <path>    Set the full path to the lldb-server binary
 
@@ -794,7 +805,30 @@ Run same as above but use both diff and lcov
 ```
 While `tcov` was designed to be used with `trun` it can be used with any executable.
 By specifying `--target` you can run any executable as the baseline for your unit-testing.
-Any arguments after `--` will be passed to the target executable.
+Any arguments after `--` will be passed to the target executable. `tcov` treats the target as `trun`
+when its basename is `trun` (enabling the dylib-load sync) and as a generic executable otherwise; force
+either with `--trun` / `--no-trun`.
+
+## Linux runtime: lldb-server
+On Linux, `tcov` drives LLDB's out-of-process debug server, `lldb-server`, which must be present at
+**runtime**. This is separate from the `liblldb-dev` package needed to *build* `tcov`, and is usually
+provided by the distro's `lldb` package (`sudo apt install lldb`).
+
+`tcov` locates it automatically: it first honours a valid `--lldb-server <path>`, otherwise it probes the
+`PATH` (via `which`) for `lldb-server` and the versioned names `lldb-server-25` … `lldb-server-15`, and
+points LLDB at the first hit. If none is found it stops with:
+
+```
+Unable to find or detect the lldb server, you can specify path to the 'lldb-server' binary with '--lldb-server <path to binary>'
+```
+
+In that case install the `lldb` package or pass the full path explicitly:
+```shell
+./tcov --lldb-server /usr/bin/lldb-server-18 --symbols mynamespace::DateTime -- -m datetime myapp_utests.so
+```
+
+On **macOS** none of this applies — Xcode's `debugserver` is used automatically, so there is no
+`lldb-server` setup.
 
 ## Reporting
 There are currently three different reporting modes available.
