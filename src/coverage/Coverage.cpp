@@ -130,7 +130,11 @@ bool CoverageRunner::StartLLDBDebugger() {
         logger->Error("Launch failed for target '%s': %s", Config::Instance().target.c_str(), error.GetCString());
         return false;
     }
-    SuppressSignals();
+    // SIGUSR1 trapping is ONLY the trun dylib-load sync point - gate it to trun targets.
+    // A generic target that legitimately uses SIGUSR1 must keep its own signal semantics.
+    if (Config::Instance().IsTrunTarget()) {
+        SuppressSignals();
+    }
     // At this point we are running...
 
     // yield - try for the debugger to kick in - other wise we might have a raise condition on our hands..
@@ -160,7 +164,10 @@ bool CoverageRunner::RunInitialLLDBPhase() {
         return false;
     }
 
-    // Not running 'trun' - skip coverage setup (this is explicit for trun sync of dynlib loading)
+    // Not running 'trun' - stop at the 'main' breakpoint and resolve symbols from here.
+    // GENERIC-TARGET CONTRACT: there is no late-dlopen sync outside trun, so any code the
+    // target loads AFTER main is not instrumented - all symbols to be covered must be
+    // resolvable at the 'main' breakpoint (i.e. statically linked or already loaded).
     if (!Config::Instance().IsTrunTarget()) {
         return true;
     }

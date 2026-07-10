@@ -10,6 +10,7 @@
 list(APPEND tcov_utestsrc ${CMAKE_CURRENT_SOURCE_DIR}/test_main.cpp)
 list(APPEND tcov_utestsrc ${CMAKE_CURRENT_SOURCE_DIR}/test_symbolresolver.cpp)
 list(APPEND tcov_utestsrc ${CMAKE_CURRENT_SOURCE_DIR}/test_breakpoint.cpp)
+list(APPEND tcov_utestsrc ${CMAKE_CURRENT_SOURCE_DIR}/test_config.cpp)
 
 add_library(tcov_utests SHARED ${tcov_utestsrc})
 

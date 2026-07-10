@@ -128,6 +128,8 @@ static void PrintUsage(const char *prgname) {
     printf("  -t, --target            Target executable to run (default: trun)\n");
     printf("  -R, --Report            Comma separated list of report engines (base, lcov, diff)\n");
     printf("  -s, --symbols           Comma separated list of symbols to track for coverage\n");
+    printf("  --trun                  Force treating the target as 'trun' (dylib-load sync)\n");
+    printf("  --no-trun               Force treating the target as a generic (non-trun) executable\n");
     printf("  --version               Print version information, then exit\n");
     printf("Linux\n");
     printf("  --lldb-server <path>    Set the full path to the lldb-server binary\n");
@@ -167,6 +169,14 @@ static kParseArgRes ParseArguments(int argc, const char *argv[]) {
     Config::Instance().symbolString = *argparser.TryParse(Config::Instance().symbolString, "-s","--symbols");
     Config::Instance().lldb_server_path = *argparser.TryParse(Config::Instance().lldb_server_path, "","--lldb-server");
     Config::Instance().internal_test_startup = argparser.IsPresent("", "--test-startup");
+
+    // trun auto-detection override (default: detect by basename == "trun")
+    if (argparser.IsPresent("", "--trun")) {
+        Config::Instance().trunDetect = Config::TrunDetect::kForceTrun;
+    } else if (argparser.IsPresent("", "--no-trun")) {
+        Config::Instance().trunDetect = Config::TrunDetect::kForceGeneric;
+    }
+
     if (argparser.IsPresent("-R","--Report")) {
         // Save the default
         std::string reportArg = Config::Instance().reportEngines[0];
@@ -194,9 +204,12 @@ static kParseArgRes ParseArguments(int argc, const char *argv[]) {
     PrepareCoverageSymbols();
 
 
-    // Are we running trun?
-    if (Config::Instance().IsTrunTarget()) {
-        if (!Config::Instance().internal_test_startup && (argparser.CopyAllAfter(Config::Instance().target_args, "--") < 0)) {
+    // Copy target args after '--' for ANY target (a generic exec may also take args).
+    // CopyAllAfter returns -1 only when there is no '--' token at all - and then it
+    // copies nothing. A missing '--' is an error for trun (it needs its library arg),
+    // but a generic target may legitimately run with no extra args.
+    if (!Config::Instance().internal_test_startup) {
+        if ((argparser.CopyAllAfter(Config::Instance().target_args, "--") < 0) && Config::Instance().IsTrunTarget()) {
             fprintf(stderr, "Unable to parse target arguments\n");
             PrintUsage(argv[0]);
             return kExit;
