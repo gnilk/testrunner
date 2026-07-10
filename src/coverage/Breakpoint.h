@@ -32,11 +32,12 @@ namespace tcov {
         // Function composes the resolved SymbolInfo (D3/D4): name, file, line and the
         // [startLoadAddress,endLoadAddress) range all live in `info`, no mirrors.
         SymbolResolver::SymbolInfo info = {};
-        // DYNAMIC state, owned by the breakpoint layer:
-        // startLine is seeded from info.line but LOWERED while placing breakpoints (line
-        // entries in-range can map to source lines below the declared start), so it is not
-        // a mirror of info.line.
-        uint32_t startLine = 0;
+        // DYNAMIC state, owned by the breakpoint layer. The function's start line is NOT here -
+        // it is info.line, the resolver's authoritative value. (Pre-§6 a `startLine` field was
+        // LOWERED while placing breakpoints, but that "lowering" only ever fired on leaked
+        // line entries - cross-file inlined code, now filtered in CreateBreakpointsFunctionRange,
+        // and neighbouring-function lines that mapped a `}` into the range - so it produced wrong
+        // FN: starts, never a legitimately-lower one. Removed: reports read info.line.)
         size_t nHits = 0;
         std::vector<Breakpoint::Ref> breakpoints = {};
 

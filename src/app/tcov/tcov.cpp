@@ -31,12 +31,21 @@
 //   ! Allow wildcards in symbols, like 'pucko::*'
 //   ! Make the split between target options and tcov '--' (like lldb/gdb does it)
 // ! Support for GCOV/LCOV reporting
-// + Inline members do not work, see comments in 'Breakpoint.cpp' (should work now - needs proper testing)
+// ! Inline members: cross-file inlined code (e.g. libc++ <string> inlined into a body) leaked
+//   into a function's [start,end) range and was tallied against THIS .cpp - phantom DA: lines
+//   and bogus (lowered) FN: starts. Fixed in Breakpoint.cpp CreateBreakpointsFunctionRange:
+//   skip line entries whose file != the compile unit's file (default-on, §6/Phase 4). The
+//   per-function analog (D6) already lives in the resolver.
 // ! Generate better reports (ideally some file that can be imported in the IDE)
 //   LCOV and DIFF implemented
 // ! Ability to run multiple reports in one go (i.e combine LCOV with DIFF)
-// + Test multi-statement coverage 'if (X && Y)' - if X failed Y might not be evalulated
-// - Prolouge statements are still reported as untested (single lines with '}' for instance)
+// ! Multi-statement coverage 'if (X && Y)' - PARTIAL: ComputeCoverage removes a line that is
+//   both covered and uncovered (counts it covered); true column-level branch distinction is not
+//   supported (documented beta limitation).
+// ! Prologue lines (single lines with '}') can still be reported untested - DEFERRED as a
+//   documented beta limitation. The candidate fixes (drop column-0 line entries; drop the
+//   breakpoint at the exact function start address) are too aggressive - they risk dropping real
+//   executable lines - so they are left out by default rather than shipped blindly.
 // - Ability to pass arguments to the report generator
 //   This will be tricky with the comma separated list of reports..
 // - If we allow multiple -R arguments we need to enhance the ArgParser to continue parsing
@@ -217,6 +226,7 @@ static kParseArgRes ParseArguments(int argc, const char *argv[]) {
     }
 
 #ifdef LINUX
+
     // Note: this is not needed on macOS as the LLDB Server process is already running - at least if you have xcode installed
     if (!IsLLDBServerPresent()) {
         fprintf(stderr, "Unable to find or detect the lldb server, you can specify path to the 'lldb-server' binary with '--lldb-server <path to binary>'\n");

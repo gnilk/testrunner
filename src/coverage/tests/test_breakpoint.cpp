@@ -8,6 +8,13 @@
 //           so a default-constructed Function is safe (previously a crash).
 //   D5    - report identity: CompileUnit::functions is keyed by the full (with-args)
 //           display name, so overloaded functions stay distinct entries.
+//   §6    - a function's reported start line is info.line (the resolver's authoritative
+//           value); Function carries no separate `startLine`. Pre-§6 a `startLine` field
+//           was LOWERED during breakpoint placement, but that only ever fired on leaked
+//           line entries (cross-file inlined code / a neighbour's `}` mapping into range),
+//           yielding wrong FN: starts - so it was removed. The cross-file line filter that
+//           removed the leakage lives in breakpoint install (live SBTarget), so it is
+//           validated by the integration coverage diff, not here (see §0 boundary).
 //
 // D3/D4 landed WITH the Phase 2 recomposition that added `SymbolInfo info` to Function
 // and flipped GetDisplayName() - they could not be a clean red-before here because the
@@ -25,6 +32,7 @@ extern "C" {
     DLL_EXPORT int test_breakpoint_cu_overloadsdistinct(ITesting *t);
     DLL_EXPORT int test_breakpoint_func_composesinfo(ITesting *t);
     DLL_EXPORT int test_breakpoint_func_displaynamedefault(ITesting *t);
+    DLL_EXPORT int test_breakpoint_func_startlinefrominfo(ITesting *t);
 }
 
 // Module main / exit - no shared state needed yet.
@@ -86,5 +94,18 @@ DLL_EXPORT int test_breakpoint_func_composesinfo(ITesting *t) {
 DLL_EXPORT int test_breakpoint_func_displaynamedefault(ITesting *t) {
     Function fn;
     TR_ASSERT(t, fn.GetDisplayName().empty());
+    return kTR_Pass;
+}
+
+// §6: the function's start line is info.line, the single source of truth - there is no
+// separate (formerly lowered) start-line field. ReportLCOV emits FN:<info.line>. A default
+// Function reports start line 0; composing a SymbolInfo sets it, with no divergent state.
+DLL_EXPORT int test_breakpoint_func_startlinefrominfo(ITesting *t) {
+    Function fn;
+    TR_ASSERT(t, fn.info.line == 0);      // default - no start line yet
+
+    fn.info.line = 88;                    // the resolver's authoritative start (e.g. match(char*))
+    TR_ASSERT(t, fn.info.line == 88);     // reports info.line verbatim - never lowered to a `}`
+
     return kTR_Pass;
 }
