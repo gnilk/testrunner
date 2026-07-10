@@ -25,7 +25,7 @@ int BreakpointManager::CreateCoverageForSymbol(lldb::SBTarget &target, const Sym
     for (auto &[cname, cp] : compileUnits) {
         logger->Debug("%s @ %s nFunctions=%zu\n", cname, cp->pathName, cp->functions.size());
         for (auto &[fname, func] : cp->functions) {
-            logger->Debug("  %s, line=%u, start=%llX, end=%llX, bp=%zu", func->name.c_str(), func->startLine, func->startLoadAddress, func->endLoadAddress, func->breakpoints.size());
+            logger->Debug("  %s, line=%u, start=%llX, end=%llX, bp=%zu", func->info.full.c_str(), func->startLine, func->info.startLoadAddress, func->info.endLoadAddress, func->breakpoints.size());
         }
     }
     return numCreated;
@@ -64,12 +64,10 @@ int BreakpointManager::CreateCoverageForFunction(lldb::SBTarget &target, const S
     // display name (D5) so overloads stay distinct and report output is unchanged.
     auto ptrFunction = ptrCompileUnit->GetOrAddFunction(std::string(info.full));
 
-    // D3/D4: Function composes the resolved SymbolInfo; the scalar mirrors below keep the
-    // debug dump and reports working exactly as before.
+    // D3/D4: Function composes the resolved SymbolInfo (static data). startLine is the one
+    // dynamic scalar - seed it from info.line; it may be lowered while placing breakpoints.
     ptrFunction->info = info;
     ptrFunction->startLine = info.line;
-    ptrFunction->startLoadAddress = info.startLoadAddress;
-    ptrFunction->endLoadAddress = info.endLoadAddress;
 
     // Now create the actual breakpoints - across the resolved [start,end) load range
     int numCreated = CreateBreakpointsFunctionRange(target, compileUnit, ptrFunction);
@@ -126,15 +124,15 @@ int BreakpointManager::CreateBreakpointsFunctionRange(lldb::SBTarget &target, ll
         }
         // FIXME: Put this on a flag - aggressive filtering
         // Might be a bit too simplistic
-        // if (addr.GetLoadAddress(target) == ptrFunction->startLoadAddress) {
+        // if (addr.GetLoadAddress(target) == ptrFunction->info.startLoadAddress) {
         //     printf("Prolouge - skipping\n");
         //     continue;
         // }
 
 
         // seems DWARF data can contain multiple addresses pointing to same line etc...
-        if (addr.GetLoadAddress(target) >= ptrFunction->startLoadAddress &&
-            addr.GetLoadAddress(target) < ptrFunction->endLoadAddress) {
+        if (addr.GetLoadAddress(target) >= ptrFunction->info.startLoadAddress &&
+            addr.GetLoadAddress(target) < ptrFunction->info.endLoadAddress) {
             // Was not sure which one to use - but load-address is the final truth, so let's use it
             auto bp = target.BreakpointCreateByAddress(addr.GetLoadAddress(target));
             //auto bp = target.BreakpointCreateBySBAddress(addr);
@@ -143,7 +141,10 @@ int BreakpointManager::CreateBreakpointsFunctionRange(lldb::SBTarget &target, ll
             auto my_breakpoint = std::make_shared<Breakpoint>();
             my_breakpoint->breakpoint = bp;
             my_breakpoint->line = lineEntry.GetLine();
-            // Should not happen - but C/C++ works in mysterious ways...
+            // startLine can be lowered here: the [start,end) range picks up line entries
+            // that map to source lines BELOW the declared start (inlined/other code leaking
+            // into the range - see §6 accuracy). So startLine is dynamic, not a mirror of
+            // info.line - it stays a Function field.
             if (lineEntry.GetLine() < ptrFunction->startLine) {
                 ptrFunction->startLine = lineEntry.GetLine();
             }
@@ -192,7 +193,7 @@ std::vector<FunctionCoverage> BreakpointManager::ComputeCoverage() const {
                 unique_line_set.insert(bp->line);
 
                 // if (bp->breakpoint.GetHitCount() > 1) {
-                //     printf("****  %d - %s - %lX - %d\n",bp->line, ptrFunction->name.c_str(), bp->loadAddress, bp->breakpoint.GetHitCount());
+                //     printf("****  %d - %s - %lX - %d\n",bp->line, ptrFunction->info.full.c_str(), bp->loadAddress, bp->breakpoint.GetHitCount());
                 // }
 
             }
@@ -218,7 +219,7 @@ std::vector<FunctionCoverage> BreakpointManager::ComputeCoverage() const {
                     bFoundDuplicate = false;
                     for (auto it = uncovered_lines.begin(); it != uncovered_lines.end(); ++it) {
                         if (covered_line_set.contains(*it)) {
-                            logger->Debug("!! %s - Duplicate line found, removing: %d",ptrFunction->name.c_str(), *it);
+                            logger->Debug("!! %s - Duplicate line found, removing: %d",ptrFunction->info.full.c_str(), *it);
                             uncovered_lines.erase(it);
                             bFoundDuplicate = true;
                             break;

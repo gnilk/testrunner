@@ -99,7 +99,8 @@ remnants (§3); assorted dead / inert code (§4); a stale build/doc dependency (
 > **Phase 2 DONE (2026-07-09, branch `tcov_beta-phase2`).** Single authoritative resolver +
 > dynamic-only manager landed; `SymbolTypeChecker.{h,cpp}` and the Path B class code
 > (`CheckSymbolType`/`CreateCoverageForClass`/`EnumerateMembers`, the classify dispatch, and the
-> `FindFunctions` re-resolution) are gone. `Function` now composes `SymbolInfo`; `CreateCoverageForSymbol`/
+> `FindFunctions` re-resolution) are gone. `Function` now composes `SymbolInfo` with **no duplicate mirror
+> fields** (only the genuinely-dynamic `startLine` remains alongside it — see D3/D4); `CreateCoverageForSymbol`/
 > `CreateCoverageForFunction` take `const SymbolInfo&`; `Begin()` passes the whole struct. D3/D4
 > tests landed (`test_breakpoint_func_composesinfo`, `_displaynamedefault`) → **tcov_utests 12/12**.
 > **Validated behavior-preserving** against two integration targets:
@@ -195,9 +196,15 @@ After §2 — one authoritative resolver, dynamic-only manager
   `ResolveSymbolContextForAddress(…, eSymbolContextCompUnit)`) — address plumbing, not a name lookup.
   `SymbolInfo` stays a pure data struct (no LLDB handles).
 - `!` **D3/D4 — `Function` composes `SymbolInfo`.** **DONE:** added `SymbolInfo info;`; `GetDisplayName()`
-  returns `info.name` (dropped the now-dead `SBSymbol` member). Scalar mirrors
-  (`startLine`/`startLoadAddress`/`endLoadAddress`/`name`) filled once from `info`, so the
-  debug-dump loop and the reports stay unchanged.
+  returns `info.name` (dropped the now-dead `SBSymbol` member). **Went past the original "keep the scalar
+  mirrors" plan** (that was a minimality hedge) — the pure-duplicate mirrors `name`/`startLoadAddress`/
+  `endLoadAddress` are **removed**; every read site now goes through `info.full`/`info.startLoadAddress`/
+  `info.endLoadAddress` (`GetOrAddFunction` seeds identity via `info.full` = the with-args map key). The
+  only remaining scalar is `startLine`, which is **genuinely dynamic, not a mirror**: it is seeded from
+  `info.line` but *lowered* while placing breakpoints, and that lowering was measured to fire constantly
+  (56× for `trun::`, 13× for `gnilk::`, e.g. `Execute` 133→50) — it is the §6 inlined-code-in-range
+  symptom, not a `SymbolInfo` field. Result: `Function` = `SymbolInfo info` (static) + `startLine`/`nHits`/
+  `breakpoints` (dynamic) — a clean static/dynamic split. Behavior-neutral: validation re-run byte-identical.
 - `!` **D5 — preserve report identity.** **DONE:** the `CompileUnit::functions` map and `Function::name`
   are keyed from `info.full` (with-args); `info.full` is sourced from `sym.GetDisplayName()` (the demangled
   display name), and `info.name` from `NormalizeName(display)`, so `ReportDiff` (uses `name`) and

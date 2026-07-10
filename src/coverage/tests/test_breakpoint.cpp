@@ -43,7 +43,7 @@ DLL_EXPORT int test_breakpoint_cu_addfunction(ITesting *t) {
     auto bar = cu.GetOrAddFunction(std::string("Foo::Bar(int)"));
     TR_ASSERT(t, bar != nullptr);
     TR_ASSERT(t, cu.functions.size() == 1);
-    TR_ASSERT(t, bar->name == "Foo::Bar(int)");
+    TR_ASSERT(t, bar->info.full == "Foo::Bar(int)");   // identity is the with-args map key
 
     auto again = cu.GetOrAddFunction(std::string("Foo::Bar(int)"));
     TR_ASSERT(t, again == bar);            // same key -> same object

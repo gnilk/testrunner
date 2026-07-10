@@ -28,15 +28,15 @@ namespace tcov {
     };
     struct Function {
         using Ref = std::shared_ptr<Function>;
-        // Static data - the single source of truth is SymbolResolver::ResolveForTarget.
-        // Function composes the resolved SymbolInfo (D3/D4); the scalars below mirror it
-        // (filled once in CreateCoverageForFunction) so the debug dump and reports stay
-        // unchanged. startLine may be lowered while placing breakpoints.
+        // STATIC data - the single source of truth is SymbolResolver::ResolveForTarget.
+        // Function composes the resolved SymbolInfo (D3/D4): name, file, line and the
+        // [startLoadAddress,endLoadAddress) range all live in `info`, no mirrors.
         SymbolResolver::SymbolInfo info = {};
-        lldb::addr_t startLoadAddress = {};
-        lldb::addr_t endLoadAddress = {};
+        // DYNAMIC state, owned by the breakpoint layer:
+        // startLine is seeded from info.line but LOWERED while placing breakpoints (line
+        // entries in-range can map to source lines below the declared start), so it is not
+        // a mirror of info.line.
         uint32_t startLine = 0;
-        std::string name = {};       // == info.full (with-args) - map key / report identity
         size_t nHits = 0;
         std::vector<Breakpoint::Ref> breakpoints = {};
 
@@ -54,7 +54,7 @@ namespace tcov {
             Function::Ref ptrFunction = nullptr;
             if (!functions.contains(dispName)) {
                 ptrFunction = std::make_shared<Function>();
-                ptrFunction->name = dispName;
+                ptrFunction->info.full = dispName;   // identity == the with-args map key (D5)
                 functions[dispName] = ptrFunction;
             } else {
                 ptrFunction = functions[dispName];
