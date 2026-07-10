@@ -204,9 +204,12 @@ static kParseArgRes ParseArguments(int argc, const char *argv[]) {
     PrepareCoverageSymbols();
 
 
-    // Are we running trun?
-    if (Config::Instance().IsTrunTarget()) {
-        if (!Config::Instance().internal_test_startup && (argparser.CopyAllAfter(Config::Instance().target_args, "--") < 0)) {
+    // Copy target args after '--' for ANY target (a generic exec may also take args).
+    // CopyAllAfter returns -1 only when there is no '--' token at all - and then it
+    // copies nothing. A missing '--' is an error for trun (it needs its library arg),
+    // but a generic target may legitimately run with no extra args.
+    if (!Config::Instance().internal_test_startup) {
+        if ((argparser.CopyAllAfter(Config::Instance().target_args, "--") < 0) && Config::Instance().IsTrunTarget()) {
             fprintf(stderr, "Unable to parse target arguments\n");
             PrintUsage(argv[0]);
             return kExit;

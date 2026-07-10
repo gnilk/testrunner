@@ -280,9 +280,14 @@ Automatic trun detection stays; the mechanism is hardened.
 > already gated). New `test_config` TDD module pins the detection (`tcov_utests 16/16`). Validated:
 > trun path unchanged (`trun::split` 75%/bp:132, same as Phase 2), `--trun` identical, and
 > `--no-trun` on the trun binary **completes without hanging** (generic path — symbols resolved at
-> `main`, `bp:77`, no `SIGUSR1` trapping). **Adjacent, left open:** the target-arg copy
-> (`tcov.cpp` `CopyAllAfter`) is itself gated behind `IsTrunTarget()`, so a *generic* target
-> currently gets no `--`-args — a separate limitation, not part of detection/signal hardening.
+> `main`, `bp:77`, no `SIGUSR1` trapping). **Also fixed here:** the target-arg copy
+> (`tcov.cpp` `CopyAllAfter`) was itself gated behind `IsTrunTarget()`, so a *generic* target got
+> no `--`-args. That guard was introduced by `1758dcb` "NEW: Ability to run coverage on non-trun
+> execs" (the immediate child of `3d361be`) purely to dodge `CopyAllAfter`'s `-1` "no `--` present"
+> return, which the old unconditional code treated as fatal. Now the copy runs for **every** target
+> and a missing `--` is fatal only for trun (which needs its library arg); a generic target may run
+> with no extra args. Verified: `--no-trun` now forwards `--sequential -m … lib.dylib` to the target
+> (visible in the `Target:` log), trun path unchanged.
 
 - `!` **`IsTrunTarget()` was a substring match** (matched any path containing `"trun"` —
   `trunembedded`, any `.../testrunner/...` dir → false-positive `--coverage`/`--sequential`
