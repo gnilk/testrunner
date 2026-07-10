@@ -1,19 +1,17 @@
 //
 // tcov_utests - BreakpointManager / Function / CompileUnit type tests.
 //
-// These pin §2's decisions from todo/tcov_cleanup.md, written BEFORE the Phase 2
-// refactor:
+// These pin §2's decisions from todo/tcov_cleanup.md:
 //
-//   D5 - report identity: CompileUnit::functions is keyed by the full (with-args)
-//        display name, so overloaded functions stay distinct entries.
+//   D3/D4 - Function composes SymbolInfo; GetDisplayName() returns info.name (the
+//           normalized, no-args name) and no longer reads an lldb::SBSymbol member,
+//           so a default-constructed Function is safe (previously a crash).
+//   D5    - report identity: CompileUnit::functions is keyed by the full (with-args)
+//           display name, so overloaded functions stay distinct entries.
 //
-// NOTE on D3/D4 (Function composes SymbolInfo; GetDisplayName() == info.name):
-// those cannot be expressed as clean red-before/green-after cases here - today
-// Function::GetDisplayName() reads its lldb::SBSymbol member, and a default SBSymbol
-// yields a null display name (a crash, not an assert). Function does not gain its
-// `SymbolInfo info` member until the Phase 2 recomposition that also flips
-// GetDisplayName() and populates it. The D3/D4 cases therefore land WITH Phase 2,
-// alongside the change they guard. See the plan's §0 note.
+// D3/D4 landed WITH the Phase 2 recomposition that added `SymbolInfo info` to Function
+// and flipped GetDisplayName() - they could not be a clean red-before here because the
+// old GetDisplayName() dereferenced a default SBSymbol (a crash, not an assert).
 //
 #include "ext_testinterface/testinterface.h"
 #include "Breakpoint.h"
@@ -25,6 +23,8 @@ extern "C" {
     DLL_EXPORT int test_breakpoint_exit(ITesting *t);
     DLL_EXPORT int test_breakpoint_cu_addfunction(ITesting *t);
     DLL_EXPORT int test_breakpoint_cu_overloadsdistinct(ITesting *t);
+    DLL_EXPORT int test_breakpoint_func_composesinfo(ITesting *t);
+    DLL_EXPORT int test_breakpoint_func_displaynamedefault(ITesting *t);
 }
 
 // Module main / exit - no shared state needed yet.
@@ -43,7 +43,7 @@ DLL_EXPORT int test_breakpoint_cu_addfunction(ITesting *t) {
     auto bar = cu.GetOrAddFunction(std::string("Foo::Bar(int)"));
     TR_ASSERT(t, bar != nullptr);
     TR_ASSERT(t, cu.functions.size() == 1);
-    TR_ASSERT(t, bar->name == "Foo::Bar(int)");
+    TR_ASSERT(t, bar->info.full == "Foo::Bar(int)");   // identity is the with-args map key
 
     auto again = cu.GetOrAddFunction(std::string("Foo::Bar(int)"));
     TR_ASSERT(t, again == bar);            // same key -> same object
@@ -63,5 +63,28 @@ DLL_EXPORT int test_breakpoint_cu_overloadsdistinct(ITesting *t) {
     TR_ASSERT(t, barInt != barFloat);
     TR_ASSERT(t, cu.functions.size() == 2);
 
+    return kTR_Pass;
+}
+
+// D3/D4: Function composes SymbolInfo. GetDisplayName() returns the composed info.name
+// (the normalized, no-args name used by the LCOV/console reports) - not info.full.
+DLL_EXPORT int test_breakpoint_func_composesinfo(ITesting *t) {
+    Function fn;
+    fn.info.name = "Foo::Bar";            // normalized (no args) - report display
+    fn.info.full = "Foo::Bar(int)";       // with args - map key / ReportDiff identity
+
+    TR_ASSERT(t, fn.GetDisplayName() == fn.info.name);
+    TR_ASSERT(t, fn.GetDisplayName() == "Foo::Bar");
+    TR_ASSERT(t, fn.GetDisplayName() != fn.info.full);
+
+    return kTR_Pass;
+}
+
+// D3/D4: a default-constructed Function has an empty display name and does NOT crash.
+// Before the recomposition GetDisplayName() dereferenced a default lldb::SBSymbol whose
+// display name is null - this case would have crashed rather than returned empty.
+DLL_EXPORT int test_breakpoint_func_displaynamedefault(ITesting *t) {
+    Function fn;
+    TR_ASSERT(t, fn.GetDisplayName().empty());
     return kTR_Pass;
 }

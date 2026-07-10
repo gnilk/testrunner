@@ -61,7 +61,7 @@ bool CoverageRunner::Begin() {
     // Create breakpoints from symbols coming from cmd-line..
     logger->Info("Creating breakpoints for symbols");
     for (auto &s : symbols) {
-        breakpointManager.CreateCoverageForSymbol(target, s.name);
+        breakpointManager.CreateCoverageForSymbol(target, s);
     }
     return true;
 }
