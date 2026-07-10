@@ -254,7 +254,7 @@ The code-driven `trun`→`tcov` coverage RPC was removed from trun
   now-orphaned `SBCommandInterpreter` / `SBCommandReturnObject` / `SBStringList` includes.
 - `!` `ReportBase::GetShortDisplayName` — removed (`ReportBase.h`, no callers).
 - `!` Vestigial `SIGUSR2` handling in `SuppressSignals` — removed (only `SIGUSR1` is awaited). The
-  broader "make `SuppressSignals` trun-only" stays in §5/Phase 3.
+  broader "make `SuppressSignals` trun-only" landed in §5/Phase 3 (now gated behind `IsTrunTarget()`).
 - `!` Dead `LLDB_DEBUGSERVER_PATH` env branch — **deleted** (not wired). Wiring it to honor a
   user-set env would change Linux behavior — out of scope for a zero-behavior-change phase;
   reintroduce it correctly in §5/Phase 3 if the feature is wanted. (tcov still `setenv`s the
@@ -269,32 +269,34 @@ The code-driven `trun`→`tcov` coverage RPC was removed from trun
 
 ---
 
-## 5. trun coupling & generic-target robustness  (auto-detection retained; mechanism open)
+## 5. trun coupling & generic-target robustness  (auto-detection retained; mechanism chosen)
 
-Automatic trun detection stays, but the mechanism needs hardening. This section presents the
-issue and options; the specific choice is deferred to when Phase 3 is approved.
+Automatic trun detection stays; the mechanism is hardened.
 
-- `-` **`IsTrunTarget()` is a substring match** gating real behavior (`Config.cpp:21-24`), with
-  the author's own `// FIXME: this is not correct!`. It matches any path containing `"trun"`
-  (e.g. `trunembedded`, or any `.../testrunner/...` directory). A false positive makes tcov
-  inject `--coverage`/`--sequential` (`Coverage.cpp:71-80` `PrepareTrunExecution`) and then hang
-  in `RunInitialLLDBPhase` waiting for a `SIGUSR1` that never comes (`Coverage.cpp:191-194`).
-- `-` **Signal trapping is unconditional.** `SuppressSignals` is called for every target right
-  after launch (`Coverage.cpp:146`), so a non-trun target that legitimately uses `SIGUSR1`/
-  `SIGUSR2` gets its signals trapped and mishandled → `"Unhandled stop reson"`
-  (`Coverage.cpp:382`). This is exactly the open TODO at `tcov.cpp:45-46`. **Gate signal
-  trapping (and the `PrepareTrunExecution` arg-injection + the second `WaitState`) to trun-sync
-  mode only.** Note `RunInitialLLDBPhase` already early-returns for non-trun targets after the
-  `main` breakpoint (`Coverage.cpp:177-179`) — the signal setup just runs too early to benefit.
-- Options for keeping auto-detection but making detection robust (pick one at Phase 3):
-  - **(a)** match basename `== "trun"` rather than substring — smallest change, still filename-based.
-  - **(b)** after launch, probe the target via LLDB for a trun-specific exported symbol —
-    robust, no reliance on the filename.
-  - **(c)** auto-detect (a or b) **plus** an explicit `--trun` / `--no-trun` override for the
-    ambiguous cases.
-- `-` **Document the generic-target contract:** there is no late-`dlopen` sync outside trun, so a
-  generic target that loads code after `main` won't get those symbols instrumented. Symbols must
-  be resolvable at the `main` breakpoint.
+> **Phase 3 DONE (2026-07-10, branch `tcov_beta-phase3`).** Chose **option (c)**: basename
+> auto-detect **plus** explicit `--trun` / `--no-trun` overrides (a `Config::TrunDetect` tristate;
+> `--trun` forces trun, `--no-trun` forces generic). `SuppressSignals` is now gated behind
+> `IsTrunTarget()` (the last ungated trun-only action; the arg-injection + 2nd `WaitState` were
+> already gated). New `test_config` TDD module pins the detection (`tcov_utests 16/16`). Validated:
+> trun path unchanged (`trun::split` 75%/bp:132, same as Phase 2), `--trun` identical, and
+> `--no-trun` on the trun binary **completes without hanging** (generic path — symbols resolved at
+> `main`, `bp:77`, no `SIGUSR1` trapping). **Adjacent, left open:** the target-arg copy
+> (`tcov.cpp` `CopyAllAfter`) is itself gated behind `IsTrunTarget()`, so a *generic* target
+> currently gets no `--`-args — a separate limitation, not part of detection/signal hardening.
+
+- `!` **`IsTrunTarget()` was a substring match** (matched any path containing `"trun"` —
+  `trunembedded`, any `.../testrunner/...` dir → false-positive `--coverage`/`--sequential`
+  injection then a `SIGUSR1` hang). **DONE:** now `basename(target) == "trun"` (auto), overridable
+  by `--trun` / `--no-trun`.
+- `!` **Signal trapping was unconditional.** `SuppressSignals` ran for every target → a non-trun
+  target using `SIGUSR1` got it trapped/mishandled. **DONE:** `SuppressSignals` is gated to
+  `IsTrunTarget()`. (The `PrepareTrunExecution` arg-injection and the 2nd `WaitState` were already
+  behind `IsTrunTarget()`, so accurate detection alone also removed the false-positive hang path.)
+- **Mechanism chosen: (c)** — basename auto-detect + explicit `--trun`/`--no-trun` override. (a)
+  alone left a false-negative on a renamed trun binary; (b) symbol-probe was heavier and not needed.
+- `!` **Document the generic-target contract:** **DONE** — comment at the non-trun early-return in
+  `RunInitialLLDBPhase`: no late-`dlopen` sync outside trun, so a generic target's post-`main`-loaded
+  code is not instrumented; symbols to be covered must be resolvable at the `main` breakpoint.
 
 ---
 
@@ -340,7 +342,8 @@ tcov leaves *experimental* when:
    all *static* data (incl. `endLoadAddress`), `BreakpointManager` dynamic-only, `SymbolTypeChecker` +
    Path B class code deleted.
 2. `!` **Dead code removed** (§3 IPC remnants, §4 inert code) — done in Phase 1.
-3. `-` **Robust trun auto-detection + signal-trap gating** (§5) — no hang on a false positive, no
+3. `!` **Robust trun auto-detection + signal-trap gating** (§5, Phase 3) — basename detect +
+   `--trun`/`--no-trun` override; `SuppressSignals` gated to trun. No hang on a false positive, no
    mistrapped signals on a generic target.
 4. `-` **Accuracy TODOs (§6) either fixed or explicitly deferred** with the known limitations
    documented for users.

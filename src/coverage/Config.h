@@ -17,6 +17,15 @@ namespace tcov {
             std::string globPrefix = {};
         };
 
+        // How the target is classified as 'trun' (gates the dylib-load SIGUSR1 sync,
+        // the --sequential/--coverage arg injection and signal trapping). Auto-detect
+        // is basename-based; the two force modes are the --trun / --no-trun overrides.
+        enum class TrunDetect {
+            kAuto,          // basename(target) == "trun"
+            kForceTrun,     // --trun     : treat as trun regardless of name
+            kForceGeneric,  // --no-trun  : treat as a generic target regardless of name
+        };
+
     public:
         static Config &Instance();
         ~Config() = default;
@@ -30,6 +39,7 @@ namespace tcov {
         std::string version = TCOV_VERSION;
         std::string description = "Calculating code coverage through LLDB";
         std::string target = "trun";
+        TrunDetect trunDetect = TrunDetect::kAuto;
         std::string lcovReportFilename = "lcov.info";
         std::string diffReportFilename = "tcov_coverage.diff";
         std::vector<std::string> reportEngines = {"diff"};
