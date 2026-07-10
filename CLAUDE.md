@@ -45,7 +45,8 @@ Fetched automatically by CMake via FetchContent — no manual install needed:
 - `gnklog` (gnilk's logging library, interface-compatible with embedded)
 - `cpptrace` v0.7.1
 
-System requirement on Linux for `tcov`: `liblldb-dev` and `binutils-dev`.
+System requirement on Linux for `tcov`: `liblldb-dev`. (The runner also needs `binutils`
+for the `nm` binary — see the README; the `-dev` headers are not used.)
 
 ## Running the internal tests
 
