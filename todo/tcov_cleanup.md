@@ -307,19 +307,45 @@ Automatic trun detection stays; the mechanism is hardened.
 
 ## 6. Coverage-accuracy TODOs (carry forward)
 
-These are accuracy items for beta, not dead code. They already have in-source markers in the
-`tcov.cpp:27-47` TODO block and in commented filters in `CreateBreakpointsFunctionRange`
-(`Breakpoint.cpp:163-195`) — carry them forward, don't duplicate them.
+> **Phase 4 DONE (2026-07-10, branch `tcov_beta-phase4`).** Per-item decisions made and
+> validated against the trun coverage path:
+> - **Cross-file inline leakage → FIXED, default-on.** `CreateBreakpointsFunctionRange` now skips
+>   line entries whose file ≠ the compile unit's file. Measured on `trun::split` (in a 175-line
+>   `strutil.cpp`): the phantom `DA:305` — libc++ `<string>` code inlined into split — is gone
+>   (`LF/LH 22→21`), and a header line coincidentally numbered 59 that inflated `DA:59 4→3` is gone
+>   too; `bp 132→130, hits 99→97` = exactly the two phantom cross-file breakpoints, both previously
+>   hit. **No real covered line lost** — only phantom counts de-inflate. This is the per-line analog
+>   of the resolver's per-function D6 guard.
+> - **`startLine`-lowering → REMOVED (the Phase-2 loose end closed).** The lowering only ever fired
+>   on leaked line entries: cross-file (now filtered) and same-file neighbours (e.g. a `}` at line 83
+>   mapping into `match(char*)`'s range, so it reported `FN:83` for a function declared at 88). It ran
+>   *after* breakpoint creation, so it affected only the reported `FN:` line, never placement.
+>   Removed it and the now-pure-mirror `Function::startLine` field; reports read `info.line`. Result:
+>   every `FN:` now matches the true source declaration (`ltrim 28, rtrim 33, trim 38, split 59,
+>   match 88/92` — was `…, match 83/92`). This reverses Phase-2's "keep startLine, it's genuinely
+>   dynamic" note: the dynamism *was* the §6 bug. New guard `test_breakpoint_func_startlinefrominfo`
+>   (tcov_utests **17/17**).
+> - **Prologue lines (bare `}`) → DEFERRED as a documented beta limitation.** The candidate filters
+>   (drop column-0 line entries; drop the breakpoint at the exact function start address) are too
+>   aggressive — they risk dropping real executable lines — so they are left out by default rather
+>   than shipped or flag-gated. Documented in the `tcov.cpp` TODO block and here.
+> - **Multi-statement `if (X && Y)` → left PARTIAL, documented.** `ComputeCoverage`'s duplicate-line
+>   removal already resolves a line that is both covered and uncovered (counts it covered); true
+>   column-level branch distinction is out of scope for beta.
+>
+> Boundary: the filter is breakpoint-install logic (needs a live `SBTarget`), so it is validated by
+> the integration coverage diff, not `tcov_utests` (per §0). The type-level `startLine`→`info.line`
+> fold is guarded by the new unit test above.
 
-- `-` **Prologue lines** (bare `}` and other intermediate lines) reported as untested
-  (`tcov.cpp:39`; the commented start-address/prologue filter at `Breakpoint.cpp:190-195`).
-- `+` **Inline members / multi-statement** coverage — `if (X && Y)` where `Y` may not evaluate,
-  and inlined functions leaking into the wrong compile unit (`tcov.cpp:34,38`; commented
-  inline/column filters at `Breakpoint.cpp:163-180`; partial handling already in
-  `ComputeCoverage`'s duplicate-line removal, `Breakpoint.cpp:324-339`).
+These were accuracy items for beta, not dead code. The in-source markers in the `tcov.cpp` TODO
+block and the (formerly commented) filters in `CreateBreakpointsFunctionRange` are updated in place.
 
-The commented filter blocks note they should sit behind a flag ("aggressive filtering") — decide
-per item whether to enable by default or expose as an option when Phase 4 is approved.
+- `!` **Inline members** — cross-file inlined code leaking into a function's range is filtered by
+  file (default-on); phantom `DA:` lines and lowered `FN:` starts are gone. See the banner above.
+- `!` **Prologue lines** (bare `}`) reported untested — DEFERRED, documented beta limitation (the
+  aggressive column-0 / start-address filters risk dropping real lines).
+- `!` **Multi-statement** `if (X && Y)` — PARTIAL (same-line covered/uncovered dedup in
+  `ComputeCoverage`); column-level branch coverage documented as out of scope.
 
 ---
 
@@ -354,11 +380,19 @@ tcov leaves *experimental* when:
 3. `!` **Robust trun auto-detection + signal-trap gating** (§5, Phase 3) — basename detect +
    `--trun`/`--no-trun` override; `SuppressSignals` gated to trun. No hang on a false positive, no
    mistrapped signals on a generic target.
-4. `-` **Accuracy TODOs (§6) either fixed or explicitly deferred** with the known limitations
-   documented for users.
-5. `!` **tcov has unit tests** — a `tcov_utests` target (§0, 12 cases) with regression coverage of the
+4. `!` **Accuracy TODOs (§6) either fixed or explicitly deferred** with the known limitations
+   documented for users — done in Phase 4. Cross-file inline leakage fixed (default-on file
+   filter) and the buggy `startLine`-lowering removed; prologue `}` and column-level
+   multi-statement explicitly deferred as documented limitations (`tcov.cpp` TODO + §6 banner).
+5. `!` **tcov has unit tests** — a `tcov_utests` target (§0, 17 cases) with regression coverage of the
    symbol/breakpoint types; the behavior-preserving refactor (§2) was guarded by it plus the
-   single-/multi-module integration coverage diffs.
+   single-/multi-module integration coverage diffs, and §6's `startLine`→`info.line` fold by
+   `test_breakpoint_func_startlinefrominfo`.
+
+> **All five gates met (2026-07-10, after Phase 4).** Every phase (0–5) is on `tcov_beta`.
+> The actual *experimental → beta* label flip in user-facing docs travels with the
+> `tcov_beta` → `dev` merge, which follows the normal release gate (version bump +
+> cross-project validation) and is not taken unprompted.
 
 ---
 

@@ -68,7 +68,7 @@ void ReportLCOV::WriteReport(FILE *fOut, const BreakpointManager &breakpoints) {
     for (auto &unit : units) {
         fprintf(fOut, "SF:%s\n", unit->pathName.c_str());
         for (auto &[name, func] : unit->functions) {
-            fprintf(fOut, "FN:%d,%s\n", func->startLine, func->GetDisplayName().c_str());
+            fprintf(fOut, "FN:%d,%s\n", func->info.line, func->GetDisplayName().c_str());
         }
         size_t fnhits = 0;
         for (auto &[name, func] : unit->functions) {

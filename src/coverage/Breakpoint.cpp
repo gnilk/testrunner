@@ -25,7 +25,7 @@ int BreakpointManager::CreateCoverageForSymbol(lldb::SBTarget &target, const Sym
     for (auto &[cname, cp] : compileUnits) {
         logger->Debug("%s @ %s nFunctions=%zu\n", cname, cp->pathName, cp->functions.size());
         for (auto &[fname, func] : cp->functions) {
-            logger->Debug("  %s, line=%u, start=%llX, end=%llX, bp=%zu", func->info.full.c_str(), func->startLine, func->info.startLoadAddress, func->info.endLoadAddress, func->breakpoints.size());
+            logger->Debug("  %s, line=%u, start=%llX, end=%llX, bp=%zu", func->info.full.c_str(), func->info.line, func->info.startLoadAddress, func->info.endLoadAddress, func->breakpoints.size());
         }
     }
     return numCreated;
@@ -64,10 +64,9 @@ int BreakpointManager::CreateCoverageForFunction(lldb::SBTarget &target, const S
     // display name (D5) so overloads stay distinct and report output is unchanged.
     auto ptrFunction = ptrCompileUnit->GetOrAddFunction(std::string(info.full));
 
-    // D3/D4: Function composes the resolved SymbolInfo (static data). startLine is the one
-    // dynamic scalar - seed it from info.line; it may be lowered while placing breakpoints.
+    // D3/D4: Function composes the resolved SymbolInfo (static data). The start line is
+    // info.line - the resolver's authoritative value; the breakpoint layer does not adjust it.
     ptrFunction->info = info;
-    ptrFunction->startLine = info.line;
 
     // Now create the actual breakpoints - across the resolved [start,end) load range
     int numCreated = CreateBreakpointsFunctionRange(target, compileUnit, ptrFunction);
@@ -94,25 +93,27 @@ int BreakpointManager::CreateBreakpointsFunctionRange(lldb::SBTarget &target, ll
             //logger->Debug("lineEntry.GetLine() == 0, invalid\n");
             continue;
         }
-        // Filter out lines starting at column 0 - normally does not count...
-        // FIXME: Put this on a flag - aggressive filtering (might be good for large projects)
-        //        For 'normal' code the 'Proluge' check will detect this...
-        // if (lineEntry.GetColumn() == 0) {
-        //     printf("lineEntry.GetColumn() == 0, invalid (for line=%u)\n", lineEntry.GetLine());
-        //     continue;
-        // }
+        // §6: filter cross-file inlined code (default-on accuracy fix). A line entry whose file
+        // differs from this compile unit's file is an inlined instance of code from ANOTHER
+        // translation unit (e.g. libc++ <string>/<vector> inlined into a body). Its line number
+        // belongs to that other file, not to this function - counting it pollutes coverage: it
+        // produces bogus DA: lines (a header line tallied against this .cpp) and can lower the
+        // reported FN: start line. This is the per-line analog of the resolver's per-function D6
+        // inline guard (SymbolResolver::ResolveForTarget). An invalid line-entry filespec can't be
+        // attributed to any file, so it is skipped too.
+        auto lineFileSpec = lineEntry.GetFileSpec();
+        if (!lineFileSpec.IsValid()) {
+            continue;
+        }
+        if (lineFileSpec != compileUnit.GetFileSpec()) {
+            continue;
+        }
 
-        // if (!lineEntry.GetFileSpec().IsValid()) {
-        //     logger->Debug("Filespec for line entry invalid\n");
-        //     continue;
-        // }
-
-        // // FIXME: Verify and put this behind a flag!
-        // // Filter inlined stuff from other places
-        // if (lineEntry.GetFileSpec() != compileUnit.GetFileSpec()) {
-        //     // this is an inlined function from something else - skip it, not part of our coverage
-        //     continue;
-        // }
+        // NOTE (§6, deferred to a flag): filtering column-0 line entries and the prologue
+        // breakpoint at the exact function start address is "aggressive" - it risks dropping real
+        // executable lines, and for normal code the file/line-0 filters above already remove the
+        // compiler noise. Left out by default; the residual "bare '}' reported untested" case is a
+        // documented beta limitation (see tcov.cpp TODO block).
 
         auto addr = lineEntry.GetStartAddress();
         if (!addr.IsValid()) {
@@ -120,15 +121,8 @@ int BreakpointManager::CreateBreakpointsFunctionRange(lldb::SBTarget &target, ll
         }
         if (addr.GetLoadAddress(target) == LLDB_INVALID_ADDRESS) {
             printf("INVALID address\n");
-            continue;;
+            continue;
         }
-        // FIXME: Put this on a flag - aggressive filtering
-        // Might be a bit too simplistic
-        // if (addr.GetLoadAddress(target) == ptrFunction->info.startLoadAddress) {
-        //     printf("Prolouge - skipping\n");
-        //     continue;
-        // }
-
 
         // seems DWARF data can contain multiple addresses pointing to same line etc...
         if (addr.GetLoadAddress(target) >= ptrFunction->info.startLoadAddress &&
@@ -141,13 +135,6 @@ int BreakpointManager::CreateBreakpointsFunctionRange(lldb::SBTarget &target, ll
             auto my_breakpoint = std::make_shared<Breakpoint>();
             my_breakpoint->breakpoint = bp;
             my_breakpoint->line = lineEntry.GetLine();
-            // startLine can be lowered here: the [start,end) range picks up line entries
-            // that map to source lines BELOW the declared start (inlined/other code leaking
-            // into the range - see §6 accuracy). So startLine is dynamic, not a mirror of
-            // info.line - it stays a Function field.
-            if (lineEntry.GetLine() < ptrFunction->startLine) {
-                ptrFunction->startLine = lineEntry.GetLine();
-            }
             my_breakpoint->loadAddress = addr.GetLoadAddress(target);
             ptrFunction->breakpoints.push_back(my_breakpoint);
             numCreated++;
