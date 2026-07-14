@@ -1,17 +1,39 @@
-# Session handoff — 2026-07-06
+# Session handoff — 2026-07-14
 
 Pick-up notes for continuing on a clean slate.
 
 ---
 
-## ⭐ CURRENT WORK — none active (TRUN_HAVE_FORK removal + trunlib rename batch just LANDED on `dev`)
+## ⭐ CURRENT WORK — none active (tcov coverage-cleanup batch just LANDED on `dev`)
 
-> This session landed a **refactor batch on `dev`** — all merged, branches deleted, **CI green on
-> Linux + Windows** (run `28822807846`). **No work is in progress** — pick from "Open work" below.
-> `dev` HEAD is **`892203c`**, in sync with `origin/dev`; suite **fork == seq == 116 / 13** (unchanged).
-> The reporting/robustness batch (`b2d5ad9`) + testrunner-core audit (`0a7989d`) are background now.
+> **This session (2026-07-14)** landed the **`tcov_beta` coverage-cleanup sweep on `dev`** — merged,
+> branch deleted (local + origin), **CI green on Linux + Windows** (run `29328492468`). **No work is
+> in progress** — pick from "Open work" below. `dev` HEAD is **`f57e72b`**, in sync with `origin/dev`.
+> Desktop self-suite unchanged (**fork == seq == 116 / 13**).
 >
-> Landed this session, in order:
+> Landed this session:
+> - **`tcov_beta` merged into `dev`** (merge `28a9e4f`). Brings the whole coverage cleanup, phases 0–5:
+>   `tcovcore` static-lib extraction + a new **`tcov_utests`** target (17 cases), dead-IPC/inert-code
+>   removal, a **single authoritative symbol-resolution path** (`SymbolResolver` static / `BreakpointManager`
+>   dynamic; `SymbolTypeChecker` + Path-B class code deleted), basename trun-detection + `--trun`/`--no-trun`,
+>   and §6 coverage-accuracy fixes (cross-file inline leakage filtered, buggy `startLine`-lowering dropped).
+>   All 5 "beta" gates met; plan archived to **`todo/done/tcov_cleanup.md`**.
+> - **New CI gate** (`.github/workflows/cmake.yml`): the Linux job now runs `./trun lib/libtcov_utests.so`
+>   after the smoke test. The tcov unit tests are **pure logic** (link liblldb but never spawn `lldb-server`),
+>   so they run with only `liblldb-dev` present and have **no** intentional self-fails — a non-zero exit is a
+>   real regression. Verified green on Linux (**17/17**). This gives Linux *engine-logic* validation.
+> - **`.DS_Store` gitignored** (`f57e72b`) + the two stray files deleted.
+>
+> **⚠️ What CI does NOT cover:** it validates the tcov **build** (Linux + Windows) and the **engine logic**
+> (unit tests), but **not a live `tcov` coverage run** on Linux — CI has no `lldb-server`. So tcov's *runtime*
+> on Linux is **still unconfirmed** (the maintainer works on macOS and hadn't had time to verify Linux). That,
+> plus the *experimental → beta* doc-label flip and `dev → master`, remain gated on the normal release process.
+> The one open code residual is the `IsInProject` no-op (`open-bugs.md`).
+>
+> ---
+>
+> ### Prior session (2026-07-06) — TRUN_HAVE_FORK removal + trunlib rename batch (background)
+> Landed on `dev` (CI green run `28822807846`), in order:
 > 1. **Removed `TRUN_HAVE_FORK`** (merge `0f4499c`, Option B). The fork/sequential split is now
 >    **runtime** (`Config::moduleExecuteType`), not compile-time. `trunlib` links the fork/IPC/
 >    procspawn transport **inert** and `trun::Initialize` **pins `kSequential`** so the embedded
@@ -39,11 +61,12 @@ Pick-up notes for continuing on a clean slate.
 ### Resume from any machine (clean slate on `dev`)
 ```bash
 git fetch origin
-git checkout dev && git pull --ff-only                                    # dev @ 892203c
-cd cmake-build-debug && ninja trun trun_utests
+git checkout dev && git pull --ff-only                                    # dev @ f57e72b
+cd cmake-build-debug && ninja trun trun_utests tcov tcov_utests
 ./trun            -m '!abortall,!exception,-' lib/libtrun_utests.dylib     # fork (default)
 ./trun --sequential -m '!abortall,!exception,-' lib/libtrun_utests.dylib   # seq == fork
 # Expected: fork == sequential == 116 executed / 13 failed (13 = intentional self-fails).
+./trun lib/libtcov_utests.dylib                                           # coverage engine: 17/17, exit 0
 ```
 A `dev → master` release promotion is still separate and outstanding (needs the version story +
 cross-project validation — never unprompted). `run_test_suite.sh` wraps the canonical exclude-list
@@ -100,7 +123,7 @@ detail in `todo/open-bugs.md` (section "testrunner core — audit 2026-07-05") a
   build; matters only if you ever mix binaries).
 - JSON reporting tests live in module `jsonreport`; reporting-base tests in module `report`; the
   `nm`/pipe path is covered by `module_procoutput` (Unix-only).
-- Leave untracked `.DS_Store` / `src/testrunner/.DS_Store` alone.
+- `.DS_Store` is now gitignored (`f57e72b`); the stray files were deleted. No more untracked-noise notes.
 
 ---
 
@@ -209,7 +232,7 @@ detail in `todo/open-bugs.md` (section "testrunner core — audit 2026-07-05") a
   `trunlib_example` rewrite + the header layout remain. The **Linux `.deb` build validation is
   DONE** — the generator ran in CI and the
   maintainer installed the produced `.deb` on Linux (works fine); it's dropped from the list above.
-- Working tree clean except untracked `.DS_Store`, `src/testrunner/.DS_Store` (leave alone).
+- Working tree clean. (`.DS_Store` is gitignored as of `f57e72b`; the old stray files were deleted.)
   The old uncommitted `trun.cpp` CLion debug comment is gone (the CWD debug print was removed in
   `606522e`).
 - Build dir: `cmake-build-debug` (ninja).
@@ -273,9 +296,10 @@ ninja trun trun_utests
 ./trun --sequential -m '!abortall,!exception,-' lib/libtrun_utests.dylib
 # Expected: fork == sequential == 102 executed / 15 failed (15 are intentional self-fails).
 ```
-CI (`.github/workflows/cmake.yml`) only runs on `master` pushes + `v*` tags, so `dev` pushes do NOT
-trigger it. To exercise the release pipeline before a real tag, push a throwaway tag (fires on any
-branch) and inspect/clean up:
+CI (`.github/workflows/cmake.yml`) runs on `master`/`dev` pushes + PRs + `v*` tags (build + smoke +
+the Linux `tcov_utests` gate on every `dev` push; packaging/release stays `master`/tag-only). To
+exercise the **release** pipeline before a real tag, push a throwaway tag (fires on any branch) and
+inspect/clean up:
 ```bash
 git tag v0.0.0-ci-test && git push origin v0.0.0-ci-test
 gh run watch <id> --exit-status                       # 3 jobs: build, build-windows, release
@@ -306,8 +330,11 @@ gh release delete v0.0.0-ci-test --cleanup-tag --yes  # tears down release + rem
 3. **Step-3 Phase B** — cross toolchain + real board (e.g. `arm-none-eabi-gcc`,
    `-ffreestanding`, no-libc considerations: the host phase leans on `<cstdio>`/`vsnprintf`;
    freestanding must swap those for the sink + a tiny formatter). NOT greenlit — its own plan.
-4. **Coverage/tcov sweep** — deferred; experimental, dead code there is intentional (memory
-   `coverage-tcov-experimental`). Includes the `SymbolResolver::IsInProject` no-op.
+4. ~~**Coverage/tcov sweep**~~ — ✅ **DONE & merged** (2026-07-14, `tcov_beta` → `dev` merge `28a9e4f`;
+   plan archived to `todo/done/tcov_cleanup.md`). All 6 phases + 5 beta gates; CI green incl. the new
+   Linux `tcov_utests` gate. **Not yet shipped:** tcov's Linux *runtime* is still unconfirmed (no
+   `lldb-server` in CI) and the *experimental → beta* label + `dev → master` follow the release gate.
+   One code residual: the `SymbolResolver::IsInProject` no-op (`todo/open-bugs.md`).
 
 (`signal_handling` is no longer open work — **deprecated** 2026-07-03, moved to
 `todo/deprecated/signal_handling.md`; see Repo state above.)
