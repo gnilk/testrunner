@@ -27,7 +27,7 @@ git pull --ff-only origin master
 # --no-ff: always a real merge commit (so we can amend the tree); --no-commit:
 # stop so we can strip todo/ before the commit is written.
 git merge --no-ff --no-commit "$SRC"
-git rm -r --quiet --ignore-unmatch todo
+git rm -rf --quiet --ignore-unmatch todo   # -f: todo/ is staged by the merge as new adds
 git commit --no-edit
 
 echo
