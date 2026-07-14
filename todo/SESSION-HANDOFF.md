@@ -4,7 +4,7 @@ Pick-up notes for continuing on a clean slate.
 
 ---
 
-## ⭐ CURRENT WORK — tcov Linux runtime VERIFIED + a debuginfod-hang fix (uncommitted on `dev`)
+## ⭐ CURRENT WORK — tcov beta shipped: dev PROMOTED to master (v4.0, no tag yet)
 
 > **This session (2026-07-14, later)** closed the one open tcov gate below: **tcov's live coverage
 > run is now verified working on Linux.** Ran it against `trun` on this Linux box (`lldb-server-18`,
@@ -22,18 +22,33 @@ Pick-up notes for continuing on a clean slate.
 > run hangs. **Fix:** tcov now `setenv("DEBUGINFOD_URLS", "", 1)` in its `#ifdef LINUX` startup block
 > (right after the existing `LLDB_DEBUGSERVER_PATH` setenv, `tcov.cpp` ~line 238) — tcov only reads
 > LOCAL DWARF, so remote fetch is never needed. **Verified:** even with `DEBUGINFOD_URLS` set in the
-> env, tcov self-disables it and the run completes in **~0.49s** (was minutes). One file, +7 lines,
-> One file, +7 lines — **committed + pushed to `dev` as `1bc0477`** (SSH; `origin` was flipped
-> HTTPS→SSH this session so plain `git push` works now).
+> env, tcov self-disables it and the run completes in **~0.49s** (was minutes). One file, +7 lines —
+> **committed as `1bc0477`** (SSH; `origin` was flipped HTTPS→SSH this session so plain `git push` works now).
 >
 > **Also this session — *experimental → beta* label flipped in `README.md`** (prompted): the V2/V3
 > "changes" line now reads "Beta test coverage tool included", and the `# Test Coverage` doc section
 > gained a `Status: beta` note written in user terms (usable + verified on macOS/Linux; CLI and
 > base/lcov/diff report formats stable; the prologue-`}` / column-branch accuracy limits stated
 > inline). Rewritten in `8fc73b1` after a first draft leaked internal beta-gate jargon ("single
-> resolver", "unit tests") into the README. **Still gated on the release
-> process:** only `dev → master` now (version story + cross-project validation). The `IsInProject`
-> no-op remains its own task, `todo/tcov_isinproject_filter.md`.
+> resolver", "unit tests") into the README.
+>
+> **PROMOTED dev → master (2026-07-14, prompted).** Merge commit **`bc83997`** on `origin/master`
+> (was `1bdc36e`; 120 files, all the dev work from the 07-02 baseline). **Scope = merge only, NO tag:**
+> a master push builds both platforms and packages `.deb`/`win64.exe` as **workflow artifacts** but
+> does **not** create a public Release (the `release` job is `if: startsWith(github.ref,'refs/tags/')`).
+> So the real `v4.0.0` publish is still pending a `v4.0.0` tag when the maintainer is ready (tag must
+> match the CMake-driven package version; off-tag master artifacts are labelled `4.0.0-dev`).
+> - **`todo/` is dev-only and was stripped from master.** Git has no per-path merge exclusion, so the
+>   promotion = "merge everything, then `git rm` todo/ in the merge commit". Wrapped in
+>   **`scripts/promote-to-master.sh`** (added `b01b7df`, `-f` fix `a2df569`) — run it for every future
+>   dev→master; it stops before pushing for review. Caveat: because `todo/` keeps living on dev it will
+>   re-appear each merge, which is exactly what the script re-strips.
+> - **Verified on master before push:** 0 `todo/` files, no `todo/` paths in the diff, the debuginfod
+>   fix + README beta label + the `-f` script all present.
+>
+> **Remaining before a tagged v4.0.0 release:** cross-project validation, then `git tag v4.0.0 &&
+> git push origin v4.0.0` (fires the public Release). The `IsInProject` no-op remains its own task,
+> `todo/tcov_isinproject_filter.md`.
 >
 > ---
 >
