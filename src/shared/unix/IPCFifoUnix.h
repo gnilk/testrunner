@@ -6,6 +6,7 @@
 #define GNKLOG_LOGIPCFIFOUNIX_H
 
 //#include "LogInternal.h"
+#include <string>
 #include "ipc/IPCBase.h"
 namespace gnilk {
     class IPCFifoUnix : public IPCBase {
@@ -14,11 +15,11 @@ namespace gnilk {
         virtual ~IPCFifoUnix() = default;
 
         bool Open() override;
-        bool ConnectTo(const std::string name);
+        bool ConnectTo(const std::string name) override;
         void Close() override;
         bool Available() override;
 
-        const std::string &FifoName() {
+        const std::string &EndpointName() const override {
             return fifoname;
         }
 
@@ -32,7 +33,8 @@ namespace gnilk {
 
         std::string fifoname = {};
 
-        int fifofd = -1;
+        // The only real descriptor: opened R/W in ConnectTo. (mkfifo in Open() creates a
+        // filesystem object and returns 0/-1, not an fd - so there is no second fd to track.)
         int rwfd = -1;
 
     };

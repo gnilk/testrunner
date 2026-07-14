@@ -67,10 +67,6 @@ bool TestFunc::IsGlobalMain() {
 bool TestFunc::IsGlobalExit() {
     return (IsGlobal() && (caseName == Config::Instance().exitFuncName));
 }
-bool TestFunc::IsModuleMain() { {
-    // FIXME: This is wrong.
-    return (IsGlobal() && (caseName == Config::Instance().mainFuncName));
-}}
 
 bool TestFunc::IsModuleExit() {
     return (!IsGlobal() && (caseName == Config::Instance().exitFuncName));
@@ -159,15 +155,29 @@ void TestFunc::CreateTestResult(TestResponseProxy &proxy) {
             break;
     }
     // Should be done last..
-    if (!proxy.WasExceptionThrown()) {
-        testResult->SetTestResultFromReturnCode(testReturnCode);
-    } else {
-        // This is treated quite differently, as we don't have a return code...
-        testResult->SetResult(kTestResult_TestFail);
-        // FIXME: Need data from the exception...
-        testResult->SetNumberOfErrors(1);
-        testResult->SetErrorString(proxy.GetExceptionString());
+    // The termination kind disambiguates the three ways a case body can end: a normal
+    // return (honour the return code), a forced abort-unwind (Fatal/Abort/V1-assert - keep
+    // the severity the proxy already recorded), and a genuine escaped C++ exception (fail).
+    // Routing them all through the same "exception" branch used to clobber Fatal's
+    // ModuleFail / Abort's AllFail down to a plain TestFail.
+    TestResult::CaseTermination termination = TestResult::CaseTermination::Returned;
+    if (proxy.WasForciblyTerminated()) {
+        termination = TestResult::CaseTermination::ForciblyTerminated;
+    } else if (proxy.WasExceptionThrown()) {
+        termination = TestResult::CaseTermination::UserException;
+    }
 
+    testResult->SetResult(TestResult::DeriveResult(
+            termination, proxy.Result(), testReturnCode,
+            proxy.Errors(), proxy.Asserts(),
+            Config::Instance().discardTestReturnCode));
+
+    if (termination == TestResult::CaseTermination::UserException) {
+        // No return code from an escaped exception - surface its message and count it.
+        testResult->SetErrorString(proxy.GetExceptionString());
+        if (testResult->Errors() == 0) {
+            testResult->SetNumberOfErrors(1);
+        }
     }
 }
 

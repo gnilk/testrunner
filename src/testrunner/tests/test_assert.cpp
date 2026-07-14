@@ -1,7 +1,7 @@
 //
 // Created by gnilk on 17.09.2024.
 //
-#include "../testinterface_internal.h"
+#include "testinterface.h"
 #include "../testfunc.h"
 #include "../../shared/dynlib.h"
 #include "../../shared/strutil.h"

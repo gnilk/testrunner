@@ -55,12 +55,30 @@ namespace trun {
             kAbortAll,
         } kRunResultAction;
 
+        // How a test-case body ended - decides how its outcome is scored.
+        //  Returned          - the case returned normally (honour its return code)
+        //  ForciblyTerminated- Fatal/Abort/V1-assert unwound the body mid-flight; the
+        //                      proxy already recorded the intended severity, keep it
+        //  UserException     - a C++ exception escaped the body (a failure)
+        enum class CaseTermination : uint8_t {
+            Returned,
+            ForciblyTerminated,
+            UserException,
+        };
+
     public:
         static TestResult::Ref Create(const std::string &symbolName);
         TestResult(const std::string &symbolName);
 
         // Returns the next action for the runner depending on the result..
         TestResult::kRunResultAction CheckIfContinue() const;
+
+        // Pure decision: map the raw per-case signals to a final result code. Kept free of
+        // any global/runtime state (everything is passed in) so it is exhaustively unit
+        // testable without running - and terminating - a real test case.
+        static kTestResult DeriveResult(CaseTermination termination, kTestResult proxyResult,
+                                        int returnCode, int errors, int asserts,
+                                        bool discardReturnCode);
 
         // Property access, getters
         kTestResult Result() const { return testResult; }

@@ -27,12 +27,7 @@
 #include <cpptrace/from_current.hpp>
 #endif
 
-#ifdef TRUN_HAVE_THREADS
-    #ifndef WIN32
-        #include <pthread.h>
-    #endif
-    #include <thread>
-#endif
+#include <thread>
 
 
 using namespace trun;
@@ -42,38 +37,18 @@ using namespace trun;
 // Class only for encapsulation...
 //
 TestFuncExecutorBase &TestFuncExecutorFactory::Create(IDynLibrary::Ref library) {
-    static TestFuncExecutorSequential sequentialExecutor;
-#ifdef TRUN_HAVE_THREADS
-    static TestFuncExecutorParallel parallelExecutor;
-    static TestFuncExecutorParallelPThread parallelExecutorPThread;
-#endif
-
-    switch(Config::Instance().testExecutionType) {
-        case TestExecutiontype::kSequential :
-            // In case we are a sub-process, we run in threads anyway  <- should we?
-#ifdef TRUN_HAVE_THREADS
-            if (Config::Instance().isSubProcess) {
-                parallelExecutor.SetLibrary(library);
-                return parallelExecutor;
-            }
-#endif
-            sequentialExecutor.SetLibrary(library);
-            return sequentialExecutor;
-#ifdef TRUN_HAVE_THREADS
-        case TestExecutiontype::kThreaded :
-            parallelExecutor.SetLibrary(library);
-            return parallelExecutor;
-        case TestExecutiontype::kThreadedWithExit :
-            parallelExecutorPThread.SetLibrary(library);
-            return parallelExecutorPThread;
-#endif
-        default:
-            printf("Unknown or unsupported test execution model, using default\n");
-            break;
-    }
-    // Always available
-    sequentialExecutor.SetLibrary(library);
-    return sequentialExecutor;
+    // Test cases always run in their own thread. kThreaded (V2 default) and kThreadedWithExit
+    // (V1 / --allow-thread-exit) share this one executor; that distinction is read only by
+    // TerminateThreadIfNeeded, to decide whether Error/Assert force-terminate (Abort/Fatal
+    // always do) - not here. There is no case-sequential mode: --sequential is module-scope
+    // (one process, no fork), the case body still runs threaded.
+    //
+    // NOTE: TestFuncExecutorSequential is NOT dead - it is the shared case-running body
+    // (pre-hook, invoke, exception handling, post-hook) that TestFuncExecutorThreaded calls
+    // from inside its worker thread.
+    static TestFuncExecutorThreaded threadedExecutor;
+    threadedExecutor.SetLibrary(library);
+    return threadedExecutor;
 }
 
 //
@@ -195,8 +170,11 @@ int TestFuncExecutorSequential::Execute(TestFunc *testFunc, const CBPrePostHook 
             throw;
         }
     } catch (const TestAbortException &abort_exception) {
-        testReturnCode = kTR_Fail;
-        proxy.SetExceptionError(abort_exception.reason);
+        // Internal forced-termination unwind used to implement Fatal/Abort and V1 asserts.
+        // The proxy already holds the intended severity (ModuleFail/AllFail/TestFail); flag
+        // it as a forced termination so the result is NOT downgraded to a plain TestFail the
+        // way an escaped user exception is.
+        proxy.SetForciblyTerminated(abort_exception.reason);
     } catch (const std::exception &e) {
         auto exception_stacktrace = cpptrace::from_current_exception();
         auto exceptionString = UnwindException(e.what(), exception_stacktrace);
@@ -233,12 +211,14 @@ int TestFuncExecutorSequential::Execute(TestFunc *testFunc, const CBPrePostHook 
 }
 
 //
-// Threading versions - these are NOT available on embedded (by default)
+// Threaded execution.
 //
-
-#ifdef TRUN_HAVE_THREADS
-//
-// Parallel execution, just wraps a call to 'sequential' within a thread!
+// Each test case runs in its own std::thread for isolation. Forced mid-body termination
+// (V1 asserts, Fatal/Abort, --allow-thread-exit) is realised by throwing TestAbortException
+// from inside the test, which unwinds the thread and is caught in
+// TestFuncExecutorSequential::Execute. (Without exceptions the fallback in
+// TestResponseProxy::TerminateThreadIfNeeded uses pthread_exit - the no-exceptions / no-thread
+// case is a swapped-in implementation, not a compile-time conditional here.)
 //
 struct ThreadArg {
     TestFunc *testFunc;
@@ -247,12 +227,9 @@ struct ThreadArg {
     const CBPrePostHook &cbPreHook;
     const CBPrePostHook &cbPostHook;
     int returnValue;
-
-    // FIXME: Have this disabled by default
-    TestFuncExecutorParallelPThread *executor;
 };
 
-int TestFuncExecutorParallel::Execute(TestFunc *testFunc, const CBPrePostHook &cbPreHook, const CBPrePostHook &cbPostHook) {
+int TestFuncExecutorThreaded::Execute(TestFunc *testFunc, const CBPrePostHook &cbPreHook, const CBPrePostHook &cbPostHook) {
 
     auto threadArg = ThreadArg {
             .testFunc = testFunc,
@@ -261,7 +238,6 @@ int TestFuncExecutorParallel::Execute(TestFunc *testFunc, const CBPrePostHook &c
             .cbPreHook = cbPreHook,
             .cbPostHook = cbPostHook,
             .returnValue = -1,
-            .executor = nullptr,
     };
 
     auto thread = std::thread([this, &threadArg]() {
@@ -271,80 +247,7 @@ int TestFuncExecutorParallel::Execute(TestFunc *testFunc, const CBPrePostHook &c
 
         threadArg.returnValue = TestFuncExecutorSequential::Execute(threadArg.testFunc, threadArg.cbPreHook, threadArg.cbPostHook);
     });
-    
+
     thread.join();
     return threadArg.returnValue;
-
 }
-
-
-//
-// This is using pthreads for the execution - there is one BIG thing we can do if we use this - the 'TR_ASSERT' macro can terminate the running thread
-// and thus it can be used from other places than just the test_case functions...
-//
-// however - using 'pthread_exit' is NOT very good practice - and there is a reason most newer API's have removed it...
-// Windows do support killing it's own thread - I presume they have to unwind the stack somehow - or if they just drop the whole frame..
-//
-// Pthread wrapper..
-#ifdef WIN32
-DWORD WINAPI testfunc_thread_starter(LPVOID lpParam) {
-    auto threadArg = reinterpret_cast<ThreadArg *>(lpParam);
-
-    TestRunner::SetCurrentTestModule(threadArg->testModule);
-    TestRunner::SetCurrentTestRunner(threadArg->testRunner);
-
-    threadArg->returnValue = threadArg->executor->ThreadFunc(threadArg->testFunc, threadArg->cbPreHook, threadArg->cbPostHook);
-
-    return 0;
-}
-#else
-static void *testfunc_thread_starter(void *arg) {
-    auto threadArg = reinterpret_cast<ThreadArg *>(arg);
-
-    TestRunner::SetCurrentTestModule(threadArg->testModule);
-    TestRunner::SetCurrentTestRunner(threadArg->testRunner);
-
-    threadArg->returnValue = threadArg->executor->ThreadFunc(threadArg->testFunc, threadArg->cbPreHook, threadArg->cbPostHook);
-    // Return NULL here as this is a C callback..
-    return NULL;
-}
-#endif
-
-
-int TestFuncExecutorParallelPThread::ThreadFunc(TestFunc *testFunc, const CBPrePostHook &cbPreHook, const CBPrePostHook &cbPostHook) {
-    return TestFuncExecutorSequential::Execute(testFunc, cbPreHook, cbPostHook);
-}
-
-int TestFuncExecutorParallelPThread::Execute(TestFunc *testFunc, const CBPrePostHook &cbPreHook, const CBPrePostHook &cbPostHook) {
-
-    auto threadArg = ThreadArg {
-            .testFunc = testFunc,
-            .testModule = TestRunner::GetCurrentTestModule(),
-            .testRunner = TestRunner::GetCurrentRunner(),
-            .cbPreHook = cbPreHook,
-            .cbPostHook = cbPostHook,
-            .returnValue = -1,
-            .executor = this,
-
-    };
-
-#ifdef WIN32
-    DWORD dwThreadID;
-    HANDLE hThread = CreateThread(NULL, 0, testfunc_thread_starter, &threadArg, 0, &dwThreadID);
-    if (hThread == INVALID_HANDLE_VALUE) {
-        // FIXME: Some error here would probably be nice
-        exit(1);
-    }
-    WaitForSingleObject(hThread, INFINITE);
-#else
-    pthread_t hThread;
-    if (pthread_create(&hThread,nullptr,testfunc_thread_starter, &threadArg)) {
-        // FIXME: Some error here would probably be nice
-        exit(1);
-    }
-    pthread_join(hThread, nullptr);
-#endif
-    return threadArg.returnValue;
-}
-
-#endif  // TRUN_HAVE_THREADS

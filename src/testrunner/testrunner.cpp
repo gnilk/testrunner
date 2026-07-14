@@ -57,11 +57,7 @@ struct ThreadContext {
     TestRunner *currentTestRunner = nullptr;
 };
 
-#ifdef TRUN_HAVE_THREADS
 static thread_local ThreadContext threadContext;
-#else
-static ThreadContext threadContext;
-#endif
 
 //
 // Static helper for accessing the ThreadContext
@@ -158,8 +154,16 @@ bool TestRunner::ExecuteMain() {
     auto dummy = TestModule::Create("_dummy-main_");
     SetCurrentTestModule(dummy);
     TestResult::Ref result = globalMain->Execute(library, {}, {});
-    ResultSummary::Instance().AddResult(globalMain);
-    if ((result->Result() == kTestResult_AllFail) || (result->Result() == kTestResult_TestFail)) {
+    // In fork mode each child runs the globals for its own per-process setup,
+    // but only the parent should report them - otherwise test_main is counted
+    // once per forked module.
+    if (!Config::Instance().isSubProcess) {
+        ResultSummary::Instance().AddResult(globalMain);
+    }
+    // Execute() returns nullptr when it couldn't run (non-idle state, unresolved symbol,
+    // no current module) - guard like every other Execute() call site does.
+    if ((result != nullptr) &&
+        ((result->Result() == kTestResult_AllFail) || (result->Result() == kTestResult_TestFail))) {
         if (Config::Instance().stopOnAllFail) {
             pLogger->Info("Total test failure, aborting");
             bRes = false;
@@ -190,9 +194,15 @@ bool TestRunner::ExecuteMainExit() {
     SetCurrentTestModule(dummy);
 
     TestResult::Ref result = globalExit->Execute(library, {}, {});
-    ResultSummary::Instance().AddResult(globalExit);
+    // Only the parent reports the global exit (see ExecuteMain) so it isn't
+    // counted once per forked module.
+    if (!Config::Instance().isSubProcess) {
+        ResultSummary::Instance().AddResult(globalExit);
+    }
 
-    if ((result->Result() == kTestResult_AllFail) || (result->Result() == kTestResult_TestFail)) {
+    // Execute() may return nullptr (see ExecuteMain) - guard the deref.
+    if ((result != nullptr) &&
+        ((result->Result() == kTestResult_AllFail) || (result->Result() == kTestResult_TestFail))) {
         if (Config::Instance().stopOnAllFail) {
             pLogger->Info("Total test failure, aborting");
             bRes = false;
@@ -258,7 +268,7 @@ void TestRunner::PrepareTests() {
                 func->SetTestScope(TestFunc::kTestScope::kModuleExit);
                 tModule->exitFunc = func;
             } else {
-                tModule = GetOrAddModule(moduleName);
+                // tModule already holds this module (GetOrAddModule above is idempotent).
                 func->SetTestScope(TestFunc::kTestScope::kModuleCase);
                 tModule->AddTestFunc(func);
             }

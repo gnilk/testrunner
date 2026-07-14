@@ -37,8 +37,12 @@
 #endif
 
 
-#ifdef TRUN_HAVE_THREADS
-#ifndef WIN32
+// IPC is only used by SendResultToParentProc, which a subprocess (isSubProcess) invokes to
+// ship its results to the forking parent. The embedded engine never runs as a subprocess, so
+// this stays linked-but-inert there.
+#ifdef WIN32
+    #include "win32/IPCPipeWin.h"
+#else
     #include "unix/IPCFifoUnix.h"
 #endif
 #include "ipc/IPCBase.h"
@@ -46,7 +50,6 @@
 #include "ipc/IPCCore.h"
 #include "ipc/IPCBufferedWriter.h"
 #include "ipc/IPCEncoder.h"
-#endif
 
 using namespace trun;
 
@@ -93,6 +96,16 @@ void ResultSummary::PrintSummary() {
     reportInstance->Begin();
     reportInstance->PrintReport();
     reportInstance->End();
+
+    // Modules the runner could not finish are not part of the structured report
+    // (their tests produced no results); surface them as a separate section so
+    // they don't silently vanish from the counts.
+    if (!incompleteModules.empty()) {
+        printf("Modules incomplete: %zu\n", incompleteModules.size());
+        for (auto &[name, reason] : incompleteModules) {
+            printf("  %s [%s]\n", name.c_str(), reason.c_str());
+        }
+    }
 }
 
 void ResultSummary::ListReportingModules() {
@@ -105,9 +118,18 @@ void ResultSummary::ListReportingModules() {
 void ResultSummary::AddResult(const TestFunc::Ref tfunc) {
     auto result = tfunc->Result();
 
-#ifdef TRUN_HAVE_THREADS
     std::lock_guard<std::mutex> guard(lock);
-#endif
+
+    // De-duplicate by test symbol. Under forked execution a module that is pulled
+    // in as a dependency runs (and is reported) by several child processes, so the
+    // same symbol can arrive here more than once. Keep the first one seen: a
+    // module's results are closure-invariant (its dependencies run before it, in a
+    // fresh process), so every copy is the same execution context - which copy we
+    // keep doesn't change pass/fail. Single-process runs never hit this (the
+    // already-executed guard prevents re-running a test).
+    if (!seenSymbols.insert(tfunc->SymbolName()).second) {
+        return;
+    }
 
     testFunctions.push_back(tfunc);
     results.push_back(result);
@@ -116,6 +138,11 @@ void ResultSummary::AddResult(const TestFunc::Ref tfunc) {
     if (result->Result() != kTestResult_Pass) {
         testsFailed++;
     }
+}
+
+void ResultSummary::AddIncompleteModule(const std::string &name, const std::string &reason) {
+    std::lock_guard<std::mutex> guard(lock);
+    incompleteModules.emplace_back(name, reason);
 }
 
 // Really dislike CPP for 'simple' stuff (add <value>, esi)
@@ -127,8 +154,11 @@ TTo *PtrAdvanceFromTo(void *base) {
 }
 
 void ResultSummary::SendResultToParentProc() {
-#ifdef TRUN_HAVE_FORK
+#ifdef WIN32
+    gnilk::IPCPipeWin ipc;
+#else
     gnilk::IPCFifoUnix ipc;
+#endif
 
     // Now, try to connect to the other side...
     if (!ipc.ConnectTo(Config::Instance().ipcName)) {
@@ -142,10 +172,10 @@ void ResultSummary::SendResultToParentProc() {
     summary.durationSec = durationSec;
     // Create the test results objects
     for(auto res : results) {
-        auto tr = new IPCTestResults(res);
+        auto tr = std::make_unique<IPCTestResults>(res);
         tr->symbolName = res->SymbolName();
         // add to the ipc summary
-        summary.testResults.push_back(tr);
+        summary.testResults.push_back(std::move(tr));
     }
 
         gnilk::IPCBufferedWriter bufferedWriter(ipc);
@@ -155,7 +185,6 @@ void ResultSummary::SendResultToParentProc() {
         // Flush and send...
         bufferedWriter.Flush();
         ipc.Close();
-#endif
 }
 
 

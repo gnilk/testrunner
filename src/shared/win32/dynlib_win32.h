@@ -1,7 +1,7 @@
 #pragma once
 
 #include "logger.h"
-#include "../testinterface_internal.h"
+#include "../../testrunner/testinterface_internal.h"
 #include "../dynlib.h"
 
 #ifdef WIN32

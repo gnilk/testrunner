@@ -226,7 +226,14 @@ bool DynLibWin::Open() {
         return false;
     }
 
-    return true;    
+    // Mirrors DynLibLinux::Open (dlsym on TRUN_MAGICAL_IF_VERSION) - must read this off the
+    // fully-resolved handle, not the DONT_RESOLVE_DLL_REFERENCES one used above for enumeration.
+    auto ptrMagic = (version_t *)GetProcAddress(hLibrary, "TRUN_MAGICAL_IF_VERSION");
+    if (ptrMagic != nullptr) {
+        SetVersion(*ptrMagic);
+    }
+
+    return true;
 }
 
 bool DynLibWin::Close() {

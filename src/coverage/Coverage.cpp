@@ -8,14 +8,9 @@
 #include <lldb/API/SBUnixSignals.h>
 #include <lldb/API/SBThread.h>
 #include <lldb/API/SBBreakpointLocation.h>
-#include <lldb/API/SBStringList.h>
-#include <lldb/API/SBCommandInterpreter.h>
-#include <lldb/API/SBCommandReturnObject.h>
 
 #include "Coverage.h"
-#include "CoverageIPCMessages.h"
 #include "strutil.h"
-#include "ipc/IPCDecoder.h"
 #include "SymbolResolver.h"
 #include "timer.h"
 #include "reporting/ReportConsole.h"
@@ -63,41 +58,24 @@ bool CoverageRunner::Begin() {
     auto symbols = SymbolResolver::ResolveForTarget(target);
 
     // We now have everything we need to set breakpoint for the symbols we want to monitor
-    //logger->Info("Libraries scanned - we are good to go...");
     // Create breakpoints from symbols coming from cmd-line..
     logger->Info("Creating breakpoints for symbols");
     for (auto &s : symbols) {
-        breakpointManager.CreateCoverageBreakpoints(target, s.name);
+        breakpointManager.CreateCoverageForSymbol(target, s);
     }
     return true;
 }
 bool CoverageRunner::PrepareTrunExecution() {
-    // Let's bring up the IPC - which handles communication between TRUN and TCOV
-    if (!CreateIPCServer()) {
-        logger->Error("Unable to create IPC Server");
-        return false;
-    }
-
-    // Add the following so TRUN knows we are running in coverage mode and how to communicate back...
+    // Add the following so TRUN knows we are running in coverage mode. '--coverage' makes trun
+    // raise SIGUSR1 once all dylibs are loaded (our dylib-load sync point, see RunInitialLLDBPhase).
     std::vector <std::string> trunArgsVectorInternal;
     if (std::find_if(Config::Instance().target_args.begin(), Config::Instance().target_args.end(), [](auto &v) -> bool { return (v == "--sequential"); }) == Config::Instance().target_args.end()) {
         logger->Info("Adding '--sequential' to target arguments");
         trunArgsVectorInternal.push_back("--sequential");
     }
     trunArgsVectorInternal.push_back("--coverage");
-    trunArgsVectorInternal.push_back("--tcov-ipc-name");
-    trunArgsVectorInternal.push_back(ipcServer.FifoName());
     Config::Instance().target_args.insert(Config::Instance().target_args.begin(), trunArgsVectorInternal.begin(), trunArgsVectorInternal.end());
 
-
-    // Create our target
-    if (Config::Instance().target.empty()) {
-        // FIXME: Only in debug builds...
-#ifdef DEBUG
-        logger->Info("Debug build - setting to internal dev-path");
-        Config::Instance().target = "/Users/gnilk/src/github.com/testrunner/cmake-build-debug/trun";
-#endif
-    }
     return true;
 }
 
@@ -138,7 +116,6 @@ bool CoverageRunner::StartLLDBDebugger() {
     std::vector<char *> trunArgs;
     ConvertArgs(trunArgs, Config::Instance().target_args);
 
-    //const char *target_argv[]={"--sequential", "--coverage","--tcov-ipc-name",tcovIPCServer.FifoName().c_str(),"-vvv", "-m", "coverage", nullptr};
     lldb::SBLaunchInfo launch_info(const_cast<const char **>(trunArgs.data()));
     launch_info.SetWorkingDirectory(workingDirectory.c_str());   // se should be here and not where the target is located
 
@@ -153,7 +130,11 @@ bool CoverageRunner::StartLLDBDebugger() {
         logger->Error("Launch failed for target '%s': %s", Config::Instance().target.c_str(), error.GetCString());
         return false;
     }
-    SuppressSignals();
+    // SIGUSR1 trapping is ONLY the trun dylib-load sync point - gate it to trun targets.
+    // A generic target that legitimately uses SIGUSR1 must keep its own signal semantics.
+    if (Config::Instance().IsTrunTarget()) {
+        SuppressSignals();
+    }
     // At this point we are running...
 
     // yield - try for the debugger to kick in - other wise we might have a raise condition on our hands..
@@ -183,7 +164,10 @@ bool CoverageRunner::RunInitialLLDBPhase() {
         return false;
     }
 
-    // Not running 'trun' - skip coverage setup (this is explicit for trun sync of dynlib loading)
+    // Not running 'trun' - stop at the 'main' breakpoint and resolve symbols from here.
+    // GENERIC-TARGET CONTRACT: there is no late-dlopen sync outside trun, so any code the
+    // target loads AFTER main is not instrumented - all symbols to be covered must be
+    // resolvable at the 'main' breakpoint (i.e. statically linked or already loaded).
     if (!Config::Instance().IsTrunTarget()) {
         return true;
     }
@@ -203,42 +187,6 @@ bool CoverageRunner::RunInitialLLDBPhase() {
         return false;
     }
     return true;
-}
-
-// Internal - when debugging this is a helper that allows us to debug into LLDB - not needed
-// for debugging the CoverageRunner
-bool CoverageRunner::EnableSelfDebugging() {
-    // this little scripts enables internal logging for lldb - good when debugging API usage
-
-    lldb::SBCommandInterpreter interp = lldbDebugger.GetCommandInterpreter();
-    lldb::SBCommandReturnObject result;
-
-    logger->Info("Trying to enable self-debugging");
-
-    interp.HandleCommand(
-        //"settings set plugin.process.gdb-remote.server-path /usr/lib/llvm-18/bin/lldb-server",
-        //"log enable lldb gdb-remote process platform host",
-        "log enable gdb-remote all",
-        result
-    );
-
-    if (!result.Succeeded()) {
-        logger->Error("Failed 'enable gdb-remote all', result=%s", result.GetError());
-        return false;
-    }
-    interp.HandleCommand(
-        //"settings set plugin.process.gdb-remote.server-path /usr/lib/llvm-18/bin/lldb-server",
-        //"log enable lldb gdb-remote process platform host",
-        "log enable lldb process platform host api",
-        result
-    );
-
-    if (!result.Succeeded()) {
-        logger->Error("Failed 'enable lldb process platform host api', result=%s", result.GetError());
-        return false;
-    }
-    return true;
-
 }
 
 //
@@ -261,18 +209,6 @@ void CoverageRunner::ResolveCWD() {
     workingDirectory = cwd;
 }
 
-// Opens the IPC server
-// the server address is defined by the IPC class
-// as '/tmp/testrunner_pid
-bool CoverageRunner::CreateIPCServer() {
-    // might want to do other things here...
-    if (!ipcServer.Open()) {
-        return false;
-    }
-    logger->Info("IPC Server at: %s", ipcServer.FifoName().c_str());
-    return true;
-}
-
 // Configure signals handling within lldb
 void CoverageRunner::SuppressSignals() {
     // Try send 'SIGUSR1' when we have done 'dlopen' (no debug info needed)
@@ -280,10 +216,6 @@ void CoverageRunner::SuppressSignals() {
     unixSignals.SetShouldStop(SIGUSR1, true);
     unixSignals.SetShouldNotify(SIGUSR1, true);
     unixSignals.SetShouldSuppress(SIGUSR1, true);
-
-    unixSignals.SetShouldStop(SIGUSR2, true);
-    unixSignals.SetShouldNotify(SIGUSR2, true);
-    unixSignals.SetShouldSuppress(SIGUSR2, true);
 }
 
 // On Linux this consumes the process output and sends it to print/sanitization
@@ -377,10 +309,9 @@ bool CoverageRunner::WasSignalRaised(int expectedSignal) {
     return false;
 }
 
-// Process - this assumes we are all setup and ready to run
-// In case the debuggee tries to talk to us they have to raise the IPC_INTERRUPT signal
-// if that happens we reach out and try to read the IPC and act
-// during this time the lldb processing is halted (as async is false)
+// Process - this assumes we are all setup and ready to run.
+// Continues the debuggee until it exits/crashes, disabling each coverage breakpoint
+// on first hit. The lldb processing is synchronous (async is false).
 void CoverageRunner::Process() {
     logger->Debug("--> Entering Process Loop");
     // continue until we have exited
@@ -397,9 +328,7 @@ void CoverageRunner::Process() {
         } else if (state == lldb::eStateStopped) {
             auto thread = process.GetSelectedThread();
             auto stopReason = thread.GetStopReason();
-            if ((stopReason == lldb::eStopReasonSignal) && WasSignalRaised(sig_IPC_INTERRUPT)) {
-                HandleIPCInterrupt();
-            } else if (stopReason == lldb::eStopReasonBreakpoint) {
+            if (stopReason == lldb::eStopReasonBreakpoint) {
                 CheckBreakPointHit(thread);
                 //nHits++;
             } else {
@@ -437,45 +366,8 @@ void CoverageRunner::CheckBreakPointHit(lldb::SBThread &thread) {
     loc.SetEnabled(false);
 }
 
-// Might extend this in the future - but currently we just process IPC
-void CoverageRunner::HandleIPCInterrupt() {
-    ConsumeIPC();
-}
-
-// Consume the IPC data - this will empty the pipe
-void CoverageRunner::ConsumeIPC() {
-    if (!ipcServer.Available()) {
-        //printf("ConsumeFIFO: tcovIPCServer not available\n");
-        logger->Debug("ConsumeIPC, No IPC data available");
-        return;
-    }
-    logger->Debug("ConsumeIPC, data available..");
-    while (ipcServer.Available()) {
-        auto ipcMsg = ReadIPCMessage();
-        if (!ipcMsg.IsValid()) {
-            continue;
-        }
-        // Do I really need to do this???
-        logger->Debug("BeginCoverage for '%s'",ipcMsg.symbolName.c_str());
-        breakpointManager.CreateCoverageBreakpoints(target, ipcMsg.symbolName);
-    }
-}
-
-// Read a single IPC message
-trun::CovIPCCmdMsg CoverageRunner::ReadIPCMessage() {
-    trun::CovIPCCmdMsg ipcMsg;
-    gnilk::IPCBinaryDecoder decoder(ipcServer, ipcMsg);
-    if (!decoder.Process()) {
-        return {};
-    }
-    return ipcMsg;
-}
-
-// End the processing, note: we need to kill the IPC before terminating the lldb
-// otherwise the IPC connection will stay open
+// End the processing
 void CoverageRunner::End() {
-    // Close IPC connection
-    ipcServer.Close();
     // terminate everything..
     lldb::SBDebugger::Terminate();
 }

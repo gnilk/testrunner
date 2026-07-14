@@ -16,8 +16,11 @@ namespace trun {
         kSequential,
         kParallel,
     };
+    // Case-execution policy. Note there is deliberately no "sequential" (inline, non-threaded)
+    // value: test cases always run in their own thread. --sequential is module-scope (run modules
+    // in one process, no fork) and does NOT change how a case runs. kThreadedWithExit only differs
+    // from kThreaded in that Error/Assert force-terminate the case (V1 / --allow-thread-exit).
     enum class TestExecutiontype {
-        kSequential,
         kThreaded,
         kThreadedWithExit,
     };
@@ -71,23 +74,20 @@ namespace trun {
         bool testLogFilter = false;
         bool suppressProgressMsg = false;
 
-        // Default is parallel for v2
-#ifdef TRUN_HAVE_THREADS
+        // Test cases always run in their own thread (isolation + mid-body termination).
         TestExecutiontype testExecutionType = TestExecutiontype::kThreaded;
-#else
-        TestExecutiontype testExecutionType = TestExecutiontype::kSequential;
-#endif
 
-#ifdef TRUN_HAVE_FORK
+        // CLI default is kParallel (one subprocess per module). The desktop-embedded engine
+        // (trunlib) pins this to kSequential in trun::Initialize - it must never select the
+        // fork/re-exec path, which has no meaning for in-process registered tests.
         ModuleExecutionType moduleExecuteType = ModuleExecutionType::kParallel;
         std::string ipcName = {};
         uint16_t moduleExecTimeoutSec = 30;
-#else
-        ModuleExecutionType moduleExecuteType = ModuleExecutionType::kSequential;
-#endif
+        // Max module subprocesses in flight at once (0 = auto, ~CPU cores).
+        // Bounds oversubscription so the per-module timeout works as intended.
+        uint16_t moduleExecConcurrency = 0;
         bool isSubProcess = false;
         bool isCoverageRunning = false;
-        std::string coverageIPCName = "ipc_tcov";
         int useITestingVersion = 1;
         gnilk::ILogger *pLogger = nullptr;
     private:
@@ -106,7 +106,6 @@ namespace trun {
         }
         static const std::string &TestExecutionTypeToStr(TestExecutiontype type) {
             static std::unordered_map<TestExecutiontype, std::string> type2str = {
-                    {TestExecutiontype::kSequential, "Sequential"},
                     {TestExecutiontype::kThreaded, "Threaded"},
                     {TestExecutiontype::kThreadedWithExit, "Threaded w. exit allowed"},
             };

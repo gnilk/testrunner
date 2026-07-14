@@ -1,9 +1,9 @@
 /*-------------------------------------------------------------------------
- File    : timer.cpp
+ File    : trunlib.cpp
  Author  : FKling
  Version : -
  Orginal : 2022-11-21
- Descr   : Embedded front end for testrunner..
+ Descr   : Desktop in-process (embedded) front end for testrunner - the trunlib facade.
 
  Part of testrunner
  BSD3 License!
@@ -17,9 +17,9 @@
  \History
  - 2022.11.21, FKling, Implementation
  ---------------------------------------------------------------------------*/
-#include "trunembedded.h"
+#include "trunlib.h"
 #include "testrunner.h"
-#include "embedded/dynlib_embedded.h"
+#include "lib/dynlib_embedded.h"
 #include "resultsummary.h"
 /*
  * TO-DO before releasing V2
@@ -43,6 +43,11 @@ namespace trun {
     void Initialize() {
         // Trigger the lazy initialization CTOR..
         Config::Instance();
+        // LOAD-BEARING: pin sequential module execution. The CLI default is kParallel, which
+        // maps to the fork executor - and the fork model is re-exec (SubProcess re-runs the trun
+        // CLI on a .so), which has no meaning for the embedded engine where tests are registered
+        // in-process via AddTestCase. Without this the embedded module loop would try to fork.
+        Config::Instance().moduleExecuteType = ModuleExecutionType::kSequential;
         ConfigureLogger();
         dynlib = DynLibEmbedded::Create();
         isInitialized = true;
@@ -72,15 +77,29 @@ namespace trun {
             ResultSummary::Instance().PrintSummary();
         }
 
+        // gnklog is deferred - flush its buffered messages (the old stripped logger wrote
+        // synchronously; trun.cpp likewise Consume()s at its output points).
+        Logger::Consume();
     }
+
+    void SetVerbose(int lvl) {
+        if (!isInitialized) {
+            Initialize();
+        }
+        Config::Instance().verbose = lvl;
+        // Need to reconfigure the logger here
+        ConfigureLogger();
+    }
+
     // helpers
     static void ConfigureLogger() {
-        // Setup up logger according to verbose flags
-        Logger::SetAllSinkDebugLevel(Logger::kMCError);
+        // Setup up logger according to verbose flags. gnklog's level enum is LogLevel:: (the old
+        // stripped logger's leaky Logger::kMC* names are gone) - matches trun.cpp's ConfigureLogger.
+        Logger::SetAllSinkDebugLevel(LogLevel::kError);
         if (Config::Instance().verbose > 0) {
-            Logger::SetAllSinkDebugLevel(Logger::kMCInfo);
+            Logger::SetAllSinkDebugLevel(LogLevel::kInfo);
             if (Config::Instance().verbose > 1) {
-                Logger::SetAllSinkDebugLevel(Logger::kMCDebug);
+                Logger::SetAllSinkDebugLevel(LogLevel::kDebug);
             }
         }
 

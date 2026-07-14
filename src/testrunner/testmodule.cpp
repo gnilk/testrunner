@@ -20,7 +20,6 @@
 #include <string>
 #include <memory>
 #include <algorithm>
-#include <assert.h>
 
 #include "platform.h"
 
@@ -80,38 +79,6 @@ TestResult::Ref TestModule::Execute(const IDynLibrary::Ref &dynlib) {
 }
 
 
-enum class kMatchResult {
-    List,
-    Single,
-    NegativeSingle,
-};
-static kMatchResult TestCaseMatch(std::vector<TestFunc::Ref> &outMatches, const std::string &tcPattern, const std::vector<TestFunc::Ref> &caseList) {
-    kMatchResult result = kMatchResult::List;
-    for (auto &testFunc: caseList) {
-        if (tcPattern == "-") {
-            outMatches.push_back(testFunc);
-        } else if (tcPattern[0]=='!') {
-            auto negTC = tcPattern.substr(1);
-            auto isMatch = trun::match(testFunc->CaseName(), negTC);
-            if (isMatch) {
-                // not sure...
-                //executeFlag = 0;
-                outMatches.push_back(testFunc);
-                result = kMatchResult::NegativeSingle;
-            }
-        } else {
-            auto isMatch = trun::match(testFunc->CaseName(), tcPattern);
-            if (isMatch) {
-                outMatches.push_back(testFunc);
-                result = kMatchResult::Single;
-            }
-        }
-    }
-
-    return result;
-}
-
-
 // Internal - make state handling easier..
 TestResult::Ref TestModule::DoExecute(const IDynLibrary::Ref &dynlib) {
     auto mainResult = ExecuteMain(dynlib);
@@ -119,34 +86,25 @@ TestResult::Ref TestModule::DoExecute(const IDynLibrary::Ref &dynlib) {
         return mainResult;
     }
 
-    // The loop below will remove test cases from the list in case of negative matches - I don't want to remove from the
-    // internal list just because they shouldn't be executed...
-    std::vector<TestFunc::Ref> testCaseList;
-    testCaseList.insert(testCaseList.begin(), testFuncs.begin(), testFuncs.end());
-
-    for(auto argCaseName : Config::Instance().testcases) {
-        std::vector<TestFunc::Ref> matches;
-        auto matchResult = TestCaseMatch(matches, argCaseName, testCaseList);
-        if (matchResult == kMatchResult::NegativeSingle) {
-            assert(matches.size() == 1);
-            auto tcToRemove = matches[0];
-            std::erase_if(testCaseList,[tcToRemove](const TestFunc::Ref &f) -> bool {
-               return (tcToRemove->CaseName() == f->CaseName());
-            });
+    // testFuncs holds only the module's test cases (main/exit are stored separately), already
+    // sorted by case name. Select each with the shared filter matcher - the same caseMatch the
+    // listing and module filtering use - so a case glob like -t 'foo*' runs EVERY match and a
+    // negation like -t '!foo*,-' correctly excludes them all. (The old TestCaseMatch pushed all
+    // matches then asserted matches==1 on a negation, aborting a debug build when >1 matched.)
+    for (auto &func : testFuncs) {
+        if (!func->IsIdle()) {
             continue;
         }
-        for(auto &func : matches) {
-            if (!func->IsIdle()) {
-                continue;
-            }
-            auto result = DoExecuteTestCase(dynlib, func);
-            if (result != nullptr) {
-                ResultSummary::Instance().AddResult(func);
-                if (result->CheckIfContinue() != TestResult::kRunResultAction::kContinue) {
-                    // We call Exit here, since we call 'main' (and that didn't fail) - so any left overs might need cleaning up
-                    ExecuteExit(dynlib);
-                    return result;
-                }
+        if (!caseMatch(func->CaseName(), Config::Instance().testcases)) {
+            continue;
+        }
+        auto result = DoExecuteTestCase(dynlib, func);
+        if (result != nullptr) {
+            ResultSummary::Instance().AddResult(func);
+            if (result->CheckIfContinue() != TestResult::kRunResultAction::kContinue) {
+                // main ran OK, so a case that says "stop" still needs the module exit to clean up.
+                ExecuteExit(dynlib);
+                return result;
             }
         }
     }

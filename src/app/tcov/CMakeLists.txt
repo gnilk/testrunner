@@ -1,110 +1,33 @@
 # src/app/tcov/CMakeLists.txt
-
-list(APPEND tcovsrcfiles ${CMAKE_SOURCE_DIR}/src/coverage/Breakpoint.cpp ${CMAKE_SOURCE_DIR}/src/coverage/Breakpoint.h)
-list(APPEND tcovsrcfiles ${CMAKE_SOURCE_DIR}/src/coverage/Config.cpp ${CMAKE_SOURCE_DIR}/src/coverage/Config.h)
-list(APPEND tcovsrcfiles ${CMAKE_SOURCE_DIR}/src/coverage/Coverage.cpp ${CMAKE_SOURCE_DIR}/src/coverage/Coverage.h)
-list(APPEND tcovsrcfiles ${CMAKE_SOURCE_DIR}/src/coverage/SymbolResolver.cpp ${CMAKE_SOURCE_DIR}/src/coverage/SymbolResolver.h)
-list(APPEND tcovsrcfiles ${CMAKE_SOURCE_DIR}/src/coverage/SymbolTypeChecker.cpp ${CMAKE_SOURCE_DIR}/src/coverage/SymbolTypeChecker.h)
-# reporting
-list(APPEND tcovsrcfiles ${CMAKE_SOURCE_DIR}/src/coverage/reporting/ReportBase.h)
-list(APPEND tcovsrcfiles ${CMAKE_SOURCE_DIR}/src/coverage/reporting/ReportConsole.cpp ${CMAKE_SOURCE_DIR}/src/coverage/reporting/ReportConsole.h)
-list(APPEND tcovsrcfiles ${CMAKE_SOURCE_DIR}/src/coverage/reporting/ReportDiff.cpp ${CMAKE_SOURCE_DIR}/src/coverage/reporting/ReportDiff.h)
-list(APPEND tcovsrcfiles ${CMAKE_SOURCE_DIR}/src/coverage/reporting/ReportLCOV.cpp ${CMAKE_SOURCE_DIR}/src/coverage/reporting/ReportLCOV.h)
-
+#
+# The tcov CLI is a thin front-end: just tcov.cpp, linked against the tcovcore
+# static library (src/coverage/CMakeLists.txt) which carries the coverage engine
+# + all the LLDB wiring as PUBLIC usage requirements.
+#
+# The inert IPC / process / unix transport objects that used to be linked here
+# were removed in Phase 1 (§3): neither tcov.cpp nor the coverage engine reference
+# any of them (no Process / dynlib / dirscanner / IPC).
 
 add_executable(tcov
         ${CMAKE_SOURCE_DIR}/src/app/tcov/tcov.cpp
-        ${ipcsrcfiles}
-        ${unixsrcfiles}
-        ${tcovsrcfiles}
-        ${sharedsrcfiles}
 )
 
-# Share the versioning for now..
-target_compile_definitions(tcov PUBLIC TCOV_VERSION="${TRUN_VERSION_STR}")
+# tcovcore is PUBLIC: it propagates the coverage engine, LLDB include dirs + libs,
+# fmt/gnklog, trun_common_options (platform defines) and the TCOV_VERSION define.
+target_link_libraries(tcov PUBLIC tcovcore)
 
-
-if (UNIX)
-    if (APPLE)
-        add_definitions(-DAPPLE)
-
-        list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
-
-        find_package(LLDB REQUIRED)
-
-        message(STATUS "LLDB_INCLUDE_DIRS: ${LLDB_INCLUDE_DIRS}")
-        message(STATUS "LLDB_LIBRARIES: ${LLDB_LIBRARIES}")
-        message(STATUS "LLDB_FRAMEWORK_PATH: ${LLDB_FRAMEWORK_PATH}")
-
-        target_include_directories(tcov PRIVATE ${LLDB_INCLUDE_DIRS})
-        target_link_libraries(tcov PRIVATE ${LLDB_LIBRARIES})
-
-        # Fix your macOS runtime issue
-        set_target_properties(tcov PROPERTIES
-                INSTALL_RPATH "${LLDB_FRAMEWORK_PATH}"
-        )
-
-        # Point to the SharedFrameworks for XCode as this contains LLDB.Framework and brew llvm install doesn't install
-        # that one...
-        set_target_properties(tcov PROPERTIES
-                INSTALL_RPATH
-                "@loader_path/../lib;/Applications/Xcode.app/Contents/SharedFrameworks"
-        )
-        #
-        # THIS DOES NOT WORK!!! - I forgot to change this before releasing...
-        #
-#        set(LLVM_ROOT "/Users/gnilk/src/ext/llvm-project")
-#        set(LLVM_BUILD_ROOT "/Users/gnilk/src/ext/llvm_build")
-#        set(LLDB_INCLUDE "${LLVM_ROOT}/lldb/include")
-#        set(LLDB_BUILD_INCLUDE "${LLVM_BUILD_ROOT}/include")
-#        set(LLDB_LIB "${LLVM_BUILD_ROOT}/lib")
-
-        set(CMAKE_INSTALL_PREFIX /usr/local)
-        set(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH} /usr/local/lib /usr/lib/system)
-
-        find_library(COCOA_FRAMEWORK Cocoa)
-        find_library(IOKIT_FRAMEWORK IOKit)
-        find_library(CORE_FRAMEWORK CoreFoundation)
-        find_library(SYSTEM_FRAMEWORK System)
-
-        set(CMAKE_FRAMEWORK_PATH "${LLVM_BUILD_ROOT}/bin" ${CMAKE_FRAMEWORK_PATH})
-        find_library(LLDB_FRAMEWORK Lldb)
-
-        list(APPEND platformlibs ${COCOA_FRAMEWORK} ${IOKIT_FRAMEWORK} ${CORE_FRAMEWORK} ${SYSTEM_FRAMEWORK})
-        list(APPEND tcovlibs ${LLDB_FRAMEWORK})
-    else()
-        add_definitions(-DLINUX)
-        message(STATUS "Building for Linux")
-
-        list(APPEND platformlibs dl pthread)
-
-        find_library(LLDB_FRAMEWORK lldb)
-        message(STATUS "LLDB library: ${LLDB_FRAMEWORK}")
-        if (NOT LLDB_FRAMEWORK)
-            message(FATAL_ERROR "Please install the LLDB dev libraries (liblldb-dev)")
-        endif()
-
-        list(APPEND tcovlibs lldb)
-    endif()
-elseif(WIN32)
+if(WIN32)
     add_definitions(-DWIN32_LEAN_AND_MEAN)
 endif()
 
-
-
-target_link_libraries(tcov PUBLIC trun_common_options)
-
-target_include_directories(tcov PUBLIC ${FMT_HOME}/include)
-target_include_directories(tcov PUBLIC ${CMAKE_SOURCE_DIR}/src/shared)
-target_include_directories(tcov PUBLIC ${CMAKE_SOURCE_DIR}/src/coverage)
-target_include_directories(tcov PUBLIC ${CMAKE_SOURCE_DIR}/ext/gnklog/src)
-
 if(APPLE)
-    target_include_directories(tcov PUBLIC ${LLDB_INCLUDE} ${LLDB_BUILD_INCLUDE})
-    target_link_directories(tcov PUBLIC ${LLDB_LIB})
+    # Point to the SharedFrameworks for Xcode as this contains LLDB.framework and a
+    # brew llvm install doesn't ship it. (@loader_path/../lib for a relocated install.)
+    set_target_properties(tcov PROPERTIES
+            INSTALL_RPATH
+            "@loader_path/../lib;/Applications/Xcode.app/Contents/SharedFrameworks"
+    )
 endif()
-
-target_link_libraries(tcov PUBLIC ${tcovlibs} ${extlibs})
 
 if(CMAKE_BUILD_TYPE STREQUAL Debug)
     add_dependencies(tcov trun trun_utests)

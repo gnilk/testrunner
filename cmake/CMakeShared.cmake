@@ -20,13 +20,29 @@ list(APPEND ipcsrcfiles ${CMAKE_SOURCE_DIR}/src/shared/ipc/IPCSerializer.cpp)
 list(APPEND ipcsrcfiles ${CMAKE_SOURCE_DIR}/src/shared/ipc/IPCSerializer.h)
 
 
-list(APPEND unixsrcfiles ${CMAKE_SOURCE_DIR}/src/shared/unix/dirscanner_unix.cpp)
-list(APPEND unixsrcfiles ${CMAKE_SOURCE_DIR}/src/shared/unix/dynlib_unix.cpp)
-list(APPEND unixsrcfiles ${CMAKE_SOURCE_DIR}/src/shared/unix/process.cpp)
-#list(APPEND unixsrcfiles ${CMAKE_SOURCE_DIR}/src/shared/unix/subprocess.cpp ${CMAKE_SOURCE_DIR}/src/shared/unix/subprocess.h)
-list(APPEND unixsrcfiles ${CMAKE_SOURCE_DIR}/src/shared/unix/IPCFifoUnix.cpp ${CMAKE_SOURCE_DIR}/src/shared/unix/IPCFifoUnix.h)
+if(UNIX)
+    list(APPEND unixsrcfiles ${CMAKE_SOURCE_DIR}/src/shared/unix/dirscanner_unix.cpp)
+    list(APPEND unixsrcfiles ${CMAKE_SOURCE_DIR}/src/shared/unix/dynlib_unix.cpp)
+    list(APPEND unixsrcfiles ${CMAKE_SOURCE_DIR}/src/shared/unix/process_unix.cpp ${CMAKE_SOURCE_DIR}/src/shared/unix/process_unix.h)
+    #list(APPEND unixsrcfiles ${CMAKE_SOURCE_DIR}/src/shared/unix/subprocess.cpp ${CMAKE_SOURCE_DIR}/src/shared/unix/subprocess.h)
+    list(APPEND unixsrcfiles ${CMAKE_SOURCE_DIR}/src/shared/unix/IPCFifoUnix.cpp ${CMAKE_SOURCE_DIR}/src/shared/unix/IPCFifoUnix.h)
+elseif(WIN32)
+    list(APPEND win32srcfiles ${CMAKE_SOURCE_DIR}/src/shared/win32/dirscanner_win32.cpp)
+    list(APPEND win32srcfiles ${CMAKE_SOURCE_DIR}/src/shared/win32/dynlib_win32.cpp)
+    list(APPEND win32srcfiles ${CMAKE_SOURCE_DIR}/src/shared/win32/process_win32.cpp ${CMAKE_SOURCE_DIR}/src/shared/win32/process_win32.h)
+    list(APPEND win32srcfiles ${CMAKE_SOURCE_DIR}/src/shared/win32/IPCPipeWin.cpp ${CMAKE_SOURCE_DIR}/src/shared/win32/IPCPipeWin.h)
+endif()
 
-list(APPEND sharedsrcfiles ${CMAKE_SOURCE_DIR}/src/shared/CoverageIPCMessages.cpp ${CMAKE_SOURCE_DIR}/src/shared/CoverageIPCMessages.h)
+# Portable Process wrapper (Process/ProcessImpl, Phase 3b) - procspawn.cpp itself picks the
+# platform ProcessImpl (unix/process_unix.* or win32/process_win32.*, above) via one #ifdef.
+# Named "procspawn", not "process": a shared/process.h shadows the CRT's own <process.h>
+# (declares _beginthreadex) for any Windows TU compiled with shared/ on its include path.
+# trun/trun_utests link this to back subprocess.cpp / TestModuleExecutorFork, and tcov links
+# it because dynlib_unix.cpp spawns 'nm' via Process to scan exports. Kept as its own group
+# (not folded into sharedsrcfiles) so each target opts in explicitly; trunlib links it too
+# (see src/app/trun/CMakeLists.txt) to resolve the inert fork path's Process references.
+list(APPEND processsrcfiles ${CMAKE_SOURCE_DIR}/src/shared/procspawn.h ${CMAKE_SOURCE_DIR}/src/shared/procspawn.cpp)
+
 list(APPEND sharedsrcfiles ${CMAKE_SOURCE_DIR}/src/shared/dirscanner.h)
 list(APPEND sharedsrcfiles ${CMAKE_SOURCE_DIR}/src/shared/dynlib.h)
 list(APPEND sharedsrcfiles ${CMAKE_SOURCE_DIR}/src/shared/glob.cpp ${CMAKE_SOURCE_DIR}/src/shared/glob.h)

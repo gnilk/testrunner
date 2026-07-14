@@ -57,10 +57,10 @@ void ResultsReportJSONExtensive::PrintFuncResult(const TestFunc::Ref &testFuncti
     WriteLine("{");
     PushIndent();
     if (testFunction->Library() != nullptr) {
-        WriteLine(R"("Library" : "%s",)", testFunction->Library()->Name().c_str());
+        WriteLine(R"("Library" : "%s",)", EscapeString(testFunction->Library()->Name()).c_str());
     }
-    WriteLine(R"("Module" : "%s",)", testFunction->ModuleName().c_str());
-    WriteLine(R"("Case" : "%s",)", testFunction->CaseName().c_str());
+    WriteLine(R"("Module" : "%s",)", EscapeString(testFunction->ModuleName()).c_str());
+    WriteLine(R"("Case" : "%s",)", EscapeString(testFunction->CaseName()).c_str());
     WriteLine(R"("Result" :)");
     PrintTestResult(testFunction->Result());
     WriteLine("");

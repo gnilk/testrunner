@@ -42,6 +42,14 @@ namespace trun {
         const std::string &GetExceptionString() const {
             return exceptionString;
         }
+
+        // Flags an internal forced-termination unwind (Fatal/Abort/V1-assert) - distinct
+        // from a user C++ exception so the recorded severity is not downgraded. See
+        // TestFunc::CreateTestResult / TestResult::DeriveResult.
+        void SetForciblyTerminated(const char *reason);
+        bool WasForciblyTerminated() const {
+            return forciblyTerminated;
+        }
     public: // ITesting mirroring
         void Debug(int line, const char *file, std::string message);
         void Info(int line, const char *file, std::string message);
@@ -66,7 +74,7 @@ namespace trun {
     private:
         static ITestingConfig *GetTRConfigInterface();
         static ITestingCoverage *GetTRCoverageInterface();
-        void TerminateThreadIfNeeded();
+        void TerminateThreadIfNeeded(bool alwaysTerminate);
 
         // Helpers to fetch interface of the correct version
         static ITestingV1 *GetTRTestInterfaceV1();
@@ -79,6 +87,7 @@ namespace trun {
 
         class AssertError assertError;
         bool exceptionThrown = false;
+        bool forciblyTerminated = false;
         std::string exceptionString = {};
         kTestResult testResult = {};
         int assertCount = 0;

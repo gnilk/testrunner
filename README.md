@@ -3,128 +3,238 @@
 
 Single header C/C++ Unit Test and Coverage 'Framework'
 
-<b>Note:</b> This is V3 of the testrunner - the old V1 is in branch `trun_v1_main`.
+<b>Note:</b> This is V4 of the testrunner - the old V1 is in branch `trun_v1_main`.
 
 <b>The coverage tool 'tcov' works with any executable</b>
 You do not need to use the unit-test framework for the coverage tool to work. This should work even if you use CTest/GTest/Catch2/etc.
 
 Heavy GOLANG inspired unit test framework for C/C++.
-Currently works on macOS(arm/x86)/Linux/Windows (x86/x64)/embedded(tested on: ESP32/NRF52/STM32x/SiLabs EFR32M series)
+Currently works on macOS (arm/x86), Linux, and Windows (x86/x64). Embedded MCU targets are supported via
+the `trun::mcu` engine — the framework has run on ESP32/NRF52/STM32/SiLabs EFR32; on-device validation of
+the new V4 zero-allocation MCU engine (PlatformIO / Zephyr / possibly Arduino) is in progress.
 
 The testing framework comes with two parts.
 * A header to be used when defining the test-cases
 * A runner to execute the tests
 * A coverage tool to generate code coverage reports
-
+* A library to be used in embedded systems or for in-process testing (optional)
+ 
 See [Usage](#Usage) for more details on how to write test cases and execute them.
+
+# Important changes between V4.x and V3.0
+
+Used AI (Claude) to hunt for bugs and supervise some long required larger rewrites.
+Lot's of bugs fixed. The old 'trunembedded' is split into 'trunlib' and the 'trun::mcu' engine — the
+MCU engine for embedded projects and 'trunlib' for static in-process linkage on regular machines.
+The MCU execution engine was completely rewritten (by Claude). It is now a zero-allocation,
+minimal C/C++ library overhead (vsnprintf still used). 
+
+Lots of validation was done to ensure a reliable delivery of the same results regardless of version and invocation.
+Also a lot of effort was made into packaging and proper installation.
 
 # Important changes between V2.x and V3.0
 
-Experimental test coverage tool included. Will instrument the code being tested and generate a coverage report.
-Requires LLDB installed on your system. Only works on macOS/Linux. Windows support has been dropped.
-Test runner is available for Windows in the latest V1.X branch (V1.6.2)
+Beta test coverage tool included. Will instrument the code being tested and generate a coverage report.
+Requires LLDB installed on your system. The coverage tool (`tcov`) only works on macOS/Linux — it has no
+Windows backend. (The test *runner* itself is fully supported on Windows again as of V4 — see [Building](#building).)
+Note: tests written for V1 of the testinterface works
+fine on new versions of the testrunner. However, v2 and v3 of the testinterface are not compatible with v1 for certain features (pre/post case callbacks).
 
 See documentation at the bottom for Test Coverage tool.
 
-## Trun Execution
-Parallel execution of test modules. This brings (depending on project) a massive speed-up (about 10x) for medium-sized
-projects. Testing on a project with ~90 modules and around a total of 500 test-cases completes within 6 seconds instead
-of 60-70 seconds using V1.6.2 on the same hardware.
-
-The testrunner will determine which modules to execute and then internally spin up
-separate test-runners in parallel to execute the tests. This improves performance (_alot_) for larger projects.
-However, it does limit the ability to debug through through the testrunner. As such - if you write your code in a type
-of TDD fashion you should execute the testrunner with `--sequential` and this will disable the parallel execution.
-
-Testrunner ASSERT macro will not terminate threads. Instead it will return. This assumes that the ASSERT macro is only
-called from within the main-body of the testable code (i.e. the body of `test_module_func`). IF you use the ASSERT macro
-elsewhere - you should run tests with `--allow-thread-exit`.
-
-## Versions
-Version 2.x introduces new features in the test interface, effectively deprecating the old interface. If you don't want
-to upgrade your unit tests you need to compile your tests with `-D TRUN_USE_V1` to revert back to the old V1 interface.
-
-Old code is still supported (i.e. if you have a local fork of the `testinterface.h`) this will still work properly.
-
-When you install you will always get the latest version of the `testinterface.h` file. This means if you upgrade from V1.x to V2.x there will
-be API breaking changes to your tests. However, the testrunner itself can handle both new and old test-interface usage.
-
-The old testinterface is still available under the name `testinterface_v1.h` and if you compile with `TRUN_USE_V1` it
-will be used instead of the new version.
-
-<b>Note:</b> Versioning is not supported on Windows. You must compile your tests with `TRUN_USE_V1`.
 
 # Building
-You need CMake and GCC/Clang or Visual Studio (Windows). Tested with Visual Studio 19 and 2022.
-The Windows version can be built in a 32 or 64 bit mode. Do note that the 32 bit don't support 64 bit DLL's and vice verse.
+You need CMake (3.16+, 3.28+ recommended) and a C++20 compiler: GCC or Clang on Linux/macOS,
+or Visual Studio 2019/2022 on Windows. All third-party dependencies are fetched automatically
+by CMake (see [Dependencies](#dependencies)) — nothing to install by hand.
 
-1) Clone repository 'git clone https://github.com/gnilk/testrunner.git'
-2) Create build directory (mkdir build)
-3) Enter build directory (cd build)
-4) Run cmake `cmake ..`
-5) Run `make` or `msbuild ALL_BUILD.vcxproj`
+```shell
+git clone https://github.com/gnilk/testrunner.git
+cd testrunner
+cmake -B build                 # configure (add options below, e.g. -DCMAKE_BUILD_TYPE=Release)
+cmake --build build -j         # build (or run ninja / make from inside build/)
+sudo cmake --install build     # install (see Installing)
+```
+
+> The project defaults `CMAKE_BUILD_TYPE` to **Debug**. Pass `-DCMAKE_BUILD_TYPE=Release` for
+> an optimized build (a Debug build also installs Debug-built dependencies).
+
+## Build options
+Pass options to the configure step, e.g. `cmake -B build -DBUILD_TCOV=OFF -DCMAKE_BUILD_TYPE=Release`.
+
+| Option | Default | Description |
+|---|---|---|
+| `CMAKE_BUILD_TYPE` | `Debug` | Standard CMake build type. Use `Release` for optimized builds. |
+| `CMAKE_INSTALL_PREFIX` | `/usr/local` | Where `cmake --install` puts files. |
+| `BUILD_TCOV` | `ON` | Build the `tcov` code-coverage tool (needs `liblldb-dev` on Linux). |
+| `BUILD_TRUNMCU` | `ON` | Build the zero-alloc **MCU** engine (`trunmcu`) and its demos. |
+| `BUILD_TRUNEMBEDDED` | `ON` | Build the `trunembedded` demo — an example of embedding `trun::lib` in a desktop app (slated to be renamed `trunlib_example`). |
+| `BUILD_OTHER` | `ON` | Build extra example executables. |
+| `TRUN_BUNDLE_DEPS` | `OFF` | `ON` also installs the bundled fmt/cpptrace/libdwarf so the prefix is self-contained for `find_package`. `OFF` installs only testrunner's own files and relies on system fmt/cpptrace. See [Installing](#installing). |
+
+**MCU engine capacities** — only relevant when you compile the embedded `trun::mcu` engine
+(see [Consuming the libraries](#consuming-the-libraries)). They size fixed, no-heap storage:
+
+| Option | Default | Description |
+|---|---|---|
+| `TRUN_MCU_MAX_TESTFUNCS` | `64` | Max registered `test_*` functions. |
+| `TRUN_MCU_MAX_MODULES` | `16` | Max distinct test modules. |
+| `TRUN_MCU_MSG_BUF_LEN` | `128` | Size of the single message/report scratch buffer. |
+| `TRUN_MCU_SINK_MAX_RETRY` | `8` | Max consecutive output-sink retries before giving up. |
+
+**Interface version** (`TRUN_USE_V1`) — the one universal knob: `testinterface.h` is always the
+current (V2) interface and reverts to `testinterface_v1.h` when `TRUN_USE_V1` is defined. Define it
+(e.g. `add_compile_definitions(TRUN_USE_V1)`) to build your test code — and the embedded `trun::mcu`
+engine sources — against V1. There is no separate MCU-specific V1 option; `trun::mcu`'s sources compile
+in your target, so they honour the same flag. (V2 is the default on every platform including Windows —
+MSVC detects it via a version symbol, so V1 is no longer forced there.)
+
+## What gets built
+| Target | Kind | Purpose |
+|---|---|---|
+| `trun` | executable | The test-runner CLI (loads `.so`/`.dylib`, runs exported `test_*`). |
+| `tcov` | executable | LLDB-based line-coverage tool. |
+| `trunlib` (`trun::lib`) | static lib | Desktop **in-process** engine — threaded, no fork; links fmt + cpptrace + gnklog. |
+| `trunmcu` (`trun::mcu`) | source lib | Zero-alloc **MCU** engine, compiled for the target (host-validated here). |
+| `trun_utests` | shared lib | testrunner's own unit tests (it tests itself). |
 
 ## Dependencies
-On Linux and macOS you need 'nm' installed - and the development headers - this come from binutils. On Linux just do:
+On Linux and macOS the runner uses `nm` (from **binutils**) to scan a library for `test_*`
+symbols. On Linux:
 ```shell
-sudo apt install binutils binutils-dev
+sudo apt install binutils
 ```
 
-The following libraries are fetched when running cmake:
-* cpptrace (https://github.com/jeremy-rifkin/cpptrace.git) - v0.7.1
-* fmtlib (https://github.com/fmtlib/fmt) - fetching version 10.1.1
-* gnklog (https://github.com/gnilk/gnklog) - new logging library which is interface compatible on embedded
+The following are fetched automatically by CMake (FetchContent) — no manual install:
+* **fmt** (https://github.com/fmtlib/fmt) — 12.1.0
+* **cpptrace** (https://github.com/jeremy-rifkin/cpptrace) — v0.7.1 (pulls in libdwarf)
+* **gnklog** (https://github.com/gnilk/gnklog) — logging library, interface-compatible on embedded
 
-To build the coverage tool, on Linux, you also need:
-* liblldb-dev
+To build the coverage tool (`tcov`) on Linux you also need `liblldb-dev`. On macOS install LLDB
+via Homebrew (see [Platform notes](#platform-notes)).
+
+The **MCU** engine (`trunmcu`) is self-contained: it does **not** use fmt/cpptrace/gnklog.
 
 <b>Note:</b>
-<b>fmtlib</b> is Copyright (c) 2012 - present, Victor Zverovich and {fmt} contributors. (see: https://github.com/fmtlib/fmt for more details).
+<b>fmt</b> is Copyright (c) 2012 - present, Victor Zverovich and {fmt} contributors. (see: https://github.com/fmtlib/fmt for more details).
 
-## Apple macOS
-First you need XCode installed and then you need homebrew and install lldb:
+## Installing
+`cmake --install build` (add `--prefix <dir>` to override `CMAKE_INSTALL_PREFIX`) installs two
+logical component sets:
+- **runtime** — the `trun` and `tcov` CLI tools + the man page.
+- **dev** — `libtrunlib.a`, the public headers (`trunlib.h` — plus the deprecated
+  `trunembedded.h` shim, removed in v5.0.0 — `testinterface.h`,
+  `testinterface_v1.h`), and a CMake package config so downstream projects can
+  `find_package(testrunner)` (see [Consuming the libraries](#consuming-the-libraries)).
+
+A default install (`TRUN_BUNDLE_DEPS=OFF`) lays down **only** testrunner's own files, e.g. under
+`/usr/local`:
+```text
+bin/trun  bin/tcov
+include/trunlib.h  include/trunembedded.h  include/testinterface.h  include/testinterface_v1.h
+lib/libtrunlib.a
+lib/cmake/testrunner/testrunnerConfig.cmake   (+ ConfigVersion / Targets)
+share/man/man1/trun.1.gz
+```
+It does **not** install fmt/cpptrace — a downstream `find_package(testrunner)` then expects those
+from the system. Configure with `-DTRUN_BUNDLE_DEPS=ON` to also install the bundled
+fmt/cpptrace/libdwarf and make the prefix self-contained. You can install one set only with
+`cmake --install build --component runtime` (or `dev`).
+
+### Debian package (Linux)
+From `build/`, `cpack` (or `make package` / `ninja package`) produces two `.deb`s:
+- **testrunner** — the runtime CLI tools.
+- **testrunner-dev** — the library, headers and CMake config.
+
+Install with `sudo apt install ./testrunner-<version>-*.deb`.
+
+## Platform notes
+### macOS
+Install Xcode, then LLDB via Homebrew (needed for `tcov`):
 ```shell
 brew update
-brew install lldb`
+brew install lldb
 ```
-Then, just run `make; sudo make install`. The binary (trun) will be installed in /usr/local/bin and the testinterface.h in /usr/local/include.
-<b>Note:</b> The macOs version depends on 'nm' (from binutils) when scanning a library for test functions.
+Then `cmake -B build && cmake --build build -j && sudo cmake --install build` (default prefix
+`/usr/local`). macOS depends on `nm` (binutils) when scanning a library for test functions. `tcov`'s
+LLDB debug server (`debugserver`) comes with Xcode and is used automatically — no `lldb-server` setup
+as on Linux.
 
-## Linux
-Just run `make -j; sudo make install`. The binary (trun) will be installed in `/usr/bin` and the `testinterface.h` in `/usr/include`
-<b>Note:</b> The linux version depends on 'nm' (from binutils) when scanning a library for test functions.
+### Linux
+`cmake -B build && cmake --build build -j && sudo cmake --install build`. Install `liblldb-dev` to
+**build** the coverage tool; to **run** it you also need `lldb-server` on the `PATH` at runtime (usually
+the distro `lldb` package) — `tcov` auto-detects it or takes `--lldb-server <path>` (see
+[Linux runtime: lldb-server](#linux-runtime-lldb-server)). The `.deb` packages install under `/usr`.
+Linux also depends on `nm`.
 
-You can also run `make -j package` to generate a `.deb` package. Which you can install with `sudo apt install ./testrunner-<version>-Linux.deb`.
+### Windows
+Windows is a **first-class V2 platform** (Visual Studio 2019/2022, MSVC, C++20). Build it with the **same
+CMake flow** as Linux/macOS — no special solution or `msbuild` invocation:
+```shell
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --config Release
+```
+MSVC detects the V2 interface via a version symbol, so **`-DTRUN_USE_V1` is not required** — V2 is the
+default. **Parallel/fork module execution works** on Windows (`process_win32` + named-pipe IPC). Build an
+installer with `cpack -G NSIS` from `build/` (produces `testrunner-<version>-win64.exe`).
 
-## Windows
-<b>Note:</b> V2 should compile (`trunwindows` has been updated and tested on VS 2022) but it has not been tested. Also parallel features are not available on Windows.
+The coverage tool **`tcov` is not available on Windows** (`BUILD_TCOV` is forced off — it needs an
+LLDB/debug-engine backend that isn't implemented there).
 
-Launch a 'Developer Command Prompt' from your Visual Studio installation.
-To build release version: `msbuild ALL_BUILD.vcxproj -p:Configuration=Release`.
-The default will build 64bit with Visual Studio 2019/2022 and 32bit with Visual Studio 2017.
+## Consuming the libraries
+Instead of running the external `trun` CLI you can link a testrunner library into your own
+project and run tests **in-process** (~100k tests/sec on a modern machine). There are two
+libraries with different natures and different consumption paths. Both expose the same small
+API — register test cases and run them — see `app/trunembedded` and `app/trunmcu` for examples.
 
-As Windows don't have a default place to store 3rd party include files you need to copy the `testinterface.h` file somewhere common on your environment.
-You want to include this file in your unit tests (note: It's optional).
+### Desktop / in-process — `trun::lib` via find_package
+`trunlib` is the desktop in-process engine (threaded, no fork; links fmt + cpptrace + gnklog). Use it to
+run tests *inside* your application — handy when memory layout or speed matters, or on platforms
+without the external runner. Install testrunner (above), then in your project:
+```cmake
+find_package(testrunner 4.0 REQUIRED)
+target_link_libraries(my_tests PRIVATE trun::lib)
+```
+Include `<trunlib.h>` and use the API (`trun::Initialize`, `trun::AddTestCase`,
+`trun::RunTests`). (`<trunembedded.h>` still works as a deprecated shim — it forwards to
+`<trunlib.h>` and is removed in v5.0.0.) `trunlib` links **fmt, cpptrace and gnklog**, so those must be
+resolvable at your final link — from the system or your own FetchContent. `-DTRUN_BUNDLE_DEPS=ON` installs
+bundled **fmt/cpptrace** into the prefix for a self-contained `find_package`; **gnklog** must be supplied
+by the consumer for now (a gnklog `find_package` is on the way).
 
-Also, `testinterface` versioning does not work on Windows (relies on `weak` symbols) - instead you must use the old version; always compile your test-code with `-DTRUN_USE_V1`
+### Embedded / MCU — `trun::mcu` via FetchContent
+The MCU engine is a separate, zero-alloc implementation (no heap / threads / exceptions / RTTI,
+no fmt/cpptrace). It is **compiled for your target** from source, so you pull it in with
+FetchContent (or a vendored `add_subdirectory`) rather than installing a prebuilt lib:
+```cmake
+include(FetchContent)
+set(TRUN_MCU_MAX_TESTFUNCS 128)      # optional: size the fixed storage (see Build options)
+FetchContent_Declare(trunmcu
+    GIT_REPOSITORY https://github.com/gnilk/testrunner
+    GIT_TAG        <tag>
+    SOURCE_SUBDIR  src/app/trunmcu)  # only this subdir — no fmt/cpptrace, no desktop core
+FetchContent_MakeAvailable(trunmcu)
+target_link_libraries(my_tests PRIVATE trun::mcu)
+```
+Include `<trunmcu.h>` and use the same small API. To build against the V1 interface, define the
+universal `TRUN_USE_V1` (e.g. `add_compile_definitions(TRUN_USE_V1)`) — it applies to both the
+engine sources and your test code.
 
-## Embedded
-<b>Note:</b> Embedded has not yet been verified with V2.
-
-<b>Only tested with PlatformIO as build system</b>
-
-Clone the repository into your `lib_extras_dir`, if you use Arduino as underlying framework this is the library
-directory for Arduino. Add it as a dependency in your `platformio.ini` file.
+### Embedded with PlatformIO
+<b>Note:</b> On-device validation of the V4 zero-alloc MCU engine (`trun::mcu`) is in progress —
+PlatformIO is the primary target (a clean Zephyr project, and possibly Arduino, to follow). The
+`library.json` manifest points PlatformIO at the MCU engine sources.
+Clone the repository into your `lib_extra_dirs`, then add it as a dependency in your `platformio.ini`.
 ```text
 lib_extra_dirs =
-    ${sysenv.HOMEPATH}/Documents/Arduino/libraries
+    ${sysenv.HOMEPATH}/MyLibraries/libraries
 
 lib_deps =
     testrunner
 ```
 You must then, in source, add your test cases and kick it off manually, like this:
 ```c++
-// Assuming Arduino style application...
+// Example (Arduino-style setup() shown; adapt to your framework's entry point)
 void setup() {
     // Add some test cases
     trun::AddTestCase("test_main", test_main);
@@ -138,11 +248,14 @@ void setup() {
 }
 ``` 
 
-### Limitations on embedded
-- No threading, all tests are executed on the main thread
-- Internal logging has been disabled (not possible to execute in verbose mode)
-- Assumes `stdout` is mapped to console serial port (or similar)
-- Only console reporting available
+### Limitations of the in-process engines
+Compared to the external `trun` CLI:
+- No fork/subprocess isolation, and no parallel execution of test *modules*.
+- The **MCU** engine (`trun::mcu`) additionally runs everything on the main thread — no threading,
+  no exceptions, no heap. (`trun::lib` *is* threaded: it isolates each case in its own thread.)
+- Internal logging is stripped down (the MCU engine has no verbose var-args logging).
+- Assumes `stdout` is mapped to a console/serial port (embedded systems).
+- Console reporting only (no JSON reporting).
 
 # Unit-testing Usage
 
@@ -161,20 +274,20 @@ The runner `trun` will look for exported functions matching a certain pattern wi
 * test_main, reserved for first function called in a shared library (see test execution)
 * test_exit, reserved for last function called in a shared library (see test execution)
 * test_abc (only one underscore), called module main, called first for a module
-* test_module_exit (special test case name), called last in a library run
+* test_module_exit (special test case name), called last for a module
 
 Do NOT use these reserved names (_main, _exit) for anything else.
 
 ## Test Execution
 The runner executes tests in the following order:
 1. test_main, always executed (can be disabled via -G)
-2. library functions
-   - library main (test_module)
-   - any other library function (test_module_XYZ)
-   - library exit (test_module_exit)
+2. module functions
+   - module main (test_module)
+   - any other module function (test_module_XYZ)
+   - module exit (test_module_exit)
 3. test_exit, always executed last (also disabled via -G)
 
-The order of library functions can be controlled via the `-m` switch. Default is to test all modules (`-m -`) but it is possible to change the order like: `-m shared,-` this will first test the library `shared` before proceeding with all other modules.
+The order of module functions can be controlled via the `-m` switch. Default is to test all modules (`-m -`) but it is possible to change the order like: `-m shared,-` this will first test the module `shared` before proceeding with all other modules.
 
 ## Pass/Fail distinction
 Each test case should return `kTR_Pass` if no error occurred. It is possible to discard the return code (`-r`) and the test runner will deduce the result based on interface calls.
@@ -197,7 +310,7 @@ There are 5 result codes:
 
 _module fail_ means that a test case aborted any further testing of the current module.
 
-_all fail_ means that a test case aborted all further testing for the current library.
+_all fail_ means that a test case aborted all further testing for the current dynamic library.
 
 ## ITesting interface
 
@@ -252,7 +365,7 @@ to use it from any sub-functions called by the test case.
 
 Using `TR_ASSERT` is equivialent of doing:
    ```c++
-    if (!condition) { testInterface->Assert(__LINE__, __FILE__, "condition not met"); return kTR_Failure; }
+    if (!condition) { testInterface->AssertError(__LINE__, __FILE__, "condition not met"); return kTR_Fail; }
    ```
 
 ## Case dependencies
@@ -287,9 +400,11 @@ Similar to case-dependencies, you can control/override module execution order by
 This allows for overriding module execution order and other thins. While it also allows for separation when configuring
 modules with side-effects, for example integration testing, where one module might initialize a full system.
 
+Note: Module dependencies must be handled in 'test_main'.
+
 Like:
 ```c++
-int test_mymodule(ITesting *t) {
+int test_main(ITesting *t) {
     t->ModuleDepends("dbwrite", "dbconfigure, dbconnect");
     t->ModuleDepends("dbconnect", "dbconfigure);
     t->ModuleDepends("dbread", "dbwrite");
@@ -301,7 +416,7 @@ At the same time - there is no point with read-testing unless we have written so
 we say that `dbwrite` should execute before `dbread` (as `dbread` depends on `dbwrite`).
 
 ## Advanced functionality
-It is possible to register a pre/post callback hook for a test. You can/should set them in your library main. You can reset them (set to null) in your test exit (but it's
+It is possible to register a pre/post callback hook for a test. You can/should set them in your module main. You can reset them (set to null) in your test exit (but it's
 not required as hooks are associated with the module upon setting them).
 
 For instance assume you have a memory allocation tracking library and you want to make sure you are not leaking memory.
@@ -346,7 +461,7 @@ For instance assume you have a memory allocation tracking library and you want t
 _NOTE:_ QueryInterface is considered experimental and unstable. The API might change.
 
 From version 2.0 of the TestRunner the ITesting interface provides a new function 'QueryInterface' this is a generic extension point interface.
-At the present there is only one extension present; `ITestingConfig`. Which allows a library under test to check how it is being executed.
+At present the stable extension is `ITestingConfig`, which allows a library under test to check how it is being executed. (There is also an experimental `ITestingCoverage`, currently inert.)
 
 While it is allowed to access `QueryInterface` from any place, the recommended place is `test_main` (the global library main point).
 The `ITestingConfig` extension can be used to verify if the test-runner is invoked in a supported manner. A project might not actually support parallel testing.
@@ -464,7 +579,7 @@ See *exshared* library for an example.
 <b>Note:</b> TestRunner default input is the current directory. It will search recursively for any testable functions.
 
 ```
-TestRunner v2.1.0 - macOS - C/C++ Unit Test Runner
+TestRunner v4.0.0-dev - macOS - C/C++ Unit Test Runner
 Usage: trun [options] input
 Options: 
   -v  Verbose, increase for more!
@@ -483,13 +598,15 @@ Options:
   -m  <list> List of modules to test (default: '-' (all))
   -t  <list> List of test cases to test (default: '-' (all))
   --sequential
-      Disable any parallel execution of modules
-  --continue_on_assert
+      Disable parallel execution (use this if you debug through trun, default: off)
+  --continue-on-assert
       Continue test execution on assert errors (default: off)
   --module-timeout <sec>
       Set timeout (in seconds) for forked execution, 0 - infinity (default: 30)
+  --max-concurrency <n>
+      Max module subprocesses running at once (0 = auto, ~CPU cores)
   --allow-thread-exit
-      Test cases execution thread will self-terminate on assert/error/fatal
+      Test cases execution thread will self-terminate on assert/error
 
 Input should be a directory or list of dylib's to be tested, default is current directory ('.')
 Module and test case list can use wild cards, like: -m encode -t json*
@@ -559,7 +676,7 @@ This will give an indication of what tests the testrunner will execute.
  
  ... further output omitted...
 ```
-Each library is prefixed with
+Each module is prefixed with
 * `-` won't execute
 * `*` will execute
 
@@ -645,9 +762,17 @@ Example output:
 <b>Note:</b> Passes are only reported IF you include it in the summary (`-S`).
 
 # Test Coverage
+> **Status: beta.** `tcov` is usable day-to-day and verified on macOS and Linux; the CLI and the
+> `base`/`lcov`/`diff` report formats are stable. Two known accuracy limitations remain: prologue
+> lines (a bare `}`) can be reported untested, and column-level branches in a multi-statement
+> condition (`if (X && Y)`) are not distinguished.
+
 The test coverage tool (`tcov`) is a tool to generate test coverage reports. 
 Coverage is calculated by running `trun` through LLDB and trap breakpoints for specific symbols under test.
-Thus `tcov` requires you to have LLDB installed. Both the binaries and the dev-packages (in order to build it).
+Thus `tcov` requires LLDB on your system — the dev package (`liblldb-dev`) to **build** it, and at
+**runtime** an LLDB debug server. On macOS that server (`debugserver`) ships with Xcode and is used
+automatically. On Linux `tcov` needs `lldb-server` on the `PATH` — see
+[Linux runtime: lldb-server](#linux-runtime-lldb-server) below.
 
 Assume you are building a DateTime handling library and you run `trun` as the unit-test framework. You can
 now generate coverage by means of running `trun` through `tcov`.
@@ -661,7 +786,7 @@ Anything after `--` is passed to `trun` as regular arguments.
 
 Basic usage:
 ```shell
-Coverage tool v3.0.0 - Linux - Calculating code coverage through LLDB
+Coverage tool v4.0.0 - Linux - Calculating code coverage through LLDB
 Usage: ./tcov [options] -- <target cmd line>
 Options:
   -h, --help              Print this help
@@ -669,6 +794,9 @@ Options:
   -t, --target            Target executable to run (default: trun)
   -R, --Report            Comma separated list of report engines (base, lcov, diff)
   -s, --symbols           Comma separated list of symbols to track for coverage
+  --trun                  Force treating the target as 'trun' (dylib-load sync)
+  --no-trun               Force treating the target as a generic (non-trun) executable
+  --version               Print version information, then exit
 Linux
   --lldb-server <path>    Set the full path to the lldb-server binary
 
@@ -682,7 +810,30 @@ Run same as above but use both diff and lcov
 ```
 While `tcov` was designed to be used with `trun` it can be used with any executable.
 By specifying `--target` you can run any executable as the baseline for your unit-testing.
-Any arguments after `--` will be passed to the target executable.
+Any arguments after `--` will be passed to the target executable. `tcov` treats the target as `trun`
+when its basename is `trun` (enabling the dylib-load sync) and as a generic executable otherwise; force
+either with `--trun` / `--no-trun`.
+
+## Linux runtime: lldb-server
+On Linux, `tcov` drives LLDB's out-of-process debug server, `lldb-server`, which must be present at
+**runtime**. This is separate from the `liblldb-dev` package needed to *build* `tcov`, and is usually
+provided by the distro's `lldb` package (`sudo apt install lldb`).
+
+`tcov` locates it automatically: it first honours a valid `--lldb-server <path>`, otherwise it probes the
+`PATH` (via `which`) for `lldb-server` and the versioned names `lldb-server-25` … `lldb-server-15`, and
+points LLDB at the first hit. If none is found it stops with:
+
+```
+Unable to find or detect the lldb server, you can specify path to the 'lldb-server' binary with '--lldb-server <path to binary>'
+```
+
+In that case install the `lldb` package or pass the full path explicitly:
+```shell
+./tcov --lldb-server /usr/bin/lldb-server-18 --symbols mynamespace::DateTime -- -m datetime myapp_utests.so
+```
+
+On **macOS** none of this applies — Xcode's `debugserver` is used automatically, so there is no
+`lldb-server` setup.
 
 ## Reporting
 There are currently three different reporting modes available.
@@ -712,6 +863,26 @@ Coverage is more of a dev-tool than a `generate coverage for this project` tool.
 It is very helpful when you are writing unit-tests and want to see exactly which lines are being hit and not.
 
 # Version history
+## v4.0.0
+- AI Cleanup release
+- New MCU variant with dedicated zero allocation engine (API compatible with V1/2/3)
+- Installation handling
+  - CMake compatible ('find_package', 'fetch_content' for MCU variant)
+  - Release has two variants 'regular' and '-dev' (full library version)
+- Lot's of bugs fixed
+  - Better installation on Linux
+  - Forking improved
+    - Conservative starting of sub-processes, observe max concurrency settings
+    - IPC was spamming the console by re-printing all output
+    - IPC framing of messages
+    - Double counting results
+    - Global 'test_main'/'test_exit' counted one (was per fork)
+  - Argument parsing was overwriting modules
+  - Teardown during Assert
+  - V1 using setjmp/longjmp instead of just killing the execution thread
+  - Threads for single test-function are now always enabled
+## v3.0.4
+- Embedded (or in-process) version of the library
 ## v3.0.3
 - Exception handling
 - Thread termination on assert/error/fatal
@@ -745,7 +916,7 @@ It is very helpful when you are writing unit-tests and want to see exactly which
 - Extensions are now supported through function `QueryInterface` in ITesting
 - Modules are executed in parallel as default (`--sequential` to disable)
 - You can specify `--module-timeout` (in seconds) to kill long-running/hanging modules (default is 30sec)
-- Threads don't terminate on ASSERT/ERROR/FATAL, specify `--allow-thread-exit` to enable
+- Threads don't terminate on ASSERT/ERROR by default; specify `--allow-thread-exit` to enable (FATAL/ABORT always stop the test regardless)
 - More stringent, no global test functions except `test_main` and `test_exit` (module main are still `test_<module>`)
 ## v1.6.3
 - Dangling reference could lead to seg-fault when finished

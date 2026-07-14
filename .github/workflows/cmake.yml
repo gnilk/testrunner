@@ -2,10 +2,24 @@ name: Build
 
 on:
   push:
-    branches: [ master ]
+    # master + tags publish (see the package/upload steps and the release job).
+    # dev is CI-only: it builds Linux + Windows and smoke-tests, but produces no
+    # packages/artifacts/release - the maintainer works on macOS, so this is where
+    # Linux/Windows breakage gets caught.
+    branches: [ master, dev ]
     tags: [ "v*" ]
+    # Skip the build when a push touches ONLY docs (paths-ignore skips only if EVERY
+    # changed file matches, so a mixed docs+code push still builds). None of these affect
+    # the CMake build. Tag pushes are unaffected: a newly-created tag has no diff base, so
+    # GitHub runs the workflow regardless of paths-ignore - releases never get skipped.
+    paths-ignore: &docs-only
+      - '**.md'
+      - 'todo/**'
+      - 'LICENSE'
+      - 'notes.txt'
   pull_request:
-    branches: [ master ]
+    branches: [ master, dev ]
+    paths-ignore: *docs-only
 
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
@@ -13,16 +27,12 @@ env:
 
 jobs:
   build:
-    # The CMake configure and build commands are platform agnostic and should work equally well on Windows or Mac.
-    # You can convert this to a matrix build if you need cross-platform coverage.
-    # See: https://docs.github.com/en/free-pro-team@latest/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest]
-        
+    # Linux build: produces the two Debian component packages (testrunner + testrunner-dev)
+    # and uploads them as a workflow artifact (consumed by the release job on tag builds).
+    runs-on: ubuntu-latest
+
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v5
 
     - name: Install dependencies
       run: |
@@ -38,18 +48,99 @@ jobs:
       # Build your program with the given configuration
       run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
 
-    - name: Test
+    - name: Smoke test (load a real shared library and list its exported tests)
       working-directory: ${{github.workspace}}/build
-      # Execute tests defined by the CMake configuration.  
-      # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
-      run: ctest -C ${{env.BUILD_TYPE}}
+      # The project registers no CTest tests; this exercises the loader/nm export scan and exits 0.
+      # A full self-run is not used as a gate: the suite intentionally fails 15 self-tests (non-zero).
+      run: ./trun -lx lib/libtrun_utests.so
 
+    - name: Coverage-engine unit tests (tcov_utests - pure logic, no lldb-server)
+      working-directory: ${{github.workspace}}/build
+      # tcov_utests are pure unit tests of the coverage engine (symbol resolution, config
+      # parsing, breakpoint bookkeeping). They link liblldb but never spawn lldb-server, so
+      # they run here with only liblldb-dev present. Unlike the full trun self-suite this
+      # library has NO intentional self-fails, so a non-zero exit is a real regression - it
+      # gates the build, giving Linux logic-validation of the coverage engine that the
+      # trun -lx smoke test alone does not. Linux only: tcov is forced off on Windows.
+      run: ./trun lib/libtcov_utests.so
+
+    # Packaging + artifact upload only where a package is actually consumed: master
+    # pushes (grabbable by beta testers) and tag pushes (fed to the release job). On
+    # dev pushes and on any PR the job stops after the smoke test - build validation only.
     - name: Package (.deb)
+      if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/')
       run: cmake --build ${{github.workspace}}/build --target package
 
-    - name: Create Release and Upload .deb
-      if: startsWith(github.ref, 'refs/tags/')
+    - name: Upload .deb artifact
+      if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/')
+      uses: actions/upload-artifact@v4
+      with:
+        name: deb-package
+        path: ${{github.workspace}}/build/*.deb
+        if-no-files-found: error
+
+  build-windows:
+    # Windows build: tcov is skipped (no debug-engine backend yet); produces the NSIS installer
+    # (testrunner-<version>-win64.exe) and uploads it as a workflow artifact for the release job.
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v5
+
+    - name: Install NSIS (CPack installer generator)
+      # NSIS is not reliably pre-installed on the runner image; installing it ourselves keeps
+      # the packaging step deterministic and puts makensis on PATH for CPack to find.
+      run: choco install nsis -y --no-progress
+
+    - name: Configure CMake
+      # Default generator on the runner is the Visual Studio multi-config generator; MSVC is
+      # already present. tcov auto-disables on WIN32 (needs an SEH/DbgHelp backend that does
+      # not exist yet), so liblldb is not required here.
+      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+
+    - name: Build
+      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
+
+    - name: Smoke test (load a real DLL and list its exported tests)
+      working-directory: ${{github.workspace}}/build
+      # Exercises the Windows-specific PE-export-parsing load path and exits 0. A full self-run
+      # is not used as a gate: the suite intentionally fails 15 self-tests and so returns non-zero.
+      run: ./trun.exe -lx trun_utests.dll
+
+    # Packaging + upload gated as in the Linux job: master/tags only, dev + PRs build-only.
+    - name: Package (NSIS installer)
+      if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/')
+      working-directory: ${{github.workspace}}/build
+      run: cpack -G NSIS -C ${{env.BUILD_TYPE}}
+
+    - name: Upload installer artifact
+      if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/')
+      uses: actions/upload-artifact@v4
+      with:
+        name: windows-installer
+        path: ${{github.workspace}}/build/testrunner-*.exe
+        if-no-files-found: error
+
+  release:
+    # Single publisher: only after BOTH platform builds succeed, and only on tag pushes.
+    # One writer to the GitHub Release avoids the create-release race two parallel jobs would
+    # hit, and a broken build on either platform blocks the release instead of shipping half of it.
+    needs: [build, build-windows]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: dist
+
+    - name: Create Release and upload packages
       uses: softprops/action-gh-release@v2
       with:
-        files: ${{github.workspace}}/build/*.deb
-      
+        files: |
+          dist/**/*.deb
+          dist/**/testrunner-*.exe
+        fail_on_unmatched_files: true

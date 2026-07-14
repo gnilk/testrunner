@@ -29,7 +29,7 @@
 #include "strutil.h"
 #include "logger.h"
 
-#include "process.h"
+#include "procspawn.h"
 #include "dynlib_unix.h"
 
 #include <dlfcn.h>
@@ -137,7 +137,7 @@ bool DynLibLinux::Open() {
     //       in favor of hosting exe..  That is - if a symbol is defined twice (exe and lib) RTLD_DEEPBIND will
     //       prioritize the symbol belonging to the lib...
     //
-#ifdef __linux
+#ifdef LINUX
         openFlags |= bUseDeepBinding ? RTLD_DEEPBIND : 0;
 #endif
 

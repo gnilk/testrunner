@@ -268,7 +268,7 @@ static CoverageSnapshot GenerateSnapshot(const BreakpointManager &breakpoints) {
     auto coverageData = breakpoints.ComputeCoverage();
     for (auto &cov : coverageData) {
         auto diff = DiffFunctionCoverage {
-            .name = cov.ptrFunction->name,
+            .name = cov.ptrFunction->info.full,
             .file = cov.ptrCompileUnit->pathName,
             .total_lines = cov.totalLines,
             .covered_lines = (uint32_t)cov.coveredLines.size(),
@@ -291,9 +291,6 @@ void ReportDiff::GenerateReport(const BreakpointManager &breakpoints) {
     logger->Debug("Generating diff report");
 
     auto diffFilename = Config::Instance().diffReportFilename;
-    if (Config::Instance().diffClean) {
-        std::remove(diffFilename.c_str());
-    }
 
     logger->Debug("Reading previous snapshot from '%s'", diffFilename.c_str());
     // FIXME: Need a unique filename - which is still applicable over projects..

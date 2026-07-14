@@ -69,7 +69,7 @@ namespace trun {
         int32_t testsExecuted = {};
         int32_t testsFailed = {};
         double durationSec = {};
-        std::vector<IPCTestResults *> testResults;
+        std::vector<std::unique_ptr<IPCTestResults>> testResults;
     };
 
 

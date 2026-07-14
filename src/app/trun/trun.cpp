@@ -1,8 +1,8 @@
 /*-------------------------------------------------------------------------
- File    : main.cpp
+ File    : trun.cpp
  Author  : FKling
  Version : -
- Orginal : 2018-10-18
+ Original: 2018-10-18
  Descr   : C/C++ Unit Test Runner
 
  This is the testrunner for the UnitTest 'framework'.
@@ -30,11 +30,16 @@
 #pragma warning(disable : 4996)
 #include <Windows.h>
 #include <io.h>
+#include <direct.h>
 // ok, the windows console handling is quite horrible if compared to macOS/Linux...
 // this ought to solve it for my purposes
 #ifndef STDOUT_FILENO
     #define STDOUT_FILENO 1
 #endif
+#ifndef PATH_MAX
+    #define PATH_MAX MAX_PATH
+#endif
+#define getcwd _getcwd
 #else
 #include <unistd.h>
 #endif
@@ -47,7 +52,7 @@
 
 #ifdef WIN32
 #include "win32/dynlib_win32.h"
-#elif __linux
+#elif LINUX
 #include "unix/dynlib_unix.h"
 #else
 #include "unix/dynlib_unix.h"
@@ -88,7 +93,7 @@ static void Help() {
     std::string strPlatform = "Windows x64 (64 bit)";
 #elif WIN32
     std::string strPlatform = "Windows x86 (32 bit)";
-#elif __linux
+#elif LINUX
     std::string strPlatform = "Linux";
 #else
     std::string strPlatform = "macOS";
@@ -122,12 +127,12 @@ static void Help() {
     printf("      Disable parallel execution (use this if you debug through trun, default: off)\n");
     printf("  --continue-on-assert\n");
     printf("      Continue test execution on assert errors (default: off)\n");
-#ifdef TRUN_HAVE_FORK    
     printf("  --module-timeout <sec>\n");
     printf("      Set timeout (in seconds) for forked execution, 0 - infinity (default: 30)\n");
-#endif    
+    printf("  --max-concurrency <n>\n");
+    printf("      Max module subprocesses running at once (0 = auto, ~CPU cores)\n");
     printf("  --allow-thread-exit\n");
-    printf("      Test cases execution thread will self-terminate on assert/error/fatal\n");
+    printf("      Test cases execution thread will self-terminate on assert/error\n");
 
     printf("\n");
     printf("Input should be a directory or list of dylib's to be tested, default is current directory ('.')\n");
@@ -185,7 +190,7 @@ static IDynLibrary::Ref GetLibraryLoader() {
     IDynLibrary::Ref lib;
 #ifdef WIN32
     return DynLibWin::Create();
-#elif __linux
+#elif LINUX
     return DynLibLinux::Create(Config::Instance().linuxUseDeepBinding);
 #else
     return DynLibLinux::Create(Config::Instance().linuxUseDeepBinding);
@@ -232,10 +237,12 @@ static void ScanLibraries(std::vector<std::string> &inputs) {
 
 // We should remove this and wait for a signal (or something) to be raised!
 static void RunTestsForAllLibraries() {
+#ifndef WIN32
     if (Config::Instance().isCoverageRunning) {
         pLogger->Debug("RunTestsForAllLibraries, sending signal to parent, about to run tests!");
         raise(SIGUSR1);
     }
+#endif
 
     pLogger->Info("Running tests for all modules");
     for(auto lib : librariesToTest) {
@@ -284,6 +291,11 @@ int main(int argc, const char **argv) {
         //return 0;
         exit(0);
     }
+
+    // Keep this - CLion has an odd build directory since I splitted the app into different paths
+    // char cwd[PATH_MAX+1] = {};
+    // getcwd(cwd, 1024);
+    // printf("Working directory: %s\n", cwd);
 
 #ifdef _WIN64
 	pLogger->Info("Windows x64 (64 bit) build");
@@ -350,7 +362,11 @@ int main(int argc, const char **argv) {
     // Need to clear this in order to invoke DTOR on scanner as an instance is kept from 'scanlibraries'
     // Would not have been required if the App would have been contained in a class...  anyway...
     librariesToTest.clear();
-    return 0;
+
+    // Non-zero exit when the runner couldn't finish work (a module timed out or
+    // crashed). Ordinary test-assertion failures still exit 0 - that path feeds
+    // the JSON-consumed CI workflow and must not change.
+    return ResultSummary::Instance().incompleteModules.empty() ? 0 : 1;
 }
 
 static void PrintSummaryIfNeeded() {

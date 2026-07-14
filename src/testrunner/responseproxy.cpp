@@ -20,16 +20,11 @@
  \History
  - 2018.10.18, FKling, Implementation
  ---------------------------------------------------------------------------*/
-#include "ipc/IPCBufferedWriter.h"
-#include "ipc/IPCEncoder.h"
 #ifdef WIN32
 #include <Windows.h>
 #else
-#include <thread>
 #include <pthread.h>
 #include <stdarg.h>
-#include <signal.h>
-#include "unix/IPCFifoUnix.h"
 #endif
 
 #include <string.h>
@@ -38,7 +33,6 @@
 #include "logger.h"
 #include "config.h"
 #include "testrunner.h"
-#include "CoverageIPCMessages.h"
 
 
 #include <stdlib.h> // malloc
@@ -87,6 +81,7 @@ void TestResponseProxy::Begin(const std::string &use_symbolName, const std::stri
     assertCount = 0;
     testResult = kTestResult_Pass;
     exceptionThrown = false;
+    forciblyTerminated = false;
     exceptionString = {};
 
     pLogger = gnilk::Logger::GetLogger("TestResponseProxy");
@@ -157,6 +152,15 @@ void TestResponseProxy::SetExceptionError(const std::string &exception) {
     exceptionString = exception;
 }
 
+void TestResponseProxy::SetForciblyTerminated(const char *reason) {
+    // NOTE: deliberately does NOT set exceptionThrown - a forced abort-unwind is our own
+    // control flow, not an escaped user exception. The severity is already in 'testResult'.
+    forciblyTerminated = true;
+    if (reason != nullptr) {
+        exceptionString = reason;
+    }
+}
+
 // ITesting mirror
 void TestResponseProxy::Debug(int line, const char *file, std::string message) {
     pLogger->Debug("%s:%d:%s", file, line, message.c_str());
@@ -180,7 +184,15 @@ void TestResponseProxy::Error(int line, const char *file, std::string message) {
     if (testResult < kTestResult_TestFail) {
         testResult = kTestResult_TestFail;
     }
-    TerminateThreadIfNeeded();
+    // Record the detail into the assert list like Fatal/Abort/AssertError do, so an
+    // Error-only failure carries a file/line/message for the reporters (and across the
+    // fork boundary - IPCTestResults marshals the list when it is non-empty, gated on
+    // TestResult::Asserts() == AssertError::NumErrors()). kAssert_Error is the same class
+    // AssertError uses; both mean "test failed, proceed to next".
+    assertError.Add(AssertError::kAssert_Error, line, file, message);
+    // Error is the soft one: under V2 it flags and continues; it only force-terminates
+    // in forced mode (V1 / --allow-thread-exit).
+    TerminateThreadIfNeeded(false);
 }
 
 void TestResponseProxy::Fatal(int line, const char *file, std::string message) {
@@ -192,7 +204,8 @@ void TestResponseProxy::Fatal(int line, const char *file, std::string message) {
         testResult = kTestResult_ModuleFail;
     }
     assertError.Add(AssertError::kAssert_Fatal, line, file, message);
-    TerminateThreadIfNeeded();
+    // Fatal means "stop this module" - always terminate the current test.
+    TerminateThreadIfNeeded(true);
 }
 
 void TestResponseProxy::Abort(int line, const char *file, std::string message) {
@@ -204,7 +217,8 @@ void TestResponseProxy::Abort(int line, const char *file, std::string message) {
         testResult = kTestResult_AllFail;
     }
     assertError.Add(AssertError::kAssert_Abort, line, file, message);
-    TerminateThreadIfNeeded();
+    // Abort means "stop execution" - always terminate the current test.
+    TerminateThreadIfNeeded(true);
 }
 
 kTRContinueMode TestResponseProxy::AssertError(const char *exp, const char *file, const int line) {
@@ -219,29 +233,35 @@ kTRContinueMode TestResponseProxy::AssertError(const char *exp, const char *file
     if (Config::Instance().continueOnAssert) {
         return kTRContinueMode::kTRContinue;
     }
-    TerminateThreadIfNeeded();
+    // V2 asserts return cooperatively (the TR_ASSERT macro acts on kTRLeave); only V1 /
+    // --allow-thread-exit force-terminate here.
+    TerminateThreadIfNeeded(false);
     return kTRContinueMode::kTRLeave;
 }
 
-// Terminates the running thread if allowed - i.e. you must have 'allowThreadTermination' enabled...
-void TestResponseProxy::TerminateThreadIfNeeded() {
+// Terminates the running test thread when required.
+//  - alwaysTerminate (Fatal/Abort): terminate whenever running threaded - these calls
+//    semantically mean "stop the module" / "stop execution".
+//  - otherwise (Error/Assert): terminate only in forced mode (kThreadedWithExit), i.e. V1
+//    libraries or --allow-thread-exit. V2 Error stays flag-and-continue and V2 asserts
+//    return cooperatively via the TR_ASSERT macro.
+// Termination unwinds via a thrown TestAbortException (caught in
+// TestFuncExecutorSequential::Execute); without exceptions it falls back to pthread_exit.
+void TestResponseProxy::TerminateThreadIfNeeded(bool alwaysTerminate) {
 
-    // FIXME: In case of V1 we should have this enabled - but we don't know the library at this point
-#ifdef TRUN_HAVE_THREADS
-    if (Config::Instance().testExecutionType == TestExecutiontype::kThreadedWithExit) {
+    bool forcedMode = (Config::Instance().testExecutionType == TestExecutiontype::kThreadedWithExit);
+    if (!alwaysTerminate && !forcedMode) {
+        return;
+    }
+    #ifdef TRUN_HAVE_EXCEPTIONS
+        throw TestAbortException{"aborted - better reason required"};
+    #else
         #ifdef WIN32
             TerminateThread(GetCurrentThread(), 0);
         #else
-            // FIXME: Terminate with exception here!!
-        #ifdef TRUN_HAVE_EXCEPTIONS
-            throw TestAbortException{"aborted - better reason required"};
-        #else
             pthread_exit(NULL);
         #endif
-
-        #endif
-    }
-#endif
+    #endif
 
 }
 
@@ -380,37 +400,30 @@ ITestingV2 *TestResponseProxy::GetTRTestInterfaceV2() {
 // wrappers for pure C call's (no this) - only one call per thread allowed.
 //
 
-#if defined(TRUN_EMBEDDED_MCU)
-    #define CREATE_REPORT_STRING() \
-    const char *newstr="";               \
-
-#else
-
+// Compose the varargs into `newstr`, a stack buffer (alloca, so it must live in the
+// caller's frame - hence a macro). vsnprintf reports the length it WOULD need with a
+// large positive return on truncation, never a negative one; the old grow-loop keyed on
+// `res < 0`, so it never grew and silently truncated any message past the fixed 1024
+// bytes. Measure the exact size once, cap it at the configured limit, then compose.
 #define CREATE_REPORT_STRING() \
 	va_list	values;													\
-	char * newstr = NULL;											\
-    uint32_t szbuf = 1024;                                          \
-    int res;                                                        \
-    do																\
-    {																\
-        newstr = (char *)alloca(szbuf);                             \
-        va_start( values, format );   								\
-        res = vsnprintf(newstr, szbuf, format, values);	            \
-        va_end(	values);											\
-        if (res < 0) {												\
-            szbuf += 1024;											\
-        }															\
-        if (!IsMsgSizeOk(szbuf)) {                                  \
-            break;                                                  \
-        }                                                           \
-    } while(res < 0);												\
-
-#endif
+    va_start( values, format );   								\
+    int needed = vsnprintf(NULL, 0, format, values);            \
+    va_end(	values);											\
+    uint32_t szbuf = (needed < 0) ? 1024u : ((uint32_t)needed + 1u); \
+    if (!IsMsgSizeOk(szbuf)) {                                  \
+        szbuf = Config::Instance().responseMsgByteLimit;       \
+    }                                                           \
+    char * newstr = (char *)alloca(szbuf);                      \
+    va_start( values, format );   								\
+    vsnprintf(newstr, szbuf, format, values);	                \
+    va_end(	values);											\
 
 static bool IsMsgSizeOk(uint32_t szbuf) {
     if (szbuf > Config::Instance().responseMsgByteLimit) {
         auto pLogger = gnilk::Logger::GetLogger("TestResponseProxy");
-        pLogger->Error("Message buffer exceeds limit (%d bytes), truncating..");
+        pLogger->Error("Message buffer (%u bytes) exceeds limit (%u bytes), truncating..",
+                       szbuf, Config::Instance().responseMsgByteLimit);
         return false;
     }
     return true;
@@ -584,37 +597,10 @@ static void int_tcfg_get(const char *key, TRUN_ConfigItem *outValue) {
 }
 
 // CITestingCoverage_IFace_ID
-static void int_tcov_begincov(const char *symbol) {
-    // FIXME: Not sure this actually needed
-#ifdef TRUN_HAVE_FORK
-    printf("BeginCoverage called for '%s'\n", symbol);
-    if (!Config::Instance().isCoverageRunning) {
-        printf("TCOV is not running!");
-        return;
-    }
-    printf("Connecting to TCOV via '%s'\n", Config::Instance().coverageIPCName.c_str());
-    gnilk::IPCFifoUnix ipc;
-    if (!ipc.ConnectTo(Config::Instance().coverageIPCName)) {
-        printf("Failed to connect to IPC using '%s'\n", Config::Instance().coverageIPCName.c_str());
-        return;
-    }
-
-    CovIPCCmdMsg cmdMsg;
-    cmdMsg.symbolName = symbol;
-
-    gnilk::IPCBufferedWriter bufferedWriter(ipc);
-    gnilk::IPCBinaryEncoder encoder(bufferedWriter);
-
-    cmdMsg.Marshal(encoder);
-    auto nFlush = bufferedWriter.Flush();
-    printf("flushed fifo, res=%d\n", nFlush);
-    printf("Sending signal to parent!\n");
-    raise(SIGUSR1);
-    // Sleep a little - allow tcov to catch up - should be plenty enough
-    // The IPC should hold the data even if we are closed...
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    // this should only close my end!
-    ipc.Close();
-    printf("Finished 'int_tcov_begincov'\n");
-#endif
+// BeginCoverage is retained as a no-op. The coverage interface (ITestingCoverage, reached
+// via QueryInterface) stays part of the V2 contract, but the code-driven "instrument this
+// symbol mid-run" RPC to tcov was an abandoned experiment and has been removed - it drove
+// the last IPC dependency out of responseproxy. The supported coverage workflow is tcov's
+// static --symbols breakpoints, which never used this path.
+static void int_tcov_begincov([[maybe_unused]] const char *symbol) {
 }

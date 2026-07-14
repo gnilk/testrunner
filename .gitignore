@@ -6,6 +6,7 @@ ext/
 .idea/
 cmake-build-debug/
 cmake-build-debug-visual-studio/
+cmake-build-win/
 out/
 trunwindows/Debug/
 trunwindows/x64/
@@ -13,3 +14,6 @@ trunwindows/.vs/
 trunwindows/trunwindows.vcxproj.user
 *.obj
 trunwindows/*/x64
+
+# macOS Finder metadata
+.DS_Store
