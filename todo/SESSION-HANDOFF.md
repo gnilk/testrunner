@@ -28,8 +28,10 @@ Pick-up notes for continuing on a clean slate.
 >
 > **Also this session — *experimental → beta* label flipped in `README.md`** (prompted): the V2/V3
 > "changes" line now reads "Beta test coverage tool included", and the `# Test Coverage` doc section
-> gained a `Status: beta` note (single resolver + unit tests + macOS/Linux runtime verified; the
-> prologue-`}` / column-branch accuracy limits stay documented). **Still gated on the release
+> gained a `Status: beta` note written in user terms (usable + verified on macOS/Linux; CLI and
+> base/lcov/diff report formats stable; the prologue-`}` / column-branch accuracy limits stated
+> inline). Rewritten in `8fc73b1` after a first draft leaked internal beta-gate jargon ("single
+> resolver", "unit tests") into the README. **Still gated on the release
 > process:** only `dev → master` now (version story + cross-project validation). The `IsInProject`
 > no-op remains its own task, `todo/tcov_isinproject_filter.md`.
 >
