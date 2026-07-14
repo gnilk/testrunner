@@ -4,7 +4,19 @@ Pick-up notes for continuing on a clean slate.
 
 ---
 
-## ⭐ CURRENT WORK — tcov beta shipped: dev PROMOTED to master (v4.0, no tag yet)
+## ⭐ CURRENT WORK — v4.0.0 RELEASED (tagged + public); maintainer on vacation ~2 weeks
+
+> **Released 2026-07-14.** `v4.0.0` is tagged on `master` (`bc83997`), pushed, and the public GitHub
+> Release landed with all three assets (`testrunner-4.0.0-Linux-runtime.deb`, `-Linux-dev.deb`,
+> `-win64.exe`, labelled `4.0.0` from the tag). Runtime `.deb` validated on Linux end-to-end (clean
+> install → `tcov` runs clean). A couple of users are **beta-testing** the release. **Maintainer is
+> off-grid (cabin) for ~2 weeks from 2026-07-14** — expect no responses until ~end of July; nothing
+> in flight, this is a clean stopping point. Next pick-up: triage any beta-tester feedback, then the
+> `IsInProject` task (`todo/tcov_isinproject_filter.md`) is the main open code item.
+>
+> ---
+>
+> ### How v4.0.0 got out (2026-07-14)
 
 > **This session (2026-07-14, later)** closed the one open tcov gate below: **tcov's live coverage
 > run is now verified working on Linux.** Ran it against `trun` on this Linux box (`lldb-server-18`,
@@ -46,9 +58,10 @@ Pick-up notes for continuing on a clean slate.
 > - **Verified on master before push:** 0 `todo/` files, no `todo/` paths in the diff, the debuginfod
 >   fix + README beta label + the `-f` script all present.
 >
-> **Remaining before a tagged v4.0.0 release:** cross-project validation, then `git tag v4.0.0 &&
-> git push origin v4.0.0` (fires the public Release). The `IsInProject` no-op remains its own task,
-> `todo/tcov_isinproject_filter.md`.
+> **DONE:** tagged `v4.0.0` (annotated, on `bc83997`) + pushed → the tag CI run fired the public
+> Release with the three `4.0.0` assets. (Nit for next time: the tag *annotation* still carried a bit
+> of internal plan-doc jargon — see the jargon lesson below / memory `no-internal-jargon-user-facing`.)
+> The `IsInProject` no-op remains its own task, `todo/tcov_isinproject_filter.md`.
 >
 > ---
 >
