@@ -762,9 +762,10 @@ Example output:
 <b>Note:</b> Passes are only reported IF you include it in the summary (`-S`).
 
 # Test Coverage
-> **Status: beta.** `tcov` has a single authoritative symbol-resolution path, unit tests, and its
-> runtime is verified on both macOS and Linux. The known accuracy limitations (prologue `}` lines and
-> column-level multi-statement branches) are documented below.
+> **Status: beta.** `tcov` is usable day-to-day and verified on macOS and Linux; the CLI and the
+> `base`/`lcov`/`diff` report formats are stable. Two known accuracy limitations remain: prologue
+> lines (a bare `}`) can be reported untested, and column-level branches in a multi-statement
+> condition (`if (X && Y)`) are not distinguished.
 
 The test coverage tool (`tcov`) is a tool to generate test coverage reports. 
 Coverage is calculated by running `trun` through LLDB and trap breakpoints for specific symbols under test.
