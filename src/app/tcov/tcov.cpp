@@ -235,6 +235,13 @@ static kParseArgRes ParseArguments(int argc, const char *argv[]) {
 
     logger->Info("LLDB Server Detected at: %s", Config::Instance().lldb_server_path.c_str());
     setenv("LLDB_DEBUGSERVER_PATH", Config::Instance().lldb_server_path.c_str(), 1);
+
+    // Disable debuginfod symbol fetching. tcov inspects LOCAL binaries with their own local
+    // DWARF, so it never needs remote debug info - but Ubuntu ships a system-wide
+    // DEBUGINFOD_URLS=https://debuginfod.ubuntu.com, and LLDB honours it during target/symbol
+    // setup. When that server is slow, blocked, or unreachable (CI, air-gapped hosts, a firewall)
+    // the HTTPS connect() stalls and the whole coverage run hangs for minutes. Force it off.
+    setenv("DEBUGINFOD_URLS", "", 1);
 #endif
 
     return Config::Instance().internal_test_startup ? kExit : kContinue;
