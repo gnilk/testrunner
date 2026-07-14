@@ -23,10 +23,15 @@ Pick-up notes for continuing on a clean slate.
 > (right after the existing `LLDB_DEBUGSERVER_PATH` setenv, `tcov.cpp` ~line 238) — tcov only reads
 > LOCAL DWARF, so remote fetch is never needed. **Verified:** even with `DEBUGINFOD_URLS` set in the
 > env, tcov self-disables it and the run completes in **~0.49s** (was minutes). One file, +7 lines,
-> **not yet committed** — small in-place fix, can go straight to `dev` per the branch rule.
+> One file, +7 lines — **committed + pushed to `dev` as `1bc0477`** (SSH; `origin` was flipped
+> HTTPS→SSH this session so plain `git push` works now).
 >
-> **Still gated on the release process (unchanged):** the *experimental → beta* doc-label flip and
-> `dev → master`. The `IsInProject` no-op remains its own task, `todo/tcov_isinproject_filter.md`.
+> **Also this session — *experimental → beta* label flipped in `README.md`** (prompted): the V2/V3
+> "changes" line now reads "Beta test coverage tool included", and the `# Test Coverage` doc section
+> gained a `Status: beta` note (single resolver + unit tests + macOS/Linux runtime verified; the
+> prologue-`}` / column-branch accuracy limits stay documented). **Still gated on the release
+> process:** only `dev → master` now (version story + cross-project validation). The `IsInProject`
+> no-op remains its own task, `todo/tcov_isinproject_filter.md`.
 >
 > ---
 >
@@ -52,9 +57,9 @@ Pick-up notes for continuing on a clean slate.
 > **⚠️ What CI does NOT cover:** it validates the tcov **build** (Linux + Windows) and the **engine logic**
 > (unit tests), but **not a live `tcov` coverage run** on Linux — CI has no `lldb-server`. (That live
 > Linux runtime was **manually verified this session** — see the CURRENT WORK banner above — but CI still
-> can't exercise it.) The *experimental → beta* doc-label flip and `dev → master` remain gated on the
-> normal release process. The one open code residual is the `IsInProject` no-op — now its own task,
-> `todo/tcov_isinproject_filter.md`.
+> can't exercise it.) The *experimental → beta* doc label was flipped in `README.md` this session;
+> `dev → master` remains gated on the normal release process. The one open code residual is the
+> `IsInProject` no-op — now its own task, `todo/tcov_isinproject_filter.md`.
 >
 > ---
 >
@@ -360,7 +365,8 @@ gh release delete v0.0.0-ci-test --cleanup-tag --yes  # tears down release + rem
    plan archived to `todo/done/tcov_cleanup.md`). All 6 phases + 5 beta gates; CI green incl. the new
    Linux `tcov_utests` gate. **Linux runtime now verified** (2026-07-14, later — live coverage run
    works on `lldb-server-18`/LLDB 18.1.3; fixed a debuginfod-hang in `tcov.cpp`, see the CURRENT WORK
-   banner). **Not yet shipped:** the *experimental → beta* label + `dev → master` follow the release gate.
+   banner). The *experimental → beta* `README.md` label was flipped this session; only `dev → master`
+   still follows the release gate.
 5. **`tcov` `IsInProject` project-scope filter** — `todo/tcov_isinproject_filter.md` (promoted
    2026-07-14 from `open-bugs.md`). Intentional skeleton (**keep, don't delete**): **auto-derive the
    project root** from available input (target/DWARF `comp_dir`, in-scope source paths) so symbols

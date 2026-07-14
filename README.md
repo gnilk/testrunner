@@ -34,7 +34,7 @@ Also a lot of effort was made into packaging and proper installation.
 
 # Important changes between V2.x and V3.0
 
-Experimental test coverage tool included. Will instrument the code being tested and generate a coverage report.
+Beta test coverage tool included. Will instrument the code being tested and generate a coverage report.
 Requires LLDB installed on your system. The coverage tool (`tcov`) only works on macOS/Linux — it has no
 Windows backend. (The test *runner* itself is fully supported on Windows again as of V4 — see [Building](#building).)
 Note: tests written for V1 of the testinterface works
@@ -762,6 +762,10 @@ Example output:
 <b>Note:</b> Passes are only reported IF you include it in the summary (`-S`).
 
 # Test Coverage
+> **Status: beta.** `tcov` has a single authoritative symbol-resolution path, unit tests, and its
+> runtime is verified on both macOS and Linux. The known accuracy limitations (prologue `}` lines and
+> column-level multi-statement branches) are documented below.
+
 The test coverage tool (`tcov`) is a tool to generate test coverage reports. 
 Coverage is calculated by running `trun` through LLDB and trap breakpoints for specific symbols under test.
 Thus `tcov` requires LLDB on your system — the dev package (`liblldb-dev`) to **build** it, and at
