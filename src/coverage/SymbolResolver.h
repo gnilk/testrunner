@@ -19,7 +19,13 @@ namespace tcov {
             std::string full;     // original (optional)
             std::string file;
             uint32_t line = 0;
-            lldb::addr_t addr = 0;
+            // Load-address range of the owning function. ResolveForTarget is the single
+            // source of truth for this range (D1): it resolves the symbol's owning
+            // SBFunction and fills start/end from its start/end load addresses. Named to
+            // match struct Function's startLoadAddress/endLoadAddress, which now mirror
+            // these.
+            lldb::addr_t startLoadAddress = 0;
+            lldb::addr_t endLoadAddress = 0;
         };
     public:
         SymbolResolver() = default;

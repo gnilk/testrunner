@@ -4,6 +4,10 @@
 
 #include <unordered_set>
 
+#include <lldb/API/SBFunction.h>
+#include <lldb/API/SBSymbolContext.h>
+#include <lldb/API/SBCompileUnit.h>
+
 #include "logger.h"
 #include "strutil.h"
 #include "SymbolResolver.h"
@@ -67,7 +71,7 @@ static bool IsCoverageSymbol(const std::string &name) {
 // static
 std::vector<SymbolResolver::SymbolInfo> SymbolResolver::ResolveForTarget(lldb::SBTarget &target) {
 
-    auto logger = gnilk::Logger::GetLogger("SymbolTypeChecker");
+    auto logger = gnilk::Logger::GetLogger("SymbolResolver");
     std::vector<SymbolResolver::SymbolInfo> result;
 
     // dedupe: name + address
@@ -122,7 +126,15 @@ std::vector<SymbolResolver::SymbolInfo> SymbolResolver::ResolveForTarget(lldb::S
             if (!IsInProject(fileSpec)) {
                 continue;
             }
-            std::string normName = NormalizeName(rawName);
+
+            // Names for coverage identity (D5): prefer the demangled DISPLAY name so the
+            // CompileUnit map key (info.full) and Function::GetDisplayName() (info.name)
+            // reproduce the pre-refactor ctx.GetSymbol().GetDisplayName() byte-for-byte.
+            // Filtering above stays on the symbol-table name (rawName) so which symbols
+            // pass is unchanged.
+            const char *dispRaw = sym.GetDisplayName();
+            std::string displayName = dispRaw ? std::string(dispRaw) : fullName;
+            std::string normName = NormalizeName(displayName.c_str());
 
             // dedupe key
             std::string key = normName + "@" + std::to_string(loadAddr);
@@ -134,16 +146,33 @@ std::vector<SymbolResolver::SymbolInfo> SymbolResolver::ResolveForTarget(lldb::S
             // if (!seen.insert(key).second)
             //     continue;
 
-            // Potential - resolve already here - which means we can probably 'skip' FindFunc
-            // auto sc = addr.GetSymbolContext(lldb::eSymbolContextFunction);
-            // auto func = sc.GetFunction();
-
+            // D1: resolve the symbol's owning function from its OWN address and take the
+            // load-address range from it (start AND end). This makes ResolveForTarget the
+            // single source of truth for the range - no by-name FindFunctions in the
+            // breakpoint layer - reproducing the old range more robustly (no name ambiguity).
             SymbolResolver::SymbolInfo info;
             info.name = std::move(normName);
-            info.full = std::move(fullName);
+            info.full = std::move(displayName);
             info.file = fileSpec.GetFilename();
             info.line = lineEntry.GetLine();
-            info.addr = loadAddr;
+            info.startLoadAddress = loadAddr;   // default; refined below once we have the function
+
+            auto funcCtx = addr.GetSymbolContext(lldb::eSymbolContextFunction | lldb::eSymbolContextCompUnit);
+            auto func = funcCtx.GetFunction();
+            if (func.IsValid()) {
+                // D6: inlined-function guard (moved here from the breakpoint layer). Skip a
+                // function whose start line-entry filespec does not match its compile unit -
+                // it is inlined from elsewhere and would pollute the wrong compile unit.
+                auto leFileSpec = func.GetStartAddress().GetLineEntry().GetFileSpec();
+                auto cuFileSpec = funcCtx.GetCompileUnit().GetFileSpec();
+                if (leFileSpec != cuFileSpec) {
+                    logger->Debug("  Line entry file spec (%s) does not match compile unit file spec (%s) - skipping",
+                        leFileSpec.GetFilename(), cuFileSpec.GetFilename());
+                    continue;
+                }
+                info.startLoadAddress = func.GetStartAddress().GetLoadAddress(target);
+                info.endLoadAddress = func.GetEndAddress().GetLoadAddress(target);
+            }
 
             result.push_back(std::move(info));
         }

@@ -3,11 +3,9 @@
 //
 
 #include <string>
-#include <stdlib.h>
+#include <filesystem>
 
 #include "Config.h"
-
-#include <filesystem>
 
 using namespace tcov;
 
@@ -16,43 +14,20 @@ Config& Config::Instance() {
     return glbConfig;
 }
 
-static const std::string TOOL_NAME = "tcov";
-
 bool Config::IsTrunTarget() const {
-    // FIXME: this is not correct!
-    return target.find("trun") != std::string::npos;
-}
-
-// made by ChatGPT - this might throw exceptions
-std::string Config::ResolveCacheDir()  {
-    // 1. XDG
-    const char *xdg = getenv("XDG_CACHE_HOME");
-    if (xdg && *xdg) {
-        return (std::filesystem::path(xdg) / TOOL_NAME).string();
+    // Explicit override wins (--trun / --no-trun).
+    if (trunDetect == TrunDetect::kForceTrun) {
+        return true;
     }
-
-    // 2. HOME fallback (Linux/macOS)
-    const char *home = getenv("HOME");
-#ifdef APPLE
-    if (home && *home) {
-        return (std::filesystem::path(home) / "Library/Caches/" / TOOL_NAME).string();
-        //return std::string(home) + "/Library/Caches/" + TOOL_NAME;
+    if (trunDetect == TrunDetect::kForceGeneric) {
+        return false;
     }
-#else
-    if (home && *home) {
-        return (std::filesystem::path(home) / ".cache" / TOOL_NAME).string();
-        //return std::string(home) + "/.cache/" + TOOL_NAME;
-    }
-#endif
-
-    // 3. TMPDIR (macOS/Linux)
-    const char *tmp = getenv("TMPDIR");
-    if (tmp && *tmp) {
-        return (std::filesystem::path(home) / TOOL_NAME).string();
-//        return std::string(tmp) + "/" + TOOL_NAME;
-    }
-
-    // 4. final fallback
-    return (std::filesystem::path("/tmp") / TOOL_NAME).string();
-//    return std::string("/tmp/") + TOOL_NAME;
+    // Auto-detect: match the executable BASENAME exactly. A substring match
+    // false-positives on any path containing "trun" - a binary named 'trunembedded',
+    // or any target under a '.../testrunner/...' directory - which would make tcov
+    // inject --sequential/--coverage and trap SIGUSR1 for a non-trun target and then
+    // hang waiting for a dylib-load signal that never comes. Use --trun to force a
+    // renamed trun binary, --no-trun to force a generic binary that happens to be
+    // named "trun".
+    return std::filesystem::path(target).filename() == "trun";
 }

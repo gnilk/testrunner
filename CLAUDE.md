@@ -45,7 +45,12 @@ Fetched automatically by CMake via FetchContent — no manual install needed:
 - `gnklog` (gnilk's logging library, interface-compatible with embedded)
 - `cpptrace` v0.7.1
 
-System requirement on Linux for `tcov`: `liblldb-dev` and `binutils-dev`.
+System requirement on Linux for `tcov`: `liblldb-dev` to **build**, plus `lldb-server` on the `PATH`
+at **runtime** (the distro `lldb` package) — `tcov` auto-detects it (probing `lldb-server`,
+`lldb-server-25`…`-15` via `which`) or takes `--lldb-server <path>`; if none is found it aborts. On
+macOS the LLDB debug server (`debugserver`) ships with Xcode, so there is no runtime setup (the
+`lldb-server` detection is Linux-only, `#ifdef LINUX` in `tcov.cpp`). (The runner also needs
+`binutils` for the `nm` binary — see the README; the `-dev` headers are not used.)
 
 ## Running the internal tests
 

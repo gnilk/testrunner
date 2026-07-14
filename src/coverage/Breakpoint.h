@@ -12,13 +12,12 @@
 #include <lldb/API/SBBreakpoint.h>
 #include <lldb/API/SBTarget.h>
 #include <lldb/API/SBCompileUnit.h>
-#include <lldb/API/SBSymbol.h>
 
 #include <vector>
 #include <string>
 #include <unordered_map>
 #include <stdint.h>
-#include "SymbolTypeChecker.h"
+#include "SymbolResolver.h"
 
 namespace tcov {
     struct Breakpoint {
@@ -29,21 +28,23 @@ namespace tcov {
     };
     struct Function {
         using Ref = std::shared_ptr<Function>;
-        lldb::addr_t startLoadAddress = {};
-        lldb::addr_t endLoadAddress = {};
-        lldb::SBSymbol symbol = {};
-        uint32_t startLine = 0;
-        std::string name = {};       // will I have this?
+        // STATIC data - the single source of truth is SymbolResolver::ResolveForTarget.
+        // Function composes the resolved SymbolInfo (D3/D4): name, file, line and the
+        // [startLoadAddress,endLoadAddress) range all live in `info`, no mirrors.
+        SymbolResolver::SymbolInfo info = {};
+        // DYNAMIC state, owned by the breakpoint layer. The function's start line is NOT here -
+        // it is info.line, the resolver's authoritative value. (Pre-§6 a `startLine` field was
+        // LOWERED while placing breakpoints, but that "lowering" only ever fired on leaked
+        // line entries - cross-file inlined code, now filtered in CreateBreakpointsFunctionRange,
+        // and neighbouring-function lines that mapped a `}` into the range - so it produced wrong
+        // FN: starts, never a legitimately-lower one. Removed: reports read info.line.)
         size_t nHits = 0;
         std::vector<Breakpoint::Ref> breakpoints = {};
 
+        // Normalized (no-args) display name - reports (LCOV/console) use this.
         std::string GetDisplayName() const {
-            auto sbname = std::string(symbol.GetDisplayName());
-            auto shortName = sbname.substr(0, sbname.find('('));
-            return shortName;
+            return info.name;
         }
-
-
     };
     struct CompileUnit {
         using Ref = std::shared_ptr<CompileUnit>;
@@ -54,7 +55,7 @@ namespace tcov {
             Function::Ref ptrFunction = nullptr;
             if (!functions.contains(dispName)) {
                 ptrFunction = std::make_shared<Function>();
-                ptrFunction->name = dispName;
+                ptrFunction->info.full = dispName;   // identity == the with-args map key (D5)
                 functions[dispName] = ptrFunction;
             } else {
                 ptrFunction = functions[dispName];
@@ -81,14 +82,11 @@ namespace tcov {
         BreakpointManager() = default;
         virtual ~BreakpointManager() = default;
 
-        int CreateCoverageForSymbol(lldb::SBTarget &target, const std::string &symbol);
+        int CreateCoverageForSymbol(lldb::SBTarget &target, const SymbolResolver::SymbolInfo &info);
         std::vector<FunctionCoverage> ComputeCoverage() const;
     protected:
-        SymbolTypeChecker::SymbolType CheckSymbolType(lldb::SBTarget &target, const std::string &symbol);
-        int CreateCoverageForFunction(lldb::SBTarget &target, const std::string &symbol);
-        int CreateCoverageForClass(lldb::SBTarget &target, const std::string &symbol);
+        int CreateCoverageForFunction(lldb::SBTarget &target, const SymbolResolver::SymbolInfo &info);
         int CreateBreakpointsFunctionRange(lldb::SBTarget &target, lldb::SBCompileUnit &compileUnit, Function::Ref ptrFunction);
-        std::vector<std::string> EnumerateMembers(lldb::SBTarget &target, const std::string &className);
         CompileUnit::Ref GetOrAddCompileUnit(const std::string &&pathName);
 
 

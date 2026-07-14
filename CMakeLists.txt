@@ -102,6 +102,8 @@ set(TRUN_IS_HOST_BUILD ON)
 add_subdirectory(${CMAKE_SOURCE_DIR}/src/app/trun)
 
 if(BUILD_TCOV)
+    # tcovcore (coverage engine + LLDB wiring) + tcovutest, then the thin tcov CLI.
+    add_subdirectory(${CMAKE_SOURCE_DIR}/src/coverage)
     add_subdirectory(${CMAKE_SOURCE_DIR}/src/app/tcov)
 endif()
 

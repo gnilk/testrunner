@@ -31,12 +31,21 @@
 //   ! Allow wildcards in symbols, like 'pucko::*'
 //   ! Make the split between target options and tcov '--' (like lldb/gdb does it)
 // ! Support for GCOV/LCOV reporting
-// + Inline members do not work, see comments in 'Breakpoint.cpp' (should work now - needs proper testing)
+// ! Inline members: cross-file inlined code (e.g. libc++ <string> inlined into a body) leaked
+//   into a function's [start,end) range and was tallied against THIS .cpp - phantom DA: lines
+//   and bogus (lowered) FN: starts. Fixed in Breakpoint.cpp CreateBreakpointsFunctionRange:
+//   skip line entries whose file != the compile unit's file (default-on, §6/Phase 4). The
+//   per-function analog (D6) already lives in the resolver.
 // ! Generate better reports (ideally some file that can be imported in the IDE)
 //   LCOV and DIFF implemented
 // ! Ability to run multiple reports in one go (i.e combine LCOV with DIFF)
-// + Test multi-statement coverage 'if (X && Y)' - if X failed Y might not be evalulated
-// - Prolouge statements are still reported as untested (single lines with '}' for instance)
+// ! Multi-statement coverage 'if (X && Y)' - PARTIAL: ComputeCoverage removes a line that is
+//   both covered and uncovered (counts it covered); true column-level branch distinction is not
+//   supported (documented beta limitation).
+// ! Prologue lines (single lines with '}') can still be reported untested - DEFERRED as a
+//   documented beta limitation. The candidate fixes (drop column-0 line entries; drop the
+//   breakpoint at the exact function start address) are too aggressive - they risk dropping real
+//   executable lines - so they are left out by default rather than shipped blindly.
 // - Ability to pass arguments to the report generator
 //   This will be tricky with the comma separated list of reports..
 // - If we allow multiple -R arguments we need to enhance the ArgParser to continue parsing
@@ -128,6 +137,8 @@ static void PrintUsage(const char *prgname) {
     printf("  -t, --target            Target executable to run (default: trun)\n");
     printf("  -R, --Report            Comma separated list of report engines (base, lcov, diff)\n");
     printf("  -s, --symbols           Comma separated list of symbols to track for coverage\n");
+    printf("  --trun                  Force treating the target as 'trun' (dylib-load sync)\n");
+    printf("  --no-trun               Force treating the target as a generic (non-trun) executable\n");
     printf("  --version               Print version information, then exit\n");
     printf("Linux\n");
     printf("  --lldb-server <path>    Set the full path to the lldb-server binary\n");
@@ -154,7 +165,6 @@ static kParseArgRes ParseArguments(int argc, const char *argv[]) {
     //argparser.TryParse("-h","--help")
     if (argparser.IsPresent("-hH?","--help")) {
         PrintUsage(argv[0]);
-//        printf("  -i, --tcov-ipc-name <ipc>  Name of the IPC FIFO to use for communication\n");
         return kExit;
     }
     if (argparser.IsPresent("", "--version")) {
@@ -163,18 +173,19 @@ static kParseArgRes ParseArguments(int argc, const char *argv[]) {
     }
 
 
-    // Check if cache directory is specified on the cmd-line, if it is we use it, otherwise we resolve it...
-    std::string cache_dir;
-    cache_dir = *argparser.TryParse(cache_dir, "", "--cache-dir");
-    if (cache_dir.empty()) {
-        cache_dir = Config::Instance().ResolveCacheDir();
-    }
-    Config::Instance().cache_dir = cache_dir;
     Config::Instance().verbose = argparser.CountPresence("-v", "--verbose");
     Config::Instance().target = *argparser.TryParse(Config::Instance().target, "-t","--target");
     Config::Instance().symbolString = *argparser.TryParse(Config::Instance().symbolString, "-s","--symbols");
     Config::Instance().lldb_server_path = *argparser.TryParse(Config::Instance().lldb_server_path, "","--lldb-server");
     Config::Instance().internal_test_startup = argparser.IsPresent("", "--test-startup");
+
+    // trun auto-detection override (default: detect by basename == "trun")
+    if (argparser.IsPresent("", "--trun")) {
+        Config::Instance().trunDetect = Config::TrunDetect::kForceTrun;
+    } else if (argparser.IsPresent("", "--no-trun")) {
+        Config::Instance().trunDetect = Config::TrunDetect::kForceGeneric;
+    }
+
     if (argparser.IsPresent("-R","--Report")) {
         // Save the default
         std::string reportArg = Config::Instance().reportEngines[0];
@@ -198,14 +209,16 @@ static kParseArgRes ParseArguments(int argc, const char *argv[]) {
     auto logger = gnilk::Logger::GetLogger("CoverageRunner");
     logger->Info("Coverage tool version: v%s", Config::Instance().version.c_str());
     logger->Info("Running with verbose level: %d", Config::Instance().verbose);
-    logger->Info("Cache directory set to: %s", Config::Instance().cache_dir.c_str());
 
     PrepareCoverageSymbols();
 
 
-    // Are we running trun?
-    if (Config::Instance().IsTrunTarget()) {
-        if (!Config::Instance().internal_test_startup && (argparser.CopyAllAfter(Config::Instance().target_args, "--") < 0)) {
+    // Copy target args after '--' for ANY target (a generic exec may also take args).
+    // CopyAllAfter returns -1 only when there is no '--' token at all - and then it
+    // copies nothing. A missing '--' is an error for trun (it needs its library arg),
+    // but a generic target may legitimately run with no extra args.
+    if (!Config::Instance().internal_test_startup) {
+        if ((argparser.CopyAllAfter(Config::Instance().target_args, "--") < 0) && Config::Instance().IsTrunTarget()) {
             fprintf(stderr, "Unable to parse target arguments\n");
             PrintUsage(argv[0]);
             return kExit;
@@ -213,6 +226,7 @@ static kParseArgRes ParseArguments(int argc, const char *argv[]) {
     }
 
 #ifdef LINUX
+
     // Note: this is not needed on macOS as the LLDB Server process is already running - at least if you have xcode installed
     if (!IsLLDBServerPresent()) {
         fprintf(stderr, "Unable to find or detect the lldb server, you can specify path to the 'lldb-server' binary with '--lldb-server <path to binary>'\n");
@@ -282,17 +296,6 @@ int main(int argc, const char *argv[]) {
 #ifdef LINUX
 static bool IsLLDBServerPresent() {
     auto logger = gnilk::Logger::GetLogger("CoverageRunner");
-
-    // If someone is using this variable - they know what they are doing, but we verify anyway..
-    const char *currentLLDB = getenv("LLDB_DEBUGSERVER_PATH");
-    if (currentLLDB != nullptr) {
-        auto currentLLDBPath = std::string();
-        if (!currentLLDBPath.empty() && IsValidLLDBServer(currentLLDBPath)) {
-            logger->Info("'LLDB_DEBUGSERVER_PATH' env found and verified - using");
-            Config::Instance().lldb_server_path = currentLLDBPath;
-            return true;
-        }
-    }
 
     // Verify currently configured pathname
     if (IsValidLLDBServer(Config::Instance().lldb_server_path)) {
