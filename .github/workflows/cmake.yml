@@ -54,6 +54,16 @@ jobs:
       # A full self-run is not used as a gate: the suite intentionally fails 15 self-tests (non-zero).
       run: ./trun -lx lib/libtrun_utests.so
 
+    - name: Coverage-engine unit tests (tcov_utests - pure logic, no lldb-server)
+      working-directory: ${{github.workspace}}/build
+      # tcov_utests are pure unit tests of the coverage engine (symbol resolution, config
+      # parsing, breakpoint bookkeeping). They link liblldb but never spawn lldb-server, so
+      # they run here with only liblldb-dev present. Unlike the full trun self-suite this
+      # library has NO intentional self-fails, so a non-zero exit is a real regression - it
+      # gates the build, giving Linux logic-validation of the coverage engine that the
+      # trun -lx smoke test alone does not. Linux only: tcov is forced off on Windows.
+      run: ./trun lib/libtcov_utests.so
+
     # Packaging + artifact upload only where a package is actually consumed: master
     # pushes (grabbable by beta testers) and tag pushes (fed to the release job). On
     # dev pushes and on any PR the job stops after the smoke test - build validation only.
