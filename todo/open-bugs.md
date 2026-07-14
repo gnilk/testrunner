@@ -15,11 +15,9 @@ dedicated doc if a cluster grows around any of them.
   (`responseproxy.cpp`). The whole `QueryInterface`/`ITestingConfig`/`ITestingCoverage` extension
   mechanism is experimental + unused outside its own tests — candidate for removal from `ITesting`.
   tcov's `--symbols` static-breakpoint path is the supported coverage workflow and is unaffected.
-- **`SymbolResolver::IsInProject`** (`src/coverage/SymbolResolver.cpp:41-50`) is a no-op: it
-  `return true;` on the first line, leaving the real path-filtering logic dead below it — including a
-  hardcoded `/your/project/root/` placeholder that would never match anyway. The "don't enumerate
-  symbols outside the project root" filter does nothing; coverage relies entirely on the
-  `IsCoverageSymbol` name filter. Either implement the project-root resolution or drop the function.
+- **`SymbolResolver::IsInProject` no-op** → **promoted to its own task:**
+  `todo/tcov_isinproject_filter.md` (2026-07-14). The always-`true` project-root filter (implement vs
+  delete) is tracked there, out of this catch-all.
 
 ### IPC (latent, low priority)
 

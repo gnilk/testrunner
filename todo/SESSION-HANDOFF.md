@@ -28,7 +28,7 @@ Pick-up notes for continuing on a clean slate.
 > (unit tests), but **not a live `tcov` coverage run** on Linux — CI has no `lldb-server`. So tcov's *runtime*
 > on Linux is **still unconfirmed** (the maintainer works on macOS and hadn't had time to verify Linux). That,
 > plus the *experimental → beta* doc-label flip and `dev → master`, remain gated on the normal release process.
-> The one open code residual is the `IsInProject` no-op (`open-bugs.md`).
+> The one open code residual is the `IsInProject` no-op — now its own task, `todo/tcov_isinproject_filter.md`.
 >
 > ---
 >
@@ -334,7 +334,9 @@ gh release delete v0.0.0-ci-test --cleanup-tag --yes  # tears down release + rem
    plan archived to `todo/done/tcov_cleanup.md`). All 6 phases + 5 beta gates; CI green incl. the new
    Linux `tcov_utests` gate. **Not yet shipped:** tcov's Linux *runtime* is still unconfirmed (no
    `lldb-server` in CI) and the *experimental → beta* label + `dev → master` follow the release gate.
-   One code residual: the `SymbolResolver::IsInProject` no-op (`todo/open-bugs.md`).
+5. **`tcov` `IsInProject` no-op filter** — `todo/tcov_isinproject_filter.md` (promoted 2026-07-14 from
+   `open-bugs.md`). Small, self-contained: implement a real project-root filter or delete the dead
+   function + its `SymbolResolver.cpp:126` call site. Needs a maintainer decision (leaning delete).
 
 (`signal_handling` is no longer open work — **deprecated** 2026-07-03, moved to
 `todo/deprecated/signal_handling.md`; see Repo state above.)

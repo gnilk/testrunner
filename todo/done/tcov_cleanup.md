@@ -3,7 +3,7 @@
 > **✅ RESOLVED (branch `tcov_beta`, merged to `dev` 2026-07-14, merge `28a9e4f`).** All 6 phases
 > (0–5) and all 5 beta gates done; CI green on Linux + Windows (the merge added a Linux `tcov_utests`
 > gate). Filed to `todo/done/`. **One residual, deliberately out of scope:** the `IsInProject` no-op
-> filter (§2 last bullet) — tracked canonically in `todo/open-bugs.md`. Not shipped yet: the
+> filter (§2 last bullet) — now its own task, `todo/tcov_isinproject_filter.md`. Not shipped yet: the
 > *experimental → beta* doc label + `dev → master` still follow the normal release gate (see §8).
 
 > **Status: assessment + roadmap (2026-07-08).** This is a planning document, not a change.
@@ -225,9 +225,10 @@ After §2 — one authoritative resolver, dynamic-only manager
   the whole `SymbolInfo`.
 - `!` Fix the mislabeled logger — `ResolveForTarget` logged as `"SymbolTypeChecker"`; **DONE:** renamed to
   `"SymbolResolver"`.
-- `-` *Adjacent (not core to this split):* the `IsInProject` stub (`SymbolResolver.cpp:41-50`,
+- `!` *Adjacent (not core to this split):* the `IsInProject` stub (`SymbolResolver.cpp:45-54`,
   `return true;` + dead `/your/project/root/` body) — implement the project-root filter or delete
-  it. (Also tracked in `todo/open-bugs.md`.)
+  it. **Promoted out of this plan (2026-07-14) to its own task: `todo/tcov_isinproject_filter.md`**
+  (still open there — the `!` here means "handed off", not "fixed").
 
 > **TDD-guarded:** the D1/D3/D4/D5 behaviours above are pinned by `tcov_utests` tests written *before*
 > this refactor (§0) — red pre-refactor, green after.
