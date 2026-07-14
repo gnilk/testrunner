@@ -14,3 +14,6 @@ trunwindows/.vs/
 trunwindows/trunwindows.vcxproj.user
 *.obj
 trunwindows/*/x64
+
+# macOS Finder metadata
+.DS_Store
