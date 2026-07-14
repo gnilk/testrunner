@@ -390,9 +390,19 @@ tcov leaves *experimental* when:
    `test_breakpoint_func_startlinefrominfo`.
 
 > **All five gates met (2026-07-10, after Phase 4).** Every phase (0–5) is on `tcov_beta`.
-> The actual *experimental → beta* label flip in user-facing docs travels with the
-> `tcov_beta` → `dev` merge, which follows the normal release gate (version bump +
-> cross-project validation) and is not taken unprompted.
+>
+> **Merged down to `dev` (2026-07-14, merge commit `28a9e4f`; `tcov_beta` deleted local +
+> origin).** Done as an integration/CI step — to get the Linux + Windows validation the macOS
+> maintainer can't run locally — **not** the release-gate promotion. The merge also added a CI
+> gate (`.github/workflows/cmake.yml`) that runs `tcov_utests` on Linux (pure logic, no
+> `lldb-server` needed). CI on the `dev` push is **green**: both platform builds pass and the
+> coverage-engine tests report **17/17** on Linux.
+>
+> Still outstanding before beta actually ships: a live `tcov` coverage **run** on Linux (CI has
+> no `lldb-server`, so tcov's *runtime* on Linux is still unvalidated — only build + engine-logic
+> are), the *experimental → beta* label flip in user-facing docs, and `dev → master` — which
+> follow the normal release gate (version bump + cross-project validation) and are not taken
+> unprompted.
 
 ---
 
@@ -414,6 +424,10 @@ Phases 1 and 5 are safe to do first and independently.
 
 All beta work lives on a dedicated line off `dev`; each phase is its own short-lived branch that
 merges back to the integration branch, and only the finished beta merges down to `dev`.
+
+> **Flow completed (2026-07-14).** Phases 0–5 merged into `tcov_beta`, then `tcov_beta` merged
+> down to `dev` (merge commit `28a9e4f`) and the branch was deleted (local + origin). See the §8
+> banner for the merge's CI status and what remains before the beta label ships.
 
 - **`tcov_beta`** — long-lived integration branch, cut from `dev`. Holds this plan and every merged phase.
 - **`tcov_beta/phase0`, `tcov_beta/phase1`, …** — one branch per phase, cut **from `tcov_beta`**.
